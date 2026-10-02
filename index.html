@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v7.4</title>
+<title>Baltic Weather Map v7.5</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=7.4">
+<link rel="stylesheet" href="css/style.css?v=7.5">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
 
 <div class="panel">
   <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v7.4 · GeoColour by day · IR10.5 by night</div>
+  <div class="subtitle">Serverless v7.5 · GeoColour by day · IR10.5 by night</div>
 
   <div class="row wrap">
     <div>
@@ -47,12 +47,17 @@
       <span class="badge">2 m air</span>
     </div>
     <div class="details">
+      <div class="row">
+        <label class="label"><input id="heatmapOn" type="checkbox" checked> Temperature heatmap</label>
+        <span class="badge">Baltics + Nordics</span>
+      </div>
+      <div class="small">Heatmap density</div>
       <div class="grid2">
         <input id="tempOpacity" type="range" min="0" max="100" value="58">
         <span id="tempOpacityVal" class="value">58%</span>
       </div>
       <div class="legend temp-legend"></div>
-      <div class="small">15-minute 2 m temperature field for Estonia, Latvia and Lithuania, plus °C readings across Finland, Sweden, Norway and Iceland; follows the shared 2-hour timeline.</div>
+      <div class="small">15-minute 2 m temperature readings and heatmaps for the Baltics, Finland, Sweden, Norway and Iceland; follows the shared 2-hour timeline.</div>
       <div id="tempStatus" class="status">Temperature layer is off.</div>
     </div>
   </div>
@@ -85,6 +90,22 @@
       <div class="legend"></div>
       <div class="small">Official Harku + Sürgavere precipitation composite.</div>
       <div id="radarStatus" class="status">Radar layer is off. Frame list still loads for the timeline.</div>
+    </div>
+  </div>
+
+  <div class="section weather-section" id="balticRadarSection">
+    <div class="row">
+      <label class="label"><input id="balticRadarOn" type="checkbox"> Latvia + Lithuania rain radar</label>
+      <span class="badge">10 min</span>
+    </div>
+    <div class="details">
+      <div class="grid2">
+        <input id="balticRadarOpacity" type="range" min="0" max="100" value="78">
+        <span id="balticRadarOpacityVal" class="value">78%</span>
+      </div>
+      <div class="legend"></div>
+      <div class="small">Radar mosaic coverage for Latvia and Lithuania, synchronized to the shared 2-hour timeline.</div>
+      <div id="balticRadarStatus" class="status">Latvia + Lithuania radar is off.</div>
     </div>
   </div>
 
@@ -125,19 +146,19 @@
 
   <div class="credit">
     Topographic map © OpenStreetMap contributors / SRTM / OpenTopoMap · Satellite © Esri ·
-    Rain radar © Keskkonnaagentuur / KAIA · Cloud imagery © EUMETSAT · GeoColour daylight / FCI IR10.5 night · Warnings © Estonian Environment Agency / KAIA and Lietuvos hidrometeorologijos tarnyba (Meteo.lt). Estonia marine warning-zone overlays are geographic approximations of the official named regions.
+    Estonia rain radar © Keskkonnaagentuur / KAIA · Latvia/Lithuania radar mosaic © RainViewer · Cloud imagery © EUMETSAT · GeoColour daylight / FCI IR10.5 night · Warnings © Estonian Environment Agency / KAIA and Lietuvos hidrometeorologijos tarnyba (Meteo.lt). Estonia marine warning-zone overlays are geographic approximations of the official named regions.
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
-<script src="js/config.js?v=7.4"></script>
-<script src="js/map.js?v=7.4"></script>
-<script src="js/warnings.js?v=7.4"></script>
-<script src="js/temperature.js?v=7.4"></script>
-<script src="js/clouds.js?v=7.4"></script>
-<script src="js/radar.js?v=7.4"></script>
-<script src="js/app.js?v=7.4"></script>
+<script src="js/config.js?v=7.5"></script>
+<script src="js/map.js?v=7.5"></script>
+<script src="js/warnings.js?v=7.5"></script>
+<script src="js/temperature.js?v=7.5"></script>
+<script src="js/clouds.js?v=7.5"></script>
+<script src="js/radar.js?v=7.5"></script>
+<script src="js/app.js?v=7.5"></script>
 </body>
 </html>
