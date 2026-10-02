@@ -1087,7 +1087,7 @@ const NORDIC_WARNING_SOURCES=[
 ];
 
 const NORDIC_WARNING_PAGE='https://meteoalarm.org/';
-const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV81';
+const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV82';
 const NORDIC_WARNING_CACHE_MAX_AGE=6*60*60*1000;
 const NORDIC_WARNING_REFRESH_MS=15*60*1000;
 
@@ -1214,7 +1214,35 @@ function parseNordicCap(xmlText,preferredArea=''){
   const selected=areas.find(a=>{
     const n=normalizeWarningArea(a.area);
     return wanted && n && (n===wanted || n.includes(wanted) || wanted.includes(n));
-  }) || (areas.length===1?areas[0]:null);
+  }) || areas.find(a=>a.polygons.length || a.circles.length) || areas[0] || null;
+
+  // CAP alerts may contain several <area> blocks. Finland in particular can
+  // publish one warning with multiple geographic areas and localized areaDesc
+  // names. The old parser kept geometry only from an exact area-name match,
+  // which could leave a valid Finnish warning card with zero map polygons.
+  //
+  // Every geometry in the selected CAP <info> belongs to this alert, so retain
+  // all of it and deduplicate identical shapes before rendering.
+  const polygonMap=new Map();
+  const circleMap=new Map();
+
+  for(const area of areas){
+    for(const polygon of area.polygons){
+      const key=polygon
+        .map(([lat,lon])=>lat.toFixed(5)+','+lon.toFixed(5))
+        .join(' ');
+      if(!polygonMap.has(key)) polygonMap.set(key,polygon);
+    }
+
+    for(const circle of area.circles){
+      const key=[
+        circle.center[0].toFixed(5),
+        circle.center[1].toFixed(5),
+        circle.radiusKm.toFixed(3)
+      ].join(',');
+      if(!circleMap.has(key)) circleMap.set(key,circle);
+    }
+  }
 
   return {
     headline:xmlLocalText(info,'headline'),
@@ -1225,8 +1253,8 @@ function parseNordicCap(xmlText,preferredArea=''){
     description:xmlLocalText(info,'description'),
     instruction:xmlLocalText(info,'instruction'),
     area:selected?.area||preferredArea,
-    polygons:selected?.polygons||[],
-    circles:selected?.circles||[]
+    polygons:[...polygonMap.values()],
+    circles:[...circleMap.values()]
   };
 }
 
