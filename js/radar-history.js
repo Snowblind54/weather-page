@@ -17,7 +17,12 @@ async function radarText(url){
     try{
       const r=await fetch(u,{cache:'no-store',signal:c.signal});
       if(!r.ok) throw new Error('HTTP '+r.status);
-      return {text:await r.text(),url:r.url||url};
+      let baseUrl=url;
+      try{
+        const finalUrl=new URL(r.url||url);
+        if(!finalUrl.hostname.includes('proxy.cors.dev')) baseUrl=finalUrl.href;
+      }catch(_){}
+      return {text:await r.text(),url:baseUrl};
     }finally{clearTimeout(t)}
   };
   try{return await get(url)}catch(_){return await get(directRadarProxyUrl(url))}
@@ -53,7 +58,7 @@ async function animationBundle(url,force=false){
   const blob=await fetchDirectRadarBlob(url);
   const head=new Uint8Array(await blob.slice(0,6).arrayBuffer());
   const sig=String.fromCharCode(...head);
-  const isGif=/^GIF8[79]a/.test(sig)||/\.gif(?:$|\?)/i.test(url)||String(blob.type||'').includes('gif');
+  const isGif=/^GIF8[79]a/.test(sig)||/\.gif(?:$|[?&#])/i.test(url)||String(blob.type||'').includes('gif');
   const type=isGif?'image/gif':(blob.type||'image/png');
   let count=1;
   if(isGif&&'ImageDecoder' in window){
@@ -112,8 +117,10 @@ async function ltHistory(source,target,force=false){
 function lvCandidate(raw,base){
   try{
     const u=new URL(String(raw||'').replaceAll('&amp;','&'),base);
-    if(!/(^|\.)meteo\.lv$/i.test(u.hostname))return '';
-    if(!/(radar|rix_250)/i.test(u.href)||!/\.gif(?:$|\?)/i.test(u.href))return '';
+    const host=u.hostname.toLowerCase();
+    const official=host==='meteo.lv'||host.endsWith('.meteo.lv')||host==='lvgmc.lv'||host.endsWith('.lvgmc.lv');
+    if(!official)return '';
+    if(!/(radar|rix_250)/i.test(u.href)||!/\.gif(?:$|[?&#])/i.test(u.href))return '';
     return u.href;
   }catch(_){return ''}
 }
@@ -122,19 +129,19 @@ async function discoverLvAnimation(force=false){
   if(!force&&lvDiscoveryCache&&Date.now()-lvDiscoveryCache.at<LV_DISCOVERY_TTL)return lvDiscoveryCache.url;
   const src=DIRECT_RADAR_SOURCES.find(s=>s.id==='lv');
   const urls=new Set(src?[src.url.replace(/\.png(?=$|&|\?)/i,'.gif')]:[]);
-  for(const page of ['https://www.meteo.lv/radars/?nid=482','https://www.meteo.lv/public/28641.html']){
+  for(const page of ['https://www.meteo.lv/radars/?nid=482','https://www.meteo.lv/public/28641.html','https://videscentrs.lvgmc.lv/']){
     try{
       const r=await radarText(page),doc=new DOMParser().parseFromString(r.text,'text/html');
       for(const el of doc.querySelectorAll('[src],[href]')){
-        const u=lvCandidate(el.getAttribute('src')||el.getAttribute('href'),page);if(u)urls.add(u);
+        const u=lvCandidate(el.getAttribute('src')||el.getAttribute('href'),r.url||page);if(u)urls.add(u);
       }
       for(const m of r.text.matchAll(/(?:https?:\/\/[^\s"'<>]+|\/?[^\s"'<>]+?\.gif(?:\?[^\s"'<>]*)?)/gi)){
-        const u=lvCandidate(m[0],page);if(u)urls.add(u);
+        const u=lvCandidate(m[0],r.url||page);if(u)urls.add(u);
       }
     }catch(e){console.warn('LV radar animation discovery',e)}
   }
   let found='';
-  for(const u of [...urls].slice(0,8)){
+  for(const u of [...urls].slice(0,10)){
     try{const b=await animationBundle(u,force);if(b.count>1){found=u;break}}catch(_){}
   }
   lvDiscoveryCache={at:Date.now(),url:found};return found;
