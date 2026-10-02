@@ -74,8 +74,10 @@ $('tempOn').addEventListener('change',async()=>{
     await loadTemperatures();
   }catch(e){
     console.error(e);
-    $('tempStatus').textContent='Temperature layer could not load: '+e.message;
-    $('tempStatus').className='status bad';
+    $('tempStatus').textContent=e.rateLimited
+      ? 'Temperature service is rate limited right now. Please try again in about a minute.'
+      : 'Temperature layer could not load: '+e.message;
+    $('tempStatus').className=e.rateLimited?'status warn':'status bad';
   }
 });
 
