@@ -212,13 +212,13 @@ bootstrap();
 // work only; the heatmap image itself is still created on demand.
 const startTemperaturePrefetch=()=>prefetchTemperatures();
 if('requestIdleCallback' in window){
-  requestIdleCallback(startTemperaturePrefetch,{timeout:3500});
+  requestIdleCallback(startTemperaturePrefetch,{timeout:7000});
 }else{
-  setTimeout(startTemperaturePrefetch,2500);
+  setTimeout(startTemperaturePrefetch,6000);
 }
 setInterval(()=>loadOfficialRadarList().catch(()=>{}),5*60*1000);
 setInterval(()=>{
-  if($('tempOn').checked) loadTemperatures(true).catch(()=>{});
+  if($('tempOn').checked) loadTemperatures(false).catch(()=>{});
 },10*60*1000);
 
 setInterval(()=>{
