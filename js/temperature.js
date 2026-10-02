@@ -343,31 +343,9 @@ function scheduleTemperaturePrecache(centerUnix){
   },250);
 }
 
-async function loadTemperatures(force=false){
-  const now=Date.now();
-
-  if(!force && temperatureSeries.length && now-temperatureLoadedAt<10*60*1000){
-    const i=Number($('timeline').value);
-    const frame=frames[i];
-    if(frame) queueTemperatureRender(frame.time,0);
-    return;
-  }
-
-  $('tempStatus').textContent='Temperature: loading recent 15-minute data…';
-  $('tempStatus').className='status';
-
-  // Dense Baltic grid for the colour field, plus exact Nordic city points
-  // for Finland, Sweden, Norway and Iceland temperature readouts.
-  const pts=[];
-  for(let lat=53.85;lat<=59.85;lat+=0.55){
-    for(let lon=20.55;lon<=28.45;lon+=0.95){
-      pts.push([+lat.toFixed(2),+lon.toFixed(2)]);
-    }
-  }
-  pts.push(...NORDIC_TEMP_POINTS);
-
-  const lats=pts.map(p=>p[0]).join(',');
-  const lons=pts.map(p=>p[1]).join(',');
+async function fetchTemperatureSeries(points){
+  const lats=points.map(p=>p[0]).join(',');
+  const lons=points.map(p=>p[1]).join(',');
 
   const url='https://api.open-meteo.com/v1/forecast?latitude='+encodeURIComponent(lats)+
             '&longitude='+encodeURIComponent(lons)+
@@ -382,20 +360,57 @@ async function loadTemperatures(force=false){
   const j=await r.json();
   const arr=Array.isArray(j)?j:[j];
 
-  temperatureSeries=arr.map((v,i)=>{
+  return arr.map((v,i)=>{
+    const point=points[i];
+    if(!point) return null;
+
     const times=(v.minutely_15?.time||[]).map(s=>Math.floor(Date.parse(s+'Z')/1000));
     const temps=(v.minutely_15?.temperature_2m||[]).map(Number);
 
     return {
-      lat:pts[i][0],
-      lon:pts[i][1],
+      lat:point[0],
+      lon:point[1],
       times,
       temps
     };
-  }).filter(v=>v.times.length && v.temps.some(Number.isFinite));
+  }).filter(v=>v && v.times.length && v.temps.some(Number.isFinite));
+}
 
-  if(!temperatureSeries.length)
-    throw new Error('no temperature timeline returned');
+async function loadTemperatures(force=false){
+  const now=Date.now();
+
+  if(!force && temperatureSeries.length && now-temperatureLoadedAt<10*60*1000){
+    const i=Number($('timeline').value);
+    const frame=frames[i];
+    if(frame) queueTemperatureRender(frame.time,0);
+    return;
+  }
+
+  $('tempStatus').textContent='Temperature: loading Baltic field + Nordic readings…';
+  $('tempStatus').className='status';
+
+  // Keep the dense Baltic grid and the Nordic city readings in separate API
+  // requests. This avoids large multi-location requests dropping the points
+  // appended at the end of the list.
+  const balticPts=[];
+  for(let lat=53.85;lat<=59.85;lat+=0.55){
+    for(let lon=20.55;lon<=28.45;lon+=0.95){
+      balticPts.push([+lat.toFixed(2),+lon.toFixed(2)]);
+    }
+  }
+
+  const [balticSeries,nordicSeries]=await Promise.all([
+    fetchTemperatureSeries(balticPts),
+    fetchTemperatureSeries(NORDIC_TEMP_POINTS)
+  ]);
+
+  temperatureSeries=[...balticSeries,...nordicSeries];
+
+  if(!balticSeries.length)
+    throw new Error('no Baltic temperature timeline returned');
+
+  if(!nordicSeries.length)
+    throw new Error('no Nordic temperature readings returned');
 
   temperatureLoadedAt=Date.now();
 
