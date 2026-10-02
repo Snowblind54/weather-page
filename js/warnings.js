@@ -705,6 +705,7 @@ async function loadWarnings(force=false){
 
   if(ltResult?.fromCache) parts.push('LT cached');
   if(nordicResult?.fromCache) parts.push('Nordics cached');
+  if(nordicResult?.finlandOfficial===false) parts.push('FI text fallback');
   if(estoniaError) parts.push('EE unavailable');
   if(ltError) parts.push('LT unavailable');
   if(nordicError) parts.push('Nordics unavailable');
