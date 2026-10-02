@@ -634,17 +634,14 @@ async function loadWarnings(force=false){
   if(!$('warningOn').checked) return;
 
   const generation=++warningLoadGeneration;
-
-  $('warningStatus').textContent='Loading Estonia warnings…';
+  $('warningStatus').textContent='Loading severe weather warnings…';
   $('warningStatus').className='status';
 
   let estoniaError=null;
-
   try{
     if(force || Date.now()-estoniaWarningFetchedAt>=10*60*1000){
       const result=await fetchKaiaWarningXml();
       if(generation!==warningLoadGeneration) return;
-
       warningRecords=result.parsed ?? parseEstoniaWarnings(result.xml);
       estoniaWarningFetchedAt=Date.now();
     }
@@ -655,16 +652,10 @@ async function loadWarnings(force=false){
   }
 
   if(generation!==warningLoadGeneration) return;
-
   await renderWarnings();
-
-  $('warningStatus').textContent=
-    `${warningRecords.length} Estonia warning records loaded · loading Lithuania…`;
-  $('warningStatus').className=estoniaError?'status warn':'status ok';
 
   let ltResult=null;
   let ltError=null;
-
   try{
     ltResult=await loadLithuaniaWarnings(force);
     lithuaniaWarnings=ltResult.records||[];
@@ -675,33 +666,51 @@ async function loadWarnings(force=false){
   }
 
   if(generation!==warningLoadGeneration) return;
-
   const ltMapped=await renderLithuaniaWarnings();
+
+  let nordicResult=null;
+  let nordicError=null;
+  try{
+    nordicResult=await loadNordicWarnings(force);
+    nordicWarnings=nordicResult.records||[];
+  }catch(e){
+    console.error(e);
+    nordicError=e;
+    nordicWarnings=[];
+  }
+
+  if(generation!==warningLoadGeneration) return;
+  const nordicMapped=await renderNordicWarnings();
 
   if(!map.hasLayer(warningLayerGroup)) warningLayerGroup.addTo(map);
   weatherFront();
 
-  const total=warningRecords.length+lithuaniaWarnings.length;
-  const parts=[`${total} EE + LT warning records`];
-
-  if(lithuaniaWarnings.length){
-    parts.push(`${lithuaniaWarnings.length} Lithuania`);
+  const allRecords=[...warningRecords,...lithuaniaWarnings,...nordicWarnings];
+  const counts=new Map();
+  for(const item of allRecords){
+    const country=item.country||'Estonia';
+    counts.set(country,(counts.get(country)||0)+1);
   }
 
-  if(ltMapped){
-    parts.push(`${ltMapped} Lithuania map areas`);
+  const parts=[`${allRecords.length} active warning records`];
+  for(const [country,label] of [
+    ['Estonia','EE'],['Lithuania','LT'],['Finland','FI'],
+    ['Sweden','SE'],['Norway','NO'],['Iceland','IS']
+  ]){
+    if(counts.get(country)) parts.push(`${label} ${counts.get(country)}`);
   }
 
-  if(ltResult?.fromCache){
-    const mins=Math.max(1,Math.round((ltResult.cacheAgeMs||0)/60000));
-    parts.push(`Lithuania cached ${mins} min old`);
-  }
+  const mappedTotal=ltMapped+nordicMapped;
+  if(mappedTotal) parts.push(`${mappedTotal} additional mapped areas`);
 
-  if(estoniaError) parts.push('Estonia unavailable');
-  if(ltError) parts.push('Lithuania unavailable');
+  if(ltResult?.fromCache) parts.push('LT cached');
+  if(nordicResult?.fromCache) parts.push('Nordics cached');
+  if(estoniaError) parts.push('EE unavailable');
+  if(ltError) parts.push('LT unavailable');
+  if(nordicError) parts.push('Nordics unavailable');
 
   $('warningStatus').textContent=parts.join(' · ');
-  $('warningStatus').className=(estoniaError||ltError)?'status warn':'status ok';
+  $('warningStatus').className=(estoniaError||ltError||nordicError)?'status warn':'status ok';
 }
 
 
@@ -1053,3 +1062,479 @@ async function renderLithuaniaWarnings(){
 
   return mapped;
 }
+
+// -----------------------------------------------------------------------------
+// Nordic severe-weather warnings — MeteoAlarm Atom feeds + linked CAP messages
+// -----------------------------------------------------------------------------
+
+const NORDIC_WARNING_SOURCES=[
+  {
+    country:'Finland',flag:'🇫🇮',slug:'finland',
+    feed:'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-finland'
+  },
+  {
+    country:'Sweden',flag:'🇸🇪',slug:'sweden',
+    feed:'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-sweden'
+  },
+  {
+    country:'Norway',flag:'🇳🇴',slug:'norway',
+    feed:'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-norway'
+  },
+  {
+    country:'Iceland',flag:'🇮🇸',slug:'iceland',
+    feed:'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-iceland'
+  }
+];
+
+const NORDIC_WARNING_PAGE='https://meteoalarm.org/';
+const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV81';
+const NORDIC_WARNING_CACHE_MAX_AGE=6*60*60*1000;
+const NORDIC_WARNING_REFRESH_MS=15*60*1000;
+
+let nordicWarnings=[];
+let nordicWarningLoadedAt=0;
+const nordicCapPromiseCache=new Map();
+
+function xmlLocalElements(root,name){
+  return [...root.getElementsByTagName('*')].filter(el=>el.localName===name);
+}
+
+function xmlLocalText(root,name){
+  const el=xmlLocalElements(root,name)[0];
+  return (el?.textContent||'').trim();
+}
+
+function warningSeverity(level){
+  const s=String(level||'').toLowerCase();
+
+  if(s.includes('extreme') || s.includes('red')){
+    return {name:'Red / Extreme',color:'#e03131',rank:3};
+  }
+  if(s.includes('severe') || s.includes('orange')){
+    return {name:'Orange / Severe',color:'#ff8c1a',rank:2};
+  }
+  if(s.includes('moderate') || s.includes('yellow')){
+    return {name:'Yellow / Moderate',color:'#ffd43b',rank:1};
+  }
+
+  return {name:level||'Weather warning',color:'#ffd43b',rank:1};
+}
+
+async function fetchWarningText(url,timeoutMs=12000){
+  const attempt=async target=>{
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),timeoutMs);
+    try{
+      const response=await fetch(target,{
+        cache:'no-store',
+        signal:ctrl.signal,
+        headers:{'Accept':'application/atom+xml,application/xml,text/xml,text/plain,*/*'}
+      });
+      if(!response.ok) throw new Error('HTTP '+response.status);
+      const text=await response.text();
+      if(!text.trim()) throw new Error('empty response');
+      return text;
+    }finally{
+      clearTimeout(timer);
+    }
+  };
+
+  try{
+    return await attempt(url);
+  }catch(directError){
+    try{
+      return await attempt(corsDevUrl(url));
+    }catch(proxyError){
+      throw new Error(
+        'warning feed unavailable ('+
+        (proxyError?.message||directError?.message||'network error')+
+        ')'
+      );
+    }
+  }
+}
+
+function parseCapPolygon(text){
+  const points=String(text||'').trim().split(/\s+/).map(pair=>{
+    const [lat,lon]=pair.split(',').map(Number);
+    return Number.isFinite(lat)&&Number.isFinite(lon)?[lat,lon]:null;
+  }).filter(Boolean);
+
+  return points.length>=3?points:null;
+}
+
+function parseCapCircle(text){
+  const m=String(text||'').trim().match(
+    /^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)$/
+  );
+  if(!m) return null;
+  return {
+    center:[Number(m[1]),Number(m[2])],
+    radiusKm:Number(m[3])
+  };
+}
+
+function normalizeWarningArea(s){
+  return String(s||'')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function chooseCapInfo(doc){
+  const infos=xmlLocalElements(doc,'info');
+  if(!infos.length) return null;
+
+  return infos.find(info=>{
+    const lang=xmlLocalText(info,'language').toLowerCase();
+    return lang==='en' || lang.startsWith('en-');
+  }) || infos[0];
+}
+
+function parseNordicCap(xmlText,preferredArea=''){
+  const doc=new DOMParser().parseFromString(xmlText,'application/xml');
+  if(doc.querySelector('parsererror')) throw new Error('CAP XML parse failed');
+
+  const info=chooseCapInfo(doc);
+  if(!info) return null;
+
+  const areas=xmlLocalElements(info,'area').map(area=>({
+    area:xmlLocalText(area,'areaDesc'),
+    polygons:xmlLocalElements(area,'polygon')
+      .map(el=>parseCapPolygon(el.textContent))
+      .filter(Boolean),
+    circles:xmlLocalElements(area,'circle')
+      .map(el=>parseCapCircle(el.textContent))
+      .filter(Boolean)
+  }));
+
+  const wanted=normalizeWarningArea(preferredArea);
+  const selected=areas.find(a=>{
+    const n=normalizeWarningArea(a.area);
+    return wanted && n && (n===wanted || n.includes(wanted) || wanted.includes(n));
+  }) || (areas.length===1?areas[0]:null);
+
+  return {
+    headline:xmlLocalText(info,'headline'),
+    event:xmlLocalText(info,'event'),
+    severity:xmlLocalText(info,'severity'),
+    effective:xmlLocalText(info,'effective') || xmlLocalText(info,'onset'),
+    expires:xmlLocalText(info,'expires'),
+    description:xmlLocalText(info,'description'),
+    instruction:xmlLocalText(info,'instruction'),
+    area:selected?.area||preferredArea,
+    polygons:selected?.polygons||[],
+    circles:selected?.circles||[]
+  };
+}
+
+async function fetchNordicCap(url,preferredArea){
+  if(!url) return null;
+
+  const key=url+'|'+normalizeWarningArea(preferredArea);
+  if(nordicCapPromiseCache.has(key)) return nordicCapPromiseCache.get(key);
+
+  const promise=(async()=>{
+    const xml=await fetchWarningText(url,12000);
+    return parseNordicCap(xml,preferredArea);
+  })();
+
+  nordicCapPromiseCache.set(key,promise);
+  try{
+    return await promise;
+  }finally{
+    // Keep fulfilled results only during this page session through the Promise map.
+  }
+}
+
+function parseMeteoAlarmAtom(xmlText,source){
+  const doc=new DOMParser().parseFromString(xmlText,'application/xml');
+  if(doc.querySelector('parsererror')) throw new Error(source.country+' Atom XML parse failed');
+
+  const now=Date.now();
+  const records=[];
+
+  for(const entry of xmlLocalElements(doc,'entry')){
+    const area=xmlLocalText(entry,'areaDesc');
+    const event=xmlLocalText(entry,'event') || 'Weather warning';
+    const severity=xmlLocalText(entry,'severity') || 'Moderate';
+    const effective=xmlLocalText(entry,'effective') || xmlLocalText(entry,'onset');
+    const expires=xmlLocalText(entry,'expires');
+    const status=xmlLocalText(entry,'status');
+    const messageType=xmlLocalText(entry,'message_type') || xmlLocalText(entry,'msgType');
+    const identifier=xmlLocalText(entry,'identifier') || xmlLocalText(entry,'id');
+    const title=xmlLocalText(entry,'title');
+
+    if(status && status.toLowerCase()!=='actual') continue;
+    if(messageType && messageType.toLowerCase()==='cancel') continue;
+
+    const expiryMs=Date.parse(expires||'');
+    if(Number.isFinite(expiryMs) && expiryMs<now-2*60*1000) continue;
+
+    let capUrl='';
+    for(const link of xmlLocalElements(entry,'link')){
+      const type=String(link.getAttribute('type')||'').toLowerCase();
+      const href=link.getAttribute('href')||'';
+      if(type.includes('cap+xml') && href){
+        capUrl=href;
+        break;
+      }
+    }
+
+    if(!area && !title) continue;
+
+    records.push({
+      country:source.country,
+      flag:source.flag,
+      sourceSlug:source.slug,
+      area:area||source.country,
+      event,
+      level:severity,
+      headline:title||event,
+      description:'',
+      instruction:'',
+      effective,
+      expires,
+      identifier,
+      capUrl,
+      polygons:[],
+      circles:[]
+    });
+  }
+
+  return records;
+}
+
+async function enrichNordicWarnings(records){
+  // Keep a small concurrency limit so a major warning day does not hammer the feeds.
+  let next=0;
+  const workers=Array.from({length:Math.min(4,records.length)},async()=>{
+    while(true){
+      const index=next++;
+      if(index>=records.length) return;
+
+      const record=records[index];
+      if(!record.capUrl) continue;
+
+      try{
+        const cap=await fetchNordicCap(record.capUrl,record.area);
+        if(!cap) continue;
+
+        record.headline=cap.headline||record.headline;
+        record.event=cap.event||record.event;
+        record.level=cap.severity||record.level;
+        record.effective=cap.effective||record.effective;
+        record.expires=cap.expires||record.expires;
+        record.description=cap.description||record.description;
+        record.instruction=cap.instruction||record.instruction;
+        record.area=cap.area||record.area;
+        record.polygons=cap.polygons||[];
+        record.circles=cap.circles||[];
+      }catch(e){
+        // The Atom feed itself is still enough to show a useful alert card.
+        console.warn('CAP detail unavailable for',record.country,record.area,e);
+      }
+    }
+  });
+
+  await Promise.all(workers);
+  return records;
+}
+
+function dedupeNordicWarnings(records){
+  const mapByKey=new Map();
+
+  for(const record of records){
+    const key=[
+      record.country,
+      normalizeWarningArea(record.area),
+      normalizeWarningArea(record.event),
+      record.effective||'',
+      record.expires||''
+    ].join('|');
+
+    const current=mapByKey.get(key);
+    if(!current || warningSeverity(record.level).rank>warningSeverity(current.level).rank){
+      mapByKey.set(key,record);
+    }
+  }
+
+  return [...mapByKey.values()].sort((a,b)=>{
+    const rank=warningSeverity(b.level).rank-warningSeverity(a.level).rank;
+    if(rank) return rank;
+    const country=String(a.country).localeCompare(String(b.country));
+    if(country) return country;
+    return String(a.area).localeCompare(String(b.area));
+  });
+}
+
+function saveNordicWarningsCache(records){
+  try{
+    localStorage.setItem(NORDIC_WARNING_CACHE_KEY,JSON.stringify({
+      savedAt:Date.now(),
+      records
+    }));
+  }catch(_){}
+}
+
+function loadNordicWarningsCache(){
+  try{
+    const raw=localStorage.getItem(NORDIC_WARNING_CACHE_KEY);
+    if(!raw) return null;
+    const cached=JSON.parse(raw);
+    if(!cached?.savedAt || !Array.isArray(cached.records)) return null;
+    return cached;
+  }catch(_){
+    return null;
+  }
+}
+
+async function loadNordicWarnings(force=false){
+  if(!force &&
+     nordicWarningLoadedAt &&
+     Date.now()-nordicWarningLoadedAt<NORDIC_WARNING_REFRESH_MS){
+    return {records:nordicWarnings,fromCache:false};
+  }
+
+  try{
+    const results=await Promise.allSettled(
+      NORDIC_WARNING_SOURCES.map(async source=>{
+        const xml=await fetchWarningText(source.feed,12000);
+        return parseMeteoAlarmAtom(xml,source);
+      })
+    );
+
+    const loaded=[];
+    const failures=[];
+
+    results.forEach((result,index)=>{
+      if(result.status==='fulfilled') loaded.push(...result.value);
+      else failures.push(NORDIC_WARNING_SOURCES[index].country);
+    });
+
+    // If every country failed, do not overwrite a usable cache.
+    if(failures.length===NORDIC_WARNING_SOURCES.length){
+      throw new Error('all Nordic warning feeds unavailable');
+    }
+
+    await enrichNordicWarnings(loaded);
+    nordicWarnings=dedupeNordicWarnings(loaded);
+    nordicWarningLoadedAt=Date.now();
+    saveNordicWarningsCache(nordicWarnings);
+
+    return {
+      records:nordicWarnings,
+      fromCache:false,
+      failedCountries:failures
+    };
+  }catch(e){
+    const cached=loadNordicWarningsCache();
+    if(cached && Date.now()-cached.savedAt<NORDIC_WARNING_CACHE_MAX_AGE){
+      nordicWarnings=cached.records;
+      nordicWarningLoadedAt=Date.now();
+      return {
+        records:nordicWarnings,
+        fromCache:true,
+        cacheAgeMs:Date.now()-cached.savedAt,
+        error:e
+      };
+    }
+    throw e;
+  }
+}
+
+function nordicWarningPopupHtml(record){
+  const sev=warningSeverity(record.level);
+  const start=record.effective?new Date(record.effective).toLocaleString():'';
+  const end=record.expires?new Date(record.expires).toLocaleString():'';
+
+  return `<div class="warning-popup">
+    <h3>${htmlEscape(record.flag+' '+(record.headline||record.event))}</h3>
+    <p class="sev" style="color:${sev.color}">${htmlEscape(sev.name)}</p>
+    <p><b>Country:</b> ${htmlEscape(record.country)}</p>
+    <p><b>Area:</b> ${htmlEscape(record.area)}</p>
+    ${start||end?`<p><b>Valid:</b> ${htmlEscape(start)}${start&&end?' – ':''}${htmlEscape(end)}</p>`:''}
+    ${record.description?`<p>${htmlEscape(record.description)}</p>`:''}
+    ${record.instruction?`<p><b>Instructions:</b> ${htmlEscape(record.instruction)}</p>`:''}
+    <p><a href="${record.capUrl||NORDIC_WARNING_PAGE}" target="_blank" rel="noopener">MeteoAlarm / CAP source ↗</a></p>
+  </div>`;
+}
+
+async function renderNordicWarnings(){
+  if(!nordicWarnings.length) return 0;
+
+  const list=$('warningList');
+  let mapped=0;
+
+  for(const record of nordicWarnings){
+    const sev=warningSeverity(record.level);
+    let firstLayer=null;
+
+    for(const polygon of (record.polygons||[])){
+      const layer=L.polygon(polygon,{
+        pane:'warningPane',
+        color:sev.color,
+        weight:3,
+        opacity:.96,
+        fillColor:sev.color,
+        fillOpacity:.22
+      }).bindPopup(nordicWarningPopupHtml(record),{maxWidth:380});
+
+      warningLayerGroup.addLayer(layer);
+      if(!firstLayer) firstLayer=layer;
+      mapped++;
+    }
+
+    for(const circle of (record.circles||[])){
+      const layer=L.circle(circle.center,{
+        pane:'warningPane',
+        radius:circle.radiusKm*1000,
+        color:sev.color,
+        weight:3,
+        opacity:.96,
+        fillColor:sev.color,
+        fillOpacity:.20
+      }).bindPopup(nordicWarningPopupHtml(record),{maxWidth:380});
+
+      warningLayerGroup.addLayer(layer);
+      if(!firstLayer) firstLayer=layer;
+      mapped++;
+    }
+
+    const card=document.createElement('div');
+    card.className='warning-card';
+    card.style.borderLeftColor=sev.color;
+
+    const end=record.expires
+      ? new Date(record.expires).toLocaleString()
+      : 'No expiry provided';
+
+    card.innerHTML=
+      `<div class="warning-title">${htmlEscape(record.flag+' '+(record.headline||record.event))}</div>`+
+      `<div class="warning-meta">${htmlEscape(sev.name)} · until ${htmlEscape(end)}</div>`+
+      `<div class="warning-area">${htmlEscape(record.area)}</div>`+
+      (record.description
+        ? `<div class="warning-meta" style="margin-top:4px">${htmlEscape(record.description)}</div>`
+        : '')+
+      (!firstLayer
+        ? '<div class="warning-meta" style="margin-top:4px">Warning loaded; this CAP item did not provide a usable map polygon.</div>'
+        : '');
+
+    card.addEventListener('click',()=>{
+      if(firstLayer){
+        const bounds=firstLayer.getBounds?.();
+        if(bounds && bounds.isValid()) map.fitBounds(bounds.pad(.18));
+        firstLayer.openPopup?.();
+      }else{
+        window.open(record.capUrl||NORDIC_WARNING_PAGE,'_blank','noopener');
+      }
+    });
+
+    list.appendChild(card);
+  }
+
+  return mapped;
+}
+
