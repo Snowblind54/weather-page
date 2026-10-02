@@ -1,4 +1,24 @@
 const TEMP_BOUNDS=[[53.70,20.40],[59.90,28.50]];
+const TEMP_REGIONS=[
+  {id:'baltics',bounds:[[53.70,20.40],[59.90,28.50]],w:260,h:205},
+  {id:'scandinavia',bounds:[[54.40,4.00],[71.60,32.20]],w:330,h:245},
+  {id:'iceland',bounds:[[62.70,-25.20],[67.20,-12.40]],w:230,h:150}
+];
+
+function makeGrid(south,north,west,east,latStep,lonStep){
+  const pts=[];
+  for(let lat=south;lat<=north+0.001;lat+=latStep){
+    for(let lon=west;lon<=east+0.001;lon+=lonStep){
+      pts.push([+lat.toFixed(2),+lon.toFixed(2)]);
+    }
+  }
+  return pts;
+}
+
+// Regional grids are intentionally separate so Iceland does not force a huge
+// raster across the North Atlantic.
+const SCANDI_TEMP_GRID=makeGrid(54.8,71.2,4.8,31.6,1.35,2.2);
+const ICELAND_TEMP_GRID=makeGrid(63.0,67.0,-24.8,-13.0,0.8,1.8);
 
 // Extra exact sampling points for Nordic temperature readouts.
 // Keeping these as direct Open-Meteo points means each displayed city uses
@@ -201,68 +221,60 @@ async function createTemperatureImage(unix, token){
   const cacheKey=nearestQuarterHour(unix);
 
   if(temperatureImageCache.has(cacheKey)){
+    const cached=temperatureImageCache.get(cacheKey);
     const stats=temperatureStatsCache.get(cacheKey);
-    return {
-      key:cacheKey,
-      dataUrl:temperatureImageCache.get(cacheKey),
-      minT:stats.minT,
-      maxT:stats.maxT
-    };
+    return {key:cacheKey,regions:cached,minT:stats.minT,maxT:stats.maxT};
   }
 
-  // Weather gradients do not need screen-resolution rasters.
-  // Leaflet smoothly scales this compact raster over the Baltic states.
-  const W=260, H=205;
-  const canvas=document.createElement('canvas');
-  canvas.width=W;
-  canvas.height=H;
+  const rendered=[];
+  let globalMin=Infinity,globalMax=-Infinity;
 
-  const ctx=canvas.getContext('2d',{alpha:true});
-  const img=ctx.createImageData(W,H);
-  const d=img.data;
+  for(const region of TEMP_REGIONS){
+    const W=region.w,H=region.h;
+    const canvas=document.createElement('canvas');
+    canvas.width=W; canvas.height=H;
+    const ctx=canvas.getContext('2d',{alpha:true});
+    const img=ctx.createImageData(W,H);
+    const d=img.data;
 
-  const south=TEMP_BOUNDS[0][0], west=TEMP_BOUNDS[0][1];
-  const north=TEMP_BOUNDS[1][0], east=TEMP_BOUNDS[1][1];
+    const south=region.bounds[0][0], west=region.bounds[0][1];
+    const north=region.bounds[1][0], east=region.bounds[1][1];
 
-  let minT=Infinity,maxT=-Infinity;
+    for(let y=0;y<H;y++){
+      if(token!==temperatureRenderToken) return null;
+      const lat=north-(y/(H-1))*(north-south);
 
-  // Yield periodically so radar/map interactions remain responsive.
-  for(let y=0;y<H;y++){
-    if(token!==temperatureRenderToken) return null;
+      for(let x=0;x<W;x++){
+        const lon=west+(x/(W-1))*(east-west);
+        const value=interpolateTemp(lat,lon,cacheKey);
+        const i=(y*W+x)*4;
 
-    const lat=north-(y/(H-1))*(north-south);
+        if(!Number.isFinite(value)){
+          d[i+3]=0;
+          continue;
+        }
 
-    for(let x=0;x<W;x++){
-      const lon=west+(x/(W-1))*(east-west);
-      const t=interpolateTemp(lat,lon,cacheKey);
-      const i=(y*W+x)*4;
-
-      if(!Number.isFinite(t)){
-        d[i+3]=0;
-        continue;
+        globalMin=Math.min(globalMin,value);
+        globalMax=Math.max(globalMax,value);
+        const c=tempColor(value);
+        d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=205;
       }
-
-      if(t<minT) minT=t;
-      if(t>maxT) maxT=t;
-
-      const c=tempColor(t);
-      d[i]=c[0];
-      d[i+1]=c[1];
-      d[i+2]=c[2];
-      d[i+3]=205;
+      if(y%10===0) await new Promise(requestAnimationFrame);
     }
 
-    // Cooperative yielding every few rows prevents long main-thread stalls.
-    if(y%10===0) await new Promise(requestAnimationFrame);
+    ctx.putImageData(img,0,0);
+    rendered.push({id:region.id,bounds:region.bounds,dataUrl:canvas.toDataURL('image/png')});
   }
 
   if(token!==temperatureRenderToken) return null;
-
-  ctx.putImageData(img,0,0);
-  const dataUrl=canvas.toDataURL('image/png');
-  setTempCache(cacheKey,dataUrl,minT,maxT);
-
-  return {key:cacheKey,dataUrl,minT,maxT};
+  temperatureImageCache.set(cacheKey,rendered);
+  temperatureStatsCache.set(cacheKey,{minT:globalMin,maxT:globalMax});
+  while(temperatureImageCache.size>TEMP_CACHE_LIMIT){
+    const oldest=temperatureImageCache.keys().next().value;
+    temperatureImageCache.delete(oldest);
+    temperatureStatsCache.delete(oldest);
+  }
+  return {key:cacheKey,regions:rendered,minT:globalMin,maxT:globalMax};
 }
 
 async function buildTemperatureOverlay(unix,{precache=false}={}){
@@ -270,10 +282,7 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
 
   const token=temperatureRenderToken;
   const result=await createTemperatureImage(unix,token);
-
   if(!result || token!==temperatureRenderToken || !$('tempOn').checked) return;
-
-  // Background precaching generates the image but does not touch the visible map.
   if(precache) return;
 
   if(temperatureLayer){
@@ -281,17 +290,22 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
     temperatureLayer=null;
   }
 
-  temperatureLayer=L.imageOverlay(result.dataUrl,TEMP_BOUNDS,{
-    opacity:Number($('tempOpacity').value)/100,
-    interactive:false
-  }).addTo(map);
+  if($('heatmapOn')?.checked){
+    const opacity=Number($('tempOpacity').value)/100;
+    const layers=result.regions.map(region=>L.imageOverlay(region.dataUrl,region.bounds,{
+      opacity,
+      interactive:false
+    }));
+    temperatureLayer=L.layerGroup(layers).addTo(map);
+    temperatureLayer.setOpacity=value=>temperatureLayer.eachLayer(layer=>layer.setOpacity(value));
+  }
 
+  // Numeric readings stay visible even when the heatmap is switched off.
   renderTemperatureLabels(unix);
 
   $('tempStatus').textContent=
-    `Temperature: Baltic field + Nordic readings · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)} · cached`;
+    `Temperature: Baltic + Nordic readings${$('heatmapOn')?.checked?' + heatmap':''} · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)} · cached`;
   $('tempStatus').className='status ok';
-
   weatherFront();
 }
 
@@ -386,12 +400,9 @@ async function loadTemperatures(force=false){
     return;
   }
 
-  $('tempStatus').textContent='Temperature: loading Baltic field + Nordic readings…';
+  $('tempStatus').textContent='Temperature: loading Baltic + Nordic heatmap data…';
   $('tempStatus').className='status';
 
-  // Keep the dense Baltic grid and the Nordic city readings in separate API
-  // requests. This avoids large multi-location requests dropping the points
-  // appended at the end of the list.
   const balticPts=[];
   for(let lat=53.85;lat<=59.85;lat+=0.55){
     for(let lon=20.55;lon<=28.45;lon+=0.95){
@@ -399,22 +410,34 @@ async function loadTemperatures(force=false){
     }
   }
 
-  const [balticSeries,nordicSeries]=await Promise.all([
-    fetchTemperatureSeries(balticPts),
+  // Open-Meteo multi-location calls are kept moderate in size for reliability.
+  const fetchChunks=async points=>{
+    const out=[];
+    for(let i=0;i<points.length;i+=80){
+      out.push(...await fetchTemperatureSeries(points.slice(i,i+80)));
+    }
+    return out;
+  };
+
+  const [balticSeries,scandiSeries,icelandSeries,nordicCitySeries]=await Promise.all([
+    fetchChunks(balticPts),
+    fetchChunks(SCANDI_TEMP_GRID),
+    fetchChunks(ICELAND_TEMP_GRID),
     fetchTemperatureSeries(NORDIC_TEMP_POINTS)
   ]);
 
-  temperatureSeries=[...balticSeries,...nordicSeries];
+  temperatureSeries=[
+    ...balticSeries,
+    ...scandiSeries,
+    ...icelandSeries,
+    ...nordicCitySeries
+  ];
 
-  if(!balticSeries.length)
-    throw new Error('no Baltic temperature timeline returned');
-
-  if(!nordicSeries.length)
-    throw new Error('no Nordic temperature readings returned');
+  if(!balticSeries.length) throw new Error('no Baltic temperature timeline returned');
+  if(!scandiSeries.length) throw new Error('no Scandinavian temperature grid returned');
+  if(!icelandSeries.length) throw new Error('no Iceland temperature grid returned');
 
   temperatureLoadedAt=Date.now();
-
-  // New source data invalidates old rendered images.
   temperatureImageCache.clear();
   temperatureStatsCache.clear();
 
