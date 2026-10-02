@@ -1,5 +1,26 @@
 const TEMP_BOUNDS=[[53.70,20.40],[59.90,28.50]];
 
+// Extra exact sampling points for Nordic temperature readouts.
+// Keeping these as direct Open-Meteo points means each displayed city uses
+// its own model value instead of extrapolating from the Baltic grid.
+const NORDIC_TEMP_POINTS=[
+  // Finland
+  [60.17,24.94],[61.50,23.76],[60.45,22.27],[65.01,25.47],
+  [66.50,25.73],[62.89,27.68],[63.10,21.62],[62.24,25.75],
+
+  // Sweden
+  [59.33,18.07],[57.71,11.97],[55.60,13.00],[63.83,20.26],
+  [65.58,22.15],[60.67,17.14],[67.85,20.23],
+
+  // Norway
+  [59.91,10.75],[60.39,5.32],[63.43,10.39],[69.65,18.96],
+  [58.97,5.73],[68.44,17.43],[70.98,25.97],
+
+  // Iceland
+  [64.15,-21.94],[65.68,-18.09],[65.26,-14.40],
+  [66.07,-23.12],[64.25,-15.21],[63.75,-20.22]
+];
+
 function tempColor(t){
   const stops=[
     [-20,[75,60,167]],[-10,[40,95,201]],[0,[49,167,223]],
@@ -78,16 +99,18 @@ function renderTemperatureLabels(unix){
 
   if(!$('tempOn').checked || !temperatureSeries.length) return;
 
-  // Major locations across Estonia, Latvia and Lithuania.
-  // At lower zooms use a smaller set to keep labels readable.
+  // Major locations across the Baltics and Nordics.
+  // At lower zooms use capitals/major hubs to keep labels readable.
   const labelPts = map.getZoom()<=6 ? [
     [59.44,24.75], // Tallinn
-    [58.38,26.72], // Tartu
     [56.95,24.11], // Riga
-    [55.87,26.52], // Daugavpils
     [54.69,25.28], // Vilnius
-    [54.90,23.90], // Kaunas
-    [55.70,21.14]  // Klaipeda
+    [60.17,24.94], // Helsinki
+    [59.33,18.07], // Stockholm
+    [59.91,10.75], // Oslo
+    [64.15,-21.94], // Reykjavik
+    [65.01,25.47], // Oulu
+    [69.65,18.96]  // Tromso
   ] : [
     // Estonia
     [59.44,24.75], // Tallinn
@@ -117,7 +140,43 @@ function renderTemperatureLabels(unix){
     [55.93,23.32], // Siauliai
     [55.73,24.36], // Panevezys
     [54.40,24.04], // Alytus
-    [55.29,23.97]  // Kedainiai
+    [55.29,23.97], // Kedainiai
+
+    // Finland
+    [60.17,24.94], // Helsinki
+    [61.50,23.76], // Tampere
+    [60.45,22.27], // Turku
+    [65.01,25.47], // Oulu
+    [66.50,25.73], // Rovaniemi
+    [62.89,27.68], // Kuopio
+    [63.10,21.62], // Vaasa
+    [62.24,25.75], // Jyvaskyla
+
+    // Sweden
+    [59.33,18.07], // Stockholm
+    [57.71,11.97], // Gothenburg
+    [55.60,13.00], // Malmo
+    [63.83,20.26], // Umea
+    [65.58,22.15], // Lulea
+    [60.67,17.14], // Gavle
+    [67.85,20.23], // Kiruna
+
+    // Norway
+    [59.91,10.75], // Oslo
+    [60.39,5.32], // Bergen
+    [63.43,10.39], // Trondheim
+    [69.65,18.96], // Tromso
+    [58.97,5.73], // Stavanger
+    [68.44,17.43], // Narvik
+    [70.98,25.97], // Honningsvag
+
+    // Iceland
+    [64.15,-21.94], // Reykjavik
+    [65.68,-18.09], // Akureyri
+    [65.26,-14.40], // Egilsstadir
+    [66.07,-23.12], // Isafjordur
+    [64.25,-15.21], // Hofn
+    [63.75,-20.22]  // Selfoss
   ];
 
   for(const [lat,lon] of labelPts){
@@ -230,7 +289,7 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   renderTemperatureLabels(unix);
 
   $('tempStatus').textContent=
-    `Baltic temperature: ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)} · cached`;
+    `Temperature: Baltic field + Nordic readings · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)} · cached`;
   $('tempStatus').className='status ok';
 
   weatherFront();
@@ -297,14 +356,15 @@ async function loadTemperatures(force=false){
   $('tempStatus').textContent='Temperature: loading recent 15-minute data…';
   $('tempStatus').className='status';
 
-  // Grid across Estonia, Latvia, Lithuania and nearby Baltic coastal areas.
-  // ~100 source points keeps rendering responsive while giving smooth regional detail.
+  // Dense Baltic grid for the colour field, plus exact Nordic city points
+  // for Finland, Sweden, Norway and Iceland temperature readouts.
   const pts=[];
   for(let lat=53.85;lat<=59.85;lat+=0.55){
     for(let lon=20.55;lon<=28.45;lon+=0.95){
       pts.push([+lat.toFixed(2),+lon.toFixed(2)]);
     }
   }
+  pts.push(...NORDIC_TEMP_POINTS);
 
   const lats=pts.map(p=>p[0]).join(',');
   const lons=pts.map(p=>p[1]).join(',');
