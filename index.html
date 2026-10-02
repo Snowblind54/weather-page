@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.6</title>
+<title>Baltic Weather Map v8.7</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.6">
+<link rel="stylesheet" href="css/style.css?v=8.7">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
 
 <div class="panel">
   <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v8.6 · GeoColour by day · IR10.5 by night</div>
+  <div class="subtitle">Serverless v8.7 · GeoColour by day · IR10.5 by night</div>
 
   <div class="row wrap">
     <div>
@@ -42,7 +42,7 @@
   <div class="section weather-section" id="tempSection">
     <div class="row">
       <label class="label"><input id="tempOn" type="checkbox"> Temperature · Baltics + Nordics</label>
-      <span class="badge">2 m air</span>
+      <span class="badge">model + stations</span>
     </div>
     <div class="details">
       <div class="row">
@@ -55,7 +55,7 @@
         <span id="tempOpacityVal" class="value">58%</span>
       </div>
       <div class="legend temp-legend"></div>
-      <div class="small">Terrain-aware hourly model samples with fast 15-minute interpolation, coastline clipping and low-request browser caching; follows the shared 2-hour timeline.</div>
+      <div class="small">The heatmap remains a terrain-aware hourly model field. Numeric labels prefer recent official weather-station measurements from Estonia, Lithuania, Finland, Sweden and Iceland; measured labels are marked with ●. Latvia and Norway currently keep model-based labels where a browser-safe official observation feed is not available.</div>
       <div id="tempStatus" class="status">Temperature layer is off.</div>
     </div>
   </div>
@@ -124,22 +124,23 @@
 
   <div class="credit">
     Topographic map © OpenStreetMap contributors / SRTM / OpenTopoMap · Satellite © Esri ·
-    Estonia rain radar © Keskkonnaagentuur / KAIA · Latvia rain radar © LVĢMC · Lithuania rain radar © Lietuvos hidrometeorologijos tarnyba / Meteo.lt · Cloud imagery © EUMETSAT · GeoColour daylight / FCI IR10.5 night · Country outlines © Natural Earth via world-atlas · Warnings © Estonian Environment Agency / KAIA, Lietuvos hidrometeorologijos tarnyba (Meteo.lt), Finnish Meteorological Institute (FMI), and MeteoAlarm / EUMETNET member services. Estonia marine warning-zone overlays are geographic approximations of the official named regions.
+    Estonia rain radar © Keskkonnaagentuur / KAIA · Latvia rain radar © LVĢMC · Lithuania rain radar © Lietuvos hidrometeorologijos tarnyba / Meteo.lt · Cloud imagery © EUMETSAT · GeoColour daylight / FCI IR10.5 night · Country outlines © Natural Earth via world-atlas · Temperature station observations © Estonian Environment Agency, Lietuvos hidrometeorologijos tarnyba / Meteo.lt, Finnish Meteorological Institute (FMI), SMHI and Icelandic Meteorological Office (IMO) · Warnings © Estonian Environment Agency / KAIA, Lietuvos hidrometeorologijos tarnyba (Meteo.lt), Finnish Meteorological Institute (FMI), and MeteoAlarm / EUMETNET member services. Estonia marine warning-zone overlays are geographic approximations of the official named regions.
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
-<script src="js/config.js?v=8.6"></script>
-<script src="js/map.js?v=8.6"></script>
-<script src="js/warnings.js?v=8.6"></script>
-<script src="js/warning-filters.js?v=8.6"></script>
-<script src="js/temperature.js?v=8.6.1"></script>
-<script src="js/clouds.js?v=8.6"></script>
-<script src="js/radar.js?v=8.6"></script>
-<script src="js/radar-history.js?v=8.6"></script>
-<script src="js/radar-capture.js?v=8.6"></script>
-<script src="js/app.js?v=8.6"></script>
+<script src="js/config.js?v=8.7"></script>
+<script src="js/map.js?v=8.7"></script>
+<script src="js/warnings.js?v=8.7"></script>
+<script src="js/warning-filters.js?v=8.7"></script>
+<script src="js/temperature.js?v=8.7"></script>
+<script src="js/stations.js?v=8.7"></script>
+<script src="js/clouds.js?v=8.7"></script>
+<script src="js/radar.js?v=8.7"></script>
+<script src="js/radar-history.js?v=8.7"></script>
+<script src="js/radar-capture.js?v=8.7"></script>
+<script src="js/app.js?v=8.7"></script>
 </body>
 </html>
