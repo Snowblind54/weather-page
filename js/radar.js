@@ -170,6 +170,7 @@ async function applyFrame(options={}){
   }
 
   if(!options.skipCloud) drawCloud(frame,i).catch(console.error);
+  if($('balticRadarOn')?.checked) drawBalticRadar(frame.time).catch(console.error);
   await drawRadar(frame);
 }
 
@@ -226,4 +227,61 @@ async function loadOfficialRadarList(){
   $('radarStatus').className='status ok';
   await applyFrame();
   if($('cloudOn').checked) scheduleCloudPrecache();
+}
+
+
+const RAINVIEWER_API='https://api.rainviewer.com/public/weather-maps.json';
+
+async function loadBalticRadarManifest(force=false){
+  if(rainviewerData && !force) return rainviewerData;
+  const response=await fetch(RAINVIEWER_API,{cache:'no-store'});
+  if(!response.ok) throw new Error('radar mosaic API HTTP '+response.status);
+  const data=await response.json();
+  if(!data?.host || !data?.radar?.past?.length) throw new Error('no radar mosaic frames returned');
+  rainviewerData=data;
+  return data;
+}
+
+function closestRainviewerFrame(unix){
+  const past=rainviewerData?.radar?.past||[];
+  if(!past.length) return null;
+  return past.reduce((best,item)=>
+    Math.abs(item.time-unix)<Math.abs(best.time-unix)?item:best
+  ,past[0]);
+}
+
+async function drawBalticRadar(unix){
+  if(!$('balticRadarOn')?.checked){
+    if(balticRadarLayer){map.removeLayer(balticRadarLayer);balticRadarLayer=null;}
+    return;
+  }
+
+  try{
+    await loadBalticRadarManifest();
+    const frame=closestRainviewerFrame(unix);
+    if(!frame) throw new Error('no matching radar frame');
+
+    const old=balticRadarLayer;
+    const tileSize=window.devicePixelRatio>=2?512:256;
+    const url=rainviewerData.host+frame.path+'/'+tileSize+'/{z}/{x}/{y}/2/1_1.png';
+    const next=L.tileLayer(url,{
+      tileSize:256,
+      opacity:0.001,
+      maxNativeZoom:7,
+      maxZoom:18,
+      attribution:'Radar mosaic © RainViewer'
+    }).addTo(map);
+
+    balticRadarLayer=next;
+    requestAnimationFrame(()=>next.setOpacity(Number($('balticRadarOpacity').value)/100));
+    setTimeout(()=>{if(old&&old!==balticRadarLayer&&map.hasLayer(old))map.removeLayer(old);},220);
+
+    $('balticRadarStatus').textContent='Latvia + Lithuania radar mosaic · '+fmt(frame.time);
+    $('balticRadarStatus').className='status ok';
+    weatherFront();
+  }catch(e){
+    console.error(e);
+    $('balticRadarStatus').textContent='Latvia + Lithuania radar unavailable: '+e.message;
+    $('balticRadarStatus').className='status bad';
+  }
 }
