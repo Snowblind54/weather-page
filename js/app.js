@@ -23,6 +23,7 @@ for(const [toggleId,sectionId] of [
   ['tempOn','tempSection'],
   ['cloudOn','cloudSection'],
   ['radarOn','radarSection'],
+  ['balticRadarOn','balticRadarSection'],
   ['warningOn','warningSection']
 ]){
   $(toggleId).addEventListener('change',()=>{
@@ -78,6 +79,12 @@ $('tempOn').addEventListener('change',async()=>{
   }
 });
 
+$('heatmapOn').addEventListener('change',()=>{
+  const i=Number($('timeline').value);
+  const frame=frames[i];
+  if(frame && $('tempOn').checked) queueTemperatureRender(frame.time,0);
+});
+
 $('tempOpacity').addEventListener('input',()=>{
   $('tempOpacityVal').textContent=$('tempOpacity').value+'%';
   if(temperatureLayer) temperatureLayer.setOpacity(Number($('tempOpacity').value)/100);
@@ -91,6 +98,23 @@ $('radarOpacity').addEventListener('input',()=>{
   $('radarOpacityVal').textContent=$('radarOpacity').value+'%';
   if(radarLayer)radarLayer.setOpacity(Number($('radarOpacity').value)/100);
 });
+$('balticRadarOpacity').addEventListener('input',()=>{
+  $('balticRadarOpacityVal').textContent=$('balticRadarOpacity').value+'%';
+  if(balticRadarLayer) balticRadarLayer.setOpacity(Number($('balticRadarOpacity').value)/100);
+});
+
+$('balticRadarOn').addEventListener('change',async()=>{
+  if(!$('balticRadarOn').checked){
+    if(balticRadarLayer){map.removeLayer(balticRadarLayer);balticRadarLayer=null;}
+    $('balticRadarStatus').textContent='Latvia + Lithuania radar is off.';
+    $('balticRadarStatus').className='status';
+    return;
+  }
+  const i=Number($('timeline').value);
+  const frame=frames[i];
+  if(frame) await drawBalticRadar(frame.time);
+});
+
 $('cloudOn').addEventListener('change',async()=>{
   if(!$('cloudOn').checked){
     await drawCloud(null,-1);
@@ -154,6 +178,7 @@ $('refresh').onclick=async()=>{
   $('mapStatus').className='status';
   try{
     await loadOfficialRadarList();
+    if($('balticRadarOn').checked){ await loadBalticRadarManifest(true); const f=frames[Number($('timeline').value)]; if(f) await drawBalticRadar(f.time); }
     if($('tempOn').checked) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);
     $('mapStatus').textContent='Refresh complete.';
