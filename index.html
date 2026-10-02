@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.0</title>
+<title>Baltic Weather Map v8.1</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.0">
+<link rel="stylesheet" href="css/style.css?v=8.1">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
 
 <div class="panel">
   <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v8.0 · GeoColour by day · IR10.5 by night</div>
+  <div class="subtitle">Serverless v8.1 · GeoColour by day · IR10.5 by night</div>
 
   <div class="row wrap">
     <div>
@@ -112,7 +112,7 @@
   <div class="section weather-section" id="warningSection">
     <div class="row">
       <label class="label"><input id="warningOn" type="checkbox"> Severe weather warnings</label>
-      <span class="badge">Warnings EE · LT</span>
+      <span class="badge">EE · LT · FI · SE · NO · IS</span>
     </div>
     <div class="details">
       <div class="warning-legend">
@@ -120,7 +120,7 @@
         <span class="warning-key"><span class="warning-dot" style="background:#ff8c1a"></span>Orange</span>
         <span class="warning-key"><span class="warning-dot" style="background:#e03131"></span>Red</span>
       </div>
-      <div class="small">Official Estonia KAIA warnings plus Lithuania Meteo.lt warnings. Satellite cloud coverage spans Estonia, Latvia and Lithuania.</div>
+      <div class="small">Severe-weather alerts for Estonia, Lithuania, Finland, Sweden, Norway and Iceland. Nordic alerts use MeteoAlarm Atom/CAP feeds and map CAP polygons when supplied.</div>
       <div id="warningStatus" class="status">Estonian warnings layer is off.</div>
       <div id="warningList" class="warning-list"></div>
     </div>
@@ -146,19 +146,19 @@
 
   <div class="credit">
     Topographic map © OpenStreetMap contributors / SRTM / OpenTopoMap · Satellite © Esri ·
-    Estonia rain radar © Keskkonnaagentuur / KAIA · Latvia/Lithuania radar mosaic © RainViewer · Cloud imagery © EUMETSAT · GeoColour daylight / FCI IR10.5 night · Country outlines © Natural Earth via world-atlas · Warnings © Estonian Environment Agency / KAIA and Lietuvos hidrometeorologijos tarnyba (Meteo.lt). Estonia marine warning-zone overlays are geographic approximations of the official named regions.
+    Estonia rain radar © Keskkonnaagentuur / KAIA · Latvia/Lithuania radar mosaic © RainViewer · Cloud imagery © EUMETSAT · GeoColour daylight / FCI IR10.5 night · Country outlines © Natural Earth via world-atlas · Warnings © Estonian Environment Agency / KAIA, Lietuvos hidrometeorologijos tarnyba (Meteo.lt), and MeteoAlarm / EUMETNET member services. Estonia marine warning-zone overlays are geographic approximations of the official named regions.
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
-<script src="js/config.js?v=8.0"></script>
-<script src="js/map.js?v=8.0"></script>
-<script src="js/warnings.js?v=8.0"></script>
-<script src="js/temperature.js?v=8.0"></script>
-<script src="js/clouds.js?v=8.0"></script>
-<script src="js/radar.js?v=8.0"></script>
-<script src="js/app.js?v=8.0"></script>
+<script src="js/config.js?v=8.1"></script>
+<script src="js/map.js?v=8.1"></script>
+<script src="js/warnings.js?v=8.1"></script>
+<script src="js/temperature.js?v=8.1"></script>
+<script src="js/clouds.js?v=8.1"></script>
+<script src="js/radar.js?v=8.1"></script>
+<script src="js/app.js?v=8.1"></script>
 </body>
 </html>
