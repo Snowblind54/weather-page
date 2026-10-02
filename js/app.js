@@ -16,14 +16,11 @@ $('locateBtn').addEventListener('click',showMyLocation);
 $('streetBtn').onclick=useStreet;
 $('satBtn').onclick=useSatellite;
 
-
-
 // Compact weather cards expand only while enabled.
 for(const [toggleId,sectionId] of [
   ['tempOn','tempSection'],
   ['cloudOn','cloudSection'],
   ['radarOn','radarSection'],
-  ['balticRadarOn','balticRadarSection'],
   ['warningOn','warningSection']
 ]){
   $(toggleId).addEventListener('change',()=>{
@@ -31,8 +28,6 @@ for(const [toggleId,sectionId] of [
   });
   setWeatherSectionState(sectionId,$(toggleId).checked);
 }
-
-
 
 $('warningOn').addEventListener('change',async()=>{
   if(!$('warningOn').checked){
@@ -42,7 +37,7 @@ $('warningOn').addEventListener('change',async()=>{
     lithuaniaWarnings=[];
     nordicWarnings=[];
     $('warningList').innerHTML='';
-    $('warningStatus').textContent='Estonian warnings layer is off.';
+    $('warningStatus').textContent='Weather warnings layer is off.';
     $('warningStatus').className='status';
     return;
   }
@@ -98,26 +93,6 @@ $('cloudOpacity').addEventListener('input',()=>{
   $('cloudOpacityVal').textContent=$('cloudOpacity').value+'%';
   updateCloudBlendOpacity();
 });
-$('radarOpacity').addEventListener('input',()=>{
-  $('radarOpacityVal').textContent=$('radarOpacity').value+'%';
-  if(radarLayer)radarLayer.setOpacity(Number($('radarOpacity').value)/100);
-});
-$('balticRadarOpacity').addEventListener('input',()=>{
-  $('balticRadarOpacityVal').textContent=$('balticRadarOpacity').value+'%';
-  if(balticRadarLayer) balticRadarLayer.setOpacity(Number($('balticRadarOpacity').value)/100);
-});
-
-$('balticRadarOn').addEventListener('change',async()=>{
-  if(!$('balticRadarOn').checked){
-    if(balticRadarLayer){map.removeLayer(balticRadarLayer);balticRadarLayer=null;}
-    $('balticRadarStatus').textContent='Latvia + Lithuania radar is off.';
-    $('balticRadarStatus').className='status';
-    return;
-  }
-  const i=Number($('timeline').value);
-  const frame=frames[i];
-  if(frame) await drawBalticRadar(frame.time);
-});
 
 $('cloudOn').addEventListener('change',async()=>{
   if(!$('cloudOn').checked){
@@ -127,8 +102,9 @@ $('cloudOn').addEventListener('change',async()=>{
   await applyFrame();
   scheduleCloudPrecache();
 });
+
 $('radarOn').addEventListener('change',async()=>{
-  // Immediately invalidate any frame currently downloading/decoding.
+  // Immediately invalidate any Estonian frame currently downloading/decoding.
   radarRenderGeneration++;
   radarSwapGeneration++;
 
@@ -137,13 +113,15 @@ $('radarOn').addEventListener('change',async()=>{
       map.removeLayer(radarLayer);
       radarLayer=null;
     }
-    $('radarStatus').textContent='Radar: hidden.';
+    clearDirectNationalRadars();
+    $('radarStatus').textContent='Baltic radar: hidden.';
     $('radarStatus').className='status';
     return;
   }
 
   await applyFrame();
 });
+
 $('timeline').addEventListener('input',()=>{
   stop();
 
@@ -165,6 +143,7 @@ $('timeline').addEventListener('input',()=>{
     if($('cloudOn').checked) scheduleCloudPrecache();
   },90);
 });
+
 $('play').onclick=()=>playing?stop():start();
 $('oldest').onclick=()=>{
   stop();
@@ -176,13 +155,15 @@ $('latest').onclick=()=>{
   $('timeline').value=$('timeline').max;
   applyFrame().catch(console.error);
 };
+
 $('refresh').onclick=async()=>{
   stop();
   $('mapStatus').textContent='Refreshing official weather data…';
   $('mapStatus').className='status';
   try{
+    // A manual refresh should bypass the short LV/LT processed-image cache.
+    if($('radarOn').checked) directRadarImageCache.clear();
     await loadOfficialRadarList();
-    if($('balticRadarOn').checked){ await loadBalticRadarManifest(true); const f=frames[Number($('timeline').value)]; if(f) await drawBalticRadar(f.time); }
     if($('tempOn').checked) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);
     $('mapStatus').textContent='Refresh complete.';
