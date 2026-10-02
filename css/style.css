@@ -63,6 +63,16 @@ input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-colo
   white-space:nowrap
 }
 .temp-label::before{display:none}
+.temp-label-observed{
+  border-style:solid;
+  box-shadow:0 0 0 1px rgba(255,255,255,.18),0 1px 4px rgba(0,0,0,.5)
+}
+.temp-observed-dot{
+  display:inline-block;
+  margin-right:3px;
+  font-size:7px;
+  vertical-align:1px
+}
 .credit{font-size:9px;color:#777;line-height:1.4;margin-top:12px}
 
 .warning-legend{display:flex;gap:10px;flex-wrap:wrap;margin:7px 0}
