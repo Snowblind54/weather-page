@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.5</title>
+<title>Baltic Weather Map v8.6</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.5">
+<link rel="stylesheet" href="css/style.css?v=8.6">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
 
 <div class="panel">
   <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v8.5 · GeoColour by day · IR10.5 by night</div>
+  <div class="subtitle">Serverless v8.6 · GeoColour by day · IR10.5 by night</div>
 
   <div class="row wrap">
     <div>
@@ -82,8 +82,8 @@
     </div>
     <div class="details">
       <div class="legend"></div>
-      <div class="small">One toggle controls all three national radar layers. Estonia uses official KAIA Harku + Sürgavere 5-minute historical frames. Latvia uses the LVĢMC Rīga radar product and Lithuania uses the Meteo.lt Laukuva + Trakų Vokė national product. Because the public Latvian and Lithuanian image services do not expose the same timestamped archive as KAIA, those two are shown only at Latest; older timeline positions show Estonia only.</div>
-      <div id="radarStatus" class="status">Baltic radar layer is off. Estonian frame list still loads for the timeline.</div>
+      <div class="small">One toggle controls all three national radar layers. Estonia uses official KAIA 5-minute historical frames. Lithuania decodes the official Meteo.lt Laukuva + Trakų Vokė animated product into the shared timeline. Latvia uses an official LVĢMC radar animation when one is publicly exposed; otherwise the browser builds a small rolling history from direct LVĢMC frames. No third-party radar mosaic is used.</div>
+      <div id="radarStatus" class="status">Baltic radar layer is off. Official frame sources still load for the timeline.</div>
     </div>
   </div>
 
@@ -131,13 +131,14 @@
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
-<script src="js/config.js?v=8.5"></script>
-<script src="js/map.js?v=8.5"></script>
-<script src="js/warnings.js?v=8.5"></script>
-<script src="js/warning-filters.js?v=8.5"></script>
-<script src="js/temperature.js?v=8.5"></script>
-<script src="js/clouds.js?v=8.5"></script>
-<script src="js/radar.js?v=8.5"></script>
-<script src="js/app.js?v=8.5"></script>
+<script src="js/config.js?v=8.6"></script>
+<script src="js/map.js?v=8.6"></script>
+<script src="js/warnings.js?v=8.6"></script>
+<script src="js/warning-filters.js?v=8.6"></script>
+<script src="js/temperature.js?v=8.6"></script>
+<script src="js/clouds.js?v=8.6"></script>
+<script src="js/radar.js?v=8.6"></script>
+<script src="js/radar-history.js?v=8.6"></script>
+<script src="js/app.js?v=8.6"></script>
 </body>
 </html>
