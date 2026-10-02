@@ -207,6 +207,15 @@ async function bootstrap(){
 }
 
 bootstrap();
+
+// Warm the temperature source data after the first map render. This is network
+// work only; the heatmap image itself is still created on demand.
+const startTemperaturePrefetch=()=>prefetchTemperatures();
+if('requestIdleCallback' in window){
+  requestIdleCallback(startTemperaturePrefetch,{timeout:3500});
+}else{
+  setTimeout(startTemperaturePrefetch,2500);
+}
 setInterval(()=>loadOfficialRadarList().catch(()=>{}),5*60*1000);
 setInterval(()=>{
   if($('tempOn').checked) loadTemperatures(true).catch(()=>{});
