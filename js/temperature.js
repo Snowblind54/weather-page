@@ -252,6 +252,44 @@ const NORDIC_TEMP_POINTS=[
 
 const TEMP_CITY_POINTS=[...BALTIC_TEMP_POINTS,...NORDIC_TEMP_POINTS];
 
+const EXTRA_TEMP_POINTS=[
+  // Estonia: islands, coast and inland towns
+  [59.35,24.05],[59.30,24.42],[59.43,24.55],[59.51,24.83],
+  [59.56,25.72],[59.35,26.36],[59.26,25.96],[59.07,26.25],
+  [58.90,24.43],[59.00,22.75],[58.82,22.78],[58.61,23.18],
+  [58.13,22.25],[58.50,23.28],[58.65,25.97],[58.75,26.39],
+  [58.06,27.07],[57.84,27.00],[58.05,26.50],[58.00,26.21],
+  [57.75,27.33],[58.15,24.96],[58.37,25.60],
+  // Latvia
+  [57.75,24.36],[57.51,24.72],[57.31,25.27],[57.15,24.86],
+  [57.25,22.59],[56.97,23.16],[56.97,23.80],[56.41,24.19],
+  [56.60,25.26],[56.50,25.86],[56.85,26.22],[57.42,27.05],
+  [56.55,27.72],[56.41,21.60],[56.73,22.40],
+  // Lithuania
+  [55.92,21.07],[55.89,21.24],[55.25,22.29],[55.98,22.25],
+  [56.31,22.33],[56.20,24.76],[55.50,25.60],[55.25,26.16],
+  [54.56,23.35],[54.02,23.97],[55.07,22.77],[55.35,21.48],
+  // Finland
+  [60.39,25.66],[60.87,26.70],[60.98,25.66],[61.06,28.19],
+  [61.69,27.27],[61.87,28.88],[62.60,29.76],[64.23,27.73],
+  [64.68,24.48],[63.84,23.13],[62.79,22.84],[61.49,21.80],
+  [60.10,19.94],[65.74,24.56],[67.37,26.63],[68.91,27.03],
+  [69.06,20.79],[66.37,29.18],
+  // Sweden
+  [56.05,12.69],[56.88,14.81],[56.66,16.36],[57.64,18.30],
+  [58.41,15.62],[59.27,15.21],[59.61,16.55],[59.86,17.64],
+  [59.38,13.50],[60.61,15.63],[62.39,17.31],[63.18,14.64],
+  [64.75,20.95],[66.61,19.82],[68.36,18.83],
+  // Norway
+  [58.15,8.00],[59.21,9.61],[60.79,10.69],[61.12,10.47],
+  [62.47,6.15],[62.74,7.16],[64.02,11.50],[66.31,14.14],
+  [67.28,14.40],[68.23,14.57],[69.97,23.27],[70.66,23.68],
+  [70.07,29.75],[69.73,30.05],
+  // Iceland
+  [64.56,-21.90],[64.89,-23.71],[65.75,-19.65],[66.04,-17.34],
+  [65.04,-14.22],[63.42,-19.01],[63.83,-20.40],[63.84,-22.56]
+];
+
 function temperatureCoordKey(lat,lon){
   return Number(lat).toFixed(2)+','+Number(lon).toFixed(2);
 }
@@ -381,90 +419,32 @@ function renderTemperatureLabels(unix){
 
   if(!$('tempOn').checked || !temperatureSeries.length) return;
 
-  // Major locations across the Baltics and Nordics.
-  // At lower zooms use capitals/major hubs to keep labels readable.
-  const labelPts = map.getZoom()<=6 ? [
-    [59.44,24.75], // Tallinn
-    [56.95,24.11], // Riga
-    [54.69,25.28], // Vilnius
-    [60.17,24.94], // Helsinki
-    [59.33,18.07], // Stockholm
-    [59.91,10.75], // Oslo
-    [64.15,-21.94], // Reykjavik
-    [65.01,25.47], // Oulu
-    [69.65,18.96]  // Tromso
-  ] : [
-    // Estonia
-    [59.44,24.75], // Tallinn
-    [58.38,26.72], // Tartu
-    [58.25,22.49], // Kuressaare
-    [58.94,23.54], // Haapsalu
-    [59.38,28.19], // Narva
-    [58.88,25.56], // Paide
-    [57.78,26.04], // Valga
-    [58.36,24.50], // Parnu
-    [59.18,27.28], // Johvi
-    [58.00,25.93], // Viljandi
-
-    // Latvia
-    [56.95,24.11], // Riga
-    [56.51,21.01], // Liepaja
-    [57.39,21.56], // Ventspils
-    [56.65,23.72], // Jelgava
-    [55.87,26.52], // Daugavpils
-    [57.54,25.43], // Valmiera
-    [56.65,27.72], // Rezekne
-
-    // Lithuania
-    [54.69,25.28], // Vilnius
-    [54.90,23.90], // Kaunas
-    [55.70,21.14], // Klaipeda
-    [55.93,23.32], // Siauliai
-    [55.73,24.36], // Panevezys
-    [54.40,24.04], // Alytus
-    [55.29,23.97], // Kedainiai
-
-    // Finland
-    [60.17,24.94], // Helsinki
-    [61.50,23.76], // Tampere
-    [60.45,22.27], // Turku
-    [65.01,25.47], // Oulu
-    [66.50,25.73], // Rovaniemi
-    [62.89,27.68], // Kuopio
-    [63.10,21.62], // Vaasa
-    [62.24,25.75], // Jyvaskyla
-
-    // Sweden
-    [59.33,18.07], // Stockholm
-    [57.71,11.97], // Gothenburg
-    [55.60,13.00], // Malmo
-    [63.83,20.26], // Umea
-    [65.58,22.15], // Lulea
-    [60.67,17.14], // Gavle
-    [67.85,20.23], // Kiruna
-
-    // Norway
-    [59.91,10.75], // Oslo
-    [60.39,5.32], // Bergen
-    [63.43,10.39], // Trondheim
-    [69.65,18.96], // Tromso
-    [58.97,5.73], // Stavanger
-    [68.44,17.43], // Narvik
-    [70.98,25.97], // Honningsvag
-
-    // Iceland
-    [64.15,-21.94], // Reykjavik
-    [65.68,-18.09], // Akureyri
-    [65.26,-14.40], // Egilsstadir
-    [66.07,-23.12], // Isafjordur
-    [64.25,-15.21], // Hofn
-    [63.75,-20.22]  // Selfoss
+  // Reuse the existing model grid for extra towns: no extra API quota.
+  // Major hubs get priority, then reveal regional towns as the map zooms in.
+  const majorPoints=[
+    [59.44,24.75],[56.95,24.11],[54.69,25.28],[60.17,24.94],
+    [59.33,18.07],[59.91,10.75],[64.15,-21.94],[65.01,25.47],[69.65,18.96]
   ];
+  const zoom=map.getZoom();
+  const labelPts=zoom<=5 ? majorPoints :
+    zoom<=6 ? [...majorPoints,...TEMP_CITY_POINTS] :
+    [...majorPoints,...TEMP_CITY_POINTS,...EXTRA_TEMP_POINTS];
+  const seen=new Set();
+  const occupied=[];
+  const bounds=map.getBounds();
+  const gapX=zoom>=9?50:60;
+  const gapY=28;
 
   for(const [lat,lon] of labelPts){
+    const key=temperatureCoordKey(lat,lon);
+    if(seen.has(key) || !bounds.contains([lat,lon])) continue;
+    seen.add(key);
+    const pixel=map.latLngToContainerPoint([lat,lon]);
+    if(occupied.some(p=>Math.abs(p.x-pixel.x)<gapX && Math.abs(p.y-pixel.y)<gapY)) continue;
     const t=interpolateTemp(lat,lon,unix);
     if(!Number.isFinite(t)) continue;
 
+    occupied.push(pixel);
     L.marker([lat,lon],{
       interactive:false,
       icon:L.divIcon({
@@ -826,3 +806,9 @@ async function prefetchTemperatures(){
   }
 }
 
+
+// Panning reveals nearby labels without rebuilding the heatmap or fetching data.
+map.on('moveend',()=>{
+  const frame=frames[Number($('timeline').value)];
+  if(frame && $('tempOn').checked) renderTemperatureLabels(frame.time);
+});
