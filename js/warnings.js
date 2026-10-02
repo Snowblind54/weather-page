@@ -1069,10 +1069,6 @@ async function renderLithuaniaWarnings(){
 
 const NORDIC_WARNING_SOURCES=[
   {
-    country:'Finland',flag:'🇫🇮',slug:'finland',
-    feed:'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-finland'
-  },
-  {
     country:'Sweden',flag:'🇸🇪',slug:'sweden',
     feed:'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-sweden'
   },
@@ -1087,7 +1083,14 @@ const NORDIC_WARNING_SOURCES=[
 ];
 
 const NORDIC_WARNING_PAGE='https://meteoalarm.org/';
-const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV82';
+const FMI_WARNING_PAGE='https://en.ilmatieteenlaitos.fi/warnings';
+const FMI_WARNING_RSS='https://alerts.fmi.fi/cap/feed/rss_en-GB.rss';
+const FMI_WARNING_ATOM='https://alerts.fmi.fi/cap/feed/atom_en-GB.xml';
+const FINLAND_METEOALARM_FALLBACK={
+  country:'Finland',flag:'🇫🇮',slug:'finland',
+  feed:'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-finland'
+};
+const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV83';
 const NORDIC_WARNING_CACHE_MAX_AGE=6*60*60*1000;
 const NORDIC_WARNING_REFRESH_MS=15*60*1000;
 
@@ -1277,6 +1280,167 @@ async function fetchNordicCap(url,preferredArea){
   }
 }
 
+function parseFmiCapAlert(alert,capUrl=''){
+  if(!alert) return null;
+
+  const status=xmlLocalText(alert,'status');
+  const messageType=xmlLocalText(alert,'msgType');
+  if(status && status.toLowerCase()!=='actual') return null;
+  if(messageType && messageType.toLowerCase()==='cancel') return null;
+
+  const info=chooseCapInfo(alert);
+  if(!info) return null;
+
+  const expires=xmlLocalText(info,'expires');
+  const expiryMs=Date.parse(expires||'');
+  if(Number.isFinite(expiryMs) && expiryMs<Date.now()-2*60*1000) return null;
+
+  const areas=xmlLocalElements(info,'area');
+  const areaNames=[];
+  const polygons=[];
+  const circles=[];
+
+  for(const area of areas){
+    const name=xmlLocalText(area,'areaDesc');
+    if(name && !areaNames.includes(name)) areaNames.push(name);
+
+    for(const node of xmlLocalElements(area,'polygon')){
+      const polygon=parseCapPolygon(node.textContent);
+      if(polygon) polygons.push(polygon);
+    }
+
+    for(const node of xmlLocalElements(area,'circle')){
+      const circle=parseCapCircle(node.textContent);
+      if(circle) circles.push(circle);
+    }
+  }
+
+  const event=xmlLocalText(info,'event')||'Weather warning';
+  const headline=xmlLocalText(info,'headline')||event;
+  const officialWeb=xmlLocalText(info,'web');
+
+  return {
+    country:'Finland',
+    flag:'🇫🇮',
+    sourceSlug:'finland-fmi',
+    area:areaNames.join(', ')||'Finland',
+    event,
+    level:xmlLocalText(info,'severity')||'Moderate',
+    headline,
+    description:xmlLocalText(info,'description'),
+    instruction:xmlLocalText(info,'instruction'),
+    effective:xmlLocalText(info,'effective')||xmlLocalText(info,'onset'),
+    expires,
+    identifier:xmlLocalText(alert,'identifier'),
+    capUrl:capUrl||officialWeb||FMI_WARNING_PAGE,
+    officialWeb:officialWeb||FMI_WARNING_PAGE,
+    polygons,
+    circles:[...circles],
+    sourceName:'Finnish Meteorological Institute'
+  };
+}
+
+function parseFmiCapXml(xmlText,capUrl=''){
+  const doc=new DOMParser().parseFromString(xmlText,'application/xml');
+  if(doc.querySelector('parsererror')) throw new Error('FMI CAP XML parse failed');
+
+  const roots=[];
+  if(doc.documentElement?.localName==='alert') roots.push(doc.documentElement);
+  for(const alert of xmlLocalElements(doc,'alert')){
+    if(!roots.includes(alert)) roots.push(alert);
+  }
+
+  return roots
+    .map(alert=>parseFmiCapAlert(alert,capUrl))
+    .filter(Boolean);
+}
+
+function fmiRssCapLinks(xmlText){
+  const doc=new DOMParser().parseFromString(xmlText,'application/xml');
+  if(doc.querySelector('parsererror')) throw new Error('FMI RSS XML parse failed');
+
+  const links=new Set();
+
+  for(const item of xmlLocalElements(doc,'item')){
+    const candidates=[
+      ...xmlLocalElements(item,'link').map(el=>(el.textContent||'').trim()),
+      ...xmlLocalElements(item,'guid').map(el=>(el.textContent||'').trim())
+    ];
+
+    for(const candidate of candidates){
+      if(!candidate) continue;
+
+      // FMI RSS is a thin feed: entries point to the actual CAP document.
+      // Accept any FMI CAP XML URL, including archived timestamped documents.
+      const match=candidate.match(/https?:\/\/alerts\.fmi\.fi\/cap\/[^\s<>"']+\.xml(?:\?[^\s<>"']*)?/i);
+      if(match) links.add(match[0].replace(/&amp;/g,'&'));
+    }
+  }
+
+  return [...links];
+}
+
+async function loadFinlandOfficialWarnings(){
+  // FMI recommends RSS when clients do not need every CAP message embedded in
+  // the feed. It is much smaller than their "fat" Atom feed. Follow the RSS
+  // links and fetch only the CAP documents that are actually current.
+  const rss=await fetchWarningText(FMI_WARNING_RSS,12000);
+  const links=fmiRssCapLinks(rss);
+
+  if(links.length){
+    const records=[];
+    let next=0;
+
+    const workers=Array.from({length:Math.min(4,links.length)},async()=>{
+      while(true){
+        const index=next++;
+        if(index>=links.length) return;
+
+        const url=links[index];
+        try{
+          const capXml=await fetchWarningText(url,12000);
+          records.push(...parseFmiCapXml(capXml,url));
+        }catch(e){
+          console.warn('FMI CAP document unavailable',url,e);
+        }
+      }
+    });
+
+    await Promise.all(workers);
+    if(records.length) return dedupeNordicWarnings(records);
+  }
+
+  // Defensive fallback: FMI describes its Atom endpoint as a "fat Atom" feed
+  // containing the CAP messages inline. It is larger, so only use it when the
+  // small RSS feed did not expose usable CAP links.
+  const atom=await fetchWarningText(FMI_WARNING_ATOM,20000);
+  const records=parseFmiCapXml(atom,FMI_WARNING_ATOM);
+  return dedupeNordicWarnings(records);
+}
+
+async function loadFinlandWarningsWithFallback(){
+  try{
+    return {
+      records:await loadFinlandOfficialWarnings(),
+      official:true
+    };
+  }catch(officialError){
+    console.warn('Official FMI warning feed unavailable; using MeteoAlarm text fallback',officialError);
+
+    // Preserve alert cards even if FMI is temporarily unreachable. This
+    // fallback may not contain polygons because MeteoAlarm can use EMMA_IDs.
+    const xml=await fetchWarningText(FINLAND_METEOALARM_FALLBACK.feed,12000);
+    const records=parseMeteoAlarmAtom(xml,FINLAND_METEOALARM_FALLBACK);
+    await enrichNordicWarnings(records);
+
+    return {
+      records,
+      official:false,
+      error:officialError
+    };
+  }
+}
+
 function parseMeteoAlarmAtom(xmlText,source){
   const doc=new DOMParser().parseFromString(xmlText,'application/xml');
   if(doc.querySelector('parsererror')) throw new Error(source.country+' Atom XML parse failed');
@@ -1427,27 +1591,43 @@ async function loadNordicWarnings(force=false){
   }
 
   try{
-    const results=await Promise.allSettled(
-      NORDIC_WARNING_SOURCES.map(async source=>{
-        const xml=await fetchWarningText(source.feed,12000);
-        return parseMeteoAlarmAtom(xml,source);
-      })
-    );
+    const tasks=[
+      {
+        country:'Finland',
+        run:()=>loadFinlandWarningsWithFallback()
+      },
+      ...NORDIC_WARNING_SOURCES.map(source=>({
+        country:source.country,
+        run:async()=>{
+          const xml=await fetchWarningText(source.feed,12000);
+          const records=parseMeteoAlarmAtom(xml,source);
+          await enrichNordicWarnings(records);
+          return {records,official:false};
+        }
+      }))
+    ];
 
+    const results=await Promise.allSettled(tasks.map(task=>task.run()));
     const loaded=[];
     const failures=[];
+    let finlandOfficial=true;
 
     results.forEach((result,index)=>{
-      if(result.status==='fulfilled') loaded.push(...result.value);
-      else failures.push(NORDIC_WARNING_SOURCES[index].country);
+      const task=tasks[index];
+      if(result.status==='fulfilled'){
+        loaded.push(...(result.value.records||[]));
+        if(task.country==='Finland' && result.value.official===false){
+          finlandOfficial=false;
+        }
+      }else{
+        failures.push(task.country);
+      }
     });
 
-    // If every country failed, do not overwrite a usable cache.
-    if(failures.length===NORDIC_WARNING_SOURCES.length){
+    if(failures.length===tasks.length){
       throw new Error('all Nordic warning feeds unavailable');
     }
 
-    await enrichNordicWarnings(loaded);
     nordicWarnings=dedupeNordicWarnings(loaded);
     nordicWarningLoadedAt=Date.now();
     saveNordicWarningsCache(nordicWarnings);
@@ -1455,7 +1635,8 @@ async function loadNordicWarnings(force=false){
     return {
       records:nordicWarnings,
       fromCache:false,
-      failedCountries:failures
+      failedCountries:failures,
+      finlandOfficial
     };
   }catch(e){
     const cached=loadNordicWarningsCache();
@@ -1486,7 +1667,7 @@ function nordicWarningPopupHtml(record){
     ${start||end?`<p><b>Valid:</b> ${htmlEscape(start)}${start&&end?' – ':''}${htmlEscape(end)}</p>`:''}
     ${record.description?`<p>${htmlEscape(record.description)}</p>`:''}
     ${record.instruction?`<p><b>Instructions:</b> ${htmlEscape(record.instruction)}</p>`:''}
-    <p><a href="${record.capUrl||NORDIC_WARNING_PAGE}" target="_blank" rel="noopener">MeteoAlarm / CAP source ↗</a></p>
+    <p><a href="${record.capUrl||NORDIC_WARNING_PAGE}" target="_blank" rel="noopener">${record.country==='Finland'?'Official FMI CAP source':'MeteoAlarm / CAP source'} ↗</a></p>
   </div>`;
 }
 
@@ -1547,7 +1728,7 @@ async function renderNordicWarnings(){
         ? `<div class="warning-meta" style="margin-top:4px">${htmlEscape(record.description)}</div>`
         : '')+
       (!firstLayer
-        ? '<div class="warning-meta" style="margin-top:4px">Warning loaded; this CAP item did not provide a usable map polygon.</div>'
+        ? '<div class="warning-meta" style="margin-top:4px">Warning loaded, but no usable map geometry was available from the source.</div>'
         : '');
 
     card.addEventListener('click',()=>{
