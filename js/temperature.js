@@ -33,20 +33,40 @@ function rasterYForLatitude(region,lat,height){
   return ((northY-y)/(northY-southY))*height;
 }
 
-function makeGrid(south,north,west,east,latStep,lonStep){
-  const pts=[];
-  for(let lat=south;lat<=north+0.001;lat+=latStep){
-    for(let lon=west;lon<=east+0.001;lon+=lonStep){
-      pts.push([+lat.toFixed(2),+lon.toFixed(2)]);
-    }
-  }
-  return pts;
+function makeAxis(start,end,step){
+  const values=[];
+  for(let v=start;v<end-1e-8;v+=step) values.push(+v.toFixed(4));
+  if(!values.length || Math.abs(values[values.length-1]-end)>1e-6) values.push(+end.toFixed(4));
+  return values;
 }
 
-// Regional grids are intentionally separate so Iceland does not force a huge
-// raster across the North Atlantic.
-const SCANDI_TEMP_GRID=makeGrid(54.8,71.2,4.8,31.6,1.35,2.2);
-const ICELAND_TEMP_GRID=makeGrid(63.0,67.0,-24.8,-13.0,0.8,1.8);
+function makeStructuredGrid(id,bounds,latStep,lonStep){
+  const south=bounds[0][0],west=bounds[0][1];
+  const north=bounds[1][0],east=bounds[1][1];
+  const latitudes=makeAxis(south,north,latStep);
+  const longitudes=makeAxis(west,east,lonStep);
+  const points=[];
+
+  for(const lat of latitudes){
+    for(const lon of longitudes) points.push([lat,lon]);
+  }
+
+  return {id,bounds,latitudes,longitudes,points};
+}
+
+// Denser source grids than v7.7. Open-Meteo applies terrain-aware downscaling
+// at each requested coordinate; bilinear interpolation then blends only the
+// four surrounding samples instead of every point in Northern Europe.
+const TEMP_GRID_SPECS=[
+  makeStructuredGrid('baltics',TEMP_REGIONS[0].bounds,0.40,0.60),
+  makeStructuredGrid('scandinavia',TEMP_REGIONS[1].bounds,0.75,1.05),
+  makeStructuredGrid('iceland',TEMP_REGIONS[2].bounds,0.50,0.75)
+];
+
+const temperatureGridData=new Map();
+let temperatureCitySeries=[];
+let temperatureCityMap=new Map();
+let temperatureLoadPromise=null;
 
 const TEMP_COUNTRIES_URL='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 const TEMP_REGION_COUNTRY_IDS={
@@ -136,23 +156,30 @@ function clipTemperatureToCountries(ctx,region,w,h,countryFeatures){
 // Extra exact sampling points for Nordic temperature readouts.
 // Keeping these as direct Open-Meteo points means each displayed city uses
 // its own model value instead of extrapolating from the Baltic grid.
+const BALTIC_TEMP_POINTS=[
+  [59.44,24.75],[58.38,26.72],[58.25,22.49],[58.94,23.54],[59.38,28.19],
+  [58.88,25.56],[57.78,26.04],[58.36,24.50],[59.18,27.28],[58.00,25.93],
+  [56.95,24.11],[56.51,21.01],[57.39,21.56],[56.65,23.72],[55.87,26.52],
+  [57.54,25.43],[56.65,27.72],[54.69,25.28],[54.90,23.90],[55.70,21.14],
+  [55.93,23.32],[55.73,24.36],[54.40,24.04],[55.29,23.97]
+];
+
 const NORDIC_TEMP_POINTS=[
-  // Finland
   [60.17,24.94],[61.50,23.76],[60.45,22.27],[65.01,25.47],
   [66.50,25.73],[62.89,27.68],[63.10,21.62],[62.24,25.75],
-
-  // Sweden
   [59.33,18.07],[57.71,11.97],[55.60,13.00],[63.83,20.26],
   [65.58,22.15],[60.67,17.14],[67.85,20.23],
-
-  // Norway
   [59.91,10.75],[60.39,5.32],[63.43,10.39],[69.65,18.96],
   [58.97,5.73],[68.44,17.43],[70.98,25.97],
-
-  // Iceland
   [64.15,-21.94],[65.68,-18.09],[65.26,-14.40],
   [66.07,-23.12],[64.25,-15.21],[63.75,-20.22]
 ];
+
+const TEMP_CITY_POINTS=[...BALTIC_TEMP_POINTS,...NORDIC_TEMP_POINTS];
+
+function temperatureCoordKey(lat,lon){
+  return Number(lat).toFixed(2)+','+Number(lon).toFixed(2);
+}
 
 function tempColor(t){
   const stops=[
@@ -172,6 +199,7 @@ function tempColor(t){
 }
 
 function sampleTemperatureAt(series, unix){
+  if(!series) return NaN;
   const times=series.times;
   const temps=series.temps;
   if(!times.length) return NaN;
@@ -192,23 +220,69 @@ function sampleTemperatureAt(series, unix){
   return NaN;
 }
 
-function interpolateTemp(lat,lon,unix){
-  let num=0,den=0;
-  for(const s of temperatureSeries){
-    const sv=sampleTemperatureAt(s,unix);
-    if(!Number.isFinite(sv)) continue;
+function axisBracket(axis,value){
+  if(!axis?.length || value<axis[0] || value>axis[axis.length-1]) return null;
+  if(axis.length===1) return {i0:0,i1:0,f:0};
 
-    const dx=(lon-s.lon)*Math.cos(lat*Math.PI/180);
-    const dy=(lat-s.lat);
-    const d2=dx*dx+dy*dy;
-
-    if(d2<1e-8) return sv;
-
-    const w=1/Math.pow(d2,1.35);
-    num+=w*sv;
-    den+=w;
+  let lo=0,hi=axis.length-1;
+  while(hi-lo>1){
+    const mid=(lo+hi)>>1;
+    if(axis[mid]<=value) lo=mid;
+    else hi=mid;
   }
-  return den?num/den:NaN;
+
+  const a=axis[lo],b=axis[hi];
+  return {i0:lo,i1:hi,f:b===a?0:(value-a)/(b-a)};
+}
+
+function bilinearValue(values,cols,latB,lonB){
+  if(!latB || !lonB) return NaN;
+
+  const candidates=[
+    [latB.i0*cols+lonB.i0,(1-latB.f)*(1-lonB.f)],
+    [latB.i0*cols+lonB.i1,(1-latB.f)*lonB.f],
+    [latB.i1*cols+lonB.i0,latB.f*(1-lonB.f)],
+    [latB.i1*cols+lonB.i1,latB.f*lonB.f]
+  ];
+
+  let sum=0,weight=0;
+  for(const [index,w] of candidates){
+    const v=values[index];
+    if(Number.isFinite(v) && w>0){
+      sum+=v*w;
+      weight+=w;
+    }
+  }
+  return weight?sum/weight:NaN;
+}
+
+function gridSpecForPoint(lat,lon){
+  // Prefer the tighter Baltic grid where it overlaps the Nordic rectangle.
+  for(const spec of TEMP_GRID_SPECS){
+    const [[south,west],[north,east]]=spec.bounds;
+    if(lat>=south && lat<=north && lon>=west && lon<=east) return spec;
+  }
+  return null;
+}
+
+function sampleGridTemperature(spec,lat,lon,unix){
+  const series=temperatureGridData.get(spec.id);
+  if(!series?.length) return NaN;
+
+  const values=series.map(item=>sampleTemperatureAt(item,unix));
+  const latB=axisBracket(spec.latitudes,lat);
+  const lonB=axisBracket(spec.longitudes,lon);
+  return bilinearValue(values,spec.longitudes.length,latB,lonB);
+}
+
+function interpolateTemp(lat,lon,unix){
+  // Labels use exact API requests at their coordinates whenever available.
+  const exact=temperatureCityMap.get(temperatureCoordKey(lat,lon));
+  const exactValue=sampleTemperatureAt(exact,unix);
+  if(Number.isFinite(exactValue)) return exactValue;
+
+  const spec=gridSpecForPoint(lat,lon);
+  return spec?sampleGridTemperature(spec,lat,lon,unix):NaN;
 }
 
 function nearestQuarterHour(unix){
@@ -346,12 +420,19 @@ async function createTemperatureImage(unix, token){
   try{
     countryFeatures=await loadTemperatureCountryFeatures();
   }catch(e){
-    // The heatmap still works if the boundary dataset is temporarily unavailable;
-    // it simply falls back to the regional rectangles for that render.
     console.warn('Temperature coastline mask unavailable:',e);
   }
 
   for(const region of TEMP_REGIONS){
+    const spec=TEMP_GRID_SPECS.find(item=>item.id===region.id);
+    const sourceSeries=temperatureGridData.get(region.id);
+    if(!spec || !sourceSeries?.length) continue;
+
+    // Sample the model timeline only once per source point for this frame.
+    // Pixel interpolation below is then just four-number bilinear blending.
+    const gridValues=sourceSeries.map(item=>sampleTemperatureAt(item,cacheKey));
+    const cols=spec.longitudes.length;
+
     const W=region.w,H=region.h;
     const canvas=document.createElement('canvas');
     canvas.width=W; canvas.height=H;
@@ -362,13 +443,20 @@ async function createTemperatureImage(unix, token){
     const west=region.bounds[0][1];
     const east=region.bounds[1][1];
 
+    // Longitude bracket is identical for every row, so calculate it once.
+    const lonLookup=Array.from({length:W},(_,x)=>{
+      const lon=west+(x/(W-1))*(east-west);
+      return axisBracket(spec.longitudes,lon);
+    });
+
     for(let y=0;y<H;y++){
       if(token!==temperatureRenderToken) return null;
+
       const lat=rasterLatitudeForRow(region,y,H);
+      const latB=axisBracket(spec.latitudes,lat);
 
       for(let x=0;x<W;x++){
-        const lon=west+(x/(W-1))*(east-west);
-        const value=interpolateTemp(lat,lon,cacheKey);
+        const value=bilinearValue(gridValues,cols,latB,lonLookup[x]);
         const i=(y*W+x)*4;
 
         if(!Number.isFinite(value)){
@@ -381,16 +469,13 @@ async function createTemperatureImage(unix, token){
         const c=tempColor(value);
         d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=205;
       }
-      if(y%10===0) await new Promise(requestAnimationFrame);
+
+      // Yield only a few times; the new renderer is much cheaper than v7.7.
+      if(y%40===0) await new Promise(requestAnimationFrame);
     }
 
     ctx.putImageData(img,0,0);
-
-    // Clip the colored raster to the actual country outlines. Canvas edge
-    // antialiasing keeps coastlines and islands smooth instead of square.
-    const coastlineClipped=clipTemperatureToCountries(
-      ctx,region,W,H,countryFeatures
-    );
+    const coastlineClipped=clipTemperatureToCountries(ctx,region,W,H,countryFeatures);
 
     rendered.push({
       id:region.id,
@@ -403,11 +488,13 @@ async function createTemperatureImage(unix, token){
   if(token!==temperatureRenderToken) return null;
   temperatureImageCache.set(cacheKey,rendered);
   temperatureStatsCache.set(cacheKey,{minT:globalMin,maxT:globalMax});
+
   while(temperatureImageCache.size>TEMP_CACHE_LIMIT){
     const oldest=temperatureImageCache.keys().next().value;
     temperatureImageCache.delete(oldest);
     temperatureStatsCache.delete(oldest);
   }
+
   return {key:cacheKey,regions:rendered,minT:globalMin,maxT:globalMax};
 }
 
@@ -438,7 +525,7 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   renderTemperatureLabels(unix);
 
   $('tempStatus').textContent=
-    `Temperature: Baltic + Nordic readings${$('heatmapOn')?.checked?' + coastline-clipped Mercator heatmap':''} · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)} · cached`;
+    `Temperature: terrain-aware source points + fast bilinear heatmap${$('heatmapOn')?.checked?' · coastline clipped':''} · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)}`;
   $('tempStatus').className='status ok';
   weatherFront();
 }
@@ -500,82 +587,131 @@ async function fetchTemperatureSeries(points){
             '&minutely_15=temperature_2m'+
             '&past_minutely_15=12'+
             '&forecast_minutely_15=4'+
+            '&cell_selection=land'+
             '&timezone=UTC';
 
-  const r=await fetch(url,{cache:'no-store'});
-  if(!r.ok) throw new Error('temperature API HTTP '+r.status);
+  const response=await fetch(url,{cache:'no-store'});
+  if(!response.ok) throw new Error('temperature API HTTP '+response.status);
 
-  const j=await r.json();
-  const arr=Array.isArray(j)?j:[j];
+  const json=await response.json();
+  const arr=Array.isArray(json)?json:[json];
 
-  return arr.map((v,i)=>{
-    const point=points[i];
-    if(!point) return null;
+  // Preserve one output slot per requested point. Structured-grid interpolation
+  // depends on row/column order even if an individual location fails.
+  return points.map((point,i)=>{
+    const item=arr[i];
+    if(!item) return null;
 
-    const times=(v.minutely_15?.time||[]).map(s=>Math.floor(Date.parse(s+'Z')/1000));
-    const temps=(v.minutely_15?.temperature_2m||[]).map(Number);
+    const times=(item.minutely_15?.time||[]).map(s=>Math.floor(Date.parse(s+'Z')/1000));
+    const temps=(item.minutely_15?.temperature_2m||[]).map(Number);
+    if(!times.length || !temps.some(Number.isFinite)) return null;
 
-    return {
-      lat:point[0],
-      lon:point[1],
-      times,
-      temps
-    };
-  }).filter(v=>v && v.times.length && v.temps.some(Number.isFinite));
+    return {lat:point[0],lon:point[1],times,temps};
+  });
 }
 
-async function loadTemperatures(force=false){
-  const now=Date.now();
+async function fetchTemperatureChunks(points,chunkSize=100,maxConcurrent=4){
+  const chunks=[];
+  for(let i=0;i<points.length;i+=chunkSize) chunks.push(points.slice(i,i+chunkSize));
 
-  if(!force && temperatureSeries.length && now-temperatureLoadedAt<10*60*1000){
-    const i=Number($('timeline').value);
-    const frame=frames[i];
-    if(frame) queueTemperatureRender(frame.time,0);
-    return;
-  }
+  const results=new Array(chunks.length);
+  let next=0;
 
-  $('tempStatus').textContent='Temperature: loading Baltic + Nordic heatmap data…';
-  $('tempStatus').className='status';
-
-  const balticPts=[];
-  for(let lat=53.85;lat<=59.85;lat+=0.55){
-    for(let lon=20.55;lon<=28.45;lon+=0.95){
-      balticPts.push([+lat.toFixed(2),+lon.toFixed(2)]);
+  async function worker(){
+    while(true){
+      const index=next++;
+      if(index>=chunks.length) return;
+      results[index]=await fetchTemperatureSeries(chunks[index]);
     }
   }
 
-  // Open-Meteo multi-location calls are kept moderate in size for reliability.
-  const fetchChunks=async points=>{
-    const out=[];
-    for(let i=0;i<points.length;i+=80){
-      out.push(...await fetchTemperatureSeries(points.slice(i,i+80)));
-    }
-    return out;
-  };
+  const workers=Array.from(
+    {length:Math.min(maxConcurrent,chunks.length)},
+    ()=>worker()
+  );
+  await Promise.all(workers);
+  return results.flat();
+}
 
-  const [balticSeries,scandiSeries,icelandSeries,nordicCitySeries]=await Promise.all([
-    fetchChunks(balticPts),
-    fetchChunks(SCANDI_TEMP_GRID),
-    fetchChunks(ICELAND_TEMP_GRID),
-    fetchTemperatureSeries(NORDIC_TEMP_POINTS)
+async function fetchAllTemperatureData(){
+  const cityPromise=fetchTemperatureChunks(TEMP_CITY_POINTS,100,2);
+  const gridPromises=TEMP_GRID_SPECS.map(spec=>
+    fetchTemperatureChunks(spec.points,100,4)
+      .then(series=>[spec.id,series])
+  );
+
+  const [citySeries,gridPairs]=await Promise.all([
+    cityPromise,
+    Promise.all(gridPromises)
   ]);
 
+  temperatureGridData.clear();
+  for(const [id,series] of gridPairs) temperatureGridData.set(id,series);
+
+  temperatureCitySeries=citySeries.filter(Boolean);
+  temperatureCityMap=new Map(
+    temperatureCitySeries.map(item=>[
+      temperatureCoordKey(item.lat,item.lon),
+      item
+    ])
+  );
+
   temperatureSeries=[
-    ...balticSeries,
-    ...scandiSeries,
-    ...icelandSeries,
-    ...nordicCitySeries
+    ...temperatureCitySeries,
+    ...gridPairs.flatMap(([,series])=>series.filter(Boolean))
   ];
 
-  if(!balticSeries.length) throw new Error('no Baltic temperature timeline returned');
-  if(!scandiSeries.length) throw new Error('no Scandinavian temperature grid returned');
-  if(!icelandSeries.length) throw new Error('no Iceland temperature grid returned');
+  if(!temperatureGridData.get('baltics')?.some(Boolean))
+    throw new Error('no Baltic temperature grid returned');
+  if(!temperatureGridData.get('scandinavia')?.some(Boolean))
+    throw new Error('no Scandinavian temperature grid returned');
+  if(!temperatureGridData.get('iceland')?.some(Boolean))
+    throw new Error('no Iceland temperature grid returned');
 
   temperatureLoadedAt=Date.now();
   temperatureImageCache.clear();
   temperatureStatsCache.clear();
+}
+
+async function ensureTemperatureData(force=false){
+  const fresh=temperatureSeries.length &&
+              Date.now()-temperatureLoadedAt<10*60*1000;
+
+  if(!force && fresh) return;
+  if(temperatureLoadPromise) return temperatureLoadPromise;
+
+  temperatureLoadPromise=(async()=>{
+    if($('tempOn')?.checked){
+      $('tempStatus').textContent='Temperature: loading higher-detail regional data…';
+      $('tempStatus').className='status';
+    }
+    await Promise.all([
+      fetchAllTemperatureData(),
+      loadTemperatureCountryFeatures().catch(()=>null)
+    ]);
+  })();
+
+  try{
+    await temperatureLoadPromise;
+  }finally{
+    temperatureLoadPromise=null;
+  }
+}
+
+async function loadTemperatures(force=false){
+  await ensureTemperatureData(force);
 
   const i=Number($('timeline').value);
   const frame=frames[i];
-  if(frame) queueTemperatureRender(frame.time,0);
+  if(frame && $('tempOn').checked) queueTemperatureRender(frame.time,0);
 }
+
+async function prefetchTemperatures(){
+  try{
+    await ensureTemperatureData(false);
+  }catch(e){
+    // Prefetch is optional; if it fails, the normal Temperature toggle will retry.
+    console.warn('Temperature background prefetch skipped:',e);
+  }
+}
+
