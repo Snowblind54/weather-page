@@ -58,15 +58,88 @@ function makeStructuredGrid(id,bounds,latStep,lonStep){
 // at each requested coordinate; bilinear interpolation then blends only the
 // four surrounding samples instead of every point in Northern Europe.
 const TEMP_GRID_SPECS=[
-  makeStructuredGrid('baltics',TEMP_REGIONS[0].bounds,0.40,0.60),
-  makeStructuredGrid('scandinavia',TEMP_REGIONS[1].bounds,0.75,1.05),
-  makeStructuredGrid('iceland',TEMP_REGIONS[2].bounds,0.50,0.75)
+  makeStructuredGrid('baltics',TEMP_REGIONS[0].bounds,0.50,0.75),
+  makeStructuredGrid('scandinavia',TEMP_REGIONS[1].bounds,0.90,1.25),
+  makeStructuredGrid('iceland',TEMP_REGIONS[2].bounds,0.60,0.90)
 ];
 
 const temperatureGridData=new Map();
 let temperatureCitySeries=[];
 let temperatureCityMap=new Map();
 let temperatureLoadPromise=null;
+
+const TEMP_DATA_CACHE_KEY='balticWeatherTemperatureDataV79';
+const TEMP_DATA_CACHE_MAX_AGE=15*60*1000;
+const TEMP_REQUEST_GAP_MS=320;
+
+function sleep(ms){
+  return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+function serializeTemperatureState(){
+  return {
+    savedAt:Date.now(),
+    citySeries:temperatureCitySeries,
+    grids:Object.fromEntries(
+      [...temperatureGridData.entries()]
+    )
+  };
+}
+
+function saveTemperatureState(){
+  try{
+    localStorage.setItem(
+      TEMP_DATA_CACHE_KEY,
+      JSON.stringify(serializeTemperatureState())
+    );
+  }catch(e){
+    // Storage can be unavailable/private; runtime data still works.
+  }
+}
+
+function restoreTemperatureState(){
+  try{
+    const raw=localStorage.getItem(TEMP_DATA_CACHE_KEY);
+    if(!raw) return false;
+
+    const cached=JSON.parse(raw);
+    if(!cached?.savedAt ||
+       Date.now()-cached.savedAt>TEMP_DATA_CACHE_MAX_AGE ||
+       !Array.isArray(cached.citySeries) ||
+       !cached.grids){
+      return false;
+    }
+
+    temperatureGridData.clear();
+    for(const spec of TEMP_GRID_SPECS){
+      const series=cached.grids[spec.id];
+      if(!Array.isArray(series) || series.length!==spec.points.length){
+        return false;
+      }
+      temperatureGridData.set(spec.id,series);
+    }
+
+    temperatureCitySeries=cached.citySeries.filter(Boolean);
+    temperatureCityMap=new Map(
+      temperatureCitySeries.map(item=>[
+        temperatureCoordKey(item.lat,item.lon),
+        item
+      ])
+    );
+
+    temperatureSeries=[
+      ...temperatureCitySeries,
+      ...TEMP_GRID_SPECS.flatMap(spec=>
+        (temperatureGridData.get(spec.id)||[]).filter(Boolean)
+      )
+    ];
+
+    temperatureLoadedAt=cached.savedAt;
+    return temperatureSeries.length>0;
+  }catch(e){
+    return false;
+  }
+}
 
 const TEMP_COUNTRIES_URL='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 const TEMP_REGION_COUNTRY_IDS={
@@ -560,9 +633,7 @@ function scheduleTemperaturePrecache(centerUnix){
       center-900,
       center+900,
       center-1800,
-      center+1800,
-      center-2700,
-      center+2700
+      center+1800
     ];
 
     for(const t of candidates){
@@ -578,7 +649,7 @@ function scheduleTemperaturePrecache(centerUnix){
   },250);
 }
 
-async function fetchTemperatureSeries(points){
+async function fetchTemperatureSeries(points,attempt=0){
   const lats=points.map(p=>p[0]).join(',');
   const lons=points.map(p=>p[1]).join(',');
 
@@ -591,18 +662,28 @@ async function fetchTemperatureSeries(points){
             '&timezone=UTC';
 
   const response=await fetch(url,{cache:'no-store'});
+
+  if(response.status===429 && attempt<3){
+    const retryAfter=Number(response.headers.get('Retry-After'));
+    const waitMs=Number.isFinite(retryAfter) && retryAfter>0
+      ? retryAfter*1000
+      : 1800*Math.pow(2,attempt);
+    await sleep(waitMs);
+    return fetchTemperatureSeries(points,attempt+1);
+  }
+
   if(!response.ok) throw new Error('temperature API HTTP '+response.status);
 
   const json=await response.json();
   const arr=Array.isArray(json)?json:[json];
 
-  // Preserve one output slot per requested point. Structured-grid interpolation
-  // depends on row/column order even if an individual location fails.
   return points.map((point,i)=>{
     const item=arr[i];
     if(!item) return null;
 
-    const times=(item.minutely_15?.time||[]).map(s=>Math.floor(Date.parse(s+'Z')/1000));
+    const times=(item.minutely_15?.time||[]).map(s=>
+      Math.floor(Date.parse(s+'Z')/1000)
+    );
     const temps=(item.minutely_15?.temperature_2m||[]).map(Number);
     if(!times.length || !temps.some(Number.isFinite)) return null;
 
@@ -610,45 +691,40 @@ async function fetchTemperatureSeries(points){
   });
 }
 
-async function fetchTemperatureChunks(points,chunkSize=100,maxConcurrent=4){
-  const chunks=[];
-  for(let i=0;i<points.length;i+=chunkSize) chunks.push(points.slice(i,i+chunkSize));
+async function fetchTemperatureChunks(points,chunkSize=110){
+  const out=[];
 
-  const results=new Array(chunks.length);
-  let next=0;
-
-  async function worker(){
-    while(true){
-      const index=next++;
-      if(index>=chunks.length) return;
-      results[index]=await fetchTemperatureSeries(chunks[index]);
-    }
+  // One global sequential queue is intentional. The previous version launched
+  // many requests at once and could trigger Open-Meteo HTTP 429 rate limits.
+  for(let i=0;i<points.length;i+=chunkSize){
+    if(i>0) await sleep(TEMP_REQUEST_GAP_MS);
+    const chunk=points.slice(i,i+chunkSize);
+    out.push(...await fetchTemperatureSeries(chunk));
   }
 
-  const workers=Array.from(
-    {length:Math.min(maxConcurrent,chunks.length)},
-    ()=>worker()
-  );
-  await Promise.all(workers);
-  return results.flat();
+  return out;
 }
 
 async function fetchAllTemperatureData(){
-  const cityPromise=fetchTemperatureChunks(TEMP_CITY_POINTS,100,2);
-  const gridPromises=TEMP_GRID_SPECS.map(spec=>
-    fetchTemperatureChunks(spec.points,100,4)
-      .then(series=>[spec.id,series])
-  );
+  // Fetch one ordered list so all chunks share the same throttle.
+  const groups=[
+    {id:'cities',points:TEMP_CITY_POINTS},
+    ...TEMP_GRID_SPECS.map(spec=>({id:spec.id,points:spec.points}))
+  ];
 
-  const [citySeries,gridPairs]=await Promise.all([
-    cityPromise,
-    Promise.all(gridPromises)
-  ]);
+  const loaded=new Map();
+
+  for(const group of groups){
+    const series=await fetchTemperatureChunks(group.points,110);
+    loaded.set(group.id,series);
+  }
 
   temperatureGridData.clear();
-  for(const [id,series] of gridPairs) temperatureGridData.set(id,series);
+  for(const spec of TEMP_GRID_SPECS){
+    temperatureGridData.set(spec.id,loaded.get(spec.id)||[]);
+  }
 
-  temperatureCitySeries=citySeries.filter(Boolean);
+  temperatureCitySeries=(loaded.get('cities')||[]).filter(Boolean);
   temperatureCityMap=new Map(
     temperatureCitySeries.map(item=>[
       temperatureCoordKey(item.lat,item.lon),
@@ -658,7 +734,9 @@ async function fetchAllTemperatureData(){
 
   temperatureSeries=[
     ...temperatureCitySeries,
-    ...gridPairs.flatMap(([,series])=>series.filter(Boolean))
+    ...TEMP_GRID_SPECS.flatMap(spec=>
+      (temperatureGridData.get(spec.id)||[]).filter(Boolean)
+    )
   ];
 
   if(!temperatureGridData.get('baltics')?.some(Boolean))
@@ -671,11 +749,14 @@ async function fetchAllTemperatureData(){
   temperatureLoadedAt=Date.now();
   temperatureImageCache.clear();
   temperatureStatsCache.clear();
+  saveTemperatureState();
 }
 
 async function ensureTemperatureData(force=false){
+  if(!temperatureSeries.length && !force) restoreTemperatureState();
+
   const fresh=temperatureSeries.length &&
-              Date.now()-temperatureLoadedAt<10*60*1000;
+              Date.now()-temperatureLoadedAt<TEMP_DATA_CACHE_MAX_AGE;
 
   if(!force && fresh) return;
   if(temperatureLoadPromise) return temperatureLoadPromise;
@@ -709,6 +790,14 @@ async function loadTemperatures(force=false){
 async function prefetchTemperatures(){
   try{
     await ensureTemperatureData(false);
+
+    // Pre-render only the current frame while idle, so turning Temperature on
+    // usually needs no heavy calculation. Do not touch the visible map.
+    const frame=frames[Number($('timeline').value)] || frames.at(-1);
+    if(frame && !temperatureImageCache.has(nearestQuarterHour(frame.time))){
+      const token=temperatureRenderToken;
+      await createTemperatureImage(frame.time,token);
+    }
   }catch(e){
     // Prefetch is optional; if it fails, the normal Temperature toggle will retry.
     console.warn('Temperature background prefetch skipped:',e);
