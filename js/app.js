@@ -39,6 +39,8 @@ $('warningOn').addEventListener('change',async()=>{
     warningLoadGeneration++;
     clearWarningLayers();
     warningRecords=[];
+    lithuaniaWarnings=[];
+    nordicWarnings=[];
     $('warningList').innerHTML='';
     $('warningStatus').textContent='Estonian warnings layer is off.';
     $('warningStatus').className='status';
