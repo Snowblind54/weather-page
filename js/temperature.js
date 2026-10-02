@@ -20,6 +20,91 @@ function makeGrid(south,north,west,east,latStep,lonStep){
 const SCANDI_TEMP_GRID=makeGrid(54.8,71.2,4.8,31.6,1.35,2.2);
 const ICELAND_TEMP_GRID=makeGrid(63.0,67.0,-24.8,-13.0,0.8,1.8);
 
+const TEMP_COUNTRIES_URL='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
+const TEMP_REGION_COUNTRY_IDS={
+  baltics:new Set(['233','428','440']),       // Estonia, Latvia, Lithuania
+  scandinavia:new Set(['246','752','578']),  // Finland, Sweden, Norway
+  iceland:new Set(['352'])                   // Iceland
+};
+let temperatureCountryFeaturesPromise=null;
+
+async function loadTemperatureCountryFeatures(){
+  if(temperatureCountryFeaturesPromise) return temperatureCountryFeaturesPromise;
+
+  temperatureCountryFeaturesPromise=(async()=>{
+    const response=await fetch(TEMP_COUNTRIES_URL,{cache:'force-cache'});
+    if(!response.ok) throw new Error('country coastline data HTTP '+response.status);
+    const topology=await response.json();
+
+    if(!window.topojson?.feature || !topology?.objects?.countries){
+      throw new Error('country coastline decoder unavailable');
+    }
+
+    const collection=topojson.feature(topology,topology.objects.countries);
+    return collection.features||[];
+  })();
+
+  return temperatureCountryFeaturesPromise;
+}
+
+function addMaskRing(ctx,ring,region,w,h){
+  if(!ring?.length) return;
+
+  const south=region.bounds[0][0], west=region.bounds[0][1];
+  const north=region.bounds[1][0], east=region.bounds[1][1];
+
+  for(let i=0;i<ring.length;i++){
+    const lon=ring[i][0];
+    const lat=ring[i][1];
+    const x=((lon-west)/(east-west))*w;
+    const y=((north-lat)/(north-south))*h;
+
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+}
+
+function addMaskGeometry(ctx,geometry,region,w,h){
+  if(!geometry) return;
+
+  if(geometry.type==='Polygon'){
+    for(const ring of geometry.coordinates) addMaskRing(ctx,ring,region,w,h);
+    return;
+  }
+
+  if(geometry.type==='MultiPolygon'){
+    for(const polygon of geometry.coordinates){
+      for(const ring of polygon) addMaskRing(ctx,ring,region,w,h);
+    }
+  }
+}
+
+function clipTemperatureToCountries(ctx,region,w,h,countryFeatures){
+  const wanted=TEMP_REGION_COUNTRY_IDS[region.id];
+  if(!wanted || !countryFeatures?.length) return false;
+
+  ctx.save();
+  ctx.globalCompositeOperation='destination-in';
+  ctx.beginPath();
+
+  let matched=0;
+  for(const feature of countryFeatures){
+    if(!wanted.has(String(feature.id))) continue;
+    addMaskGeometry(ctx,feature.geometry,region,w,h);
+    matched++;
+  }
+
+  if(matched){
+    ctx.fillStyle='#fff';
+    ctx.fill('evenodd');
+  }
+  ctx.restore();
+
+  return matched>0;
+}
+
+
 // Extra exact sampling points for Nordic temperature readouts.
 // Keeping these as direct Open-Meteo points means each displayed city uses
 // its own model value instead of extrapolating from the Baltic grid.
@@ -228,6 +313,15 @@ async function createTemperatureImage(unix, token){
 
   const rendered=[];
   let globalMin=Infinity,globalMax=-Infinity;
+  let countryFeatures=null;
+
+  try{
+    countryFeatures=await loadTemperatureCountryFeatures();
+  }catch(e){
+    // The heatmap still works if the boundary dataset is temporarily unavailable;
+    // it simply falls back to the regional rectangles for that render.
+    console.warn('Temperature coastline mask unavailable:',e);
+  }
 
   for(const region of TEMP_REGIONS){
     const W=region.w,H=region.h;
@@ -263,7 +357,19 @@ async function createTemperatureImage(unix, token){
     }
 
     ctx.putImageData(img,0,0);
-    rendered.push({id:region.id,bounds:region.bounds,dataUrl:canvas.toDataURL('image/png')});
+
+    // Clip the colored raster to the actual country outlines. Canvas edge
+    // antialiasing keeps coastlines and islands smooth instead of square.
+    const coastlineClipped=clipTemperatureToCountries(
+      ctx,region,W,H,countryFeatures
+    );
+
+    rendered.push({
+      id:region.id,
+      bounds:region.bounds,
+      coastlineClipped,
+      dataUrl:canvas.toDataURL('image/png')
+    });
   }
 
   if(token!==temperatureRenderToken) return null;
@@ -304,7 +410,7 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   renderTemperatureLabels(unix);
 
   $('tempStatus').textContent=
-    `Temperature: Baltic + Nordic readings${$('heatmapOn')?.checked?' + heatmap':''} · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)} · cached`;
+    `Temperature: Baltic + Nordic readings${$('heatmapOn')?.checked?' + coastline-clipped heatmap':''} · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)} · cached`;
   $('tempStatus').className='status ok';
   weatherFront();
 }
