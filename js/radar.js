@@ -129,11 +129,8 @@ async function drawRadar(frame){
 
     radarLayer=nextLayer;
 
-    fadeInImageLayer(
-      nextLayer,
-      Number($('radarOpacity').value)/100,
-      160
-    );
+    // Radar opacity is intentionally fixed now that the UI slider is gone.
+    fadeInImageLayer(nextLayer,0.86,160);
 
     setTimeout(()=>{
       if(oldLayer && oldLayer!==radarLayer && map.hasLayer(oldLayer)){
@@ -141,7 +138,7 @@ async function drawRadar(frame){
       }
     },170);
 
-    $('radarStatus').textContent='Radar: official Estonian composite · '+fmt(frame.time);
+    $('radarStatus').textContent='Radar: EE official KAIA · '+fmt(frame.time);
     $('radarStatus').className='status ok';
 
     weatherFront();
@@ -158,6 +155,242 @@ async function drawRadar(frame){
   }
 }
 
+// -----------------------------------------------------------------------------
+// Latvia + Lithuania direct national radar products
+// -----------------------------------------------------------------------------
+
+const DIRECT_RADAR_SOURCES=[
+  {
+    id:'lv',
+    label:'LV official LVĢMC',
+    url:'https://www.meteo.lv/dynamic-content/?type=RADAR_250&file=RIX_250.sri.png',
+    // Rīga Airport radar: roughly 250 km product radius.
+    bounds:[[54.67,19.84],[59.18,28.10]],
+    cropSquareLeft:true,
+    opacity:0.82
+  },
+  {
+    id:'lt',
+    label:'LT official Meteo.lt',
+    url:'https://beta.meteo.lt/meteo-data/radar/radarlarge+36.gif',
+    // National Laukuva + Trakų Vokė composite product extent.
+    bounds:[[53.45,20.25],[56.90,27.45]],
+    cropSquareLeft:false,
+    opacity:0.82
+  }
+];
+
+const DIRECT_RADAR_CACHE_MS=4*60*1000;
+const directRadarImageCache=new Map();
+let directRadarGeneration=0;
+
+function directRadarProxyUrl(url){
+  return 'https://proxy.cors.dev/'+url;
+}
+
+async function fetchDirectRadarBlob(url){
+  const attempt=async target=>{
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),12000);
+    try{
+      const response=await fetch(target,{
+        cache:'no-store',
+        signal:controller.signal,
+        headers:{'Accept':'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'}
+      });
+      if(!response.ok) throw new Error('HTTP '+response.status);
+      const blob=await response.blob();
+      if(!blob.size) throw new Error('empty image');
+      return blob;
+    }finally{
+      clearTimeout(timer);
+    }
+  };
+
+  try{
+    return await attempt(url);
+  }catch(directError){
+    return await attempt(directRadarProxyUrl(url));
+  }
+}
+
+async function decodeRadarDrawable(blob){
+  const type=blob.type||'image/png';
+
+  // Chromium can decode the final frame of an animated GIF. This matters for
+  // Meteo.lt, whose public radar product may be delivered as an animation.
+  if(type.includes('gif') && 'ImageDecoder' in window){
+    try{
+      const bytes=await blob.arrayBuffer();
+      const decoder=new ImageDecoder({data:bytes,type});
+      await decoder.tracks.ready;
+      const track=decoder.tracks.selectedTrack;
+      const frameIndex=Math.max(0,(track?.frameCount||1)-1);
+      const result=await decoder.decode({frameIndex,completeFramesOnly:true});
+      return {
+        drawable:result.image,
+        width:result.image.displayWidth||result.image.codedWidth,
+        height:result.image.displayHeight||result.image.codedHeight,
+        close:()=>{
+          try{result.image.close()}catch(_){}
+          try{decoder.close()}catch(_){}
+        }
+      };
+    }catch(e){
+      console.warn('Animated radar decode fallback',e);
+    }
+  }
+
+  const bitmap=await createImageBitmap(blob);
+  return {
+    drawable:bitmap,
+    width:bitmap.width,
+    height:bitmap.height,
+    close:()=>{try{bitmap.close()}catch(_){}}
+  };
+}
+
+function radarPixelLooksLikeEcho(r,g,b,a){
+  if(a<20) return false;
+
+  const max=Math.max(r,g,b);
+  const min=Math.min(r,g,b);
+  if(max<72) return false;
+
+  // National products contain a pale cartographic basemap. Radar echoes use a
+  // much more saturated blue/cyan/green/yellow/orange/red/magenta palette.
+  const saturation=max===0?0:(max-min)/max;
+  if(saturation<0.50) return false;
+
+  // Suppress very dark labels/outlines and near-white map furniture.
+  if(max<90 && min<40) return false;
+  if(r>225 && g>225 && b>225) return false;
+
+  return true;
+}
+
+async function nationalRadarImage(source,force=false){
+  const cached=directRadarImageCache.get(source.id);
+  if(!force && cached && Date.now()-cached.savedAt<DIRECT_RADAR_CACHE_MS){
+    return cached.dataUrl;
+  }
+
+  const blob=await fetchDirectRadarBlob(source.url);
+  const decoded=await decodeRadarDrawable(blob);
+
+  try{
+    let sx=0,sy=0,sw=decoded.width,sh=decoded.height;
+
+    // LVĢMC products have historically attached product metadata/legend to the
+    // right of the square radar map. Keep only the geographic square when so.
+    if(source.cropSquareLeft && decoded.width>decoded.height*1.08){
+      sw=decoded.height;
+    }
+
+    const maxW=900;
+    const scale=Math.min(1,maxW/sw);
+    const outW=Math.max(1,Math.round(sw*scale));
+    const outH=Math.max(1,Math.round(sh*scale));
+
+    const canvas=document.createElement('canvas');
+    canvas.width=outW;
+    canvas.height=outH;
+    const ctx=canvas.getContext('2d',{alpha:true,willReadFrequently:true});
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(decoded.drawable,sx,sy,sw,sh,0,0,outW,outH);
+
+    const image=ctx.getImageData(0,0,outW,outH);
+    const p=image.data;
+
+    for(let i=0;i<p.length;i+=4){
+      const r=p[i],g=p[i+1],b=p[i+2],a=p[i+3];
+      if(!radarPixelLooksLikeEcho(r,g,b,a)){
+        p[i+3]=0;
+      }else{
+        p[i+3]=Math.min(225,Math.max(145,a));
+      }
+    }
+
+    ctx.putImageData(image,0,0);
+    const dataUrl=canvas.toDataURL('image/png');
+    directRadarImageCache.set(source.id,{savedAt:Date.now(),dataUrl});
+    return dataUrl;
+  }finally{
+    decoded.close();
+  }
+}
+
+function clearDirectNationalRadars(){
+  directRadarGeneration++;
+  if(balticRadarLayer){
+    if(map.hasLayer(balticRadarLayer)) map.removeLayer(balticRadarLayer);
+    balticRadarLayer=null;
+  }
+}
+
+async function drawDirectNationalRadars(unix,{force=false}={}){
+  if(!$('radarOn').checked){
+    clearDirectNationalRadars();
+    return;
+  }
+
+  const latest=frames[frames.length-1];
+  const isLatest=!!latest && unix===latest.time;
+
+  if(!isLatest){
+    clearDirectNationalRadars();
+    $('radarStatus').textContent=
+      'Radar: EE official KAIA · '+fmt(unix)+' · LV/LT latest national frames hidden while viewing history';
+    $('radarStatus').className='status ok';
+    return;
+  }
+
+  const generation=++directRadarGeneration;
+  const results=await Promise.allSettled(
+    DIRECT_RADAR_SOURCES.map(async source=>({
+      source,
+      dataUrl:await nationalRadarImage(source,force)
+    }))
+  );
+
+  if(generation!==directRadarGeneration || !$('radarOn').checked) return;
+
+  const next=L.layerGroup();
+  const loaded=[];
+  const failed=[];
+
+  for(const result of results){
+    if(result.status==='fulfilled'){
+      const {source,dataUrl}=result.value;
+      const layer=L.imageOverlay(dataUrl,source.bounds,{
+        opacity:source.opacity,
+        interactive:false
+      });
+      next.addLayer(layer);
+      loaded.push(source.label);
+    }else{
+      failed.push(result.reason?.message||'unavailable');
+    }
+  }
+
+  const old=balticRadarLayer;
+  balticRadarLayer=next;
+  next.addTo(map);
+  next.eachLayer(layer=>layer.bringToFront?.());
+  radarLayer?.bringToFront?.();
+
+  if(old && old!==next && map.hasLayer(old)) map.removeLayer(old);
+
+  const parts=['Radar: EE official KAIA · '+fmt(unix)];
+  if(loaded.length) parts.push(...loaded.map(x=>x+' latest'));
+  if(failed.length) parts.push('some national radar source unavailable');
+  $('radarStatus').textContent=parts.join(' · ');
+  $('radarStatus').className=failed.length?'status warn':'status ok';
+
+  weatherFront();
+  radarLayer?.bringToFront?.();
+}
+
 async function applyFrame(options={}){
   const i=Number($('timeline').value);
   const frame=frames[i];
@@ -170,8 +403,8 @@ async function applyFrame(options={}){
   }
 
   if(!options.skipCloud) drawCloud(frame,i).catch(console.error);
-  if($('balticRadarOn')?.checked) drawBalticRadar(frame.time).catch(console.error);
   await drawRadar(frame);
+  await drawDirectNationalRadars(frame.time);
 }
 
 async function loadOfficialRadarList(){
@@ -223,65 +456,8 @@ async function loadOfficialRadarList(){
   $('timeline').max=frames.length-1;
   $('timeline').value=frames.length-1;
 
-  $('radarStatus').textContent=`Radar: ${frames.length} official 5-minute frames found.`;
+  $('radarStatus').textContent=`Radar: ${frames.length} official 5-minute Estonian frames found.`;
   $('radarStatus').className='status ok';
   await applyFrame();
   if($('cloudOn').checked) scheduleCloudPrecache();
-}
-
-
-const RAINVIEWER_API='https://api.rainviewer.com/public/weather-maps.json';
-
-async function loadBalticRadarManifest(force=false){
-  if(rainviewerData && !force) return rainviewerData;
-  const response=await fetch(RAINVIEWER_API,{cache:'no-store'});
-  if(!response.ok) throw new Error('radar mosaic API HTTP '+response.status);
-  const data=await response.json();
-  if(!data?.host || !data?.radar?.past?.length) throw new Error('no radar mosaic frames returned');
-  rainviewerData=data;
-  return data;
-}
-
-function closestRainviewerFrame(unix){
-  const past=rainviewerData?.radar?.past||[];
-  if(!past.length) return null;
-  return past.reduce((best,item)=>
-    Math.abs(item.time-unix)<Math.abs(best.time-unix)?item:best
-  ,past[0]);
-}
-
-async function drawBalticRadar(unix){
-  if(!$('balticRadarOn')?.checked){
-    if(balticRadarLayer){map.removeLayer(balticRadarLayer);balticRadarLayer=null;}
-    return;
-  }
-
-  try{
-    await loadBalticRadarManifest();
-    const frame=closestRainviewerFrame(unix);
-    if(!frame) throw new Error('no matching radar frame');
-
-    const old=balticRadarLayer;
-    const tileSize=window.devicePixelRatio>=2?512:256;
-    const url=rainviewerData.host+frame.path+'/'+tileSize+'/{z}/{x}/{y}/2/1_1.png';
-    const next=L.tileLayer(url,{
-      tileSize:256,
-      opacity:0.001,
-      maxNativeZoom:7,
-      maxZoom:18,
-      attribution:'Radar mosaic © RainViewer'
-    }).addTo(map);
-
-    balticRadarLayer=next;
-    requestAnimationFrame(()=>next.setOpacity(Number($('balticRadarOpacity').value)/100));
-    setTimeout(()=>{if(old&&old!==balticRadarLayer&&map.hasLayer(old))map.removeLayer(old);},220);
-
-    $('balticRadarStatus').textContent='Latvia + Lithuania radar mosaic · '+fmt(frame.time);
-    $('balticRadarStatus').className='status ok';
-    weatherFront();
-  }catch(e){
-    console.error(e);
-    $('balticRadarStatus').textContent='Latvia + Lithuania radar unavailable: '+e.message;
-    $('balticRadarStatus').className='status bad';
-  }
 }
