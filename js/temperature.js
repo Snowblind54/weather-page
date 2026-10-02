@@ -5,6 +5,34 @@ const TEMP_REGIONS=[
   {id:'iceland',bounds:[[62.70,-25.20],[67.20,-12.40]],w:230,h:150}
 ];
 
+function mercatorY(lat){
+  const clamped=Math.max(-85.05112878,Math.min(85.05112878,lat));
+  const rad=clamped*Math.PI/180;
+  return Math.log(Math.tan(Math.PI/4+rad/2));
+}
+
+function inverseMercatorY(y){
+  return Math.atan(Math.sinh(y))*180/Math.PI;
+}
+
+function rasterLatitudeForRow(region,row,height){
+  const south=region.bounds[0][0];
+  const north=region.bounds[1][0];
+  const northY=mercatorY(north);
+  const southY=mercatorY(south);
+  const f=row/(height-1);
+  return inverseMercatorY(northY+f*(southY-northY));
+}
+
+function rasterYForLatitude(region,lat,height){
+  const south=region.bounds[0][0];
+  const north=region.bounds[1][0];
+  const northY=mercatorY(north);
+  const southY=mercatorY(south);
+  const y=mercatorY(lat);
+  return ((northY-y)/(northY-southY))*height;
+}
+
 function makeGrid(south,north,west,east,latStep,lonStep){
   const pts=[];
   for(let lat=south;lat<=north+0.001;lat+=latStep){
@@ -50,14 +78,14 @@ async function loadTemperatureCountryFeatures(){
 function addMaskRing(ctx,ring,region,w,h){
   if(!ring?.length) return;
 
-  const south=region.bounds[0][0], west=region.bounds[0][1];
-  const north=region.bounds[1][0], east=region.bounds[1][1];
+  const west=region.bounds[0][1];
+  const east=region.bounds[1][1];
 
   for(let i=0;i<ring.length;i++){
     const lon=ring[i][0];
     const lat=ring[i][1];
     const x=((lon-west)/(east-west))*w;
-    const y=((north-lat)/(north-south))*h;
+    const y=rasterYForLatitude(region,lat,h);
 
     if(i===0) ctx.moveTo(x,y);
     else ctx.lineTo(x,y);
@@ -331,12 +359,12 @@ async function createTemperatureImage(unix, token){
     const img=ctx.createImageData(W,H);
     const d=img.data;
 
-    const south=region.bounds[0][0], west=region.bounds[0][1];
-    const north=region.bounds[1][0], east=region.bounds[1][1];
+    const west=region.bounds[0][1];
+    const east=region.bounds[1][1];
 
     for(let y=0;y<H;y++){
       if(token!==temperatureRenderToken) return null;
-      const lat=north-(y/(H-1))*(north-south);
+      const lat=rasterLatitudeForRow(region,y,H);
 
       for(let x=0;x<W;x++){
         const lon=west+(x/(W-1))*(east-west);
@@ -410,7 +438,7 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   renderTemperatureLabels(unix);
 
   $('tempStatus').textContent=
-    `Temperature: Baltic + Nordic readings${$('heatmapOn')?.checked?' + coastline-clipped heatmap':''} · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)} · cached`;
+    `Temperature: Baltic + Nordic readings${$('heatmapOn')?.checked?' + coastline-clipped Mercator heatmap':''} · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)} · cached`;
   $('tempStatus').className='status ok';
   weatherFront();
 }
