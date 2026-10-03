@@ -694,7 +694,7 @@ async function loadWarnings(force=false){
 
   const parts=[`${allRecords.length} active warning records`];
   for(const [country,label] of [
-    ['Estonia','EE'],['Lithuania','LT'],['Finland','FI'],
+    ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
     ['Sweden','SE'],['Norway','NO'],['Iceland','IS']
   ]){
     if(counts.get(country)) parts.push(`${label} ${counts.get(country)}`);
@@ -706,12 +706,13 @@ async function loadWarnings(force=false){
   if(ltResult?.fromCache) parts.push('LT cached');
   if(nordicResult?.fromCache) parts.push('Nordics cached');
   if(nordicResult?.finlandOfficial===false) parts.push('FI text fallback');
+  if(nordicResult?.failedCountries?.length) parts.push(nordicResult.failedCountries.map(country=>country==='Latvia'?'LV unavailable':country+' unavailable').join(' · '));
   if(estoniaError) parts.push('EE unavailable');
   if(ltError) parts.push('LT unavailable');
   if(nordicError) parts.push('Nordics unavailable');
 
   $('warningStatus').textContent=parts.join(' · ');
-  $('warningStatus').className=(estoniaError||ltError||nordicError)?'status warn':'status ok';
+  $('warningStatus').className=(estoniaError||ltError||nordicError||nordicResult?.failedCountries?.length)?'status warn':'status ok';
 }
 
 
@@ -1091,7 +1092,7 @@ const FINLAND_METEOALARM_FALLBACK={
   country:'Finland',flag:'🇫🇮',slug:'finland',
   feed:'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-finland'
 };
-const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV83';
+const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV89';
 const NORDIC_WARNING_CACHE_MAX_AGE=6*60*60*1000;
 const NORDIC_WARNING_REFRESH_MS=15*60*1000;
 
@@ -1594,6 +1595,10 @@ async function loadNordicWarnings(force=false){
   try{
     const tasks=[
       {
+        country:'Latvia',
+        run:()=>loadLatviaWarnings()
+      },
+      {
         country:'Finland',
         run:()=>loadFinlandWarningsWithFallback()
       },
@@ -1648,6 +1653,7 @@ async function loadNordicWarnings(force=false){
         records:nordicWarnings,
         fromCache:true,
         cacheAgeMs:Date.now()-cached.savedAt,
+        failedCountries:Date.now()-cached.savedAt>LATVIA_WARNING_MAX_AGE?['Latvia']:[],
         error:e
       };
     }
@@ -1668,7 +1674,7 @@ function nordicWarningPopupHtml(record){
     ${start||end?`<p><b>Valid:</b> ${htmlEscape(start)}${start&&end?' – ':''}${htmlEscape(end)}</p>`:''}
     ${record.description?`<p>${htmlEscape(record.description)}</p>`:''}
     ${record.instruction?`<p><b>Instructions:</b> ${htmlEscape(record.instruction)}</p>`:''}
-    <p><a href="${record.capUrl||NORDIC_WARNING_PAGE}" target="_blank" rel="noopener">${record.country==='Finland'?'Official FMI CAP source':'MeteoAlarm / CAP source'} ↗</a></p>
+    <p><a href="${record.capUrl||NORDIC_WARNING_PAGE}" target="_blank" rel="noopener">${record.country==='Finland'?'Official FMI CAP source':record.country==='Latvia'?'Official LVĢMC CAP source':'MeteoAlarm / CAP source'} ↗</a></p>
   </div>`;
 }
 
@@ -1747,4 +1753,3 @@ async function renderNordicWarnings(){
 
   return mapped;
 }
-

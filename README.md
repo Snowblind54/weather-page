@@ -9,6 +9,7 @@ Interactive Baltic weather map covering Estonia, Latvia and Lithuania.
 - `js/config.js` — shared service configuration and geographic bounds
 - `js/map.js` — map setup, shared state, base maps and location
 - `js/warnings.js` — Estonia and Lithuania severe-weather warnings
+- `js/latvia-warnings.js` — official Latvian warning polygons and freshness checks
 - `js/temperature.js` — Baltic temperature field and labels
 - `js/wind.js` — cached hourly wind grids, offshore sampling and animated canvas trails
 - `js/clouds.js` — EUMETSAT day/night cloud processing and animation
@@ -26,3 +27,14 @@ cached for 45 minutes. The canvas runs at at most 30 fps, pauses during map move
 and while the tab is hidden, and stops completely when disabled. Trail motion is
 scaled for readability rather than representing real travel distance. Wind data:
 Open-Meteo, CC BY 4.0.
+
+Latvian warnings use LVĢMC's public `https://bridinajumi.meteo.lv/list.php`
+and linked CAP documents. `scripts/update_latvia_warnings.py` retains the English
+warning text and simplifies native polygons within 0.0007 degrees (about 80 m).
+The scheduled `Update Latvia warnings` workflow refreshes
+`data/latvia-warnings.json` approximately every 15 minutes; scheduled GitHub jobs
+can be delayed. Browsers fetch the current snapshot from raw GitHub, which supports
+CORS and updates independently of a Pages rebuild. Snapshots older than one hour
+are reported unavailable. Expired warnings are removed and the shared today/tomorrow
+filter uses Europe/Riga. No-warning snapshots contain an empty records array.
+The temperature heatmap is off by default and can be enabled separately.
