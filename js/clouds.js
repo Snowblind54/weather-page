@@ -292,7 +292,7 @@ function cloudGetTile(coords,time,priority=0){
         tile=await cloudProcessTile(coords,sources);
       }
       tile.partial=sources.length<ids.length;
-      if(tile.partial)cloudDeferTileRetry(key);
+      if(tile.partial)cloudDeferTileRetry(key,120000);
       if(session===cloudSession){
         cloudTileCache.set(key,tile);
         while(cloudTileCache.size>CLOUD_TILE_CACHE_LIMIT || cloudCacheBytes()>CLOUD_CACHE_BYTES)cloudTileCache.delete(cloudTileCache.keys().next().value);
@@ -303,8 +303,8 @@ function cloudGetTile(coords,time,priority=0){
   }).catch(error=>{if(session===cloudSession && !/cancelled/i.test(error.message))cloudDeferTileRetry(key);throw error;}).finally(()=>{if(cloudTilePromises.get(key)===promise)cloudTilePromises.delete(key);});
   cloudTilePromises.set(key,promise);return promise;
 }
-function cloudDeferTileRetry(key){
-  cloudTileRetryAt.set(key,Date.now()+30000);
+function cloudDeferTileRetry(key,delay=30000){
+  cloudTileRetryAt.set(key,Date.now()+delay);
   while(cloudTileRetryAt.size>CLOUD_TILE_CACHE_LIMIT)cloudTileRetryAt.delete(cloudTileRetryAt.keys().next().value);
 }
 function cloudCancelQueued(keepKeys=null){
@@ -440,10 +440,10 @@ function requestCloudHistory(){cloudHistoryRequested=true;}
 function cloudUpcomingFrames(){
   const tiles=cloudVisibleTiles(),i=Math.max(0,Math.min(frames.length-1,Number($('timeline').value)));
   // Keep current + buffered frames within the canvas cache budget.
-  const wide=cloudVisibleTiles().every(t=>t.coords.z<=4);
   const capacity=cloudCacheCapacity(tiles);
-  // Retain the full loop when it fits; otherwise use a bounded rolling buffer.
-  const count=Math.min(capacity>=frames.length?frames.length-1:Math.min(wide?6:3,capacity-1),Math.max(0,frames.length-1));
+  // Only two neighbouring frames compete with the selected observation.
+  // Completed frames remain in the LRU cache for subsequent loops.
+  const count=Math.min(2,Math.max(0,capacity-1),Math.max(0,frames.length-1));
   return Array.from({length:count},(_,n)=>{
     const offset=playing?n+1:(n%2===0?1:-1)*Math.ceil((n+1)/2);
     return frames[(i+offset+frames.length)%frames.length];
