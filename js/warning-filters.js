@@ -61,13 +61,8 @@ function warningIsTodayOrTomorrow(record){
   // Calendar-day filtering alone kept Lithuanian warnings visible for hours
   // after their official end time. Apply exact expiry to every country.
   if(Number.isFinite(endMs) && endMs<=Date.now()) return false;
-  // National snapshots must never outlive their feed freshness or expiry.
-  const maxAge=country==='Latvia'?LATVIA_WARNING_MAX_AGE:NATIONAL_WARNING_MAX_AGE;
-  if(['Latvia','Poland','Denmark'].includes(country) && (
-    !Number.isFinite(Date.parse(record.sourceUpdatedAt)) ||
-    Date.now()-Date.parse(record.sourceUpdatedAt)>maxAge ||
-    Date.parse(record.expires)<=Date.now()
-  )) return false;
+  // Snapshot age describes update health; validity decides visibility.
+  if(['Latvia','Poland','Denmark'].includes(country) && !Number.isFinite(endMs)) return false;
   const timeZone=WARNING_COUNTRY_TIMEZONES[country] || 'Europe/Tallinn';
   const today=warningDateKey(new Date(),timeZone);
   const tomorrow=warningAddDays(today,1);
@@ -266,6 +261,19 @@ renderNordicWarnings=async function(){
 };
 
 // Counts always describe the warnings currently eligible for display.
+function overdueWarningCountries(){
+  const updates=new Map();
+  for(const record of nordicWarnings){
+    if(['Latvia','Poland','Denmark'].includes(warningCountry(record))) updates.set(warningCountry(record),record.sourceUpdatedAt);
+  }
+  if(latviaWarningSnapshotUpdatedAt) updates.set('Latvia',latviaWarningSnapshotUpdatedAt);
+  for(const country of Object.values(nationalWarningSnapshot?.countries||{})) updates.set(country.country,country.updatedAt);
+  return [...updates].filter(([country,updated])=>{
+    const age=Date.now()-Date.parse(updated);
+    return Number.isFinite(age) && age>(country==='Latvia'?LATVIA_WARNING_MAX_AGE:NATIONAL_WARNING_MAX_AGE);
+  }).map(([country])=>country);
+}
+
 function updateVisibleWarningStatus(){
   if(!$('warningOn').checked) return;
 
@@ -297,7 +305,10 @@ function updateVisibleWarningStatus(){
   if(previous.includes('unavailable')) parts.push('some source unavailable');
   if(previous.includes('LV unavailable')) parts.push('LV unavailable');
 
+  const overdue=overdueWarningCountries();
+  if(overdue.length) parts.push('Updates overdue: '+overdue.join(', '));
   $('warningStatus').textContent=parts.join(' · ');
+  if(overdue.length) $('warningStatus').className='status warn';
 }
 
 let warningExpiryTimer=null;
@@ -336,10 +347,11 @@ function scheduleWarningExpiryRefresh(){
       if(Number.isFinite(staleAt) && staleAt>now) deadlines.push(staleAt);
     }
   }
-  if(!deadlines.length) return;
+  // Recheck update health even when a snapshot contains no warnings.
+  if(!deadlines.length && !latviaWarningSnapshotUpdatedAt && !nationalWarningSnapshot) return;
   // Timers can be delayed in a background tab. Recheck the clock at least
   // once a minute, and remove warnings as soon as their timestamp is reached.
-  const delay=Math.max(1,Math.min(60000,Math.min(...deadlines)-now));
+  const delay=Math.max(1,Math.min(60000,(deadlines.length?Math.min(...deadlines)-now:60000)));
   warningExpiryTimer=setTimeout(purgeExpiredWarningDisplay,delay);
 }
 

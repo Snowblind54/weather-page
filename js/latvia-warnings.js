@@ -2,14 +2,15 @@
 // GitHub Actions publishes the public feed as JSON; raw GitHub allows CORS.
 const LATVIA_WARNING_URL='https://raw.githubusercontent.com/Snowblind54/weather-page/main/data/latvia-warnings.json';
 const LATVIA_WARNING_MAX_AGE=60*60*1000;
+let latviaWarningSnapshotUpdatedAt=null;
 const LATVIA_WARNING_CACHE_KEY='weatherMapLatviaWarningsV89';
 
 function validateLatviaSnapshot(data){
   if(data?.version!==1||!Number.isFinite(Date.parse(data.updatedAt))||!Array.isArray(data.records))
     throw new Error('Invalid Latvia warning snapshot');
   const age=Date.now()-Date.parse(data.updatedAt);
-  if(age>LATVIA_WARNING_MAX_AGE || age< -5*60*1000)
-    throw new Error('Latvia warning updates are overdue');
+  if(age< -5*60*1000)
+    throw new Error('Invalid Latvia warning update time');
   for(const record of data.records){
     if(record.country!=='Latvia'||!Array.isArray(record.polygons)||!record.polygons.length ||
       !record.polygons.every(p=>Array.isArray(p)&&p.length>=3&&p.every(point=>
@@ -17,6 +18,7 @@ function validateLatviaSnapshot(data){
         Math.abs(point[0])<=90&&Math.abs(point[1])<=180)))
       throw new Error('Invalid Latvia warning geometry');
   }
+  latviaWarningSnapshotUpdatedAt=data.updatedAt;
   return data.records.filter(record=>{
     const expiry=Date.parse(record.expires);
     return Number.isFinite(expiry)&&expiry>Date.now();
