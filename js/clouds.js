@@ -456,7 +456,7 @@ function cloudBufferUpcoming(){
 }
 function scheduleCloudPrecache(){
   clearTimeout(cloudPrecacheTimer);
-  if(!cloudHistoryRequested || !$('cloudOn').checked || !cloudLayer || (typeof cycloneTimelineActive==='function' && cycloneTimelineActive()))return;
+  if(!cloudHistoryRequested || !$('cloudOn').checked || !cloudLayer)return;
   const session=cloudSession;
   cloudPrecacheTimer=setTimeout(()=>{
     if(session!==cloudSession)return;
