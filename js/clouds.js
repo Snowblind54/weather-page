@@ -305,8 +305,11 @@ function cloudDeferTileRetry(key){
   cloudTileRetryAt.set(key,Date.now()+30000);
   while(cloudTileRetryAt.size>CLOUD_TILE_CACHE_LIMIT)cloudTileRetryAt.delete(cloudTileRetryAt.keys().next().value);
 }
-function cloudCancelQueued(){
-  for(const job of cloudQueue.splice(0)){cloudTilePromises.delete(job.key);job.reject(new Error('Cloud loading cancelled'));}
+function cloudCancelQueued(keepKeys=null){
+  for(const job of cloudQueue.splice(0)){
+    if(keepKeys?.has(job.key)){cloudQueue.push(job);continue;}
+    cloudTilePromises.delete(job.key);job.reject(new Error('Cloud loading cancelled'));
+  }
 }
 function cloudVisibleTiles(layer=cloudLayer){
   if(!layer?._tiles)return [];
@@ -375,8 +378,9 @@ async function drawCloud(frame,options={}){
     if(cloudLayer){map.removeLayer(cloudLayer);cloudLayer=null;}
     cloudTileCache.clear();cloudTileRetryAt.clear();cloudStopWorker();cloudStatus('Cloud layer is off.');return;
   }
-  if(!playing)cloudCancelQueued();
   cloudRequestedTime=frame.time;
+  // Dragging may visit many uncached times; preview only complete cached frames.
+  if(options.cachedOnly && !cloudLayer)return;
   if(!options.readyOnly && !cloudLayer)cloudStatus('Loading satellite clouds…');
   await cloudEnsureMetadata();
   if(generation!==cloudFrameGeneration || !$('cloudOn').checked)return;
@@ -389,6 +393,11 @@ async function drawCloud(frame,options={}){
   }
   const layer=cloudLayer,tiles=cloudVisibleTiles(layer),session=cloudSession;
   const ready=tiles.every(t=>{try{const key=cloudTileKey(t.coords,frame.time);return cloudTileCache.has(key)||(options.readyOnly && (cloudTileRetryAt.get(key)||0)>Date.now());}catch(e){return false;}});
+  if(!ready && options.cachedOnly)return;
+  if(!playing && !options.cachedOnly){
+    const keepKeys=new Set(tiles.map(t=>{try{return cloudTileKey(t.coords,frame.time);}catch(e){return null;}}));
+    cloudCancelQueued(keepKeys);
+  }
   if(!ready && options.readyOnly){
     // Populate the cache without making playback wait for the network.
     Promise.allSettled(tiles.map(t=>cloudGetTile(t.coords,frame.time))).catch(()=>{});
@@ -410,7 +419,14 @@ async function drawCloud(frame,options={}){
   if(options.readyOnly)tiles.forEach((t,i)=>{if(results[i].status==='rejected'){t.el.getContext('2d').clearRect(0,0,256,256);t.el._cloudImage=null;delete t.el.dataset.cloudTime;}});
   const entries=tiles.flatMap((t,i)=>results[i].status==='fulfilled'?[[t.el,results[i].value]]:[]);
   const unchanged=entries.every(([tile,result])=>tile._cloudImage===result.canvas);
-  if(!unchanged)await cloudCrossfade(entries,generation);
+  if(!unchanged){
+    if(options.scrub){
+      // Direct manipulation follows the thumb, without a trailing 320 ms fade.
+      for(const [tile,result] of entries){
+        const ctx=tile.getContext('2d');ctx.clearRect(0,0,256,256);ctx.drawImage(result.canvas,0,0,256,256);
+      }
+    }else await cloudCrossfade(entries,generation);
+  }
   if(generation!==cloudFrameGeneration || session!==cloudSession)return;
   entries.forEach(([tile,result])=>{tile._cloudImage=result.canvas;tile.dataset.cloudTime=String(frame.time);tile.dataset.cloudResolution=String(result.canvas.width);tile.dataset.cloudProcessor=result.processor;});
   layer.displayTime=frame.time;layer.hasCompleteFrame=!failed&&!partial;
@@ -428,7 +444,10 @@ function cloudUpcomingFrames(){
   const capacity=cloudCacheCapacity(tiles);
   // Retain the full loop when it fits; otherwise use a bounded rolling buffer.
   const count=Math.min(capacity>=frames.length?frames.length-1:Math.min(wide?6:3,capacity-1),Math.max(0,frames.length-1));
-  return Array.from({length:count},(_,n)=>frames[(i+n+1)%frames.length]);
+  return Array.from({length:count},(_,n)=>{
+    const offset=playing?n+1:(n%2===0?1:-1)*Math.ceil((n+1)/2);
+    return frames[(i+offset+frames.length)%frames.length];
+  });
 }
 function cloudBufferUpcoming(){
   const tiles=cloudVisibleTiles();

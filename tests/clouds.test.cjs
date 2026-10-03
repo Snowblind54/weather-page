@@ -200,3 +200,40 @@ test('a failed tile cannot permanently block otherwise cached playback',async()=
   assert.equal(h.run('cloudLayer.displayTime'),10000);
   assert.equal(h.run('cloudLayer._tiles.b.el.dataset.cloudTime'),undefined);
 });
+
+test('manual cached previews are immediate, avoid downloads and invalidate older requests',async()=>{
+  const h=harness();let release;
+  h.context.waiting=new Promise(resolve=>release=resolve);
+  h.run(`cloudEnsureMetadata=async()=>{};
+    paints=0;fades=0;loads=0;
+    cloudLayer={_tileZoom:6,hasCompleteFrame:true,_tiles:{a:{current:true,coords:{z:6,x:36,y:19},el:{dataset:{},getContext:()=>({clearRect(){},drawImage(){paints++;}})}}}};
+    cloudCrossfade=async()=>{fades++;};
+    cloudGetTile=()=>{loads++;return waiting;};`);
+  const obsolete=h.run('drawCloud({time:10000},{scrub:true})');
+  await new Promise(resolve=>setImmediate(resolve));
+  await h.run('drawCloud({time:10600},{cachedOnly:true,scrub:true})');
+  assert.equal(h.run('loads'),1,'uncached preview starts no new requests');
+  release({canvas:{width:256,height:256},times:[]});await obsolete;
+  assert.equal(h.run('paints'),0,'old request cannot replace the latest selection');
+  h.run(`cloudTileCache.set(cloudTileKey({z:6,x:36,y:19},10600),{canvas:{width:256,height:256},times:[]});
+    cloudGetTile=(c,t)=>Promise.resolve(cloudTileCache.get(cloudTileKey(c,t)));`);
+  await h.run('drawCloud({time:10600},{cachedOnly:true,scrub:true})');
+  assert.equal(h.run('paints'),1);assert.equal(h.run('fades'),0);
+  assert.equal(h.run('cloudLayer.displayTime'),10600);
+});
+
+test('manual buffering includes both nearby directions; playback buffers forward',()=>{
+  const h=harness();h.run(`frames=Array.from({length:12},(_,i)=>({time:i*600}));
+    $('timeline').value=6;cloudLayer={_tileZoom:6,_tiles:{a:{current:true,coords:{z:6,x:36,y:19}}}};`);
+  assert.deepEqual(JSON.parse(h.run('JSON.stringify(cloudUpcomingFrames().slice(0,3).map(f=>f.time))')),[4200,3000,4800]);
+  h.run('playing=true');
+  assert.deepEqual(JSON.parse(h.run('JSON.stringify(cloudUpcomingFrames().slice(0,3).map(f=>f.time))')),[4200,4800,5400]);
+});
+
+test('switching frames retains queued work for the selected observation',()=>{
+  const h=harness();h.run(`rejected=[];
+    cloudQueue.push({key:'selected',reject:()=>rejected.push('selected')},{key:'old',reject:()=>rejected.push('old')});
+    cloudCancelQueued(new Set(['selected']));`);
+  assert.equal(h.run('cloudQueue.length'),1);assert.equal(h.run('cloudQueue[0].key'),'selected');
+  assert.equal(h.run('rejected.join()'),'old');
+});
