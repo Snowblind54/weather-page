@@ -3,45 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.20</title>
+<title>Baltic Weather Map v8.21</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.17">
+<link rel="stylesheet" href="css/style.css?v=8.21">
 </head>
 <body>
 
 <div id="map"></div>
 
-<div class="panel">
-  <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v8.20 · Visible clouds by day · Infrared by night</div>
-
-  <div class="row wrap">
-    <div>
-      <div class="label">Base map</div>
-      <div class="small">Satellite opens by default. Streets includes terrain contours, sea-depth shading and small depth numbers in metres. Depth labels appear from zoom 5. <a href="https://tiles.emodnet-bathymetry.eu/legends/legend_multicolour.png" target="_blank" rel="noopener">Depth colour scale (m)</a></div>
-      <div id="depthLabelsStatus" class="small" role="status" hidden></div>
-    </div>
-    <div>
-      <button id="streetBtn">Streets</button>
-      <button id="satBtn" class="active">Satellite</button>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="row">
-      <div>
-        <div class="label">My location</div>
-        <div class="small">Shows a quick location immediately, then refines it in the background.</div>
-      </div>
-      <button id="locateBtn">◎ Show me</button>
-    </div>
-    <div id="locationStatus" class="status">Location not requested.</div>
-  </div>
-
-  <div class="section weather-section" id="tempSection">
-    <div class="row">
+<header class="topbar"><div class="brand"><span class="brand-mark"><svg viewbox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="m15 9-2 4-4 2 2-4 4-2Z"></path></svg></span><div><h1>Baltic Weather</h1><span class="subtitle">Explore the atmosphere</span></div></div><nav class="category-nav" aria-label="Weather categories"><button class="category-tab" id="nav-tempSection" data-panel="tempSection" aria-controls="tempSection" aria-expanded="false"><svg viewbox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14V5a3 3 0 0 1 6 0v9a5 5 0 1 1-6 0Z"></path><path d="M12 8v10"></path></svg><span>Temperature</span><span class="layer-dot" aria-hidden="true"></span></button><button class="category-tab" id="nav-windSection" data-panel="windSection" aria-controls="windSection" aria-expanded="false"><svg viewbox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h12a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h6a3 3 0 1 1-3 3"></path></svg><span>Wind</span><span class="layer-dot" aria-hidden="true"></span></button><button class="category-tab" id="nav-cloudSection" data-panel="cloudSection" aria-controls="cloudSection" aria-expanded="false"><svg viewbox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18h12a4 4 0 0 0 .5-8A6 6 0 0 0 7 8a5 5 0 0 0-1 10Z"></path></svg><span>Clouds</span><span class="layer-dot" aria-hidden="true"></span></button><button class="category-tab" id="nav-radarSection" data-panel="radarSection" aria-controls="radarSection" aria-expanded="false"><svg viewbox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14h12a4 4 0 0 0 0-8 6 6 0 0 0-11-1 5 5 0 0 0-1 9ZM8 18l-1 3m6-3-1 3m6-3-1 3"></path></svg><span>Rain</span><span class="layer-dot" aria-hidden="true"></span></button><button class="category-tab" id="nav-cycloneSection" data-panel="cycloneSection" aria-controls="cycloneSection" aria-expanded="false"><svg viewbox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6a8 8 0 0 0-14 8m-2 4a8 8 0 0 0 14-8"></path><circle cx="12" cy="12" r="3"></circle></svg><span>Cyclones</span><span class="layer-dot" aria-hidden="true"></span></button><button class="category-tab" id="nav-warningSection" data-panel="warningSection" aria-controls="warningSection" aria-expanded="false"><svg viewbox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 10 18H2L12 3Z"></path><path d="M12 9v5m0 3h.01"></path></svg><span>Warnings</span><span class="layer-dot" aria-hidden="true"></span></button></nav><button id="nav-mapSettings" class="utility-button" data-panel="mapSettings" aria-controls="mapSettings" aria-expanded="false" aria-label="Map settings"><svg viewbox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"></path><circle cx="9" cy="7" r="3"></circle><circle cx="15" cy="17" r="3"></circle></svg></button></header><div class="weather-panel weather-section" id="tempSection" hidden="" role="region" aria-labelledby="tempSection-title">
+    <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="tempSection-title">Temperature</h2><p>Station readings &amp; heatmap</p></div><div class="panel-actions"><button class="info-button" data-info="tempSection-sources" aria-controls="tempSection-sources" aria-expanded="false" aria-label="Temperature sources">i</button><button class="close-panel" aria-label="Close Temperature menu">×</button></div></div><div id="tempSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Open-Meteo hourly terrain-aware model (CC BY 4.0); official observations from the Estonian Environment Agency, LHMT / Meteo.lt, FMI, SMHI, Icelandic Meteorological Office, IMGW–PIB and DMI. Latvia and Norway use model labels where official feeds are unavailable. Coastlines: Natural Earth / world-atlas. Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy.</p><div class="source-links"><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a><a href="https://www.ilmateenistus.ee/" target="_blank" rel="noopener">Estonia ↗</a><a href="https://api.meteo.lt/" target="_blank" rel="noopener">LHMT ↗</a><a href="https://en.ilmatieteenlaitos.fi/open-data-manual" target="_blank" rel="noopener">FMI ↗</a><a href="https://opendata.smhi.se/" target="_blank" rel="noopener">SMHI ↗</a><a href="https://en.vedur.is/" target="_blank" rel="noopener">Iceland ↗</a><a href="https://danepubliczne.imgw.pl/" target="_blank" rel="noopener">IMGW ↗</a><a href="https://www.dmi.dk/friedata" target="_blank" rel="noopener">DMI ↗</a></div><div class="small">The heatmap remains a terrain-aware hourly model field. Numeric labels prefer recent official weather-station measurements from Estonia, Lithuania, Finland, Sweden, Iceland, Poland and Denmark. Latvia and Norway currently keep model-based labels where a browser-safe official observation feed is not available.</div>
+      </div><div class="row">
       <label class="label"><input id="tempOn" type="checkbox"> Temperature · Northern Europe</label>
       <span class="badge">model + stations</span>
     </div>
@@ -56,13 +30,13 @@
         <span id="tempOpacityVal" class="value">58%</span>
       </div>
       <div class="legend temp-legend"></div>
-      <div class="small">The heatmap remains a terrain-aware hourly model field. Numeric labels prefer recent official weather-station measurements from Estonia, Lithuania, Finland, Sweden, Iceland, Poland and Denmark. Latvia and Norway currently keep model-based labels where a browser-safe official observation feed is not available.</div>
       <div id="tempStatus" class="status">Temperature layer is off.</div>
     </div>
   </div>
 
-  <div class="section weather-section" id="windSection">
-    <div class="row">
+  <div class="weather-panel weather-section" id="windSection" hidden="" role="region" aria-labelledby="windSection-title">
+    <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="windSection-title">Wind</h2><p>Sustained wind &amp; gusts</p></div><div class="panel-actions"><button class="info-button" data-info="windSection-sources" aria-controls="windSection-sources" aria-expanded="false" aria-label="Wind sources">i</button><button class="close-panel" aria-label="Close Wind menu">×</button></div></div><div id="windSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Open-Meteo hourly 10 m sustained wind, gusts and model direction (CC BY 4.0). Gusts represent hourly peaks; the direction used for gust trails is modelled.</p><div class="source-links"><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a></div><div class="small">Choose sustained wind or gusts. Both use purple from 25 m/s; gusts above 33 m/s turn pink. Click the map for both sustained wind and wind gusts in m/s. Trails cover land and sea from the eastern United States across the Atlantic and all of Europe to the Moscow area (85°W–42°E, 25–82°N), and follow the selected timeline time. Gust trails show hourly peak speeds using modeled wind direction. Hourly model wind at 10 m; animation speed is scaled for visibility.</div>
+      </div><div class="row">
       <label class="label"><input id="windOn" type="checkbox"> Wind animation · Atlantic + Europe</label>
       <span class="badge">10 m wind</span>
     </div>
@@ -76,14 +50,14 @@
       </div>
       <div id="windLegendLabel" class="small">Sustained wind speed · m/s</div>
       <div id="windLegend" class="wind-speed-legend" aria-label="Wind trail colours by speed in metres per second"></div>
-      <div class="small">Choose sustained wind or gusts. Both use purple from 25 m/s; gusts above 33 m/s turn pink. Click the map for both sustained wind and wind gusts in m/s. Trails cover land and sea from the eastern United States across the Atlantic and all of Europe to the Moscow area (85°W–42°E, 25–82°N), and follow the selected timeline time. Gust trails show hourly peak speeds using modeled wind direction. Hourly model wind at 10 m; animation speed is scaled for visibility.</div>
       <div id="windStatus" class="status" role="status">Wind layer is off.</div>
     </div>
   </div>
 
-  <div class="section weather-section" id="cloudSection">
-    <div class="row">
-      <label class="label"><input id="cloudOn" type="checkbox"> Satellite clouds · Atlantic & Europe</label>
+  <div class="weather-panel weather-section" id="cloudSection" hidden="" role="region" aria-labelledby="cloudSection-title">
+    <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="cloudSection-title">Clouds</h2><p>Daylight imagery &amp; infrared</p></div><div class="panel-actions"><button class="info-button" data-info="cloudSection-sources" aria-controls="cloudSection-sources" aria-expanded="false" aria-label="Clouds sources">i</button><button class="close-panel" aria-label="Close Clouds menu">×</button></div></div><div id="cloudSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>EUMETSAT Meteosat GeoColour / FCI IR10.5 and cloud mask; NOAA GOES visible / longwave infrared; NASA GIBS GOES-East GeoColor / Band 13. Local daylight selects visible imagery; darkness selects infrared. Actual source observation times appear in the layer status.</p><div class="source-links"><a href="https://view.eumetsat.int/geoserver/wms" target="_blank" rel="noopener">EUMETSAT ↗</a><a href="https://nowcoast.noaa.gov/geoserver/observations/satellite/ows" target="_blank" rel="noopener">NOAA GOES ↗</a><a href="https://gibs.earthdata.nasa.gov/" target="_blank" rel="noopener">NASA GIBS ↗</a></div><div class="small">Transparent satellite clouds from the eastern US across the Atlantic to Europe and Moscow (85°W–42°E, 25–82°N). GeoColour / visible imagery by local daylight; infrared at night. Only visible tiles load. Wide views use lighter tiles; zoom 5 and closer keep full cloud detail. Play or move the timeline to buffer animation, with smooth transitions. Northern GOES imagery can arrive later; actual observation times appear below. Far Arctic areas beyond satellite visibility stay transparent.</div>
+      </div><div class="row">
+      <label class="label"><input id="cloudOn" type="checkbox"> Satellite clouds · Atlantic &amp; Europe</label>
       <span class="badge">Meteosat + GOES</span>
     </div>
     <div class="details">
@@ -91,19 +65,18 @@
         <input id="cloudOpacity" type="range" min="0" max="100" value="60">
         <span id="cloudOpacityVal" class="value">60%</span>
       </div>
-      <div class="small">Transparent satellite clouds from the eastern US across the Atlantic to Europe and Moscow (85°W–42°E, 25–82°N). GeoColour / visible imagery by local daylight; infrared at night. Only visible tiles load. Wide views use lighter tiles; zoom 5 and closer keep full cloud detail. Play or move the timeline to buffer animation, with smooth transitions. Northern GOES imagery can arrive later; actual observation times appear below. Far Arctic areas beyond satellite visibility stay transparent.</div>
       <div id="cloudStatus" class="status">Cloud layer is off.</div>
     </div>
   </div>
 
-  <div class="section weather-section" id="radarSection">
-    <div class="row">
+  <div class="weather-panel weather-section" id="radarSection" hidden="" role="region" aria-labelledby="radarSection-title">
+    <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="radarSection-title">Rain</h2><p>Radar &amp; rainfall accumulation</p></div><div class="panel-actions"><button class="info-button" data-info="radarSection-sources" aria-controls="radarSection-sources" aria-expanded="false" aria-label="Rain sources">i</button><button class="close-panel" aria-label="Close Rain menu">×</button></div></div><div id="radarSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Radar: Estonian Environment Agency / KAIA, LVĢMC (Latvia), and LHMT / Meteo.lt (Lithuania). Gauge precipitation: Estonian Environment Agency, LHMT, FMI, SMHI and DMI where complete. Open-Meteo rain + showers (CC BY 4.0) fills unsupported countries and gaps. Coastlines: Natural Earth / world-atlas.</p><div class="source-links"><a href="https://www.ilmateenistus.ee/" target="_blank" rel="noopener">Estonia ↗</a><a href="https://videscentrs.lvgmc.lv/" target="_blank" rel="noopener">LVĢMC ↗</a><a href="https://api.meteo.lt/" target="_blank" rel="noopener">LHMT ↗</a><a href="https://en.ilmatieteenlaitos.fi/open-data-manual" target="_blank" rel="noopener">FMI ↗</a><a href="https://opendata.smhi.se/" target="_blank" rel="noopener">SMHI ↗</a><a href="https://www.dmi.dk/friedata" target="_blank" rel="noopener">DMI ↗</a><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a></div><div class="small">One toggle controls all three national radar layers. Estonia uses official KAIA 5-minute historical frames. Lithuania decodes the official Meteo.lt Laukuva + Trakų Vokė animated product into the shared timeline. Latvia uses an official LVĢMC radar animation when one is publicly exposed; otherwise the browser builds a small rolling history from direct LVĢMC frames. No third-party radar mosaic is used.</div>
+      </div><div class="row">
       <label class="label"><input id="radarOn" type="checkbox"> Baltic rain radar</label>
       <span class="badge">EE · LV · LT official</span>
     </div>
     <div class="details">
       <div class="legend"></div>
-      <div class="small">One toggle controls all three national radar layers. Estonia uses official KAIA 5-minute historical frames. Lithuania decodes the official Meteo.lt Laukuva + Trakų Vokė animated product into the shared timeline. Latvia uses an official LVĢMC radar animation when one is publicly exposed; otherwise the browser builds a small rolling history from direct LVĢMC frames. No third-party radar mosaic is used.</div>
       <div id="radarStatus" class="status">Baltic radar layer is off. Official frame sources still load for the timeline.</div>
     </div>
     <div class="accumulation-controls">
@@ -128,15 +101,16 @@
     </div>
   </div>
 
-  <div class="section weather-section" id="cycloneSection">
-    <div class="row">
+  <div class="weather-panel weather-section" id="cycloneSection" hidden="" role="region" aria-labelledby="cycloneSection-title">
+    <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="cycloneSection-title">Cyclones</h2><p>Centres, history &amp; forecasts</p></div><div class="panel-actions"><button class="info-button" data-info="cycloneSection-sources" aria-controls="cycloneSection-sources" aria-expanded="false" aria-label="Cyclones sources">i</button><button class="close-panel" aria-label="Close Cyclones menu">×</button></div></div><div id="cycloneSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>NOAA / NCEP GFS model fields for low-pressure centres, pressure, movement, wind, gusts and tracks. NOAA NHC supplies matched Atlantic tropical-storm names. Past tracks contain elapsed modelled positions, not official observed tracks.</p><div class="source-links"><a href="https://nomads.ncep.noaa.gov/" target="_blank" rel="noopener">NOAA GFS ↗</a><a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener">NOAA NHC ↗</a></div><div class="small">Solid trails show elapsed modelled centres, retained across matched model runs as history accumulates. Dashed paths show the forecast with 12-hour steps. Click a rotating centre for pressure, movement, nearby wind and gusts. Use View coverage to find systems across the region.</div>
+      <div class="small">Closed low-pressure centres and paths derived from NOAA GFS; colours indicate pressure. Includes ordinary Atlantic and European lows. Official Atlantic tropical-storm names are shown when matched to NHC; other lows use tracking IDs. Forecast time is independent of the rain-radar timeline. New model runs every 6 hours; feed checked about every 3 hours. All times are local to your device.</div>
+      </div><div class="row">
       <label class="label"><input id="cycloneOn" type="checkbox"> Cyclones</label>
       <span class="badge">North Atlantic · northern Europe</span>
     </div>
     <div class="details">
-      <label class="label"><input id="cycloneHistoryOn" type="checkbox" checked> Past centre tracks · up to 48 h</label>
-      <label class="label"><input id="cyclonePathsOn" type="checkbox"> Projected centre paths · next 48 h</label>
-      <div class="small">Solid trails show elapsed modelled centres, retained across matched model runs as history accumulates. Dashed paths show the forecast with 12-hour steps. Click a rotating centre for pressure, movement, nearby wind and gusts. Use View coverage to find systems across the region.</div>
+      <label class="label control-line"><input id="cycloneHistoryOn" type="checkbox" checked> Past centre tracks · up to 48 h</label>
+      <label class="label control-line"><input id="cyclonePathsOn" type="checkbox"> Projected centre paths · next 48 h</label>
       <div class="row"><button id="cycloneCoverage">View coverage</button><button id="cyclonePlay">▶ Forecast</button><button id="cycloneNow">Now</button></div>
       <label class="small" for="cycloneForecastHour">Cyclone forecast · now to +48 h</label>
       <input id="cycloneForecastHour" type="range" min="0" max="48" value="0" step="3" aria-label="Cyclone forecast hours ahead">
@@ -147,13 +121,13 @@
         <span class="warning-key"><i style="background:#ff6976"></i>970–984</span>
         <span class="warning-key"><i style="background:#cc83ff"></i>&lt;970</span>
       </div>
-      <div class="small">Closed low-pressure centres and paths derived from NOAA GFS; colours indicate pressure. Includes ordinary Atlantic and European lows. Official Atlantic tropical-storm names are shown when matched to NHC; other lows use tracking IDs. Forecast time is independent of the rain-radar timeline. New model runs every 6 hours; feed checked about every 3 hours. All times are local to your device.</div>
       <div id="cycloneStatus" class="status" role="status">Cyclones are off.</div>
     </div>
   </div>
 
-  <div class="section weather-section" id="warningSection">
-    <div class="row">
+  <div class="weather-panel weather-section" id="warningSection" hidden="" role="region" aria-labelledby="warningSection-title">
+    <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="warningSection-title">Warnings</h2><p>Official severe weather alerts</p></div><div class="panel-actions"><button class="info-button" data-info="warningSection-sources" aria-controls="warningSection-sources" aria-expanded="false" aria-label="Warnings sources">i</button><button class="close-panel" aria-label="Close Warnings menu">×</button></div></div><div id="warningSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Estonian Environment Agency / KAIA, LVĢMC, LHMT / Meteo.lt, FMI CAP, IMGW–PIB, DMI, and MeteoAlarm / EUMETNET national services for the other supported Nordic countries. Country outlines: Natural Earth / world-atlas. Estonian marine warning zones approximate the official named regions.</p><div class="source-links"><a href="https://meteoalarm.org/" target="_blank" rel="noopener">MeteoAlarm ↗</a><a href="https://www.ilmateenistus.ee/" target="_blank" rel="noopener">Estonia ↗</a><a href="https://videscentrs.lvgmc.lv/" target="_blank" rel="noopener">LVĢMC ↗</a><a href="https://www.meteo.lt/" target="_blank" rel="noopener">LHMT ↗</a><a href="https://en.ilmatieteenlaitos.fi/" target="_blank" rel="noopener">FMI ↗</a><a href="https://www.imgw.pl/" target="_blank" rel="noopener">IMGW ↗</a><a href="https://www.dmi.dk/" target="_blank" rel="noopener">DMI ↗</a></div><div class="small">Shows unexpired warnings affecting today or tomorrow in each country’s local time. Poland uses official IMGW county polygons; Denmark uses official DMI municipality and coastal polygons. Their feeds are copied about every 15 minutes; expired polygons disappear automatically. Latvia uses official LVĢMC warning polygons, updated about every 15 minutes. Finland uses the official FMI CAP service; Finnish marine warnings are shown as dashed sea-zone outlines so they do not imply a land warning on islands inside the forecast polygon.</div>
+      </div><div class="row">
       <label class="label"><input id="warningOn" type="checkbox"> Severe weather warnings</label>
       <span class="badge">EE · LV · LT · FI · SE · NO · IS · PL · DK</span>
     </div>
@@ -163,17 +137,39 @@
         <span class="warning-key"><span class="warning-dot" style="background:#ff8c1a"></span>Orange</span>
         <span class="warning-key"><span class="warning-dot" style="background:#e03131"></span>Red</span>
       </div>
-      <div class="small">Shows unexpired warnings affecting today or tomorrow in each country’s local time. Poland uses official IMGW county polygons; Denmark uses official DMI municipality and coastal polygons. Their feeds are copied about every 15 minutes; expired polygons disappear automatically. Latvia uses official LVĢMC warning polygons, updated about every 15 minutes. Finland uses the official FMI CAP service; Finnish marine warnings are shown as dashed sea-zone outlines so they do not imply a land warning on islands inside the forecast polygon.</div>
       <div id="warningStatus" class="status">Weather warnings layer is off.</div>
       <div id="warningList" class="warning-list"></div>
     </div>
   </div>
 
-<div class="section">
-    <div class="row"><span class="label">2-hour timeline</span><button id="play">▶ Play</button></div>
-    <input id="timeline" type="range" min="0" max="0" value="0" step="1">
-    <div id="timeLabel" class="timebox">Loading radar frames…</div>
-    <div class="row"><button id="oldest">← Oldest</button><button id="latest">Latest →</button></div>
+<div class="timeline-dock" aria-label="Weather observation timeline">
+    <div class="timeline-heading"><span class="timeline-dot" aria-hidden="true"></span><span class="label">2-hour timeline</span><button id="play">▶ Play</button></div>
+    <input id="timeline" type="range" min="0" max="0" value="0" step="1" aria-label="Weather observation time" aria-describedby="timeLabel">
+    <div id="timelineTicks" class="timeline-ticks" aria-hidden="true"><span>−2 h</span><span>−90 min</span><span>−1 h</span><span>−30 min</span><span>Now</span></div><div id="timeLabel" class="timeline-current">Loading radar frames…</div>
+    <div class="timeline-jumps"><button id="oldest">← Oldest</button><button id="latest">Latest →</button></div>
+  </div>
+
+  <div class="basemap-switch" role="group" aria-label="Base map">
+      <button id="streetBtn">Topographic</button>
+      <button id="satBtn" class="active">Satellite</button>
+    </div>
+  <section id="mapSettings" class="weather-panel" hidden role="region" aria-labelledby="settings-title"><div class="panel-heading"><div><div class="eyebrow">YOUR MAP</div><h2 id="settings-title">Map settings</h2><p>Location, updates &amp; map information</p></div><div class="panel-actions"><button class="info-button" data-info="map-sources" aria-controls="map-sources" aria-expanded="false" aria-label="Base map sources">i</button><button class="close-panel" aria-label="Close map settings">×</button></div></div><div id="map-sources" class="source-card" hidden><h3>Base map sources</h3><p>Satellite imagery and reference labels © Esri. Topographic map © OpenStreetMap contributors / SRTM / OpenTopoMap (CC BY-SA). Sea depths © EMODnet Bathymetry, 2024 DTM.</p><div class="source-links"><a href="https://tiles.emodnet-bathymetry.eu/legends/legend_multicolour.png" target="_blank" rel="noopener">Depth colour scale ↗</a></div></div><div class="row wrap">
+    <div>
+      <div class="label">Base map</div>
+      <div class="small">Topographic includes terrain contours, sea-depth shading and numeric depths from zoom 5. Satellite opens by default.</div>
+      <div id="depthLabelsStatus" class="small" role="status" hidden></div>
+    </div>
+    </div>
+
+  <div class="section">
+    <div class="row">
+      <div>
+        <div class="label">My location</div>
+        <div class="small">Shows a quick location immediately, then refines it in the background.</div>
+      </div>
+      <button id="locateBtn">◎ Show me</button>
+    </div>
+    <div id="locationStatus" class="status">Location not requested.</div>
   </div>
 
   <div class="section">
@@ -187,13 +183,7 @@
     <div id="mapStatus" class="status ok">Satellite base map ready.</div>
   </div>
 
-  <div class="credit">
-    Topographic map © OpenStreetMap contributors / SRTM / OpenTopoMap · Satellite © Esri · Wind data <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0) ·
-    Estonia rain radar © Keskkonnaagentuur / KAIA · Latvia rain radar © LVĢMC · Lithuania rain radar © Lietuvos hidrometeorologijos tarnyba / Meteo.lt · Cloud imagery © EUMETSAT / NASA · Meteosat GeoColour / FCI IR10.5 · NOAA GOES visible / infrared · NASA GIBS GOES GeoColor / Band 13 · Sea depth © EMODnet Bathymetry · Country outlines © Natural Earth via world-atlas · Temperature station observations © Estonian Environment Agency, Lietuvos hidrometeorologijos tarnyba / Meteo.lt, Finnish Meteorological Institute (FMI), SMHI, Icelandic Meteorological Office (IMO), IMGW–PIB and Danish Meteorological Institute (DMI). Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy · Official precipitation © <a href="https://www.ilmateenistus.ee/" target="_blank" rel="noopener">Estonian Environment Agency</a>, <a href="https://api.meteo.lt/" target="_blank" rel="noopener">LHMT / Meteo.lt</a>, <a href="https://en.ilmatieteenlaitos.fi/open-data-manual" target="_blank" rel="noopener">FMI</a>, <a href="https://opendata.smhi.se/" target="_blank" rel="noopener">SMHI</a> and <a href="https://www.dmi.dk/friedata" target="_blank" rel="noopener">DMI</a> · Cyclone model fields © <a href="https://nomads.ncep.noaa.gov/" target="_blank" rel="noopener">NOAA / NCEP GFS</a>; tropical-storm names © <a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener">NOAA NHC</a> · Warnings © Estonian Environment Agency / KAIA, Latvian Environment, Geology and Meteorology Centre (LVĢMC), Lietuvos hidrometeorologijos tarnyba (Meteo.lt), Finnish Meteorological Institute (FMI), IMGW–PIB, Danish Meteorological Institute (DMI), and MeteoAlarm / EUMETNET member services. Estonia marine warning-zone overlays are geographic approximations of the official named regions.
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  </section><script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
 <script src="js/config.js?v=8.18"></script>
@@ -210,10 +200,10 @@
 <script src="js/radar-history.js?v=8.7"></script>
 <script src="js/radar-capture.js?v=8.7"></script>
 <script src="js/wind.js?v=8.17.1"></script>
-<script src="js/official-rainfall.js?v=8.15"></script>
+<script src="js/official-rainfall.js?v=8.21"></script>
 <script src="js/rainfall.js?v=8.15.1"></script>
-<script src="js/bathymetry.js?v=8.14.1"></script>
+<script src="js/bathymetry.js?v=8.21"></script>
 <script src="js/cyclones.js?v=8.19"></script>
 <script src="js/app.js?v=8.20"></script>
-</body>
+<script src="js/ui.js?v=8.21"></script></body>
 </html>
