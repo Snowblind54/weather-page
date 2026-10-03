@@ -134,7 +134,7 @@ test('popup has all totals and keeps wind readings; radar and period controls st
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   assert(html.indexOf('id="rain1h"')>html.indexOf('id="radarSection"'));
   assert(html.indexOf('id="rain48h"')<html.indexOf('id="warningSection"'));
-  assert(html.includes('js/rainfall.js?v=8.15'));
+  assert(html.includes('js/rainfall.js?v=8.15.1'));
 });
 
 test('loader requests past hours once, validates cache coverage, and respects disable while fetching',async()=>{
@@ -208,4 +208,12 @@ test('model outage preserves official rendering and respects rate-limit cooldown
   assert.equal(h.run('rainData.version'),0,'missing model grid remains missing');
   await h.run('loadRainfall()');assert.equal(calls,1,'no rate-limit retry storm');
   h.elements.rain24h.checked=false;h.run('changeRainfallPeriod(24)');
+});
+
+
+test('stale snapshot cannot reuse a cached official heatmap',async()=>{
+  const h=harness();h.seed();h.elements.rain24h.checked=true;
+  h.run(`officialRainData={generatedAt:Date.now()/1000-4*3600};rainImageCache.set('24|'+rainWindowEnd()+'|'+officialRainData.generatedAt,[{dataUrl:'stale'}]);`);
+  const images=await h.run('createRainfallImages(24,rainWindowEnd(),rainRenderGeneration)');
+  assert.equal(images.length,5);assert.notEqual(images[0].dataUrl,'stale');
 });

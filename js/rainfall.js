@@ -224,7 +224,8 @@ function rainTotalsAt(lat,lon,end){
 }
 
 async function createRainfallImages(hours,end,generation){
-  const key=hours+'|'+end+'|'+(officialRainData?.generatedAt||0);
+  const officialVersion=officialRainData && Date.now()/1000-officialRainData.generatedAt<=3*3600?officialRainData.generatedAt:0;
+  const key=hours+'|'+end+'|'+officialVersion;
   if(rainImageCache.has(key)) return rainImageCache.get(key);
   const features=await loadTemperatureCountryFeatures();
   rainCountryFeatures=features;
@@ -236,7 +237,7 @@ async function createRainfallImages(hours,end,generation){
       throw new Error('Rainfall coverage/coastline missing for '+region.id);
     }
     const values=series.map(s=>rollingRainTotal(s,end,hours));
-    const countryMask=officialRainData?rainCountryMask(region,features):null;
+    const countryMask=officialVersion?rainCountryMask(region,features):null;
     const cols=spec.longitudes.length,W=region.w,H=region.h;
     const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
     const ctx=canvas.getContext('2d',{alpha:true}),image=ctx.createImageData(W,H);
