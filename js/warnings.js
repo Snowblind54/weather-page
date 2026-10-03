@@ -535,9 +535,11 @@ async function renderWarnings(){
     console.warn('County geometry unavailable',e);
   }
 
+  if(!$('warningOn').checked) return 0;
   let mapped=0;
 
   for(const w of warningRecords){
+    if(Date.parse(w.expires)<=Date.now()) continue;
     const sev=severityInfo(w.level);
     const county=canonicalCountyName(w.area);
     let firstLayer=null;
@@ -559,6 +561,7 @@ async function renderWarnings(){
         });
 
         layer.bindPopup(warningPopupHtml(w),{maxWidth:360});
+        layer.warningRecord=w;
         warningLayerGroup.addLayer(layer);
 
         if(!firstLayer) firstLayer=layer;
@@ -583,6 +586,7 @@ async function renderWarnings(){
         });
 
         layer.bindPopup(warningPopupHtml(w),{maxWidth:360});
+        layer.warningRecord=w;
         warningLayerGroup.addLayer(layer);
 
         firstLayer=layer;
@@ -593,6 +597,7 @@ async function renderWarnings(){
 
     const card=document.createElement('div');
     card.className='warning-card';
+    card.warningRecord=w;
     card.style.borderLeftColor=sev.color;
 
     const end=w.expires?new Date(w.expires).toLocaleString():'No expiry provided';
@@ -791,7 +796,7 @@ function parseLithuaniaWarningJson(data){
       const areas=areaGroup.areas||[];
 
       for(const alert of (areaGroup.single_alerts||[])){
-        if(!alert.phenomenon) continue;
+        if(!alert.phenomenon || alert.is_cancellation===true || alert.is_cancellation==='true') continue;
 
         const desc=ltText(alert.description);
         if(!desc) continue;
@@ -1008,9 +1013,11 @@ async function renderLithuaniaWarnings(){
     console.warn(e);
   }
 
+  if(!$('warningOn').checked) return 0;
   let mapped=0;
 
   for(const w of lithuaniaWarnings){
+    if(Date.parse(w.expires)<=Date.now()) continue;
     const sev=ltSeverity(w.level);
     let firstLayer=null;
 
@@ -1030,6 +1037,7 @@ async function renderLithuaniaWarnings(){
           }
         }).bindPopup(lithuaniaPopupHtml(w),{maxWidth:360});
 
+        layer.warningRecord=w;
         warningLayerGroup.addLayer(layer);
         if(!firstLayer) firstLayer=layer;
         mapped++;
@@ -1038,6 +1046,7 @@ async function renderLithuaniaWarnings(){
 
     const card=document.createElement('div');
     card.className='warning-card';
+    card.warningRecord=w;
     card.style.borderLeftColor=sev.color;
 
     const end=w.expires ? new Date(w.expires).toLocaleString() : 'No expiry provided';

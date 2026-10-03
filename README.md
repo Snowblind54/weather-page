@@ -1,6 +1,6 @@
 # Baltic Weather Map
 
-Interactive Baltic weather map covering Estonia, Latvia and Lithuania.
+Interactive weather map covering the Baltics and Northern Europe.
 
 ## Structure
 
@@ -8,9 +8,11 @@ Interactive Baltic weather map covering Estonia, Latvia and Lithuania.
 - `css/style.css` — interface and Leaflet styling
 - `js/config.js` — shared service configuration and geographic bounds
 - `js/map.js` — map setup, shared state, base maps and location
-- `js/warnings.js` — Estonia and Lithuania severe-weather warnings
+- `js/warnings.js` — official Baltic and Nordic severe-weather warnings
+- `js/warning-filters.js` — local-day filtering and automatic exact-time expiry
 - `js/latvia-warnings.js` — official Latvian warning polygons and freshness checks
-- `js/temperature.js` — Baltic temperature field and labels
+- `js/temperature.js` — coastline-clipped regional model heatmaps and labels
+- `js/stations.js` — official national temperature observations
 - `js/wind.js` — cached hourly wind grids, offshore sampling and animated canvas trails
 - `js/clouds.js` — EUMETSAT day/night cloud processing and animation
 - `js/radar.js` — KAIA HDF5 rain radar and timeline frame loading
@@ -53,3 +55,23 @@ CORS and updates independently of a Pages rebuild. Snapshots older than one hour
 are reported unavailable. Expired warnings are removed and the shared today/tomorrow
 filter uses Europe/Riga. No-warning snapshots contain an empty records array.
 The temperature heatmap is off by default and can be enabled separately.
+
+All warning countries use their exact official expiry timestamps, including
+Lithuania. A local timer removes expired polygons and list cards and updates
+counts without waiting for the next 15-minute feed refresh. Returning to a
+background tab rechecks expiry immediately. Lithuanian cancellation notices
+are ignored.
+
+Polish temperature points come directly from IMGW–PIB's public METEO API
+(`https://danepubliczne.imgw.pl/api/data/meteo`), using its published station
+coordinates and air-temperature observation timestamps. Danish points use
+DMI's public MetObs API (`https://opendataapi.dmi.dk/v2/metObs/`), parameter
+`temp_dry`, with a two-hour observation window and the latest valid reading per
+station. Both support browser CORS without credentials. Station feeds refresh
+on demand at ten-minute intervals; labels use observations within 95 minutes
+of the selected map time. Missing temperature values are omitted, not zeroed.
+
+Poland and Denmark have dedicated Open-Meteo model grids. Heatmaps use Natural
+Earth country polygons in Web Mercator to clip coastlines and national borders,
+including Danish islands and Bornholm. If coastline data are unavailable, no
+unmasked tile is drawn. Numeric readings work independently with heatmap off.

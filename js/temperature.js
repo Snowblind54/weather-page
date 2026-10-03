@@ -2,7 +2,9 @@ const TEMP_BOUNDS=[[53.70,20.40],[59.90,28.50]];
 const TEMP_REGIONS=[
   {id:'baltics',bounds:[[53.70,20.40],[59.90,28.50]],w:260,h:205},
   {id:'scandinavia',bounds:[[54.40,4.00],[71.60,32.20]],w:330,h:245},
-  {id:'iceland',bounds:[[62.70,-25.20],[67.20,-12.40]],w:230,h:150}
+  {id:'iceland',bounds:[[62.70,-25.20],[67.20,-12.40]],w:230,h:150},
+  {id:'poland',bounds:[[48.80,14.00],[55.00,24.50]],w:320,h:260},
+  {id:'denmark',bounds:[[54.40,7.80],[57.90,15.30]],w:320,h:220}
 ];
 
 function mercatorY(lat){
@@ -59,6 +61,8 @@ function makeStructuredGrid(id,bounds,latStep,lonStep){
 // four surrounding samples instead of every point in Northern Europe.
 const TEMP_GRID_SPECS=[
   makeStructuredGrid('baltics',TEMP_REGIONS[0].bounds,0.90,1.20),
+  makeStructuredGrid('poland',TEMP_REGIONS[3].bounds,1.10,1.40),
+  makeStructuredGrid('denmark',TEMP_REGIONS[4].bounds,0.80,1.20),
   makeStructuredGrid('scandinavia',TEMP_REGIONS[1].bounds,1.50,2.00),
   makeStructuredGrid('iceland',TEMP_REGIONS[2].bounds,0.90,1.40)
 ];
@@ -68,7 +72,7 @@ let temperatureCitySeries=[];
 let temperatureCityMap=new Map();
 let temperatureLoadPromise=null;
 
-const TEMP_DATA_CACHE_KEY='balticWeatherTemperatureDataV80';
+const TEMP_DATA_CACHE_KEY='balticWeatherTemperatureDataV812';
 const TEMP_DATA_CACHE_MAX_AGE=30*60*1000;
 const TEMP_DATA_STALE_MAX_AGE=6*60*60*1000;
 const TEMP_REQUEST_GAP_MS=450;
@@ -147,7 +151,9 @@ const TEMP_COUNTRIES_URL='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-5
 const TEMP_REGION_COUNTRY_IDS={
   baltics:new Set(['233','428','440']),       // Estonia, Latvia, Lithuania
   scandinavia:new Set(['246','752','578']),  // Finland, Sweden, Norway
-  iceland:new Set(['352'])                   // Iceland
+  iceland:new Set(['352']),                 // Iceland
+  poland:new Set(['616']),                  // Poland
+  denmark:new Set(['208'])                  // Denmark, including its islands
 };
 let temperatureCountryFeaturesPromise=null;
 
@@ -164,10 +170,16 @@ async function loadTemperatureCountryFeatures(){
     }
 
     const collection=topojson.feature(topology,topology.objects.countries);
-    return collection.features||[];
+    if(!collection.features?.length) throw new Error('empty country coastline data');
+    return collection.features;
   })();
 
-  return temperatureCountryFeaturesPromise;
+  try{
+    return await temperatureCountryFeaturesPromise;
+  }catch(error){
+    temperatureCountryFeaturesPromise=null; // Allow the next refresh to retry.
+    throw error;
+  }
 }
 
 function addMaskRing(ctx,ring,region,w,h){
@@ -250,7 +262,14 @@ const NORDIC_TEMP_POINTS=[
   [66.07,-23.12],[64.25,-15.21],[63.75,-20.22]
 ];
 
-const TEMP_CITY_POINTS=[...BALTIC_TEMP_POINTS,...NORDIC_TEMP_POINTS];
+const POLAND_DENMARK_TEMP_POINTS=[
+  [52.23,21.01],[50.06,19.94],[54.35,18.65],[52.41,16.93],
+  [51.11,17.04],[53.43,14.55],[51.76,19.46],[53.13,23.16],
+  [55.68,12.57],[56.16,10.20],[55.40,10.39],[57.05,9.92],
+  [55.47,8.45],[55.10,14.70]
+];
+
+const TEMP_CITY_POINTS=[...BALTIC_TEMP_POINTS,...NORDIC_TEMP_POINTS,...POLAND_DENMARK_TEMP_POINTS];
 
 const EXTRA_TEMP_POINTS=[
   // Estonia: islands, coast and inland towns
@@ -285,6 +304,14 @@ const EXTRA_TEMP_POINTS=[
   [62.47,6.15],[62.74,7.16],[64.02,11.50],[66.31,14.14],
   [67.28,14.40],[68.23,14.57],[69.97,23.27],[70.66,23.68],
   [70.07,29.75],[69.73,30.05],
+  // Poland
+  [54.18,15.57],[54.46,17.03],[53.78,20.48],[53.12,18.01],
+  [51.25,22.57],[50.04,22.00],[50.26,19.02],[50.87,20.63],
+  [49.30,19.95],[51.94,15.51],
+  // Denmark: Jutland, Funen, Zealand, Lolland and Bornholm
+  [57.44,10.53],[56.36,8.62],[56.45,9.40],[55.71,9.54],
+  [55.25,9.49],[55.65,12.09],[55.23,11.76],[54.77,11.87],
+  [55.06,14.98],
   // Iceland
   [64.56,-21.90],[64.89,-23.71],[65.75,-19.65],[66.04,-17.34],
   [65.04,-14.22],[63.42,-19.01],[63.83,-20.40],[63.84,-22.56]
@@ -423,7 +450,8 @@ function renderTemperatureLabels(unix){
   // Major hubs get priority, then reveal regional towns as the map zooms in.
   const majorPoints=[
     [59.44,24.75],[56.95,24.11],[54.69,25.28],[60.17,24.94],
-    [59.33,18.07],[59.91,10.75],[64.15,-21.94],[65.01,25.47],[69.65,18.96]
+    [59.33,18.07],[59.91,10.75],[64.15,-21.94],[65.01,25.47],[69.65,18.96],
+    [52.23,21.01],[55.68,12.57]
   ];
   const zoom=map.getZoom();
   const labelPts=zoom<=5 ? majorPoints :
@@ -470,13 +498,8 @@ async function createTemperatureImage(unix, token){
 
   const rendered=[];
   let globalMin=Infinity,globalMax=-Infinity;
-  let countryFeatures=null;
-
-  try{
-    countryFeatures=await loadTemperatureCountryFeatures();
-  }catch(e){
-    console.warn('Temperature coastline mask unavailable:',e);
-  }
+  // Never display rectangular heatmap tiles over the sea if the mask fails.
+  const countryFeatures=await loadTemperatureCountryFeatures();
 
   for(const region of TEMP_REGIONS){
     const spec=TEMP_GRID_SPECS.find(item=>item.id===region.id);
@@ -531,6 +554,7 @@ async function createTemperatureImage(unix, token){
 
     ctx.putImageData(img,0,0);
     const coastlineClipped=clipTemperatureToCountries(ctx,region,W,H,countryFeatures);
+    if(!coastlineClipped) throw new Error('coastline mask missing for '+region.id);
 
     rendered.push({
       id:region.id,
@@ -556,6 +580,21 @@ async function createTemperatureImage(unix, token){
 async function buildTemperatureOverlay(unix,{precache=false}={}){
   if(!$('tempOn').checked || !temperatureSeries.length) return;
 
+  // Station readings do not depend on loading or rendering a heatmap.
+  if(!$('heatmapOn')?.checked){
+    if(precache) return;
+    if(temperatureLayer){
+      map.removeLayer(temperatureLayer);
+      temperatureLayer=null;
+    }
+    renderTemperatureLabels(unix);
+    $('tempStatus').textContent=`Temperature: hourly model + official observations${temperatureUsingStaleCache?' · cached fallback':''} · ${fmt(unix)}`;
+    $('tempStatus').className='status ok';
+    weatherFront();
+    return;
+  }
+
+  renderTemperatureLabels(unix);
   const token=temperatureRenderToken;
   const result=await createTemperatureImage(unix,token);
   if(!result || token!==temperatureRenderToken || !$('tempOn').checked) return;
@@ -694,12 +733,11 @@ async function fetchAllTemperatureData(){
     temperatureGridData.set(spec.id,series);
   }
 
-  if(!temperatureGridData.get('baltics')?.some(Boolean))
-    throw new Error('no Baltic temperature grid returned');
-  if(!temperatureGridData.get('scandinavia')?.some(Boolean))
-    throw new Error('no Scandinavian temperature grid returned');
-  if(!temperatureGridData.get('iceland')?.some(Boolean))
-    throw new Error('no Iceland temperature grid returned');
+  for(const spec of TEMP_GRID_SPECS){
+    if(!temperatureGridData.get(spec.id)?.some(Boolean)){
+      throw new Error('no '+spec.id+' temperature grid returned');
+    }
+  }
 
   // The grid is enough for the heatmap and for interpolated city labels.
   temperatureCitySeries=[];
@@ -812,3 +850,4 @@ map.on('moveend',()=>{
   const frame=frames[Number($('timeline').value)];
   if(frame && $('tempOn').checked) renderTemperatureLabels(frame.time);
 });
+

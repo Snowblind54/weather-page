@@ -46,6 +46,10 @@ function warningAddDays(dateKey,days){
 
 function warningIsTodayOrTomorrow(record){
   const country=warningCountry(record);
+  const endMs=Date.parse(record?.expires || '');
+  // Calendar-day filtering alone kept Lithuanian warnings visible for hours
+  // after their official end time. Apply exact expiry to every country.
+  if(Number.isFinite(endMs) && endMs<=Date.now()) return false;
   // A cached Latvian record must never outlive its feed freshness or expiry.
   if(country==='Latvia' && (
     !Number.isFinite(Date.parse(record.sourceUpdatedAt)) ||
@@ -57,7 +61,6 @@ function warningIsTodayOrTomorrow(record){
   const tomorrow=warningAddDays(today,1);
 
   const startMs=Date.parse(record?.effective || record?.onset || '');
-  const endMs=Date.parse(record?.expires || '');
 
   // Active warning feeds occasionally omit one or both validity fields.
   // Do not hide those records merely because a timestamp is unavailable.
@@ -90,6 +93,7 @@ renderWarnings=async function(){
     return await renderWarningsAllDays();
   }finally{
     warningRecords=all;
+    scheduleWarningExpiryRefresh();
   }
 };
 
@@ -101,6 +105,7 @@ renderLithuaniaWarnings=async function(){
     return await renderLithuaniaWarningsAllDays();
   }finally{
     lithuaniaWarnings=all;
+    scheduleWarningExpiryRefresh();
   }
 };
 
@@ -174,6 +179,7 @@ renderNordicWarnings=async function(){
       const layer=L.polygon(polygon,options)
         .bindPopup(nordicWarningPopupHtml(record),{maxWidth:380});
 
+      layer.warningRecord=record;
       warningLayerGroup.addLayer(layer);
       if(!firstLayer) firstLayer=layer;
       mapped++;
@@ -201,6 +207,7 @@ renderNordicWarnings=async function(){
       const layer=L.circle(circle.center,options)
         .bindPopup(nordicWarningPopupHtml(record),{maxWidth:380});
 
+      layer.warningRecord=record;
       warningLayerGroup.addLayer(layer);
       if(!firstLayer) firstLayer=layer;
       mapped++;
@@ -208,6 +215,7 @@ renderNordicWarnings=async function(){
 
     const card=document.createElement('div');
     card.className='warning-card';
+    card.warningRecord=record;
     card.style.borderLeftColor=sev.color;
 
     const end=record.expires
@@ -241,15 +249,12 @@ renderNordicWarnings=async function(){
     list.appendChild(card);
   }
 
+  scheduleWarningExpiryRefresh();
   return mapped;
 };
 
-// Keep the existing data-loading/error handling, but replace its final count
-// with the number the user can actually see after the two-day filter.
-const loadWarningsAllDays=loadWarnings;
-loadWarnings=async function(force=false){
-  await loadWarningsAllDays(force);
-
+// Counts always describe the warnings currently eligible for display.
+function updateVisibleWarningStatus(){
   if(!$('warningOn').checked) return;
 
   const visible=[
@@ -281,4 +286,66 @@ loadWarnings=async function(force=false){
   if(previous.includes('LV unavailable')) parts.push('LV unavailable');
 
   $('warningStatus').textContent=parts.join(' · ');
+}
+
+let warningExpiryTimer=null;
+function clearWarningExpiryRefresh(){
+  if(warningExpiryTimer!==null) clearTimeout(warningExpiryTimer);
+  warningExpiryTimer=null;
+}
+
+function purgeExpiredWarningDisplay(){
+  if(!$('warningOn').checked) return;
+  // Remove individual warning layers/cards immediately, without waiting for
+  // another feed request or reloading administrative boundary geometry.
+  const expiredLayers=[];
+  warningLayerGroup.eachLayer(layer=>{
+    if(layer.warningRecord && !warningIsTodayOrTomorrow(layer.warningRecord)) expiredLayers.push(layer);
+  });
+  for(const layer of expiredLayers) warningLayerGroup.removeLayer(layer);
+  for(const card of [...$('warningList').children]){
+    if(card.warningRecord && !warningIsTodayOrTomorrow(card.warningRecord)) card.remove();
+  }
+  if(!$('warningStatus').textContent.startsWith('Loading')) updateVisibleWarningStatus();
+  scheduleWarningExpiryRefresh();
+}
+
+function scheduleWarningExpiryRefresh(){
+  clearWarningExpiryRefresh();
+  if(!$('warningOn').checked) return;
+  const now=Date.now();
+  const deadlines=[];
+  for(const record of [...warningRecords,...lithuaniaWarnings,...nordicWarnings]){
+    const expiry=Date.parse(record.expires);
+    if(Number.isFinite(expiry) && expiry>now) deadlines.push(expiry);
+    if(warningCountry(record)==='Latvia'){
+      const staleAt=Date.parse(record.sourceUpdatedAt)+LATVIA_WARNING_MAX_AGE+1;
+      if(Number.isFinite(staleAt) && staleAt>now) deadlines.push(staleAt);
+    }
+  }
+  if(!deadlines.length) return;
+  // Timers can be delayed in a background tab. Recheck the clock at least
+  // once a minute, and remove warnings as soon as their timestamp is reached.
+  const delay=Math.max(1,Math.min(60000,Math.min(...deadlines)-now));
+  warningExpiryTimer=setTimeout(purgeExpiredWarningDisplay,delay);
+}
+
+const loadWarningsAllDays=loadWarnings;
+loadWarnings=async function(force=false){
+  try{
+    await loadWarningsAllDays(force);
+  }finally{
+    if($('warningOn').checked){
+      purgeExpiredWarningDisplay();
+      updateVisibleWarningStatus();
+    }
+  }
 };
+
+$('warningOn').addEventListener('change',()=>{
+  if(!$('warningOn').checked) clearWarningExpiryRefresh();
+  else scheduleWarningExpiryRefresh();
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible') purgeExpiredWarningDisplay();
+});

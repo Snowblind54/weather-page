@@ -4,7 +4,7 @@
 // labels when their timestamp is close to the selected timeline frame.
 
 const OFFICIAL_TEMP_REFRESH_MS=10*60*1000;
-const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsV87';
+const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsV812';
 const OFFICIAL_TEMP_CACHE_MAX_AGE=45*60*1000;
 const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;
 
@@ -60,6 +60,7 @@ function officialTempArray(payload,keys=[]){
 
 function officialTempNumber(...values){
   for(const value of values){
+    if(value==null || (typeof value==='string' && !value.trim())) continue;
     const n=Number(value);
     if(Number.isFinite(n)) return n;
   }
@@ -73,7 +74,8 @@ function officialTempTime(value){
     // SMHI uses milliseconds since epoch; tolerate seconds as well.
     return n>1e11 ? Math.floor(n/1000) : Math.floor(n);
   }
-  const ms=Date.parse(String(value).match(/[zZ]|[+-]\d\d:?\d\d$/)?String(value):String(value)+'Z');
+  const text=String(value).trim().replace(/^(\d{4}-\d{2}-\d{2}) /,'$1T');
+  const ms=Date.parse(text.match(/[zZ]|[+-]\d\d:?\d\d$/)?text:text+'Z');
   return Number.isFinite(ms)?Math.floor(ms/1000):NaN;
 }
 
@@ -98,12 +100,12 @@ function officialTempCoord(record){
 
 function officialTempValid(lat,lon,temp){
   return Number.isFinite(lat) && Number.isFinite(lon) &&
-    lat>=53 && lat<=72.5 && lon>=-26 && lon<=33 &&
+    lat>=48.5 && lat<=72.5 && lon>=-26 && lon<=33 &&
     Number.isFinite(temp) && temp>-70 && temp<55;
 }
 
 function officialTempRecord({country,code,name,lat,lon,temp,time,source}){
-  lat=Number(lat); lon=Number(lon); temp=Number(temp);
+  lat=officialTempNumber(lat); lon=officialTempNumber(lon); temp=officialTempNumber(temp);
   if(!officialTempValid(lat,lon,temp)) return null;
   return {
     country,code:String(code||''),name:String(name||'Weather station'),
@@ -332,12 +334,87 @@ async function loadIcelandOfficialTemperature(){
   return officialTempDedup(out);
 }
 
+// IMGW publishes coordinates and UTC observation times in its METEO feed.
+async function loadPolandOfficialTemperature(){
+  const payload=await officialTempFetch('https://danepubliczne.imgw.pl/api/data/meteo',{json:true});
+  const records=officialTempArray(payload).map(station=>officialTempRecord({
+    country:'PL',code:station.kod_stacji,name:station.nazwa_stacji,
+    lat:station.lat,lon:station.lon,
+    temp:officialTempNumber(station.temperatura_powietrza),
+    time:officialTempTime(station.temperatura_powietrza_data),
+    source:'IMGW – Państwowy Instytut Badawczy'
+  })).filter(record=>record && Number.isFinite(record.time));
+  if(!records.length) throw new Error('IMGW returned no air-temperature observations');
+  return officialTempDedup(records);
+}
+
+let denmarkTemperatureStationMetadataPromise=null;
+function loadDenmarkTemperatureStationMetadata(){
+  if(!denmarkTemperatureStationMetadataPromise){
+    denmarkTemperatureStationMetadataPromise=officialTempFetch(
+      'https://opendataapi.dmi.dk/v2/metObs/collections/station/items?bbox=7.5,54.4,15.6,58&limit=1000',
+      {json:true}
+    ).then(payload=>{
+      const stations=new Map();
+      for(const feature of (payload.features||[])){
+        const station=feature.properties||{};
+        if(station.country!=='DNK' || station.status!=='Active') continue;
+        const validFrom=Date.parse(station.validFrom);
+        const validTo=Date.parse(station.validTo);
+        if(validFrom>Date.now() || validTo<=Date.now()) continue;
+        const current=stations.get(station.stationId);
+        if(!current || Date.parse(current.validFrom)<validFrom){
+          stations.set(station.stationId,station);
+        }
+      }
+      return stations;
+    }).catch(error=>{
+      denmarkTemperatureStationMetadataPromise=null;
+      console.warn('DMI station names unavailable',error);
+      return new Map();
+    });
+  }
+  return denmarkTemperatureStationMetadataPromise;
+}
+
+async function loadDenmarkOfficialTemperature(){
+  const now=new Date();
+  const start=new Date(now.getTime()-2*60*60*1000);
+  // A bounded time window is essential: an unbounded query can return years
+  // of observations from the first station instead of Denmark's latest data.
+  const url='https://opendataapi.dmi.dk/v2/metObs/collections/observation/items?'+
+    new URLSearchParams({parameterId:'temp_dry',bbox:'7.5,54.4,15.6,58',
+      datetime:start.toISOString()+'/'+now.toISOString(),limit:'10000'});
+  const [payload,stations]=await Promise.all([
+    officialTempFetch(url,{json:true}),
+    loadDenmarkTemperatureStationMetadata()
+  ]);
+  const records=[];
+  for(const feature of (payload.features||[])){
+    const observation=feature.properties||{};
+    if(observation.parameterId!=='temp_dry') continue;
+    const station=stations.get(observation.stationId);
+    const [lon,lat]=feature.geometry?.coordinates||[];
+    const record=officialTempRecord({
+      country:'DK',code:observation.stationId,
+      name:station?.name||('DMI '+observation.stationId),lat,lon,
+      temp:officialTempNumber(observation.value),time:officialTempTime(observation.observed),
+      source:'Danish Meteorological Institute (DMI)'
+    });
+    if(record && Number.isFinite(record.time)) records.push(record);
+  }
+  if(!records.length) throw new Error('DMI returned no air-temperature observations');
+  return officialTempDedup(records);
+}
+
 const OFFICIAL_TEMP_LOADERS=[
   ['EE',loadEstoniaOfficialTemperature],
   ['LT',loadLithuaniaOfficialTemperature],
   ['FI',loadFinlandOfficialTemperature],
   ['SE',loadSwedenOfficialTemperature],
-  ['IS',loadIcelandOfficialTemperature]
+  ['IS',loadIcelandOfficialTemperature],
+  ['PL',loadPolandOfficialTemperature],
+  ['DK',loadDenmarkOfficialTemperature]
 ];
 
 async function loadOfficialTemperatureStations(force=false){
@@ -413,7 +490,8 @@ renderTemperatureLabels=function(unix){
 
   const majorPoints=[
     [59.44,24.75],[56.95,24.11],[54.69,25.28],[60.17,24.94],
-    [59.33,18.07],[59.91,10.75],[64.15,-21.94],[65.01,25.47],[69.65,18.96]
+    [59.33,18.07],[59.91,10.75],[64.15,-21.94],[65.01,25.47],[69.65,18.96],
+    [52.23,21.01],[55.68,12.57]
   ];
   const zoom=map.getZoom();
   const modelPoints=zoom<=5 ? majorPoints :
@@ -505,3 +583,4 @@ buildTemperatureOverlay=async function(unix,options={}){
   }
   return result;
 };
+
