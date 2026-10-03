@@ -9,11 +9,22 @@ const WARNING_COUNTRY_TIMEZONES={
   Finland:'Europe/Helsinki',
   Sweden:'Europe/Stockholm',
   Norway:'Europe/Oslo',
-  Iceland:'Atlantic/Reykjavik'
+  Iceland:'Atlantic/Reykjavik',
+  Poland:'Europe/Warsaw',
+  Denmark:'Europe/Copenhagen'
 };
 
 function warningCountry(record){
   return record?.country || 'Estonia';
+}
+
+function warningLocalTime(value,country){
+  const date=new Date(value);
+  if(!value || !Number.isFinite(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-GB',{
+    timeZone:WARNING_COUNTRY_TIMEZONES[country]||'Europe/Tallinn',
+    day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'
+  }).format(date);
 }
 
 function warningDateKey(date,timeZone){
@@ -50,10 +61,11 @@ function warningIsTodayOrTomorrow(record){
   // Calendar-day filtering alone kept Lithuanian warnings visible for hours
   // after their official end time. Apply exact expiry to every country.
   if(Number.isFinite(endMs) && endMs<=Date.now()) return false;
-  // A cached Latvian record must never outlive its feed freshness or expiry.
-  if(country==='Latvia' && (
+  // National snapshots must never outlive their feed freshness or expiry.
+  const maxAge=country==='Latvia'?LATVIA_WARNING_MAX_AGE:NATIONAL_WARNING_MAX_AGE;
+  if(['Latvia','Poland','Denmark'].includes(country) && (
     !Number.isFinite(Date.parse(record.sourceUpdatedAt)) ||
-    Date.now()-Date.parse(record.sourceUpdatedAt)>LATVIA_WARNING_MAX_AGE ||
+    Date.now()-Date.parse(record.sourceUpdatedAt)>maxAge ||
     Date.parse(record.expires)<=Date.now()
   )) return false;
   const timeZone=WARNING_COUNTRY_TIMEZONES[country] || 'Europe/Tallinn';
@@ -219,7 +231,7 @@ renderNordicWarnings=async function(){
     card.style.borderLeftColor=sev.color;
 
     const end=record.expires
-      ? new Date(record.expires).toLocaleString()
+      ? warningLocalTime(record.expires,record.country)
       : 'No expiry provided';
 
     card.innerHTML=
@@ -242,7 +254,7 @@ renderNordicWarnings=async function(){
         if(bounds && bounds.isValid()) map.fitBounds(bounds.pad(.18));
         firstLayer.openPopup?.();
       }else{
-        window.open(record.capUrl||NORDIC_WARNING_PAGE,'_blank','noopener');
+        window.open(record.sourcePage||record.capUrl||NORDIC_WARNING_PAGE,'_blank','noopener');
       }
     });
 
@@ -274,7 +286,7 @@ function updateVisibleWarningStatus(){
 
   for(const [country,label] of [
     ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
-    ['Sweden','SE'],['Norway','NO'],['Iceland','IS']
+    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK']
   ]){
     const count=counts.get(country)||0;
     if(count) parts.push(`${label} ${count}`);
@@ -318,8 +330,9 @@ function scheduleWarningExpiryRefresh(){
   for(const record of [...warningRecords,...lithuaniaWarnings,...nordicWarnings]){
     const expiry=Date.parse(record.expires);
     if(Number.isFinite(expiry) && expiry>now) deadlines.push(expiry);
-    if(warningCountry(record)==='Latvia'){
-      const staleAt=Date.parse(record.sourceUpdatedAt)+LATVIA_WARNING_MAX_AGE+1;
+    if(['Latvia','Poland','Denmark'].includes(warningCountry(record))){
+      const maxAge=warningCountry(record)==='Latvia'?LATVIA_WARNING_MAX_AGE:NATIONAL_WARNING_MAX_AGE;
+      const staleAt=Date.parse(record.sourceUpdatedAt)+maxAge+1;
       if(Number.isFinite(staleAt) && staleAt>now) deadlines.push(staleAt);
     }
   }

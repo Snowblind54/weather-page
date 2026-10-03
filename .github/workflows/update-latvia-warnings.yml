@@ -1,4 +1,4 @@
-name: Update Latvia warnings
+name: Update official Latvia, Poland and Denmark warnings
 
 on:
   schedule:
@@ -8,6 +8,8 @@ on:
     branches: [main]
     paths:
       - scripts/update_latvia_warnings.py
+      - scripts/update_national_warnings.py
+      - tests/test_national_warnings.py
       - .github/workflows/update-latvia-warnings.yml
 
 permissions:
@@ -23,14 +25,20 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - name: Check national warning parsers
+        run: python3 -m unittest discover -s tests -v
       - name: Fetch official LVGMC warnings and polygons
         run: python3 scripts/update_latvia_warnings.py
-      - name: Save updated warning snapshot
+      - name: Fetch official IMGW and DMI warnings and polygons
+        if: ${{ !cancelled() }}
+        run: python3 scripts/update_national_warnings.py
+      - name: Save updated warning snapshots
+        if: ${{ !cancelled() }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/latvia-warnings.json
+          git add data/latvia-warnings.json data/national-warnings.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Refresh official Latvia warning data'
+          git commit -m 'Refresh official Latvia, Poland and Denmark warnings'
           git pull --rebase origin main
           git push origin HEAD:main

@@ -10,6 +10,7 @@ Interactive weather map covering the Baltics and Northern Europe.
 - `js/map.js` — map setup, shared state, base maps and location
 - `js/warnings.js` — official Baltic and Nordic severe-weather warnings
 - `js/warning-filters.js` — local-day filtering and automatic exact-time expiry
+- `js/national-warnings.js` — official IMGW/DMI polygons and snapshot freshness
 - `js/latvia-warnings.js` — official Latvian warning polygons and freshness checks
 - `js/temperature.js` — coastline-clipped regional model heatmaps and labels
 - `js/stations.js` — official national temperature observations
@@ -42,13 +43,13 @@ wind and gusts separately; trail colours and motion continue to use sustained
 wind. Gusts are spatially interpolated scalar values from the hourly maximum
 for the hour containing the selected time (the API timestamp marks its end).
 Gusts are not blended across hours, and their hour-ending timestamp is shown.
-Missing gusts display as unavailable rather than zero. Wind cache schema v2
-invalidates old vector-only caches so existing visitors fetch the gust data.
+Missing gusts display as unavailable rather than zero. Wind cache schema v3
+invalidates old vector-only caches and earlier grid bounds.
 
 Latvian warnings use LVĢMC's public `https://bridinajumi.meteo.lv/list.php`
 and linked CAP documents. `scripts/update_latvia_warnings.py` retains the English
 warning text and simplifies native polygons within 0.0007 degrees (about 80 m).
-The scheduled `Update Latvia warnings` workflow refreshes
+The scheduled `Update official Latvia, Poland and Denmark warnings` workflow refreshes
 `data/latvia-warnings.json` approximately every 15 minutes; scheduled GitHub jobs
 can be delayed. Browsers fetch the current snapshot from raw GitHub, which supports
 CORS and updates independently of a Pages rebuild. Snapshots older than one hour
@@ -75,3 +76,35 @@ Poland and Denmark have dedicated Open-Meteo model grids. Heatmaps use Natural
 Earth country polygons in Web Mercator to clip coastlines and national borders,
 including Danish islands and Bornholm. If coastline data are unavailable, no
 unmasked tile is drawn. Numeric readings work independently with heatmap off.
+
+The default base map is Esri satellite imagery with transportation and place
+labels. Switching to Streets adds sea-only EMODnet Bathymetry 2024 DTM shading
+in its own pane below the weather layers. Its transparent land pixels preserve
+the existing OpenTopoMap roads and land terrain; it is removed in Satellite mode.
+
+The Wind section now has a Sustained wind / Wind gusts selector. Gust animation
+uses the hourly maximum magnitude and the sustained wind direction, since the
+source does not provide a separate gust direction. Gust magnitudes interpolate
+spatially as scalars, and do not blend across hours. Both modes retain the regular
+speed colours; gusts above (strictly greater than) 33 m/s add pink. At exactly
+33 m/s gusts remain purple. Missing gusts are not replaced with sustained speed.
+The regional wind grid extends south to 48°N to include Poland, and cache schema
+v3 prevents old grid bounds being reused.
+
+`update_national_warnings.py` fetches IMGW's public county-warning service and
+DMI's public WarningAreas service, plus their own published boundary geometries.
+It preserves islands and polygon holes and simplifies rings within 0.0007°.
+Poland's severity levels and Denmark's categories 1–3 map to yellow/orange/red.
+DMI category 0 risk advisories are omitted. Offset-bearing validity timestamps
+are retained; timestamps without offsets use Europe/Warsaw or Europe/Copenhagen.
+The shared scheduled warning workflow updates `data/national-warnings.json`
+about every 15 minutes (GitHub scheduled jobs may be delayed). Country timestamps
+advance only after a successful source fetch; snapshots over one hour old are
+unavailable. Raw GitHub supplies browser CORS, with same-site and browser-cache
+fallbacks. All expiry timers and popup/list times use the warning country's local
+timezone, including daylight-saving rules. No new hosting server is required.
+
+The heatmap continues to use Open-Meteo's terrain-adjusted model field. National
+station coverage and observation times vary; interpolating only displayed station
+values would smooth across mountain/valley differences and create gaps. Official
+observations still take priority for numeric labels, and heatmaps remain optional.

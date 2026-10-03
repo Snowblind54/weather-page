@@ -503,8 +503,8 @@ async function loadCountyGeometry(){
 
 function warningPopupHtml(w){
   const sev=severityInfo(w.level);
-  const start=w.effective?new Date(w.effective).toLocaleString():'';
-  const end=w.expires?new Date(w.expires).toLocaleString():'';
+  const start=warningLocalTime(w.onset||w.effective,w.country||'Estonia');
+  const end=warningLocalTime(w.expires,w.country||'Estonia');
 
   return `<div class="warning-popup">
     <h3>${htmlEscape(w.event)}</h3>
@@ -600,7 +600,7 @@ async function renderWarnings(){
     card.warningRecord=w;
     card.style.borderLeftColor=sev.color;
 
-    const end=w.expires?new Date(w.expires).toLocaleString():'No expiry provided';
+    const end=w.expires?warningLocalTime(w.expires,w.country||'Estonia'):'No expiry provided';
 
     card.innerHTML=
       `<div class="warning-title">${htmlEscape(w.event)}</div>`+
@@ -700,7 +700,7 @@ async function loadWarnings(force=false){
   const parts=[`${allRecords.length} active warning records`];
   for(const [country,label] of [
     ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
-    ['Sweden','SE'],['Norway','NO'],['Iceland','IS']
+    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK']
   ]){
     if(counts.get(country)) parts.push(`${label} ${counts.get(country)}`);
   }
@@ -987,8 +987,8 @@ function ltFeatureMatches(feature,warningArea){
 
 function lithuaniaPopupHtml(w){
   const sev=ltSeverity(w.level);
-  const start=w.effective ? new Date(w.effective).toLocaleString() : '';
-  const end=w.expires ? new Date(w.expires).toLocaleString() : '';
+  const start=warningLocalTime(w.onset||w.effective,'Lithuania');
+  const end=w.expires ? warningLocalTime(w.expires,w.country||'Estonia') : '';
 
   return `<div class="warning-popup">
     <h3>${htmlEscape(w.headline||w.event)}</h3>
@@ -1049,7 +1049,7 @@ async function renderLithuaniaWarnings(){
     card.warningRecord=w;
     card.style.borderLeftColor=sev.color;
 
-    const end=w.expires ? new Date(w.expires).toLocaleString() : 'No expiry provided';
+    const end=w.expires ? warningLocalTime(w.expires,w.country||'Estonia') : 'No expiry provided';
 
     card.innerHTML=
       `<div class="warning-title">🇱🇹 ${htmlEscape(w.headline||w.event)}</div>`+
@@ -1101,7 +1101,7 @@ const FINLAND_METEOALARM_FALLBACK={
   country:'Finland',flag:'🇫🇮',slug:'finland',
   feed:'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-finland'
 };
-const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV89';
+const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV813';
 const NORDIC_WARNING_CACHE_MAX_AGE=6*60*60*1000;
 const NORDIC_WARNING_REFRESH_MS=15*60*1000;
 
@@ -1611,6 +1611,8 @@ async function loadNordicWarnings(force=false){
         country:'Finland',
         run:()=>loadFinlandWarningsWithFallback()
       },
+      {country:'Poland',run:()=>loadNationalWarningCountry('PL')},
+      {country:'Denmark',run:()=>loadNationalWarningCountry('DK')},
       ...NORDIC_WARNING_SOURCES.map(source=>({
         country:source.country,
         run:async()=>{
@@ -1672,8 +1674,8 @@ async function loadNordicWarnings(force=false){
 
 function nordicWarningPopupHtml(record){
   const sev=warningSeverity(record.level);
-  const start=record.effective?new Date(record.effective).toLocaleString():'';
-  const end=record.expires?new Date(record.expires).toLocaleString():'';
+  const start=warningLocalTime(record.onset||record.effective,record.country);
+  const end=warningLocalTime(record.expires,record.country);
 
   return `<div class="warning-popup">
     <h3>${htmlEscape(record.flag+' '+(record.headline||record.event))}</h3>
@@ -1683,7 +1685,7 @@ function nordicWarningPopupHtml(record){
     ${start||end?`<p><b>Valid:</b> ${htmlEscape(start)}${start&&end?' – ':''}${htmlEscape(end)}</p>`:''}
     ${record.description?`<p>${htmlEscape(record.description)}</p>`:''}
     ${record.instruction?`<p><b>Instructions:</b> ${htmlEscape(record.instruction)}</p>`:''}
-    <p><a href="${record.capUrl||NORDIC_WARNING_PAGE}" target="_blank" rel="noopener">${record.country==='Finland'?'Official FMI CAP source':record.country==='Latvia'?'Official LVĢMC CAP source':'MeteoAlarm / CAP source'} ↗</a></p>
+    <p><a href="${record.sourcePage||record.capUrl||NORDIC_WARNING_PAGE}" target="_blank" rel="noopener">${record.sourceName?'Official '+htmlEscape(record.sourceName)+' source':record.country==='Finland'?'Official FMI CAP source':record.country==='Latvia'?'Official LVĢMC CAP source':'MeteoAlarm / CAP source'} ↗</a></p>
   </div>`;
 }
 
@@ -1733,7 +1735,7 @@ async function renderNordicWarnings(){
     card.style.borderLeftColor=sev.color;
 
     const end=record.expires
-      ? new Date(record.expires).toLocaleString()
+      ? warningLocalTime(record.expires,record.country)
       : 'No expiry provided';
 
     card.innerHTML=

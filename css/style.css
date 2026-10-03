@@ -44,6 +44,7 @@ h1{font-size:18px;margin:0 0 3px}.subtitle{font-size:11px;color:#aaa;margin-bott
 .wrap{flex-wrap:wrap}.label{font-size:13px;font-weight:700}.small{font-size:10.5px;color:#aaa;line-height:1.4}
 button{border:1px solid #484848;border-radius:10px;background:#171717;color:#eee;padding:8px 10px;font-weight:700;cursor:pointer}
 button.active{background:#f3f3f3;color:#111;border-color:#fff}
+select{width:100%;margin:4px 0 8px;padding:7px 9px;border:1px solid #484848;border-radius:8px;background:#171717;color:#eee;font:12px Arial,sans-serif}
 input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-color:#fff;transform:scale(1.08)}
 .grid2{display:grid;grid-template-columns:1fr 58px;gap:9px;align-items:center}.value{text-align:right;font-size:11px;color:#ddd}
 .timebox{text-align:center;border:1px solid #333;border-radius:9px;background:#111;padding:8px;font-size:11px;font-variant-numeric:tabular-nums}
@@ -82,7 +83,7 @@ input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-colo
 .wind-popup-speed{font-size:27px;font-weight:800;line-height:1.25;margin:6px 0 2px}
 .wind-popup-speed span{font-size:15px;font-weight:600}
 .wind-popup-meta{font-size:10px;color:#56616c;margin-top:6px}
-.credit a{color:#aaa}
+.credit a,.small a{color:#aaa}
 .credit{font-size:9px;color:#777;line-height:1.4;margin-top:12px}
 
 .warning-legend{display:flex;gap:10px;flex-wrap:wrap;margin:7px 0}
