@@ -1,5 +1,5 @@
 // Wind crosses coastlines: never apply the temperature layer's land mask.
-const WIND_CACHE_KEY='balticWeatherWindV4';
+const WIND_CACHE_KEY='balticWeatherWindV5';
 const WIND_CACHE_MS=45*60*1000;
 const WIND_GRIDS=[
   // Broad Atlantic grid, European detail, then the existing Baltic detail.
