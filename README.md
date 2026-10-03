@@ -108,3 +108,26 @@ The heatmap continues to use Open-Meteo's terrain-adjusted model field. National
 station coverage and observation times vary; interpolating only displayed station
 values would smooth across mountain/valley differences and create gaps. Official
 observations still take priority for numeric labels, and heatmaps remain optional.
+
+## Rainfall accumulation and depth labels (v8.14)
+
+The rain radar card also has independent 1, 24 and 48-hour rainfall toggles. One
+period colours the map at a time; disabling radar does not disable accumulation.
+`js/rainfall.js` requests Open-Meteo hourly `rain` + `showers` in millimetres with
+54 past hours and one current hour. Totals are rolling completed-hour sums ending
+at the hour at or before the selected radar timeline time, capped at the present.
+Snow is excluded. The maps are interpolated model estimates, not gauge or radar
+measurements. Rainfall uses the five existing model grids and the country masks
+for EE, LV, LT, FI, SE, NO, IS, PL and DK. Dry ground is transparent; missing hours
+remain unavailable. Masks include coastlines, islands and holes; missing masks
+prevent an unmasked rectangular overlay. The source data is cached for 30 minutes,
+with hourly coverage checked before reuse. Images are cached by period and end
+hour. Switches and timeline changes invalidate in-flight renders. Map clicks show
+all three totals in mm and also wind readings when wind is enabled.
+
+Streets adds the official transparent EMODnet `emodnet:contours` WMS layer above
+the existing bathymetry shading, from zoom 5. Small contour labels are depths in
+metres (50, 100, 200, 500, 1000, 2000 and 5000); their placement follows the
+provider's generalized isobaths. Both sea layers are removed on Satellite.
+
+Run rainfall regression checks with `node --test tests/rainfall.test.cjs`.

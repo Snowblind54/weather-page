@@ -85,6 +85,8 @@ function updateWindPopup(){
 
 map.on('click',event=>{
   if(!$('windOn').checked) return;
+  // The rainfall popup includes both wind readings when both layers are on.
+  if(typeof activeAccumulationHours==='function' && activeAccumulationHours()) return;
   // Keep warning polygons and station markers' existing click actions.
   if(event.originalEvent?.target?.closest?.('.leaflet-interactive,.leaflet-marker-icon,.leaflet-popup')) return;
   windProbe=event.latlng;
@@ -457,6 +459,7 @@ function renderWind(unix){
   if(!$('windOn').checked) return false;
   showWindLegend();
   updateWindPopup();
+  if(typeof updateAccumulationPopup==='function') updateAccumulationPopup();
   const slice=windTimeSlice(unix);
   if(!slice){
     if(windLayer&&map.hasLayer(windLayer)) map.removeLayer(windLayer);

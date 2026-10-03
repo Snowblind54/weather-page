@@ -398,6 +398,7 @@ async function applyFrame(options={}){
 
   $('timeLabel').textContent=fmt(frame.time)+(i===frames.length-1?' · latest':'');
   if($('windOn').checked) renderWind(frame.time);
+  if(typeof activeAccumulationHours==='function' && activeAccumulationHours()) queueRainfallRender(55);
 
   if($('tempOn').checked && temperatureSeries.length){
     queueTemperatureRender(frame.time,55);
