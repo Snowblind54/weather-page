@@ -98,6 +98,18 @@ class Cyclones(unittest.TestCase):
         self.assertEqual(middle['lon'], -28.5)
         self.assertEqual(middle['pressure'], 983)
 
+    def test_history_survives_model_handoff_without_future_or_unmatched_positions(self):
+        old = {'systems': [{'id': 'matched', 'history': [point(-75), point(-12)],
+                            'points': [point(h) for h in (0, 3, 6, 9, 12, 15)]}]}
+        now = RUN+dt.timedelta(hours=9)
+        new = [{'id': 'matched', 'points': [point(h, -29) for h in (6, 9, 12, 15)]},
+               {'id': 'new', 'points': [point(h, -50) for h in (6, 9, 12, 15)]}]
+        result = c.retain_history(new, old, now, STAMP+6*3600)
+        self.assertEqual([p['time'] for p in result[0]['history']], [STAMP+h*3600 for h in (-12, 0, 3, 6, 9)])
+        self.assertEqual([p['time'] for p in result[1]['history']], [STAMP+h*3600 for h in (6, 9)])
+        self.assertTrue(all(p['time'] <= int(now.timestamp()) for s in result for p in s['history']))
+        self.assertEqual(result[0]['history'][-1]['lon'], -29)
+
 
 if __name__ == '__main__':
     unittest.main()

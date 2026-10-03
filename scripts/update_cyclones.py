@@ -244,6 +244,24 @@ def add_names(tracks, now):
     return state
 
 
+def retain_history(systems, previous, now, model_run):
+    """Keep elapsed modelled centres across matched runs, never future forecasts."""
+    end = int(now.timestamp()); cutoff = end-72*3600
+    old_by_id = {s['id']: s for s in previous.get('systems', [])}
+    for system in systems:
+        old = old_by_id.get(system['id'], {})
+        points = {}
+        # Earlier-run positions stop at the new run, where its track takes over.
+        for point in old.get('history', []) + old.get('points', []):
+            if cutoff <= point['time'] < model_run and point['time'] <= end:
+                points[point['time']] = dict(point)
+        for point in system['points']:
+            if cutoff <= point['time'] <= end:
+                points[point['time']] = dict(point)
+        system['history'] = [points[t] for t in sorted(points)]
+    return systems
+
+
 def collect(now, previous):
     # GFS is produced every six hours; allow four hours for the complete run.
     base = (now-dt.timedelta(hours=4)).replace(minute=0, second=0, microsecond=0)
@@ -280,6 +298,7 @@ def collect(now, previous):
             lows = centres(lats, lons, grid, valid);frames.append((valid, lows))
             print('Forecast', step, 'h:', len(lows), 'closed centres', flush=True)
         systems = assign_ids(track_frames(frames), previous, run)
+    systems = retain_history(systems, previous, now, stamp)
     nhc = add_names(systems, now)
     return {'version': 1, 'windFieldsVersion': 2, 'generatedAt': int(now.timestamp()), 'modelRun': stamp,
             'forecastEnd': stamp+96*3600, 'status': 'ok',

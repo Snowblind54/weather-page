@@ -1,6 +1,6 @@
 // Closed low-pressure centres derived from a consistent NOAA GFS forecast run.
 let cycloneData=null,cycloneLoadPromise=null,cycloneLoadedAt=0,cycloneRetryAt=0,cycloneRefreshFailed=false;
-let cycloneMarkerGroup=null,cyclonePathGroup=null,cyclonePopup=null,cycloneProbeId=null;
+let cycloneMarkerGroup=null,cyclonePathGroup=null,cycloneHistoryGroup=null,cyclonePopup=null,cycloneProbeId=null;
 let cyclonePlaying=false,cyclonePlayTimer=null;
 const cycloneMarkers=new Map();
 map.createPane('cyclonePathsPane');map.getPane('cyclonePathsPane').style.zIndex='610';
@@ -24,6 +24,16 @@ function validateCyclones(data){
         !Number.isFinite(p.lon)||p.lon< -85||p.lon>45||!Number.isFinite(p.pressure)||p.pressure<850||p.pressure>1100||
         ['nearbyWind','nearbyGust'].some(k=>p[k]!=null&&(!Number.isFinite(p[k])||p[k]<0||p[k]>150))) throw new Error('Invalid cyclone point');
     });
+    if(system.history!=null){
+      if(!Array.isArray(system.history)||system.history.length>200)throw new Error('Invalid cyclone history');
+      system.history.forEach((p,i)=>{
+        if(!Number.isFinite(p.time)||p.time>data.generatedAt||p.time<data.generatedAt-73*3600||
+          (i&&p.time<=system.history[i-1].time)||!Number.isFinite(p.lat)||p.lat<20||p.lat>82||
+          !Number.isFinite(p.lon)||p.lon< -85||p.lon>45||!Number.isFinite(p.pressure)||p.pressure<850||p.pressure>1100)
+          throw new Error('Invalid cyclone history point');
+      });
+    }
+
   }
   return data;
 }
@@ -134,6 +144,32 @@ function renderCyclonePaths(unix){
   cyclonePathGroup=L.layerGroup(layers).addTo(map);
 }
 
+function renderCycloneHistory(){
+  if(cycloneHistoryGroup){map.removeLayer(cycloneHistoryGroup);cycloneHistoryGroup=null;}
+  if(!$('cycloneHistoryOn').checked || !cycloneUsable())return;
+  const now=Math.floor(Date.now()/1000),layers=[];
+  for(const system of cycloneData.systems){
+    // History is tied to actual clock time, even while viewing a future forecast.
+    const current=cyclonePointAt(system,now);
+    if(!cycloneVisiblePosition(current))continue;
+    const byTime=new Map();
+    for(const point of [...(system.history||[]),...system.points]){
+      if(point.time>=now-48*3600 && point.time<=now)byTime.set(point.time,point);
+    }
+    byTime.set(now,current);
+    const points=[...byTime.values()].sort((a,b)=>a.time-b.time);
+    const pieces=[];let piece=[];
+    for(const point of points){
+      if(piece.length && point.time-piece.at(-1).time>6*3600){if(piece.length>1)pieces.push(piece);piece=[];}
+      piece.push(point);
+    }
+    if(piece.length>1)pieces.push(piece);
+    for(const part of pieces)layers.push(L.polyline(part.map(p=>[p.lat,p.lon]),{
+      pane:'cyclonePathsPane',color:cycloneColour(current.pressure),weight:3,opacity:.75,interactive:false}));
+  }
+  cycloneHistoryGroup=L.layerGroup(layers).addTo(map);
+}
+
 function renderCyclones(){
   if(!$('cycloneOn').checked)return;
   const hour=Number($('cycloneForecastHour').value),unix=cycloneSelectedTime();
@@ -162,7 +198,7 @@ function renderCyclones(){
     }
   }
   for(const [id,marker] of cycloneMarkers)if(!shown.has(id)){cycloneMarkerGroup.removeLayer(marker);cycloneMarkers.delete(id);}
-  renderCyclonePaths(unix);
+  renderCyclonePaths(unix);renderCycloneHistory();
   if(cycloneProbeId){
     const system=cycloneData.systems.find(s=>s.id===cycloneProbeId),point=system&&cyclonePointAt(system,unix);
     if(point&&shown.has(system.id)&&map.hasLayer(cyclonePopup))cyclonePopup.setLatLng([point.lat,point.lon]).setContent(cyclonePopupContent(system,point));
@@ -177,6 +213,7 @@ function renderCyclones(){
 function hideCycloneLayers(){
   if(cycloneMarkerGroup){map.removeLayer(cycloneMarkerGroup);cycloneMarkerGroup=null;}
   if(cyclonePathGroup){map.removeLayer(cyclonePathGroup);cyclonePathGroup=null;}
+  if(cycloneHistoryGroup){map.removeLayer(cycloneHistoryGroup);cycloneHistoryGroup=null;}
   cycloneMarkers.clear();closeCyclonePopup();
 }
 
@@ -214,6 +251,7 @@ $('cycloneOn').addEventListener('change',()=>{
   if($('cycloneOn').checked)loadCyclones().catch(reportCycloneError);
   else{stopCyclonePlayback();hideCycloneLayers();$('cycloneStatus').textContent='Cyclones are off.';}
 });
+$('cycloneHistoryOn').addEventListener('change',()=>{if($('cycloneOn').checked)renderCyclones();});
 $('cyclonePathsOn').addEventListener('change',()=>{if($('cycloneOn').checked)renderCyclones();});
 $('cycloneForecastHour').addEventListener('input',()=>{stopCyclonePlayback();renderCyclones();});
 $('cycloneNow').addEventListener('click',()=>{stopCyclonePlayback();$('cycloneForecastHour').value='0';renderCyclones();});

@@ -6,7 +6,7 @@ const {test}=require('node:test');
 
 function harness(){
   const elements={},layers=new Set(),panes=new Map(),timers=new Map();let tick=1;
-  for(const id of ['cycloneOn','cyclonePathsOn','cycloneForecastHour','cycloneTimeLabel','cycloneStatus','cycloneSection','cycloneNow','cycloneCoverage','cyclonePlay'])
+  for(const id of ['cycloneOn','cycloneHistoryOn','cyclonePathsOn','cycloneForecastHour','cycloneTimeLabel','cycloneStatus','cycloneSection','cycloneNow','cycloneCoverage','cyclonePlay'])
     elements[id]={checked:false,value:'0',textContent:'',listeners:{},addEventListener(n,f){this.listeners[n]=f;}};
   const map={createPane:n=>panes.set(n,{style:{}}),getPane:n=>panes.get(n),hasLayer:l=>layers.has(l),removeLayer:l=>layers.delete(l),
     fitBounds(){this.moves++;},moves:0};
@@ -81,4 +81,20 @@ test('failed refresh discloses prior forecast and corrupt snapshots are rejected
   const h=harness();h.seed();h.context.fetch=async()=>{throw new Error('offline');};
   await h.run('loadCyclones(true)');assert.equal(h.run('cycloneMarkers.size'),1);assert.match(h.elements.cycloneStatus.textContent,/refresh failed/);
   h.run('fixture.systems.push(fixture.systems[0]);');assert.throws(()=>h.run('validateCyclones(fixture)'),/Invalid cyclone track/);
+});
+
+test('past trails remain distinct from forecasts, exclude future points and split missing history',()=>{
+  const h=harness(),now=h.data.generatedAt;
+  h.data.systems[0].history=[48,45,24,21,18,15,12,9,6,3].map(age=>({time:now-age*3600,lat:55,lon:-42+age*.01,pressure:985}));
+  h.elements.cycloneHistoryOn.checked=true;h.seed();
+  assert.equal(h.run('cyclonePathGroup'),null);assert.equal(h.run('cycloneHistoryGroup.children.length'),2,'long gaps are not bridged');
+  const past=h.run('JSON.stringify(cycloneHistoryGroup.children.map(l=>l.points))');
+  assert(h.run('cycloneHistoryGroup.children.every(l=>!l.options.dashArray)'));
+  h.elements.cycloneForecastHour.value='24';h.elements.cyclonePathsOn.checked=true;h.run('renderCyclones()');
+  assert.equal(past,h.run('JSON.stringify(cycloneHistoryGroup.children.map(l=>l.points))'),'history stays anchored to now');
+  assert(h.run('cyclonePathGroup.children.some(l=>l.options?.dashArray)'));
+  h.elements.cycloneHistoryOn.checked=false;h.elements.cycloneHistoryOn.listeners.change();
+  assert.equal(h.run('cycloneHistoryGroup'),null);assert.notEqual(h.run('cyclonePathGroup'),null);
+  h.data.systems[0].history.push({time:now+1,lat:55,lon:-40,pressure:985});
+  assert.throws(()=>h.run('validateCyclones(fixture)'),/Invalid cyclone history point/);
 });
