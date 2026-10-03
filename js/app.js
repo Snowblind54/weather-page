@@ -19,6 +19,7 @@ $('satBtn').onclick=useSatellite;
 // Compact weather cards expand only while enabled.
 for(const [toggleId,sectionId] of [
   ['tempOn','tempSection'],
+  ['windOn','windSection'],
   ['cloudOn','cloudSection'],
   ['radarOn','radarSection'],
   ['warningOn','warningSection']
@@ -84,6 +85,15 @@ $('heatmapOn').addEventListener('change',()=>{
   if(frame && $('tempOn').checked) queueTemperatureRender(frame.time,0);
 });
 
+$('windOn').addEventListener('change',()=>{
+  if($('windOn').checked) loadWind().catch(reportWindError);
+  else hideWind();
+});
+$('windDensity').addEventListener('input',()=>{
+  $('windDensityVal').textContent=$('windDensity').value+'%';
+  windLayer?.reset();
+});
+
 $('tempOpacity').addEventListener('input',()=>{
   $('tempOpacityVal').textContent=$('tempOpacity').value+'%';
   if(temperatureLayer) temperatureLayer.setOpacity(Number($('tempOpacity').value)/100);
@@ -135,6 +145,7 @@ $('timeline').addEventListener('input',()=>{
     // Clouds are lightweight once cached, so update/crossfade them immediately
     // while the thumb is moving. Radar + temperature remain debounced.
     if($('cloudOn').checked) drawCloud(frame,i).catch(console.error);
+    if($('windOn').checked) renderWind(frame.time);
   }
 
   if(timelineDebounceTimer) clearTimeout(timelineDebounceTimer);
@@ -166,6 +177,7 @@ $('refresh').onclick=async()=>{
     await loadOfficialRadarList();
     if($('tempOn').checked) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);
+    if($('windOn').checked) await loadWind().catch(reportWindError);
     $('mapStatus').textContent='Refresh complete.';
     $('mapStatus').className='status ok';
   }catch(e){
@@ -209,3 +221,7 @@ setInterval(()=>{
 setInterval(()=>{
   if($('warningOn').checked) loadWarnings(true).catch(()=>{});
 },15*60*1000);
+
+setInterval(()=>{
+  if($('windOn').checked) loadWind().catch(reportWindError);
+},5*60*1000);
