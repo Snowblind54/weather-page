@@ -100,13 +100,3 @@ test('past trails remain distinct from forecasts, exclude future points and spli
   h.data.systems[0].history.push({time:now+1,lat:55,lon:-40,pressure:985});
   assert.throws(()=>h.run('validateCyclones(fixture)'),/Invalid cyclone history point/);
 });
-
-test('past playback interpolates recorded history without bridging gaps',()=>{
-  const h=harness(),now=h.data.generatedAt;
-  h.data.systems[0].history=[{time:now-7*3600,lat:55,lon:-43,pressure:990},{time:now-4*3600,lat:55,lon:-41,pressure:987}];
-  h.seed();h.elements.cycloneForecastHour.value='-5';h.run('renderCyclones()');
-  assert.equal(h.run('cycloneMarkers.size'),1);
-  assert(Math.abs(h.run('cycloneMarkers.values().next().value.point[1]')-(-41-2/3))<.001);
-  assert.match(h.elements.cycloneTimeLabel.textContent,/-5 h/);
-  assert.equal(h.run('cyclonePointAt(fixture.systems[0],fixture.generatedAt-8*3600)'),null);
-});

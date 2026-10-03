@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Northern Weather Map v8.28.2</title>
+<title>Northern Weather Map v8.29</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.28.2">
+<link rel="stylesheet" href="css/style.css?v=8.29">
 </head>
 <body>
 
@@ -111,9 +111,9 @@
     <div class="details">
       <label class="label control-line"><input id="cycloneHistoryOn" type="checkbox" checked> Past centre tracks · up to 48 h</label>
       <label class="label control-line"><input id="cyclonePathsOn" type="checkbox"> Projected centre paths · next 48 h</label>
-      <div class="row"><button id="cycloneCoverage">View coverage</button><button id="cyclonePlay" hidden>▶ Forecast</button><button id="cycloneNow" hidden>Now</button></div>
-      <div class="small">Use the bottom timeline to play or explore recorded history and the next 48 hours. History is limited to available tracked positions.</div>
-      <input id="cycloneForecastHour" hidden type="range" min="-48" max="48" value="0" step="1" aria-label="Cyclone forecast hours ahead">
+      <div class="row"><button id="cycloneCoverage">View coverage</button><button id="cyclonePlay">▶ Forecast</button><button id="cycloneNow">Now</button></div>
+      <label class="small" for="cycloneForecastHour">Cyclone forecast · now to +48 h</label>
+      <input id="cycloneForecastHour" type="range" min="0" max="48" value="0" step="3" aria-label="Cyclone forecast hours ahead">
       <div id="cycloneTimeLabel" class="timebox">Current modelled positions</div>
       <div class="warning-legend cyclone-legend" aria-label="Centre pressure colours in hectopascals">
         <span class="warning-key"><i style="background:#7ddcff"></i>≥1000 hPa</span>
@@ -195,15 +195,15 @@
 <script src="js/temperature.js?v=8.26"></script>
 <script src="js/stations.js?v=8.26"></script>
 <script src="js/cloud-pixels.js?v=8.19"></script>
-<script src="js/clouds.js?v=8.28"></script>
-<script src="js/radar.js?v=8.28"></script>
+<script src="js/clouds.js?v=8.29"></script>
+<script src="js/radar.js?v=8.29"></script>
 <script src="js/radar-history.js?v=8.7"></script>
 <script src="js/radar-capture.js?v=8.7"></script>
 <script src="js/wind.js?v=8.28"></script>
 <script src="js/official-rainfall.js?v=8.21"></script>
 <script src="js/rainfall.js?v=8.15.1"></script>
 <script src="js/bathymetry.js?v=8.21"></script>
-<script src="js/cyclones.js?v=8.28.1"></script>
-<script src="js/app.js?v=8.28"></script>
-<script src="js/ui.js?v=8.28.2"></script></body>
+<script src="js/cyclones.js?v=8.29"></script>
+<script src="js/app.js?v=8.29"></script>
+<script src="js/ui.js?v=8.29"></script></body>
 </html>
