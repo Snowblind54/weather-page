@@ -146,7 +146,6 @@ function cloudInfraredLuminance(r,g,b){
   cloudIRColours.set(key,lum);
   return lum;
 }
-function cloud10Slot(unix){return Math.floor(unix/600)*600;}
 function cloudSolarMix(unix,lat,lon){
   const elevation=solarElevationDegrees(unix,lat,lon);
   const dayMix=smoothstep(0,5,elevation);
