@@ -148,3 +148,17 @@ test('background worker produces identical pixels and transfers buffers for both
     }
   }finally{await worker.terminate();}
 });
+test('satellite connection fallback is used once and never bypasses a rate limit',async()=>{
+  const h=harness(),calls=[];
+  h.context.fetch=async url=>{calls.push(url);if(calls.length===1)throw new TypeError('Failed to fetch');return {ok:true,text:async()=>'<WMS/>'};};
+  const xml=await h.run("cloudFetch('https://view.eumetsat.int/geoserver/wms')");
+  assert.equal(xml,'<WMS/>');assert.equal(calls.length,2);assert(calls[1].startsWith('https://proxy.cors.dev/'));
+  calls.length=0;h.context.fetch=async url=>{calls.push(url);return {ok:false,status:429};};
+  await assert.rejects(h.run("cloudFetch('https://view.eumetsat.int/geoserver/wms')"),/429/);assert.equal(calls.length,1);
+});
+test('cancelled satellite downloads cannot start fallback requests',async()=>{
+  const h=harness();let calls=0;
+  h.context.fetch=async()=>{calls++;h.run('cloudSession++');throw new Error('cancelled');};
+  await assert.rejects(h.run("cloudFetch('https://view.eumetsat.int/geoserver/wms')"),/cancelled/);
+  assert.equal(calls,1);assert.equal(h.run('cloudControllers.size'),0);
+});
