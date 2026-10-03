@@ -134,3 +134,7 @@ are cached for reuse. Panning/zooming adapts spacing and invalidates old label
 renders. Labels and shading are removed on Satellite.
 
 Run rainfall regression checks with `node --test tests/rainfall.test.cjs`.
+
+Wind and accumulation popups disable Leaflet `autoPan` and `keepInView` (v8.14.2).
+Updating a reading with the two-hour timeline preserves the selected map view,
+including when its existing probe popup has been panned outside the viewport.

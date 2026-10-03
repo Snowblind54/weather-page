@@ -90,7 +90,7 @@ map.on('click',event=>{
   // Keep warning polygons and station markers' existing click actions.
   if(event.originalEvent?.target?.closest?.('.leaflet-interactive,.leaflet-marker-icon,.leaflet-popup')) return;
   windProbe=event.latlng;
-  if(!windPopup) windPopup=L.popup({maxWidth:280,className:'wind-popup-container'});
+  if(!windPopup) windPopup=L.popup({maxWidth:280,className:'wind-popup-container',autoPan:false,keepInView:false});
   windPopup.setLatLng(windProbe).setContent(windPopupContent(windProbe,selectedWindTime())).openOn(map);
 });
 

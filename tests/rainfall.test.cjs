@@ -25,7 +25,7 @@ function harness(){
       canvas.getContext=()=>ctx;canvases.push(canvas);return canvas;
     }},L:{imageOverlay:(dataUrl,bounds,options)=>layer({dataUrl,bounds,options,setOpacity(v){this.options.opacity=v;}}),
       layerGroup:children=>layer({children,eachLayer:f=>children.forEach(f)}),
-      popup:()=>layer({setContent(v){this.content=v;return this;},setLatLng(v){this.point=v;return this;},openOn(){layers.add(this);return this;}})}
+      popup:options=>layer({options,setContent(v){this.content=v;return this;},setLatLng(v){this.point=v;return this;},openOn(){layers.add(this);return this;}})}
   };
   vm.createContext(context);const run=s=>vm.runInContext(s,context);
   run(fs.readFileSync(path.join(root,'js/temperature.js'),'utf8'));
@@ -122,6 +122,8 @@ test('popup has all totals and keeps wind readings; radar and period controls st
   await h.run('renderRainfall()');
   h.events.click({latlng:{lat:52,lng:19}});
   const content=h.run('rainPopup.content');
+  assert.equal(h.run('rainPopup.options.autoPan'),false,'timeline popup updates preserve the map view');
+  assert.equal(h.run('rainPopup.options.keepInView'),false);
   for(const value of ['1 h','24 h','48 h','2.0','48.0','96.0','mm','model estimate']) assert(content.includes(value),value);
   h.elements.windOn.checked=true;h.run('updateAccumulationPopup()');assert(h.run('rainPopup.content.includes("Wind at")'));
   h.elements.rain48h.checked=true;h.run('changeRainfallPeriod(48)');
@@ -130,7 +132,7 @@ test('popup has all totals and keeps wind readings; radar and period controls st
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   assert(html.indexOf('id="rain1h"')>html.indexOf('id="radarSection"'));
   assert(html.indexOf('id="rain48h"')<html.indexOf('id="warningSection"'));
-  assert(html.includes('js/rainfall.js?v=8.14'));
+  assert(html.includes('js/rainfall.js?v=8.14.2'));
 });
 
 test('loader requests past hours once, validates cache coverage, and respects disable while fetching',async()=>{

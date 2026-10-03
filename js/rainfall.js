@@ -313,7 +313,7 @@ map.on('click',event=>{
   if(!activeAccumulationHours() || !rainData || !rainCountryFeatures) return;
   if(event.originalEvent?.target?.closest?.('.leaflet-interactive,.leaflet-marker-icon,.leaflet-popup')) return;
   rainProbe=event.latlng;
-  if(!rainPopup) rainPopup=L.popup({maxWidth:350,className:'rain-popup-container'});
+  if(!rainPopup) rainPopup=L.popup({maxWidth:350,className:'rain-popup-container',autoPan:false,keepInView:false});
   rainPopup.setLatLng(rainProbe).setContent(rainfallPopupContent(rainProbe,rainWindowEnd())).openOn(map);
 });
 
