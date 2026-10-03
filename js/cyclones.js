@@ -22,7 +22,7 @@ function validateCyclones(data){
       if(!Number.isFinite(p.time)||p.time<data.modelRun||p.time>data.forecastEnd||
         (i&&p.time<=system.points[i-1].time)||!Number.isFinite(p.lat)||p.lat<20||p.lat>82||
         !Number.isFinite(p.lon)||p.lon< -85||p.lon>45||!Number.isFinite(p.pressure)||p.pressure<850||p.pressure>1100||
-        (p.nearbyWind!=null&&(!Number.isFinite(p.nearbyWind)||p.nearbyWind<0||p.nearbyWind>150))) throw new Error('Invalid cyclone point');
+        ['nearbyWind','nearbyGust'].some(k=>p[k]!=null&&(!Number.isFinite(p[k])||p[k]<0||p[k]>150))) throw new Error('Invalid cyclone point');
     });
   }
   return data;
@@ -52,7 +52,7 @@ function cyclonePointAt(system,unix){
   }
   if(b.time-a.time>6*3600) return null;
   const f=(unix-a.time)/(b.time-a.time),point={time:unix};
-  for(const field of ['lat','lon','pressure','nearbyWind']) point[field]=Number.isFinite(a[field])&&Number.isFinite(b[field])?a[field]+(b[field]-a[field])*f:null;
+  for(const field of ['lat','lon','pressure','nearbyWind','nearbyGust']) point[field]=Number.isFinite(a[field])&&Number.isFinite(b[field])?a[field]+(b[field]-a[field])*f:null;
   point.speed=cycloneDistance(a,b)/((b.time-a.time)/3600);
   point.bearing=point.speed<1?null:cycloneBearing(a,b);
   return point;
@@ -88,7 +88,8 @@ function cyclonePopupContent(system,point){
     '<div><span>Moving speed</span><strong>'+point.speed.toFixed(1)+' km/h <small>('+ (point.speed/3.6).toFixed(1)+' m/s)</small></strong></div>'+
     '<div><span>Moving towards</span><strong>'+direction+'</strong></div>'+
     '<div><span>Pressure change</span><strong>'+pressureChange+'</strong></div>'+
-    '<div><span>Highest model wind within 200 km</span><strong>'+(point.nearbyWind==null?'Unavailable':point.nearbyWind.toFixed(1)+' m/s')+'</strong><small>10 m wind; excludes gusts</small></div></div>'+
+    '<div><span>Highest model wind within 200 km</span><strong>'+(point.nearbyWind==null?'Unavailable':point.nearbyWind.toFixed(1)+' m/s')+'</strong><small>10 m wind; excludes gusts</small></div>'+
+    '<div><span>Highest model gust within 200 km</span><strong>'+(point.nearbyGust==null?'Unavailable':point.nearbyGust.toFixed(1)+' m/s')+'</strong><small>GFS surface gust estimate</small></div></div>'+
     '<div class="cyclone-meta">Position: '+point.lat.toFixed(2)+'°, '+point.lon.toFixed(2)+'°<br>Valid: '+htmlEscape(fmt(point.time))+
     '<br>Model run: '+htmlEscape(fmt(cycloneData.modelRun))+'<br>Track available until '+htmlEscape(fmt(end))+
     '<br>NOAA / NCEP GFS 0.5° · derived centre and forecast track. Forecast uncertainty grows with time. Symbol rotation is illustrative.</div>'+official+'</div>';
