@@ -75,6 +75,7 @@ function updateTimelineLoading(){
   const pending=text=>/\b(loading|downloading|requesting|buffering|preparing|updating)\b/i.test(text);
   const statusPending=id=>{const el=$(id);return !el.classList.contains('bad') && pending(el.textContent);};
   const radarPending=(!frames.length && !$('radarStatus').classList.contains('bad')) ||
+    (statusPending('nordicRadarStatus') && $('radarOn').checked) ||
     (statusPending('radarStatus') && ($('radarOn').checked || /requesting.*frame list/i.test($('radarStatus').textContent))); 
   const cloudsPending=$('cloudOn').checked && statusPending('cloudStatus');
   const modelPending=(temperatureEnabled() && statusPending('tempStatus')) ||
@@ -87,7 +88,7 @@ function updateTimelineLoading(){
   if($('timelineLoadingText').textContent!==text)$('timelineLoadingText').textContent=text;
 }
 const timelineLoadingObserver=new MutationObserver(updateTimelineLoading);
-for(const id of ['radarStatus','cloudStatus','tempStatus','windStatus','rainAccumStatus']){
+for(const id of ['radarStatus','nordicRadarStatus','cloudStatus','tempStatus','windStatus','rainAccumStatus']){
   timelineLoadingObserver.observe($(id),{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class']});
 }
 for(const id of ['radarOn','cloudOn','tempOn','heatmapOn','windOn','rain1h','rain24h','rain48h']){
