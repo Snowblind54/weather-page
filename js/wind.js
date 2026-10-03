@@ -1,5 +1,5 @@
 // Wind crosses coastlines: never apply the temperature layer's land mask.
-const WIND_CACHE_KEY='balticWeatherWindV1';
+const WIND_CACHE_KEY='balticWeatherWindV2';
 const WIND_CACHE_MS=45*60*1000;
 const WIND_GRIDS=[
   {south:52,north:73,west:-28,east:36,rows:8,cols:17},
@@ -38,9 +38,11 @@ function showWindLegend(){
 showWindLegend();
 
 function windPopupContent(point,unix){
-  const vector=windAt(point.lat,point.lng,windTimeSlice(unix));
+  const slice=windTimeSlice(unix);
+  const vector=windAt(point.lat,point.lng,slice);
   if(!vector) return '<div class="wind-popup"><b>Wind unavailable</b><p>No wind data for this location at the selected time.</p></div>';
   const speed=Math.hypot(...vector);
+  const gust=windGustAt(point.lat,point.lng,slice);
   const band=WIND_SPEED_BANDS[windSpeedBand(speed)];
   const bearing=(Math.atan2(-vector[0],-vector[1])*180/Math.PI+360)%360;
   const compass=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
@@ -48,10 +50,14 @@ function windPopupContent(point,unix){
   const lon=((point.lng+180)%360+360)%360-180;
   return `<div class="wind-popup">
     <div class="wind-popup-heading"><i style="background:${band.color}"></i>Wind at this point</div>
-    <div class="wind-popup-speed">${speed.toFixed(1)} <span>m/s</span></div>
+    <div class="wind-popup-readings">
+      <div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${speed.toFixed(1)} <span>m/s</span></div></div>
+      <div><div class="wind-popup-label">Wind gusts</div><div class="wind-popup-speed">${gust===null?'<span>Unavailable</span>':gust.toFixed(1)+' <span>m/s</span>'}</div></div>
+    </div>
     <div>${direction}</div>
     <div class="wind-popup-meta">${point.lat.toFixed(3)}°, ${lon.toFixed(3)}°<br>${htmlEscape(fmt(unix))}</div>
     <div class="wind-popup-meta">10 m model wind · interpolated estimate</div>
+    ${gust===null?'':`<div class="wind-popup-meta">Gust estimate for hour ending ${htmlEscape(fmt(windData.times[windGustHour(slice)]))}</div>`}
   </div>`;
 }
 
@@ -76,6 +82,11 @@ function windVector(speed,direction){
   return [-speed*Math.sin(radians),-speed*Math.cos(radians)];
 }
 
+function windSample(speed,direction,gust){
+  const vector=windVector(speed,direction);
+  return vector?[...vector,Number.isFinite(gust)&&gust>=0?gust:null]:null;
+}
+
 function windPoints(grid){
   const points=[];
   for(let row=0;row<grid.rows;row++){
@@ -90,13 +101,15 @@ function windPoints(grid){
 }
 
 function validWindData(data){
-  return data?.version===1 && Number.isFinite(data.savedAt) &&
+  return data?.version===2 && Number.isFinite(data.savedAt) &&
     data.times?.length>=2 && data.times.every(Number.isFinite) &&
     data.times.every((time,i)=>i===0||time>data.times[i-1]) &&
     Array.isArray(data.grids) && data.grids.length===WIND_GRIDS.length &&
     data.grids.every((grid,i)=>grid.length===WIND_GRIDS[i].rows*WIND_GRIDS[i].cols &&
       grid.every(series=>Array.isArray(series)&&series.length===data.times.length &&
-        series.every(v=>v===null||(Array.isArray(v)&&v.length===2&&v.every(Number.isFinite)))));
+        series.every(v=>v===null||(Array.isArray(v)&&v.length===3&&
+          Number.isFinite(v[0])&&Number.isFinite(v[1])&&
+          (v[2]===null||(Number.isFinite(v[2])&&v[2]>=0))))));
 }
 
 function restoreWind(){
@@ -118,7 +131,7 @@ async function fetchWindData(){
     const params=new URLSearchParams({
       latitude:batch.map(p=>p[0]).join(','),
       longitude:batch.map(p=>p[1]).join(','),
-      hourly:'wind_speed_10m,wind_direction_10m',
+      hourly:'wind_speed_10m,wind_direction_10m,wind_gusts_10m',
       wind_speed_unit:'ms',timeformat:'unixtime',timezone:'UTC',
       past_hours:'4',forecast_hours:'3',cell_selection:'nearest'
     });
@@ -143,7 +156,7 @@ async function fetchWindData(){
       if(!hourly||hourly.time.length<2) throw new Error('Wind hours are unavailable.');
       if(!times) times=hourly.time;
       if(JSON.stringify(times)!==JSON.stringify(hourly.time)) throw new Error('Wind grid hours do not match.');
-      series.push(times.map((_,i)=>windVector(hourly.wind_speed_10m?.[i],hourly.wind_direction_10m?.[i])));
+      series.push(times.map((_,i)=>windSample(hourly.wind_speed_10m?.[i],hourly.wind_direction_10m?.[i],hourly.wind_gusts_10m?.[i])));
     }
   }
   let offset=0;
@@ -153,7 +166,7 @@ async function fetchWindData(){
     offset+=count;
     return values;
   });
-  const data={version:1,savedAt:Date.now(),times,grids};
+  const data={version:2,savedAt:Date.now(),times,grids};
   if(!validWindData(data)||!grids[0].some(s=>s.some(Boolean))) throw new Error('No usable wind data returned.');
   return data;
 }
@@ -201,13 +214,9 @@ function windTimeSlice(unix){
   return {i,f:(unix-windData.times[i])/(windData.times[i+1]-windData.times[i])};
 }
 
-function windAt(lat,lon,slice){
-  if(!slice) return null;
-  lon=((lon+180)%360+360)%360-180;
-  // Prefer the finer Baltic grid; fall back to the continuous regional grid.
-  for(let g=WIND_GRIDS.length-1;g>=0;g--){
-    const grid=WIND_GRIDS[g];
-    if(lat<grid.south||lat>grid.north||lon<grid.west||lon>grid.east) continue;
+function windGridWeights(grid,lat,lon){
+    lon=((lon+180)%360+360)%360-180;
+    if(lat<grid.south||lat>grid.north||lon<grid.west||lon>grid.east) return null;
     const x=(lon-grid.west)/(grid.east-grid.west)*(grid.cols-1);
     const y=(lat-grid.south)/(grid.north-grid.south)*(grid.rows-1);
     const col=Math.min(grid.cols-2,Math.floor(x));
@@ -215,6 +224,16 @@ function windAt(lat,lon,slice){
     const fx=x-col,fy=y-row;
     const indices=[row*grid.cols+col,row*grid.cols+col+1,(row+1)*grid.cols+col,(row+1)*grid.cols+col+1];
     const weights=[(1-fx)*(1-fy),fx*(1-fy),(1-fx)*fy,fx*fy];
+    return {indices,weights};
+}
+
+function windAt(lat,lon,slice){
+  if(!slice) return null;
+  // Prefer the finer Baltic grid; fall back to the continuous regional grid.
+  for(let g=WIND_GRIDS.length-1;g>=0;g--){
+    const cell=windGridWeights(WIND_GRIDS[g],lat,lon);
+    if(!cell) continue;
+    const {indices,weights}=cell;
     let u=0,v=0,valid=true;
     for(let n=0;n<4;n++){
       if(weights[n]===0) continue;
@@ -225,6 +244,30 @@ function windAt(lat,lon,slice){
       v+=(a[1]*(1-slice.f)+b[1]*slice.f)*weights[n];
     }
     if(valid) return [u,v];
+  }
+  return null;
+}
+
+function windGustHour(slice){
+  // Gusts are hourly maxima for the preceding hour, not instantaneous vectors.
+  // Select the hour containing the map time; do not smooth away peaks in time.
+  return slice.i+(slice.f>0?1:0);
+}
+
+function windGustAt(lat,lon,slice){
+  if(!slice) return null;
+  const hour=windGustHour(slice);
+  for(let g=WIND_GRIDS.length-1;g>=0;g--){
+    const cell=windGridWeights(WIND_GRIDS[g],lat,lon);
+    if(!cell) continue;
+    let gust=0,valid=true;
+    for(let n=0;n<4;n++){
+      if(cell.weights[n]===0) continue;
+      const value=windData.grids[g][cell.indices[n]][hour]?.[2];
+      if(!Number.isFinite(value)||value<0){valid=false;break;}
+      gust+=value*cell.weights[n];
+    }
+    if(valid) return gust;
   }
   return null;
 }
