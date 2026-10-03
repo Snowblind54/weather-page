@@ -260,3 +260,8 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 
 .timeline-heading #refresh{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;min-width:28px;margin-left:0;padding:0;border-radius:50%;font-size:21px;line-height:1;color:var(--accent)}
 .timeline-heading #refresh:hover{background:rgba(137,225,206,.14)}
+
+.timeline-ticks.cyclone-ticks{display:block;position:relative;height:14px;padding:0;margin-left:6px;margin-right:6px}
+.cyclone-ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.cyclone-ticks span:first-child{transform:none}
+.cyclone-ticks span:last-child{transform:translateX(-100%)}
