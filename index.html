@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.9</title>
+<title>Baltic Weather Map v8.10</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.8">
+<link rel="stylesheet" href="css/style.css?v=8.10">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
 
 <div class="panel">
   <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v8.9 · GeoColour by day · IR10.5 by night</div>
+  <div class="subtitle">Serverless v8.10 · GeoColour by day · IR10.5 by night</div>
 
   <div class="row wrap">
     <div>
@@ -71,7 +71,9 @@
         <input id="windDensity" type="range" min="25" max="150" value="75" step="5">
         <span id="windDensityVal" class="value">75%</span>
       </div>
-      <div class="small">Trails flow with the wind across the Baltics, Nordics, Iceland and surrounding seas. Faster wind makes faster trails. Uses hourly model wind at 10 m, interpolated to the selected timeline time; animation speed is scaled for visibility.</div>
+      <div class="small">Wind speed · m/s</div>
+      <div id="windLegend" class="wind-speed-legend" aria-label="Wind trail colours by speed in metres per second"></div>
+      <div class="small">Purple trails show extremely strong wind at 25 m/s or more. Click the map for wind speed at that point. Trails cover land and sea and follow the selected timeline time. Hourly model wind at 10 m; animation speed is scaled for visibility.</div>
       <div id="windStatus" class="status" role="status">Wind layer is off.</div>
     </div>
   </div>
@@ -158,7 +160,7 @@
 <script src="js/radar.js?v=8.8"></script>
 <script src="js/radar-history.js?v=8.7"></script>
 <script src="js/radar-capture.js?v=8.7"></script>
-<script src="js/wind.js?v=8.8"></script>
+<script src="js/wind.js?v=8.10"></script>
 <script src="js/app.js?v=8.8"></script>
 </body>
 </html>
