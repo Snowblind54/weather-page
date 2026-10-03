@@ -70,6 +70,8 @@ input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-colo
 .temp-observed-dot{
   display:none
 }
+.wind-canvas{pointer-events:none!important}
+.credit a{color:#aaa}
 .credit{font-size:9px;color:#777;line-height:1.4;margin-top:12px}
 
 .warning-legend{display:flex;gap:10px;flex-wrap:wrap;margin:7px 0}
