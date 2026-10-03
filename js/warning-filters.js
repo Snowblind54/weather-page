@@ -4,6 +4,7 @@
 
 const WARNING_COUNTRY_TIMEZONES={
   Estonia:'Europe/Tallinn',
+  Latvia:'Europe/Riga',
   Lithuania:'Europe/Vilnius',
   Finland:'Europe/Helsinki',
   Sweden:'Europe/Stockholm',
@@ -45,6 +46,12 @@ function warningAddDays(dateKey,days){
 
 function warningIsTodayOrTomorrow(record){
   const country=warningCountry(record);
+  // A cached Latvian record must never outlive its feed freshness or expiry.
+  if(country==='Latvia' && (
+    !Number.isFinite(Date.parse(record.sourceUpdatedAt)) ||
+    Date.now()-Date.parse(record.sourceUpdatedAt)>LATVIA_WARNING_MAX_AGE ||
+    Date.parse(record.expires)<=Date.now()
+  )) return false;
   const timeZone=WARNING_COUNTRY_TIMEZONES[country] || 'Europe/Tallinn';
   const today=warningDateKey(new Date(),timeZone);
   const tomorrow=warningAddDays(today,1);
@@ -261,7 +268,7 @@ loadWarnings=async function(force=false){
   const parts=[`${visible.length} warnings · today + tomorrow`];
 
   for(const [country,label] of [
-    ['Estonia','EE'],['Lithuania','LT'],['Finland','FI'],
+    ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
     ['Sweden','SE'],['Norway','NO'],['Iceland','IS']
   ]){
     const count=counts.get(country)||0;
@@ -271,6 +278,7 @@ loadWarnings=async function(force=false){
   if(previous.includes('cached')) parts.push('cached source used');
   if(previous.includes('FI text fallback')) parts.push('FI text fallback');
   if(previous.includes('unavailable')) parts.push('some source unavailable');
+  if(previous.includes('LV unavailable')) parts.push('LV unavailable');
 
   $('warningStatus').textContent=parts.join(' · ');
 };

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.8</title>
+<title>Baltic Weather Map v8.9</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
@@ -15,7 +15,7 @@
 
 <div class="panel">
   <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v8.8 · GeoColour by day · IR10.5 by night</div>
+  <div class="subtitle">Serverless v8.9 · GeoColour by day · IR10.5 by night</div>
 
   <div class="row wrap">
     <div>
@@ -46,7 +46,7 @@
     </div>
     <div class="details">
       <div class="row">
-        <label class="label"><input id="heatmapOn" type="checkbox" checked> Temperature heatmap</label>
+        <label class="label"><input id="heatmapOn" type="checkbox"> Temperature heatmap</label>
         <span class="badge">Baltics + Nordics</span>
       </div>
       <div class="small">Heatmap density</div>
@@ -106,7 +106,7 @@
   <div class="section weather-section" id="warningSection">
     <div class="row">
       <label class="label"><input id="warningOn" type="checkbox"> Severe weather warnings</label>
-      <span class="badge">EE · LT · FI · SE · NO · IS</span>
+      <span class="badge">EE · LV · LT · FI · SE · NO · IS</span>
     </div>
     <div class="details">
       <div class="warning-legend">
@@ -114,7 +114,7 @@
         <span class="warning-key"><span class="warning-dot" style="background:#ff8c1a"></span>Orange</span>
         <span class="warning-key"><span class="warning-dot" style="background:#e03131"></span>Red</span>
       </div>
-      <div class="small">Shows warnings affecting today or tomorrow only. Finland uses the official FMI CAP service; Finnish marine warnings are shown as dashed sea-zone outlines so they do not imply a land warning on islands inside the forecast polygon.</div>
+      <div class="small">Shows warnings affecting today or tomorrow only. Latvia uses official LVĢMC warning polygons, updated about every 15 minutes. Finland uses the official FMI CAP service; Finnish marine warnings are shown as dashed sea-zone outlines so they do not imply a land warning on islands inside the forecast polygon.</div>
       <div id="warningStatus" class="status">Weather warnings layer is off.</div>
       <div id="warningList" class="warning-list"></div>
     </div>
@@ -140,7 +140,7 @@
 
   <div class="credit">
     Topographic map © OpenStreetMap contributors / SRTM / OpenTopoMap · Satellite © Esri · Wind data <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0) ·
-    Estonia rain radar © Keskkonnaagentuur / KAIA · Latvia rain radar © LVĢMC · Lithuania rain radar © Lietuvos hidrometeorologijos tarnyba / Meteo.lt · Cloud imagery © EUMETSAT · GeoColour daylight / FCI IR10.5 night · Country outlines © Natural Earth via world-atlas · Temperature station observations © Estonian Environment Agency, Lietuvos hidrometeorologijos tarnyba / Meteo.lt, Finnish Meteorological Institute (FMI), SMHI and Icelandic Meteorological Office (IMO) · Warnings © Estonian Environment Agency / KAIA, Lietuvos hidrometeorologijos tarnyba (Meteo.lt), Finnish Meteorological Institute (FMI), and MeteoAlarm / EUMETNET member services. Estonia marine warning-zone overlays are geographic approximations of the official named regions.
+    Estonia rain radar © Keskkonnaagentuur / KAIA · Latvia rain radar © LVĢMC · Lithuania rain radar © Lietuvos hidrometeorologijos tarnyba / Meteo.lt · Cloud imagery © EUMETSAT · GeoColour daylight / FCI IR10.5 night · Country outlines © Natural Earth via world-atlas · Temperature station observations © Estonian Environment Agency, Lietuvos hidrometeorologijos tarnyba / Meteo.lt, Finnish Meteorological Institute (FMI), SMHI and Icelandic Meteorological Office (IMO) · Warnings © Estonian Environment Agency / KAIA, Latvian Environment, Geology and Meteorology Centre (LVĢMC), Lietuvos hidrometeorologijos tarnyba (Meteo.lt), Finnish Meteorological Institute (FMI), and MeteoAlarm / EUMETNET member services. Estonia marine warning-zone overlays are geographic approximations of the official named regions.
   </div>
 </div>
 
@@ -149,8 +149,9 @@
 
 <script src="js/config.js?v=8.7"></script>
 <script src="js/map.js?v=8.7"></script>
-<script src="js/warnings.js?v=8.7"></script>
-<script src="js/warning-filters.js?v=8.7"></script>
+<script src="js/latvia-warnings.js?v=8.9"></script>
+<script src="js/warnings.js?v=8.9"></script>
+<script src="js/warning-filters.js?v=8.9"></script>
 <script src="js/temperature.js?v=8.7"></script>
 <script src="js/stations.js?v=8.7"></script>
 <script src="js/clouds.js?v=8.7"></script>
