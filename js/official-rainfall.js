@@ -123,7 +123,7 @@ function renderOfficialRainLabels(){
   const hours=activeAccumulationHours();
   if(!hours || !officialRainData || map.getZoom()<6) return;
   const end=rainWindowEnd(),occupied=[],markers=[];
-  const panel=document.querySelector('.panel')?.getBoundingClientRect();
+  const panel=document.querySelector('.weather-panel:not([hidden])')?.getBoundingClientRect();
   const mapRect=map.getContainer().getBoundingClientRect();
   for(const country of Object.keys(RAIN_COUNTRY_NAMES)){
     const window=officialRainWindow(country,hours,end);if(!window)continue;

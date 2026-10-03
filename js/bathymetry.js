@@ -55,13 +55,13 @@ function seaDepthLabelPoints(features){
   const degrees=360/(256*2**zoom)*105;
   const lonStep=seaDepthLabelStep(degrees);
   const latStep=seaDepthLabelStep(degrees*Math.max(0.08,Math.cos(map.getCenter().lat*Math.PI/180)));
-  const points=[],panel=document.querySelector('.panel')?.getBoundingClientRect();
+  const points=[],panel=document.querySelector('.weather-panel:not([hidden])')?.getBoundingClientRect();
   const west=Math.max(-70,bounds.getWest()),east=Math.min(43,bounds.getEast());
   const south=Math.max(11,bounds.getSouth()),north=Math.min(85,bounds.getNorth());
   for(let lat=Math.ceil(south/latStep)*latStep;lat<north;lat+=latStep){
     for(let lon=Math.ceil(west/lonStep)*lonStep;lon<east;lon+=lonStep){
       const pixel=map.latLngToContainerPoint([lat,lon]);
-      if(panel && pixel.x<panel.right+25 && pixel.y<panel.bottom+15) continue;
+      if(panel && pixel.x>=panel.left-25 && pixel.x<=panel.right+25 && pixel.y>=panel.top-15 && pixel.y<=panel.bottom+15) continue;
       if(features.some(feature=>weatherPointInFeature(lat,lon,feature))) continue;
       points.push([+lat.toFixed(5),+lon.toFixed(5)]);
     }
