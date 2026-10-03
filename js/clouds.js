@@ -6,8 +6,8 @@ const CLOUD_NOAA='https://nowcoast.noaa.gov/geoserver/observations/satellite/ows
 const CLOUD_GIBS='https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
 const cloudTileCache=new Map(), cloudTilePromises=new Map();
 const cloudControllers=new Set(), cloudQueue=[];
-let cloudActiveJobs=0, cloudSession=0, cloudMetadataPromise=null;
-let cloudMetadataAt=0, cloudHistoryRequested=false, cloudPrecacheTimer=null;
+let cloudActiveJobs=0, cloudSession=0;
+let cloudHistoryRequested=false, cloudPrecacheTimer=null;
 let cloudRequestedTime=null, cloudFrameGeneration=0;
 const cloudProducts={
   eumet:{endpoint:CLOUD_EUMET,day:'mtg_fd:rgb_geocolour',night:'mtg_fd:ir105_hrfi',cadence:600},
@@ -191,7 +191,8 @@ function cloudAvailableTime(product,name,requested){
     return selected;
   }
   const latest=product.latest?.[name];
-  return Math.floor(Math.min(requested,latest ?? requested-1200)/product.cadence)*product.cadence;
+  if(!Number.isFinite(latest))throw new Error('Satellite observation timestamps unavailable');
+  return Math.floor(Math.min(requested,latest)/product.cadence)*product.cadence;
 }
 function cloudTimeEntries(text){
   const times=[];
@@ -223,11 +224,19 @@ async function cloudFetch(url,type='text',timeout=16000){
     return await response.text();
   }finally{clearTimeout(timer);cloudControllers.delete(ctrl);}
 }
+function cloudViewportSources(){
+  const z=Math.min(6,Math.round(map.getZoom())),bounds=map.getBounds();
+  const nw=map.project(bounds.getNorthWest(),z).divideBy(256).floor();
+  const se=map.project(bounds.getSouthEast(),z).divideBy(256).floor(),ids=new Set();
+  for(let y=nw.y;y<=se.y;y++)for(let x=nw.x;x<=se.x;x++)cloudTileSources({z,x,y}).forEach(id=>ids.add(id));
+  return [...ids];
+}
 async function cloudEnsureMetadata(force=false){
-  if(!force && cloudMetadataAt && Date.now()-cloudMetadataAt<5*60000) return;
-  if(cloudMetadataPromise) return cloudMetadataPromise;
-  cloudMetadataPromise=(async()=>{
-    await Promise.all(Object.values(cloudProducts).map(async product=>{
+  await Promise.all(cloudViewportSources().map(async id=>{
+    const product=cloudProducts[id];
+    if(!force && product.metadataAt && Date.now()-product.metadataAt<5*60000)return;
+    if(product.metadataPromise)return product.metadataPromise;
+    product.metadataPromise=(async()=>{
       try{
         const url=product.endpoint+'?'+new URLSearchParams({service:'WMS',request:'GetCapabilities',version:'1.3.0'});
         const xml=await cloudFetch(url);
@@ -235,20 +244,19 @@ async function cloudEnsureMetadata(force=false){
         const latest={},times={};
         for(const layer of doc.getElementsByTagNameNS('*','Layer')){
           const name=[...layer.children].find(n=>n.localName==='Name')?.textContent;
-          if(![product.day,product.night,'msg_fes:clm'].includes(name)) continue;
+          if(![product.day,product.night,'msg_fes:clm'].includes(name))continue;
           const dimension=[...layer.children].find(n=>['Dimension','Extent'].includes(n.localName)&&n.getAttribute('name')==='time');
           if(!dimension)continue;
           times[name]=cloudTimeEntries(dimension.textContent||'');
           const value=Date.parse(dimension.getAttribute('default'))/1000;
           latest[name]=Number.isFinite(value)?value:times[name].at(-1);
         }
-        if(!latest[product.day] || !latest[product.night]) throw new Error('Satellite timestamps unavailable');
-        product.latest=latest;product.times=times;
+        if(!latest[product.day] || !latest[product.night])throw new Error('Satellite timestamps unavailable');
+        product.latest=latest;product.times=times;product.metadataAt=Date.now();
       }catch(e){console.warn('Satellite availability:',product.day,e.message);}
-    }));
-    cloudMetadataAt=Date.now();
-  })().finally(()=>{cloudMetadataPromise=null;});
-  return cloudMetadataPromise;
+    })().finally(()=>{product.metadataPromise=null;});
+    return product.metadataPromise;
+  }));
 }
 function cloudMapUrl(product,name,time,coords,guide=false){
   const q=new URLSearchParams({service:'WMS',version:'1.1.1',request:'GetMap',
@@ -290,7 +298,7 @@ async function cloudLoadSource(id,coords,time){
   const tasks=[modes.day?cloudImagePixels(cloudMapUrl(product,product.day,dayTime,coords)):Promise.resolve(null),
     modes.night?cloudImagePixels(cloudMapUrl(product,product.night,nightTime,coords)):Promise.resolve(null)];
   if(id==='eumet'){
-    const guideTime=cloudAvailableTime({...product,cadence:900},'msg_fes:clm',time);
+    const guideTime=cloudAvailableTime({...product,cadence:900},'msg_fes:clm',Math.min(dayTime,nightTime));
     tasks.push(cloudImagePixels(cloudMapUrl(product,'msg_fes:clm',guideTime,coords,true)).catch(()=>null));
   }
   const [day,night,mask]=await Promise.all(tasks);
@@ -510,7 +518,10 @@ function scheduleCloudPrecache(){
   },100);
 }
 map.on('movestart zoomstart',()=>{
-  if(cloudLayer){cloudFrameGeneration++;clearTimeout(cloudPrecacheTimer);cloudCancelQueued();}
+  if(cloudLayer){
+    cloudFrameGeneration++;cloudSession++;clearTimeout(cloudPrecacheTimer);
+    cloudCancelQueued();cloudControllers.forEach(c=>c.abort());cloudTilePromises.clear();
+  }
 });
 map.on('moveend zoomend',()=>{
   if($('cloudOn').checked && cloudRequestedTime!==null){

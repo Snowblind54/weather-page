@@ -14,6 +14,7 @@ function harness(){
     requestAnimationFrame:fn=>fn(performance.now()+1000)};
   vm.createContext(context);
   vm.runInContext(source,context);
+  vm.runInContext(`for(const p of Object.values(cloudProducts))p.latest={[p.day]:9000,[p.night]:9000,'msg_fes:clm':9000}`,context);
   return {context,elements,layers,events,timeouts,run:s=>vm.runInContext(s,context)};
 }
 test('coverage matches wind, includes land and sea, and fades beyond satellite visibility',()=>{
