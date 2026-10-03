@@ -218,7 +218,7 @@ so the existing warnings and rainfall workflows keep working independently.
 
 ## Extended wind coverage and cyclone gusts (v8.17)
 
-Wind and gust animation now spans 25–78°N and 85°W–42°E: the eastern United
+Wind and gust animation now spans 25–82°N and 85°W–42°E: the eastern United
 States, North Atlantic, all of Europe and the Moscow area. A broad 300-point
 grid plus 187 European and 81 Baltic detail points keeps first loads bounded
 (568 locations, sequential batches of 50) and preserves European/Baltic detail.
