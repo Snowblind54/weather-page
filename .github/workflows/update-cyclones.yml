@@ -1,0 +1,44 @@
+name: Update North Atlantic and Europe cyclones
+on:
+  schedule:
+    - cron: '45 */3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/update_cyclones.py
+      - scripts/requirements-cyclones.txt
+      - tests/test_cyclones.py
+      - .github/workflows/update-cyclones.yml
+permissions:
+  contents: write
+concurrency:
+  group: update-cyclones
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/requirements-cyclones.txt
+      - name: Install GRIB decoder and tracking dependencies
+        run: python -m pip install -r scripts/requirements-cyclones.txt
+      - name: Check cyclone detection and association
+        run: python -m unittest discover -s tests -v
+      - name: Fetch GFS fields, detect centres and project tracks
+        run: python scripts/update_cyclones.py
+      - name: Save cyclone snapshot
+        if: ${{ !cancelled() }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/cyclones.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Refresh North Atlantic and Europe cyclone tracks'
+          git pull --rebase origin main
+          git push origin HEAD:main

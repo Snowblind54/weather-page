@@ -173,3 +173,44 @@ status and the active period's gauge coverage are shown under rain radar.
 Run `python3 -m unittest discover -s tests -v` and
 `node --test tests/*.test.cjs` for parsing, history, missing data, source fallback,
 country separation, reporting times and existing map-layer regression checks.
+
+
+## Cyclones (v8.16)
+
+The separate Cyclones card covers the North Atlantic (25–78°N, 80°W–12°W)
+and northern Europe (45–78°N, west to 40°E). `update-cyclones.yml` checks every
+three hours for a recent complete NOAA/NCEP GFS 0.5° run. A cropped GRIB subset
+from NOMADS supplies mean sea-level pressure and 10 m u/v wind at three-hour
+intervals through +96 h. This avoids exposing a third-party API key or making
+large GRIB downloads in the browser. Install `scripts/requirements-cyclones.txt`
+when running the collector locally.
+
+`scripts/update_cyclones.py` smooths pressure, finds minima at/below 1020 hPa,
+requires a closed 400 km ring at least 2 hPa higher, suppresses duplicate centres
+within 350 km, and associates centres by position, predicted motion and pressure
+using one-to-one assignment. Tracks must persist at least 9 hours. It retains
+IDs across overlapping model runs where possible. Associations can bridge up
+to 6 h; longer gaps are not extrapolated. Dissipation, mergers, developing lows
+and weak/open centres can end or change tracks. These are derived model tracks,
+not an official cyclone catalogue, warning, or forecast uncertainty cone.
+
+`data/cyclones.json` contains the consistent model cycle, valid times, pressure,
+centre coordinates and maximum modeled 10 m wind within 200 km. Official NHC
+`CurrentStorms.json` names/advisory details are attached only for fresh Atlantic
+storms that match a model centre; Pacific names and stale advisories are ignored.
+Other lows are explicitly unnamed with a GFS tracking ID. European storm names
+are not guessed. Failures retain the previous snapshot with an error flag;
+forecasts older than 18 hours are hidden.
+
+`js/cyclones.js` shows counterclockwise rotating markers with pressure colours,
+clickable movement (km/h and m/s), direction, pressure/6-hour change, nearby wind,
+model run and local valid times. Symbol spin rate is illustrative. Optional
+48-hour dashed paths have 12-hour labels. A separate 0–48 h slider and playback
+move the centres, independent of the radar timeline. Toggling, forecasts and
+popups preserve the map view; only the explicit View coverage button moves it.
+Reduced-motion preferences disable symbol rotation. Turning Cyclones off removes
+its paths, popups and playback. Manual refresh works even if radar is offline.
+
+Run `python -m unittest discover -s tests -v` and `node --test tests/*.test.cjs`.
+Cyclone Python tests skip when the optional numerical dependencies are absent,
+so the existing warnings and rainfall workflows keep working independently.

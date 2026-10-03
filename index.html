@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.15.1</title>
+<title>Baltic Weather Map v8.16</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.15">
+<link rel="stylesheet" href="css/style.css?v=8.16">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
 
 <div class="panel">
   <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v8.15.1 · GeoColour by day · IR10.5 by night</div>
+  <div class="subtitle">Serverless v8.16 · GeoColour by day · IR10.5 by night</div>
 
   <div class="row wrap">
     <div>
@@ -128,6 +128,29 @@
     </div>
   </div>
 
+  <div class="section weather-section" id="cycloneSection">
+    <div class="row">
+      <label class="label"><input id="cycloneOn" type="checkbox"> Cyclones</label>
+      <span class="badge">North Atlantic · northern Europe</span>
+    </div>
+    <div class="details">
+      <label class="label"><input id="cyclonePathsOn" type="checkbox"> Projected centre paths · next 48 h</label>
+      <div class="small">Dashed model tracks with 12-hour steps. Click a rotating centre for pressure, movement and nearby wind. Use View coverage to find systems across the region.</div>
+      <div class="row"><button id="cycloneCoverage">View coverage</button><button id="cyclonePlay">▶ Forecast</button><button id="cycloneNow">Now</button></div>
+      <label class="small" for="cycloneForecastHour">Cyclone forecast · now to +48 h</label>
+      <input id="cycloneForecastHour" type="range" min="0" max="48" value="0" step="3" aria-label="Cyclone forecast hours ahead">
+      <div id="cycloneTimeLabel" class="timebox">Current modelled positions</div>
+      <div class="warning-legend cyclone-legend" aria-label="Centre pressure colours in hectopascals">
+        <span class="warning-key"><i style="background:#7ddcff"></i>≥1000 hPa</span>
+        <span class="warning-key"><i style="background:#ffc65b"></i>985–999</span>
+        <span class="warning-key"><i style="background:#ff6976"></i>970–984</span>
+        <span class="warning-key"><i style="background:#cc83ff"></i>&lt;970</span>
+      </div>
+      <div class="small">Closed low-pressure centres and paths derived from NOAA GFS; colours indicate pressure. Includes ordinary Atlantic and European lows. Official Atlantic tropical-storm names are shown when matched to NHC; other lows use tracking IDs. Forecast time is independent of the rain-radar timeline. New model runs every 6 hours; feed checked about every 3 hours. All times are local to your device.</div>
+      <div id="cycloneStatus" class="status" role="status">Cyclones are off.</div>
+    </div>
+  </div>
+
   <div class="section weather-section" id="warningSection">
     <div class="row">
       <label class="label"><input id="warningOn" type="checkbox"> Severe weather warnings</label>
@@ -165,7 +188,7 @@
 
   <div class="credit">
     Topographic map © OpenStreetMap contributors / SRTM / OpenTopoMap · Satellite © Esri · Wind data <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0) ·
-    Estonia rain radar © Keskkonnaagentuur / KAIA · Latvia rain radar © LVĢMC · Lithuania rain radar © Lietuvos hidrometeorologijos tarnyba / Meteo.lt · Cloud imagery © EUMETSAT · GeoColour daylight / FCI IR10.5 night · Sea depth © EMODnet Bathymetry · Country outlines © Natural Earth via world-atlas · Temperature station observations © Estonian Environment Agency, Lietuvos hidrometeorologijos tarnyba / Meteo.lt, Finnish Meteorological Institute (FMI), SMHI, Icelandic Meteorological Office (IMO), IMGW–PIB and Danish Meteorological Institute (DMI). Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy · Official precipitation © <a href="https://www.ilmateenistus.ee/" target="_blank" rel="noopener">Estonian Environment Agency</a>, <a href="https://api.meteo.lt/" target="_blank" rel="noopener">LHMT / Meteo.lt</a>, <a href="https://en.ilmatieteenlaitos.fi/open-data-manual" target="_blank" rel="noopener">FMI</a>, <a href="https://opendata.smhi.se/" target="_blank" rel="noopener">SMHI</a> and <a href="https://www.dmi.dk/friedata" target="_blank" rel="noopener">DMI</a> · Warnings © Estonian Environment Agency / KAIA, Latvian Environment, Geology and Meteorology Centre (LVĢMC), Lietuvos hidrometeorologijos tarnyba (Meteo.lt), Finnish Meteorological Institute (FMI), IMGW–PIB, Danish Meteorological Institute (DMI), and MeteoAlarm / EUMETNET member services. Estonia marine warning-zone overlays are geographic approximations of the official named regions.
+    Estonia rain radar © Keskkonnaagentuur / KAIA · Latvia rain radar © LVĢMC · Lithuania rain radar © Lietuvos hidrometeorologijos tarnyba / Meteo.lt · Cloud imagery © EUMETSAT · GeoColour daylight / FCI IR10.5 night · Sea depth © EMODnet Bathymetry · Country outlines © Natural Earth via world-atlas · Temperature station observations © Estonian Environment Agency, Lietuvos hidrometeorologijos tarnyba / Meteo.lt, Finnish Meteorological Institute (FMI), SMHI, Icelandic Meteorological Office (IMO), IMGW–PIB and Danish Meteorological Institute (DMI). Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy · Official precipitation © <a href="https://www.ilmateenistus.ee/" target="_blank" rel="noopener">Estonian Environment Agency</a>, <a href="https://api.meteo.lt/" target="_blank" rel="noopener">LHMT / Meteo.lt</a>, <a href="https://en.ilmatieteenlaitos.fi/open-data-manual" target="_blank" rel="noopener">FMI</a>, <a href="https://opendata.smhi.se/" target="_blank" rel="noopener">SMHI</a> and <a href="https://www.dmi.dk/friedata" target="_blank" rel="noopener">DMI</a> · Cyclone model fields © <a href="https://nomads.ncep.noaa.gov/" target="_blank" rel="noopener">NOAA / NCEP GFS</a>; tropical-storm names © <a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener">NOAA NHC</a> · Warnings © Estonian Environment Agency / KAIA, Latvian Environment, Geology and Meteorology Centre (LVĢMC), Lietuvos hidrometeorologijos tarnyba (Meteo.lt), Finnish Meteorological Institute (FMI), IMGW–PIB, Danish Meteorological Institute (DMI), and MeteoAlarm / EUMETNET member services. Estonia marine warning-zone overlays are geographic approximations of the official named regions.
   </div>
 </div>
 
@@ -188,6 +211,7 @@
 <script src="js/official-rainfall.js?v=8.15"></script>
 <script src="js/rainfall.js?v=8.15.1"></script>
 <script src="js/bathymetry.js?v=8.14.1"></script>
-<script src="js/app.js?v=8.14"></script>
+<script src="js/cyclones.js?v=8.16"></script>
+<script src="js/app.js?v=8.16"></script>
 </body>
 </html>

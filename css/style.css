@@ -138,3 +138,23 @@ input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-colo
 .rain-station-label{display:inline-block;padding:2px 5px;background:rgba(8,25,37,.85);border:1px solid #90d8ff;border-radius:5px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 1px 4px #0008;}
 .rain-popup-source{display:block;font-size:10px;font-weight:400;line-height:1.3;margin-top:4px;}
 #rainSourceStatus{line-height:1.45;margin-top:7px;}
+
+.cyclone-symbol{width:62px;height:62px;text-align:center;filter:drop-shadow(0 2px 3px #000a);color:var(--cyclone-colour)}
+.cyclone-spin{display:block;width:43px;height:43px;margin:0 auto;fill:currentColor;stroke:#182434;stroke-width:.7;animation:cyclone-rotate 6s linear infinite}
+@keyframes cyclone-rotate{to{transform:rotate(-360deg)}}
+.cyclone-pressure{display:inline-block;border:1px solid currentColor;border-radius:5px;padding:1px 4px;background:#10202de8;font:700 10px/14px Arial,sans-serif;white-space:nowrap}
+.cyclone-marker:focus-visible{outline:2px solid #fff;border-radius:8px}
+.cyclone-track-label{color:#fff;font:700 10px/16px Arial,sans-serif;text-shadow:0 1px 3px #000,1px 0 3px #000;white-space:nowrap}
+.cyclone-legend i{width:10px;height:10px;display:inline-block;border-radius:50%}
+#cycloneSection button{font-size:11px;padding:7px 9px}
+.cyclone-popup{color:#17202b;font:12px/1.4 Arial,sans-serif;min-width:245px}
+.cyclone-popup>.small{color:#63717d;margin:3px 0 8px}
+.cyclone-readings{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+.cyclone-readings>div{background:#eef3f6;border-radius:6px;padding:7px}
+.cyclone-readings>div:last-child{grid-column:1/-1}
+.cyclone-readings span,.cyclone-readings small{display:block;color:#63717d;font-size:10px}
+.cyclone-readings strong{font-size:15px}
+.cyclone-readings strong small{display:inline;font-size:11px;font-weight:400}
+.cyclone-meta,.cyclone-advisory{font-size:10px;color:#63717d;line-height:1.45}
+.cyclone-advisory{margin-top:8px;padding-top:7px;border-top:1px solid #d5dfe5}
+@media(prefers-reduced-motion:reduce){.cyclone-spin{animation:none}}

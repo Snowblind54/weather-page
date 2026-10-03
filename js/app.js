@@ -22,6 +22,7 @@ for(const [toggleId,sectionId] of [
   ['windOn','windSection'],
   ['cloudOn','cloudSection'],
   ['radarOn','radarSection'],
+  ['cycloneOn','cycloneSection'],
   ['warningOn','warningSection']
 ]){
   $(toggleId).addEventListener('change',()=>{
@@ -196,6 +197,7 @@ $('refresh').onclick=async()=>{
   }finally{
     // Accumulation stays refreshable even when a national radar feed is offline.
     if(activeAccumulationHours()) await loadRainfall(true).catch(reportRainfallError);
+    if($('cycloneOn').checked) await loadCyclones(true).catch(reportCycloneError);
   }
 };
 
