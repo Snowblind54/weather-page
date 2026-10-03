@@ -21,8 +21,8 @@ function validateNationalWarningCountry(data,code){
   const country=data?.countries?.[code];
   const updated=Date.parse(country?.updatedAt);
   if(data?.version!==1 || country?.country!==name || !Array.isArray(country.records) ||
-     !Number.isFinite(updated) || Date.now()-updated>NATIONAL_WARNING_MAX_AGE || updated>Date.now()+5*60*1000){
-    throw new Error(name+' official warning updates unavailable or overdue');
+     !Number.isFinite(updated) || updated>Date.now()+5*60*1000){
+    throw new Error(name+' official warning data invalid');
   }
   for(const record of country.records){
     if(record.country!==name || !['Moderate','Severe','Extreme'].includes(record.level) ||
@@ -49,11 +49,6 @@ async function fetchNationalWarningSnapshot(){
         if(!response.ok) throw new Error('National warning snapshot HTTP '+response.status);
         const data=await response.json();
         if(data?.version!==1 || !data.countries) throw new Error('Invalid national warning snapshot');
-        // Accept a partial update without marking its missing country fresh.
-        if(!Object.values(data.countries).some(country=>{
-          const updated=Date.parse(country?.updatedAt);
-          return Number.isFinite(updated) && Date.now()-updated<=NATIONAL_WARNING_MAX_AGE && updated<=Date.now()+300000;
-        })) throw new Error('National warning updates overdue');
         nationalWarningSnapshot=data;
         nationalWarningSnapshotFetchedAt=Date.now();
         try{localStorage.setItem(NATIONAL_WARNING_CACHE_KEY,JSON.stringify(data));}catch(_){}
