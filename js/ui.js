@@ -72,7 +72,8 @@ renderTimelineTicks();
 function updateTimelineLoading(){
   const pending=text=>/\b(loading|downloading|requesting|buffering|preparing|updating)\b/i.test(text);
   const statusPending=id=>{const el=$(id);return !el.classList.contains('bad') && pending(el.textContent);};
-  const radarPending=statusPending('radarStatus') && ($('radarOn').checked || /requesting.*frame list/i.test($('radarStatus').textContent));
+  const radarPending=(!frames.length && !$('radarStatus').classList.contains('bad')) ||
+    (statusPending('radarStatus') && ($('radarOn').checked || /requesting.*frame list/i.test($('radarStatus').textContent))); 
   const cloudsPending=$('cloudOn').checked && statusPending('cloudStatus');
   const modelPending=(temperatureEnabled() && statusPending('tempStatus')) ||
     ($('windOn').checked && statusPending('windStatus')) ||
