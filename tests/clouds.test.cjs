@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {test}=require('node:test');
 const source=fs.readFileSync(path.join(__dirname,'../js/clouds.js'),'utf8');
 function harness(){
-  const elements={cloudOn:{checked:true},cloudOpacity:{value:'60'},cloudStatus:{},timeline:{value:'0'}};
+  const elements={radarOn:{checked:false},cloudOn:{checked:true},cloudOpacity:{value:'60'},cloudStatus:{},timeline:{value:'0'}};
   const layers=new Set(),events={},timeouts=[];
   const canvas=()=>({dataset:{},width:256,height:256,getContext:()=>({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(data){this.data=data;},drawImage(){},clearRect(){}})});
   const context={console,Map,Set,Date,Math,Promise,Array,Uint8ClampedArray,Float32Array,URLSearchParams,AbortController,performance,
@@ -99,7 +99,7 @@ test('a delayed frame cannot repaint after the user disables clouds',async()=>{
   h.elements.cloudOn.checked=false;await h.run('drawCloud(null)');release();await drawing;
   assert.equal(h.run('cloudLayer'),null);assert.equal(h.elements.cloudStatus.textContent,'Cloud layer is off.');
 });
-test('radar-only playback advances despite unresolved requests and stops cleanly',async()=>{
+test('timeline-only playback advances despite unresolved requests and stops cleanly',async()=>{
   const h=harness();h.elements.cloudOn.checked=false;h.elements.play={};h.elements.timeline={value:'0',min:'0',max:'2'};
   h.context.applyFrame=()=>new Promise(()=>{});
   h.run('let playing=false,timer=null;');
@@ -258,4 +258,15 @@ test('cloud playback waits for a slow frame and cannot restart after Pause',asyn
   h.timeouts[0].fn();assert.equal(h.elements.timeline.value,1);assert.equal(h.timeouts.length,1);
   h.run('stop()');resolvers.shift()();await new Promise(resolve=>setImmediate(resolve));
   assert.equal(h.timeouts.length,1);assert.equal(h.elements.play.textContent,'▶ Play');
+});
+
+test('Nordic radar playback waits for the observation before advancing and stop invalidates completion',async()=>{
+  const h=harness();h.elements.cloudOn.checked=false;h.elements.radarOn.checked=true;h.elements.play={};h.elements.timeline={value:'0',min:'0',max:'2'};
+  const resolvers=[];h.context.applyFrame=options=>{assert.equal(options.awaitRadar,true);return new Promise(resolve=>resolvers.push(resolve));};
+  h.run('let playing=false,timer=null;const NORDIC_RADAR_SOURCES=[];');
+  const app=fs.readFileSync(path.join(__dirname,'../js/app.js'),'utf8');h.run(app.slice(0,app.indexOf("$('locateBtn')")));
+  h.run('start()');assert.equal(h.elements.timeline.value,'0');assert.equal(h.timeouts.length,0);
+  resolvers.shift()();await new Promise(resolve=>setImmediate(resolve));assert.equal(h.timeouts.at(-1).delay,900);
+  h.timeouts.at(-1).fn();assert.equal(h.elements.timeline.value,1);h.run('stop()');const count=h.timeouts.length;
+  resolvers.shift()();await new Promise(resolve=>setImmediate(resolve));assert.equal(h.timeouts.length,count);
 });

@@ -128,7 +128,7 @@ async function drawRadar(frame){
   const myGeneration=++radarRenderGeneration;
   const mySwapGeneration=++radarSwapGeneration;
 
-  if(!$('radarOn').checked || !frame){
+  if(!$('radarOn').checked || !frame?.url){
     if(radarLayer){
       map.removeLayer(radarLayer);
       radarLayer=null;
@@ -431,14 +431,16 @@ async function applyFrame(options={}){
 
   const cloudTask=options.skipCloud?Promise.resolve():drawCloud(frame,{readyOnly:!!options.cloudReadyOnly}).catch(console.error);
   if(options.awaitCloud) await cloudTask;
+  // Every regional source starts independently; KAIA latency cannot block it.
+  const nordicTask=drawNordicRadars(frame.time).catch(console.error);
+  const balticTask=drawDirectNationalRadars(frame.time).catch(console.error);
   await drawRadar(frame);
-  // A slow radar request must not start older national imagery after the
-  // playback clock has already moved to another frame.
-  if(frames[Number($('timeline').value)]?.time!==frame.time)return;
-  await drawDirectNationalRadars(frame.time);
+  if(options.awaitRadar) await nordicTask;
+  // Legacy Baltic animation discovery may be slow; it is generation guarded.
+  if(!options.awaitRadar) await Promise.all([balticTask,nordicTask]);
 }
 
-async function loadOfficialRadarList(){
+async function loadKaiaRadarList(){
   $('radarStatus').textContent='Radar: requesting official KAIA frame list…';
   $('radarStatus').className='status';
 
@@ -493,4 +495,17 @@ async function loadOfficialRadarList(){
   $('radarStatus').className='status ok';
   await applyFrame();
   if($('cloudOn').checked) scheduleCloudPrecache();
+}
+
+// The shared weather clock still works when Estonia's API is unavailable.
+async function loadOfficialRadarList(){
+  try{return await loadKaiaRadarList();}
+  catch(error){
+    console.warn('KAIA timeline unavailable; keeping other national radars operational',error);
+    const end=Math.floor(Date.now()/1000/300)*300-300;
+    radarTimelineFrames=Array.from({length:25},(_,i)=>({id:'clock-'+(end-(24-i)*300),time:end-(24-i)*300,url:null}));
+    frames=radarTimelineFrames;$('timeline').min=0;$('timeline').max=24;$('timeline').value=24;updateWeatherTimeline();
+    $('radarStatus').textContent='EE radar unavailable · other national radar feeds remain independent.';
+    $('radarStatus').className='status warn';await applyFrame();
+  }
 }

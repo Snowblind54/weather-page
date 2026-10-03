@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Northern Weather Map v8.31</title>
+<title>Northern Weather Map v8.32</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
@@ -70,14 +70,15 @@
   </div>
 
   <div class="weather-panel weather-section" id="radarSection" hidden="" role="region" aria-labelledby="radarSection-title">
-    <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="radarSection-title">Rain</h2><p>Radar &amp; rainfall accumulation</p></div><div class="panel-actions"><button class="info-button" data-info="radarSection-sources" aria-controls="radarSection-sources" aria-expanded="false" aria-label="Rain sources">i</button><button class="close-panel" aria-label="Close Rain menu">×</button></div></div><div id="radarSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Radar: Estonian Environment Agency / KAIA, LVĢMC (Latvia), and LHMT / Meteo.lt (Lithuania). Gauge precipitation: Estonian Environment Agency, LHMT, FMI, SMHI and DMI where complete. Open-Meteo rain + showers (CC BY 4.0) fills unsupported countries and gaps. Coastlines: Natural Earth / world-atlas.</p><div class="source-links"><a href="https://www.ilmateenistus.ee/" target="_blank" rel="noopener">Estonia ↗</a><a href="https://videscentrs.lvgmc.lv/" target="_blank" rel="noopener">LVĢMC ↗</a><a href="https://api.meteo.lt/" target="_blank" rel="noopener">LHMT ↗</a><a href="https://en.ilmatieteenlaitos.fi/open-data-manual" target="_blank" rel="noopener">FMI ↗</a><a href="https://opendata.smhi.se/" target="_blank" rel="noopener">SMHI ↗</a><a href="https://www.dmi.dk/friedata" target="_blank" rel="noopener">DMI ↗</a><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a></div><div class="small">One toggle controls all three national radar layers. Estonia uses official KAIA 5-minute historical frames. Lithuania decodes the official Meteo.lt Laukuva + Trakų Vokė animated product into the shared timeline. Latvia uses an official LVĢMC radar animation when one is publicly exposed; otherwise the browser builds a small rolling history from direct LVĢMC frames. No third-party radar mosaic is used.</div>
+    <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="radarSection-title">Rain</h2><p>Radar &amp; rainfall accumulation</p></div><div class="panel-actions"><button class="info-button" data-info="radarSection-sources" aria-controls="radarSection-sources" aria-expanded="false" aria-label="Rain sources">i</button><button class="close-panel" aria-label="Close Rain menu">×</button></div></div><div id="radarSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Nordic radar: FMI (Finland), SMHI (Sweden), MET Norway, DMI (Denmark), and the Icelandic Meteorological Office. Official data are decoded and reprojected to this map; source times are shown below. Reflectivity is converted to approximate rain intensity using a Z–R relation; snow, terrain and ground echoes can affect it. Iceland uses each available radar’s lowest corrected reflectivity scan, rather than a national composite. Missing observations stay transparent.</p><div class="source-links"><a href="https://en.ilmatieteenlaitos.fi/open-data" target="_blank" rel="noopener">FMI ↗</a><a href="https://opendata.smhi.se/" target="_blank" rel="noopener">SMHI ↗</a><a href="https://radar-stacapi.met.no/v1/" target="_blank" rel="noopener">MET Norway ↗</a><a href="https://www.dmi.dk/friedata/dokumentation/radar-data" target="_blank" rel="noopener">DMI ↗</a><a href="https://brunnur.vedur.is/radar/data.html" target="_blank" rel="noopener">IMO ↗</a></div><p>Radar: Estonian Environment Agency / KAIA, LVĢMC (Latvia), and LHMT / Meteo.lt (Lithuania). Gauge precipitation: Estonian Environment Agency, LHMT, FMI, SMHI and DMI where complete. Open-Meteo rain + showers (CC BY 4.0) fills unsupported countries and gaps. Coastlines: Natural Earth / world-atlas.</p><div class="source-links"><a href="https://www.ilmateenistus.ee/" target="_blank" rel="noopener">Estonia ↗</a><a href="https://videscentrs.lvgmc.lv/" target="_blank" rel="noopener">LVĢMC ↗</a><a href="https://api.meteo.lt/" target="_blank" rel="noopener">LHMT ↗</a><a href="https://en.ilmatieteenlaitos.fi/open-data-manual" target="_blank" rel="noopener">FMI ↗</a><a href="https://opendata.smhi.se/" target="_blank" rel="noopener">SMHI ↗</a><a href="https://www.dmi.dk/friedata" target="_blank" rel="noopener">DMI ↗</a><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a></div><div class="small">One toggle controls Baltic and Nordic radar layers. Nordic frames are selected at or before the timeline time; observations more than 15 minutes behind that time are omitted. Downloads run only for coverage in the current map view, and processed frames are cached. Estonia uses official KAIA 5-minute historical frames. Lithuania decodes the official Meteo.lt Laukuva + Trakų Vokė animated product into the shared timeline. Latvia uses an official LVĢMC radar animation when one is publicly exposed; otherwise the browser builds a small rolling history from direct LVĢMC frames. No third-party radar mosaic is used.</div>
       </div><div class="row">
-      <label class="label"><input id="radarOn" type="checkbox"> Baltic rain radar</label>
+      <label class="label"><input id="radarOn" type="checkbox"> Rain radar · Baltics &amp; Nordics</label>
       <span class="badge">EE · LV · LT official</span>
     </div>
     <div class="details">
       <div class="legend"></div>
-      <div id="radarStatus" class="status">Baltic radar layer is off. Official frame sources still load for the timeline.</div>
+      <div id="nordicRadarStatus" class="status" role="status">Nordic radar is off.</div>
+      <div id="radarStatus" class="status">Rain radar layer is off. Official frame sources still load for the timeline.</div>
     </div>
     <div class="accumulation-controls">
       <div class="label">Rainfall accumulation</div>
@@ -196,14 +197,15 @@
 <script src="js/stations.js?v=8.26"></script>
 <script src="js/cloud-pixels.js?v=8.19"></script>
 <script src="js/clouds.js?v=8.30"></script>
-<script src="js/radar.js?v=8.29"></script>
+<script src="js/radar.js?v=8.32"></script>
 <script src="js/radar-history.js?v=8.7"></script>
 <script src="js/radar-capture.js?v=8.7"></script>
+<script src="js/nordic-radar.js?v=8.32"></script>
 <script src="js/wind.js?v=8.28"></script>
 <script src="js/official-rainfall.js?v=8.21"></script>
 <script src="js/rainfall.js?v=8.15.1"></script>
 <script src="js/bathymetry.js?v=8.21"></script>
 <script src="js/cyclones.js?v=8.29"></script>
-<script src="js/app.js?v=8.30"></script>
-<script src="js/ui.js?v=8.29"></script></body>
+<script src="js/app.js?v=8.32"></script>
+<script src="js/ui.js?v=8.32"></script></body>
 </html>

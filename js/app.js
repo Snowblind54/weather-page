@@ -8,7 +8,7 @@ function start(){
   stop();requestCloudHistory();
   playing=true;$('play').textContent='❚❚ Pause';
   const generation=playbackGeneration;
-  if($('cloudOn').checked){
+  if($('cloudOn').checked || ($('radarOn').checked && typeof NORDIC_RADAR_SOURCES!=='undefined')){
     // Wide satellite frames can take longer than one playback interval. Finish
     // the selected observation before advancing; never invalidate it on a clock.
     async function cloudStep(advance=false){
@@ -18,7 +18,7 @@ function start(){
         if(i>Number($('timeline').max))i=Number($('timeline').min);
         $('timeline').value=i;
       }
-      try{await applyFrame({awaitCloud:true});}catch(error){console.error(error);}
+      try{await applyFrame({awaitCloud:true,awaitRadar:true});}catch(error){console.error(error);}
       if(playing && generation===playbackGeneration)timer=setTimeout(()=>cloudStep(true),900);
     }
     cloudStep();return;
@@ -144,7 +144,8 @@ $('radarOn').addEventListener('change',async()=>{
       radarLayer=null;
     }
     clearDirectNationalRadars();
-    $('radarStatus').textContent='Baltic radar: hidden.';
+    clearNordicRadars();
+    $('radarStatus').textContent='Rain radar: hidden.';
     $('radarStatus').className='status';
     return;
   }
@@ -199,7 +200,7 @@ $('refresh').onclick=async()=>{
   $('mapStatus').className='status';
   try{
     // A manual refresh should bypass the short LV/LT processed-image cache.
-    if($('radarOn').checked) directRadarImageCache.clear();
+    if($('radarOn').checked){directRadarImageCache.clear();nordicRadarLists.clear();}
     await loadOfficialRadarList();
     if(temperatureEnabled()) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);
@@ -226,7 +227,6 @@ setTimeout(()=>map.invalidateSize(true),800);
 
 async function bootstrap(){
   try{
-    await ensureH5();
     await loadOfficialRadarList();
   }catch(e){
     console.error(e);
