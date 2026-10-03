@@ -88,10 +88,12 @@ $('heatmapOn').addEventListener('change',()=>{
 $('windOn').addEventListener('change',()=>{
   if($('windOn').checked) loadWind().catch(reportWindError);
   else hideWind();
+  updateAccumulationPopup();
 });
 $('windMode').addEventListener('change',()=>{
   showWindLegend();
   if($('windOn').checked) renderWind(selectedWindTime());
+  updateAccumulationPopup();
 });
 $('windDensity').addEventListener('input',()=>{
   $('windDensityVal').textContent=$('windDensity').value+'%';
@@ -150,6 +152,7 @@ $('timeline').addEventListener('input',()=>{
     // while the thumb is moving. Radar + temperature remain debounced.
     if($('cloudOn').checked) drawCloud(frame,i).catch(console.error);
     if($('windOn').checked) renderWind(frame.time);
+    if(activeAccumulationHours()) queueRainfallRender(90);
   }
 
   if(timelineDebounceTimer) clearTimeout(timelineDebounceTimer);
@@ -190,6 +193,9 @@ $('refresh').onclick=async()=>{
     $('mapStatus').className='status warn';
     $('radarStatus').textContent='Official KAIA API could not be reached from this browser: '+e.message;
     $('radarStatus').className='status bad';
+  }finally{
+    // Accumulation stays refreshable even when a national radar feed is offline.
+    if(activeAccumulationHours()) await loadRainfall(true).catch(reportRainfallError);
   }
 };
 

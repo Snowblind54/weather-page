@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.13</title>
+<title>Baltic Weather Map v8.14</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.11">
+<link rel="stylesheet" href="css/style.css?v=8.14">
 </head>
 <body>
 
@@ -15,12 +15,12 @@
 
 <div class="panel">
   <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v8.13 · GeoColour by day · IR10.5 by night</div>
+  <div class="subtitle">Serverless v8.14 · GeoColour by day · IR10.5 by night</div>
 
   <div class="row wrap">
     <div>
       <div class="label">Base map</div>
-      <div class="small">Satellite opens by default. Streets includes terrain contours and sea-depth shading. <a href="https://tiles.emodnet-bathymetry.eu/legends/legend_multicolour.png" target="_blank" rel="noopener">Depth colour scale (m)</a></div>
+      <div class="small">Satellite opens by default. Streets includes terrain contours, sea-depth shading and small contour depth numbers in metres. Depth labels appear from zoom 5. <a href="https://tiles.emodnet-bathymetry.eu/legends/legend_multicolour.png" target="_blank" rel="noopener">Depth colour scale (m)</a></div>
     </div>
     <div>
       <button id="streetBtn">Streets</button>
@@ -105,6 +105,25 @@
       <div class="small">One toggle controls all three national radar layers. Estonia uses official KAIA 5-minute historical frames. Lithuania decodes the official Meteo.lt Laukuva + Trakų Vokė animated product into the shared timeline. Latvia uses an official LVĢMC radar animation when one is publicly exposed; otherwise the browser builds a small rolling history from direct LVĢMC frames. No third-party radar mosaic is used.</div>
       <div id="radarStatus" class="status">Baltic radar layer is off. Official frame sources still load for the timeline.</div>
     </div>
+    <div class="accumulation-controls">
+      <div class="label">Rainfall accumulation</div>
+      <div class="accumulation-periods">
+        <label><input id="rain1h" type="checkbox" aria-label="1-hour rainfall accumulation">1 hour</label>
+        <label><input id="rain24h" type="checkbox" aria-label="24-hour rainfall accumulation">24 hours</label>
+        <label><input id="rain48h" type="checkbox" aria-label="48-hour rainfall accumulation">48 hours</label>
+      </div>
+      <div class="accumulation-details">
+        <label class="small" for="rainAccumOpacity">Rainfall heatmap opacity</label>
+        <div class="grid2">
+          <input id="rainAccumOpacity" type="range" min="0" max="100" value="65">
+          <span id="rainAccumOpacityVal" class="value">65%</span>
+        </div>
+        <div class="rain-legend" aria-label="Accumulated rainfall colour scale in millimetres"></div>
+        <div class="rain-legend-values"><span>0.1</span><span>1</span><span>5</span><span>10</span><span>25</span><span>50</span><span>100</span><span>150+ mm</span></div>
+        <div class="small">Choose one rainfall period; click it again to turn it off. Click the map for 1, 24 and 48-hour totals in mm. Covers Estonia, Latvia, Lithuania, Finland, Sweden, Norway, Iceland, Poland and Denmark, clipped to their coastlines. These are Open-Meteo model estimates of rain + showers, excluding snow. Each rolling window ends at the last completed hour at the selected timeline time.</div>
+        <div id="rainAccumStatus" class="status" role="status">Rainfall accumulation is off.</div>
+      </div>
+    </div>
   </div>
 
   <div class="section weather-section" id="warningSection">
@@ -152,7 +171,7 @@
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
 <script src="js/config.js?v=8.7"></script>
-<script src="js/map.js?v=8.13"></script>
+<script src="js/map.js?v=8.14"></script>
 <script src="js/latvia-warnings.js?v=8.9"></script>
 <script src="js/national-warnings.js?v=8.13"></script>
 <script src="js/warnings.js?v=8.13"></script>
@@ -160,10 +179,11 @@
 <script src="js/temperature.js?v=8.12"></script>
 <script src="js/stations.js?v=8.12"></script>
 <script src="js/clouds.js?v=8.7"></script>
-<script src="js/radar.js?v=8.8"></script>
+<script src="js/radar.js?v=8.14"></script>
 <script src="js/radar-history.js?v=8.7"></script>
 <script src="js/radar-capture.js?v=8.7"></script>
-<script src="js/wind.js?v=8.13"></script>
-<script src="js/app.js?v=8.13"></script>
+<script src="js/wind.js?v=8.14"></script>
+<script src="js/rainfall.js?v=8.14"></script>
+<script src="js/app.js?v=8.14"></script>
 </body>
 </html>
