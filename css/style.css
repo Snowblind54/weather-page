@@ -151,7 +151,6 @@ input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-colo
 .cyclone-popup>.small{color:#63717d;margin:3px 0 8px}
 .cyclone-readings{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
 .cyclone-readings>div{background:#eef3f6;border-radius:6px;padding:7px}
-.cyclone-readings>div:last-child{grid-column:1/-1}
 .cyclone-readings span,.cyclone-readings small{display:block;color:#63717d;font-size:10px}
 .cyclone-readings strong{font-size:15px}
 .cyclone-readings strong small{display:inline;font-size:11px;font-weight:400}

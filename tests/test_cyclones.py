@@ -28,13 +28,14 @@ class Cyclones(unittest.TestCase):
         lats, lons = np.arange(48, 62.1, .5), np.arange(-43, -16.9, .5)
         r2 = ((lats[:, None]-55)*111.2)**2+((lons[None, :]+30)*111.2*np.cos(np.deg2rad(55)))**2
         pressure = 1015-30*np.exp(-r2/20000)
-        fields = {'pressure': pressure, 'u': np.full_like(pressure, 3), 'v': np.full_like(pressure, 4)}
+        fields = {'pressure': pressure, 'u': np.full_like(pressure, 3), 'v': np.full_like(pressure, 4), 'gust': np.full_like(pressure, 12)}
         lows = c.centres(lats, lons, fields, STAMP)
         self.assertEqual(len(lows), 1)
         self.assertAlmostEqual(lows[0]['lat'], 55, places=2)
         self.assertAlmostEqual(lows[0]['lon'], -30, places=2)
         self.assertAlmostEqual(lows[0]['pressure'], 985, places=1)
         self.assertEqual(lows[0]['nearbyWind'], 5)
+        self.assertEqual(lows[0]['nearbyGust'], 12)
         fields['pressure'] = 1015-np.exp(-r2/20000)
         self.assertEqual(c.centres(lats, lons, fields, STAMP), [], 'Shallow lows are rejected')
         fields['pressure'] = np.full_like(pressure, 1025)

@@ -214,3 +214,21 @@ its paths, popups and playback. Manual refresh works even if radar is offline.
 Run `python -m unittest discover -s tests -v` and `node --test tests/*.test.cjs`.
 Cyclone Python tests skip when the optional numerical dependencies are absent,
 so the existing warnings and rainfall workflows keep working independently.
+
+
+## Extended wind coverage and cyclone gusts (v8.17)
+
+Wind and gust animation now spans 25–78°N and 85°W–42°E: the eastern United
+States, North Atlantic, all of Europe and the Moscow area. A broad 300-point
+grid plus 187 European and 81 Baltic detail points keeps first loads bounded
+(568 locations, sequential batches of 50) and preserves European/Baltic detail.
+Wind data still uses Open-Meteo, cached for 45 minutes. The cache key changes
+with coverage so a smaller old grid cannot silently replace the expanded one.
+
+Cyclone collection also requests the official GFS surface GUST diagnostic
+(m/s) at each forecast valid time. Wind and gust maxima within 200 km of each
+centre appear side by side in the popup. They are regional model maxima, not
+measurements at the centre or an NHC reported gust. Each is interpolated between
+three-hour forecast steps; an absent gust is shown as unavailable. The new
+windFieldsVersion forces regeneration even for a cached model cycle without
+gusts. Invalid or missing GFS gust fields cannot publish a partial snapshot.

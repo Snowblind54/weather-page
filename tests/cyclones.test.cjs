@@ -13,7 +13,7 @@ function harness(){
   function layer(extra={}){return {...extra,addTo(target){if(target===map)layers.add(this);else target.addLayer(this);return this;}};}
   const now=Math.floor(Date.now()/1000);
   const data={version:1,generatedAt:now,modelRun:now-3600,forecastEnd:now+96*3600,status:'ok',systems:[
-    {id:'GFS-example',name:null,points:Array.from({length:33},(_,i)=>({time:now-3600+i*3*3600,lat:55,lon:-40+i*.5,pressure:985-i*.2,nearbyWind:20}))}
+    {id:'GFS-example',name:null,points:Array.from({length:33},(_,i)=>({time:now-3600+i*3*3600,lat:55,lon:-40+i*.5,pressure:985-i*.2,nearbyWind:20,nearbyGust:32+i*.2}))}
   ]};
   const context={console,Date,Math,JSON,Number,Map,Set,AbortController,setTimeout,clearTimeout,
     setInterval(f,delay){if(delay<1000){timers.set(tick,f);return tick++;}return 0;},clearInterval:n=>timers.delete(n),
@@ -34,7 +34,7 @@ function harness(){
 test('movement units, interpolation, coverage and absent observations',()=>{
   const h=harness();h.seed();
   const a=h.run('cyclonePointAt(fixture.systems[0],fixture.systems[0].points[0].time+5400)');
-  assert.equal(a.lon,-39.75);assert.ok(a.speed>10&&a.speed<11);assert.ok(a.bearing>89&&a.bearing<91);
+  assert.equal(a.lon,-39.75);assert.equal(a.nearbyGust,32.1);assert.ok(a.speed>10&&a.speed<11);assert.ok(a.bearing>89&&a.bearing<91);
   assert.equal(h.run('cyclonePointAt(fixture.systems[0],fixture.modelRun-1)'),null);
   assert.equal(h.run('cyclonePointAt(fixture.systems[0],fixture.forecastEnd+1)'),null);
   h.run('fixture.systems[0].points[1].time=fixture.modelRun+9*3600;');
@@ -51,7 +51,7 @@ test('paths are separate, centre popup and forecasts preserve the viewport',()=>
   h.run('openCyclonePopup(fixture.systems[0])');
   assert.equal(h.run('cyclonePopup.options.autoPan'),false);assert.equal(h.run('cyclonePopup.options.keepInView'),false);
   assert.match(h.run('cyclonePopup.content'),/Moving speed/);assert.match(h.run('cyclonePopup.content'),/no official name/);
-  assert.match(h.run('cyclonePopup.content'),/m\/s/);assert.match(h.run('cyclonePopup.content'),/excludes gusts/);
+  assert.match(h.run('cyclonePopup.content'),/m\/s/);assert.match(h.run('cyclonePopup.content'),/excludes gusts/);assert.match(h.run('cyclonePopup.content'),/Highest model gust/);assert.match(h.run('cyclonePopup.content'),/32.1 m\/s/);
   h.elements.cycloneForecastHour.value='24';h.elements.cycloneForecastHour.listeners.input();
   assert.ok(h.run('cycloneMarkers.values().next().value.point[1]')>before);
   assert.equal(h.map.moves,0);

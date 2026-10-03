@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.16</title>
+<title>Baltic Weather Map v8.17</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.16">
+<link rel="stylesheet" href="css/style.css?v=8.17">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
 
 <div class="panel">
   <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v8.16 · GeoColour by day · IR10.5 by night</div>
+  <div class="subtitle">Serverless v8.17 · GeoColour by day · IR10.5 by night</div>
 
   <div class="row wrap">
     <div>
@@ -63,7 +63,7 @@
 
   <div class="section weather-section" id="windSection">
     <div class="row">
-      <label class="label"><input id="windOn" type="checkbox"> Wind animation · land + sea</label>
+      <label class="label"><input id="windOn" type="checkbox"> Wind animation · Atlantic + Europe</label>
       <span class="badge">10 m wind</span>
     </div>
     <div class="details">
@@ -76,7 +76,7 @@
       </div>
       <div id="windLegendLabel" class="small">Sustained wind speed · m/s</div>
       <div id="windLegend" class="wind-speed-legend" aria-label="Wind trail colours by speed in metres per second"></div>
-      <div class="small">Choose sustained wind or gusts. Both use purple from 25 m/s; gusts above 33 m/s turn pink. Click the map for both sustained wind and wind gusts in m/s. Trails cover land and sea and follow the selected timeline time. Gust trails show hourly peak speeds using modeled wind direction. Hourly model wind at 10 m; animation speed is scaled for visibility.</div>
+      <div class="small">Choose sustained wind or gusts. Both use purple from 25 m/s; gusts above 33 m/s turn pink. Click the map for both sustained wind and wind gusts in m/s. Trails cover land and sea from the eastern United States across the Atlantic and all of Europe to the Moscow area (85°W–42°E, 25–78°N), and follow the selected timeline time. Gust trails show hourly peak speeds using modeled wind direction. Hourly model wind at 10 m; animation speed is scaled for visibility.</div>
       <div id="windStatus" class="status" role="status">Wind layer is off.</div>
     </div>
   </div>
@@ -135,7 +135,7 @@
     </div>
     <div class="details">
       <label class="label"><input id="cyclonePathsOn" type="checkbox"> Projected centre paths · next 48 h</label>
-      <div class="small">Dashed model tracks with 12-hour steps. Click a rotating centre for pressure, movement and nearby wind. Use View coverage to find systems across the region.</div>
+      <div class="small">Dashed model tracks with 12-hour steps. Click a rotating centre for pressure, movement, nearby wind and gusts. Use View coverage to find systems across the region.</div>
       <div class="row"><button id="cycloneCoverage">View coverage</button><button id="cyclonePlay">▶ Forecast</button><button id="cycloneNow">Now</button></div>
       <label class="small" for="cycloneForecastHour">Cyclone forecast · now to +48 h</label>
       <input id="cycloneForecastHour" type="range" min="0" max="48" value="0" step="3" aria-label="Cyclone forecast hours ahead">
@@ -207,11 +207,11 @@
 <script src="js/radar.js?v=8.14"></script>
 <script src="js/radar-history.js?v=8.7"></script>
 <script src="js/radar-capture.js?v=8.7"></script>
-<script src="js/wind.js?v=8.15"></script>
+<script src="js/wind.js?v=8.17"></script>
 <script src="js/official-rainfall.js?v=8.15"></script>
 <script src="js/rainfall.js?v=8.15.1"></script>
 <script src="js/bathymetry.js?v=8.14.1"></script>
-<script src="js/cyclones.js?v=8.16"></script>
+<script src="js/cyclones.js?v=8.17"></script>
 <script src="js/app.js?v=8.16"></script>
 </body>
 </html>

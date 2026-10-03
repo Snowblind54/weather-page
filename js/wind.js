@@ -1,8 +1,10 @@
 // Wind crosses coastlines: never apply the temperature layer's land mask.
-const WIND_CACHE_KEY='balticWeatherWindV3';
+const WIND_CACHE_KEY='balticWeatherWindV4';
 const WIND_CACHE_MS=45*60*1000;
 const WIND_GRIDS=[
-  {south:48,north:73,west:-28,east:36,rows:8,cols:17},
+  // Broad Atlantic grid, European detail, then the existing Baltic detail.
+  {south:25,north:78,west:-85,east:42,rows:12,cols:25},
+  {south:34,north:74,west:-15,east:42,rows:11,cols:17},
   {south:53,north:61,west:19,east:31,rows:9,cols:9}
 ];
 let windData=null;
@@ -144,8 +146,9 @@ async function fetchWindData(){
   const series=[];
   let times=null;
   // Multi-location requests still count as individual locations at the provider.
-  // 217 samples, short time range, no eager loading or concurrent burst.
+  // 568 samples, short time range, no eager loading or concurrent burst.
   for(let offset=0;offset<points.length;offset+=50){
+    if($('windOn').checked){$('windStatus').textContent='Loading Atlantic and European wind… '+Math.round(offset/points.length*100)+'%';}
     const batch=points.slice(offset,offset+50);
     const params=new URLSearchParams({
       latitude:batch.map(p=>p[0]).join(','),
@@ -366,7 +369,7 @@ const WindCanvasLayer=L.Layer.extend({
     }
     this.seeds=seeds;
     if(!seeds.length){
-      $('windStatus').textContent='Pan to the Baltics, Nordics, Iceland or surrounding seas to see wind.';
+      $('windStatus').textContent='Pan between the eastern United States, Atlantic, Europe and Moscow to see wind.';
       $('windStatus').className='status';
       return;
     }
@@ -473,7 +476,7 @@ function renderWind(unix){
   const covered=windLayer.seeds?.length;
   $('windStatus').textContent=covered
     ? `10 m model ${currentWindMode()==='gust'?'gusts · hourly peaks':'sustained wind'} · ${fmt(unix)} · land + sea`
-    : 'Pan to the Baltics, Nordics, Iceland or surrounding seas to see wind.';
+    : 'Pan between the eastern United States, Atlantic, Europe and Moscow to see wind.';
   $('windStatus').className=covered?'status ok':'status';
   return true;
 }

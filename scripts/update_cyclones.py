@@ -48,8 +48,8 @@ def download(url):
 
 def grid_url(run, step):
     params = dict(file=f'gfs.t{run.hour:02d}z.pgrb2full.0p50.f{step:03d}',
-                  lev_mean_sea_level='on', lev_10_m_above_ground='on',
-                  var_PRMSL='on', var_UGRD='on', var_VGRD='on', subregion='',
+                  lev_mean_sea_level='on', lev_10_m_above_ground='on', lev_surface='on',
+                  var_PRMSL='on', var_UGRD='on', var_VGRD='on', var_GUST='on', subregion='',
                   leftlon=str(BOUNDS[0][1]), rightlon=str(BOUNDS[1][1]),
                   bottomlat=str(BOUNDS[0][0]), toplat=str(BOUNDS[1][0]),
                   dir=f'/gfs.{run:%Y%m%d}/{run.hour:02d}/atmos')
@@ -79,13 +79,17 @@ def decode(raw, expected_time):
                 level = ec.codes_get(g, 'typeOfLevel')
                 if name == 'prmsl' and level == 'meanSea':
                     fields['pressure'] = array/100  # Pa -> hPa, never surface pressure.
+                elif name == 'gust' and level == 'surface':
+                    fields['gust'] = array  # GFS gust diagnostic in m/s at the forecast valid time.
                 elif level == 'heightAboveGround' and ec.codes_get(g, 'level') == 10:
                     if name in ('10u', 'u'): fields['u'] = array
                     if name in ('10v', 'v'): fields['v'] = array
             finally:
                 ec.codes_release(g)
-    if set(fields) != {'pressure', 'u', 'v'} or not all(np.isfinite(v).all() for v in fields.values()):
-        raise ValueError('Incomplete GFS sea-level pressure / 10 m wind fields')
+    if set(fields) != {'pressure', 'u', 'v', 'gust'} or not all(np.isfinite(v).all() for v in fields.values()):
+        raise ValueError('Incomplete GFS sea-level pressure / 10 m wind / gust fields')
+    if fields['gust'].min() < 0 or fields['gust'].max() > 150:
+        raise ValueError('Invalid GFS wind gust units/range')
     if fields['pressure'].min() < 850 or fields['pressure'].max() > 1100:
         raise ValueError('Invalid GFS pressure units/range')
     return lats, lons, fields
@@ -130,6 +134,8 @@ def centres(lats, lons, fields, valid_time):
         dx = (lons[None, :]-lon)*111.2*math.cos(math.radians(lat))
         nearby = wind[dy*dy+dx*dx <= 200**2]
         point['nearbyWind'] = round(float(nearby.max()), 1) if nearby.size else None
+        gusts = fields['gust'][dy*dy+dx*dx <= 200**2]
+        point['nearbyGust'] = round(float(gusts.max()), 1) if gusts.size else None
         result.append(point)
     return result
 
@@ -255,7 +261,7 @@ def collect(now, previous):
     if run is None or (now-run).total_seconds() > 18*3600:
         raise ValueError('No recent complete GFS model cycle')
     stamp = int(run.timestamp())
-    if previous.get('modelRun') == stamp and previous.get('forecastEnd', 0) >= stamp+96*3600:
+    if previous.get('windFieldsVersion') == 2 and previous.get('modelRun') == stamp and previous.get('forecastEnd', 0) >= stamp+96*3600:
         systems = json.loads(json.dumps(previous['systems']))
         for s in systems:
             s['name'] = None; s.pop('nhc', None)
@@ -275,7 +281,7 @@ def collect(now, previous):
             print('Forecast', step, 'h:', len(lows), 'closed centres', flush=True)
         systems = assign_ids(track_frames(frames), previous, run)
     nhc = add_names(systems, now)
-    return {'version': 1, 'generatedAt': int(now.timestamp()), 'modelRun': stamp,
+    return {'version': 1, 'windFieldsVersion': 2, 'generatedAt': int(now.timestamp()), 'modelRun': stamp,
             'forecastEnd': stamp+96*3600, 'status': 'ok',
             'bounds': BOUNDS, 'source': 'NOAA / NCEP GFS 0.5°', 'sourceUrl': 'https://nomads.ncep.noaa.gov/',
             'method': 'Closed pressure minima; 400 km ring depth ≥2 hPa; ≥9-hour persistence; tracked every 3 hours.',
