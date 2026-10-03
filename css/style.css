@@ -101,6 +101,7 @@ input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-colo
 .rain-popup-readings small{font-size:11px}
 .rain-popup-meta{font-size:10px;color:#56616c;line-height:1.5}
 .rain-popup-container hr{border:0;border-top:1px solid #ddd;margin:12px 0}
+.sea-depth-number{display:block;width:max-content;margin:0 auto;padding:1px 3px;border-radius:3px;background:rgba(255,255,255,.68);color:#254354;font:600 9px/14px Arial,sans-serif;white-space:nowrap;font-variant-numeric:tabular-nums;pointer-events:none}
 .credit{font-size:9px;color:#777;line-height:1.4;margin-top:12px}
 
 .warning-legend{display:flex;gap:10px;flex-wrap:wrap;margin:7px 0}

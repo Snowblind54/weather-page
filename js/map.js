@@ -44,15 +44,6 @@ const seaDepth=L.tileLayer(
    attribution:'Sea depth © EMODnet Bathymetry (2024 DTM)'}
 );
 
-// EMODnet's labelled isobaths supply small numeric sea depths in metres.
-map.createPane('depthContourPane');
-map.getPane('depthContourPane').style.zIndex='260';
-map.getPane('depthContourPane').style.pointerEvents='none';
-const seaDepthContours=L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms',{
-  layers:'emodnet:contours',styles:'contours',format:'image/png',transparent:true,
-  version:'1.1.1',pane:'depthContourPane',minZoom:5,maxZoom:18,
-  attribution:'Depth contour labels (m) © EMODnet Bathymetry'
-});
 
 let cloudLayer=null; // compatibility alias for the foremost cloud layer
 let cloudLayerLow=null;
@@ -159,7 +150,7 @@ function useStreet(){
   if(map.hasLayer(satPlaces)) map.removeLayer(satPlaces);
   if(!map.hasLayer(street)) street.addTo(map);
   if(!map.hasLayer(seaDepth)) seaDepth.addTo(map);
-  if(!map.hasLayer(seaDepthContours)) seaDepthContours.addTo(map);
+  if(typeof syncSeaDepthLabels==='function') syncSeaDepthLabels();
 
   $('streetBtn').classList.add('active');
   $('satBtn').classList.remove('active');
@@ -167,12 +158,12 @@ function useStreet(){
   weatherFront();
 }
 function useSatellite(){
-  if(map.hasLayer(seaDepthContours)) map.removeLayer(seaDepthContours);
   if(map.hasLayer(seaDepth)) map.removeLayer(seaDepth);
   if(map.hasLayer(street)) map.removeLayer(street);
   if(!map.hasLayer(aerial)) aerial.addTo(map);
   if(!map.hasLayer(satTransport)) satTransport.addTo(map);
   if(!map.hasLayer(satPlaces)) satPlaces.addTo(map);
+  if(typeof syncSeaDepthLabels==='function') syncSeaDepthLabels();
 
   $('streetBtn').classList.remove('active');
   $('satBtn').classList.add('active');

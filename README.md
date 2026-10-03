@@ -125,9 +125,12 @@ with hourly coverage checked before reuse. Images are cached by period and end
 hour. Switches and timeline changes invalidate in-flight renders. Map clicks show
 all three totals in mm and also wind readings when wind is enabled.
 
-Streets adds the official transparent EMODnet `emodnet:contours` WMS layer above
-the existing bathymetry shading, from zoom 5. Small contour labels are depths in
-metres (50, 100, 200, 500, 1000, 2000 and 5000); their placement follows the
-provider's generalized isobaths. Both sea layers are removed on Satellite.
+Streets adds small numeric EMODnet DTM depth labels over the existing bathymetry
+shading, from zoom 5. `js/bathymetry.js` samples only visible sea points through
+the official `/depth_sample` REST service. Mean negative seabed elevations are
+displayed as positive depths in metres. Land and unavailable values are omitted.
+Requests are limited to four concurrent queries and 48 points per view; samples
+are cached for reuse. Panning/zooming adapts spacing and invalidates old label
+renders. Labels and shading are removed on Satellite.
 
 Run rainfall regression checks with `node --test tests/rainfall.test.cjs`.
