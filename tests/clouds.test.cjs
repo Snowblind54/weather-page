@@ -80,8 +80,8 @@ test('tile jobs are deduplicated, concurrency is bounded and cache memory is lim
   const a=h.run('cloudGetTile({z:6,x:36,y:19},10000)'),b=h.run('cloudGetTile({z:6,x:36,y:19},10000)');
   assert.equal(a,b);await a;
   assert.equal(h.run('cloudTileCache.size'),1);
-  await h.run('Promise.all(Array.from({length:160},(_,x)=>cloudGetTile({z:8,x:x+80,y:60},10000)))');
-  assert(h.run('cloudTileCache.size')<=128);assert(h.run('cloudActiveJobs')<=4);
+  await h.run('Promise.all(Array.from({length:240},(_,x)=>cloudGetTile({z:8,x:x+80,y:60},10000)))');
+  assert(h.run('cloudTileCache.size')<=192);assert(h.run('cloudCacheBytes()')<=48*1024*1024);assert(h.run('cloudActiveJobs')<=4);
 });
 test('turning off clouds invalidates pending work and releases tiles and history',async()=>{
   const h=harness();let aborted=0;
@@ -99,17 +99,17 @@ test('a delayed frame cannot repaint after the user disables clouds',async()=>{
   h.elements.cloudOn.checked=false;await h.run('drawCloud(null)');release();await drawing;
   assert.equal(h.run('cloudLayer'),null);assert.equal(h.elements.cloudStatus.textContent,'Cloud layer is off.');
 });
-test('playback waits for the displayed frame and does not overlap asynchronous steps',async()=>{
-  const h=harness();let release;
-  h.elements.play={};h.elements.timeline={value:'0',min:'0',max:'2'};
-  h.context.blocker=new Promise(resolve=>release=resolve);h.context.applyFrame=()=>h.context.blocker;
+test('playback clock advances despite unresolved requests and stops cleanly',async()=>{
+  const h=harness();h.elements.play={};h.elements.timeline={value:'0',min:'0',max:'2'};
+  h.context.applyFrame=()=>new Promise(()=>{});
   h.run('let playing=false,timer=null;');
   const app=fs.readFileSync(path.join(__dirname,'../js/app.js'),'utf8');
   h.run(app.slice(0,app.indexOf("$('locateBtn')")));
-  h.run('start()');const first=h.timeouts.at(-1);const step=first.fn();
-  assert.equal(h.elements.timeline.value,'0');assert.equal(h.timeouts.at(-1),first,'initial observation stays visible until buffering completes');
-  release();await step;assert(h.timeouts.length>1);
-  h.run('stop()');const count=h.timeouts.length;await h.timeouts.at(-1).fn();assert.equal(h.timeouts.length,count);
+  h.run('start()');assert.equal(h.timeouts.at(-1).delay,900);
+  h.timeouts.at(-1).fn();assert.equal(h.elements.timeline.value,1);
+  h.timeouts.at(-1).fn();assert.equal(h.elements.timeline.value,2);
+  h.timeouts.at(-1).fn();assert.equal(h.elements.timeline.value,0);
+  h.run('stop()');const count=h.timeouts.length;h.timeouts.at(-1).fn();assert.equal(h.timeouts.length,count);
 });
 test('wide tiles have one quarter of the pixels and close zooms retain full-resolution requests',()=>{
   const h=harness();
@@ -118,7 +118,7 @@ test('wide tiles have one quarter of the pixels and close zooms retain full-reso
   assert.equal(wide.searchParams.get('width'),'136');assert.equal(close.searchParams.get('width'),'272');
   assert.equal(h.run('cloudTileResolution({z:4})'),128);assert.equal(h.run('cloudTileResolution({z:5})'),256);
   h.run('frames=Array.from({length:24},(_,i)=>({time:10000+i*300}));cloudLayer={_tileZoom:3,_tiles:{a:{current:true,coords:{z:3,x:4,y:2}}}}');
-  assert.equal(h.run('cloudUpcomingFrames().length'),6);
+  assert.equal(h.run('cloudUpcomingFrames().length'),23);
 });
 test('background worker produces identical pixels and transfers buffers for both resolutions',async()=>{
   const {Worker}=require('node:worker_threads');
@@ -161,4 +161,28 @@ test('cancelled satellite downloads cannot start fallback requests',async()=>{
   h.context.fetch=async()=>{calls++;h.run('cloudSession++');throw new Error('cancelled');};
   await assert.rejects(h.run("cloudFetch('https://view.eumetsat.int/geoserver/wms')"),/cancelled/);
   assert.equal(calls,1);assert.equal(h.run('cloudControllers.size'),0);
+});
+
+test('full-loop buffer respects both pixel memory and tile-count budgets',()=>{
+  const h=harness();
+  h.run('frames=Array.from({length:24},(_,i)=>({time:10000+i*300}));cloudLayer={_tileZoom:3,_tiles:Object.fromEntries(Array.from({length:20},(_,i)=>[i,{current:true,coords:{z:3,x:i,y:2}}]))}');
+  assert.equal(h.run('cloudUpcomingFrames().length'),23);
+  h.run('cloudLayer._tileZoom=6;Object.values(cloudLayer._tiles).forEach(t=>t.coords.z=6)');
+  assert.equal(h.run('cloudUpcomingFrames().length'),3);
+});
+test('unready playback frames return promptly and cached frames avoid loading status',async()=>{
+  const h=harness();
+  h.run('cloudEnsureMetadata=async()=>{};cloudLayer={_tileZoom:6,_tiles:{a:{current:true,coords:{z:6,x:36,y:19},el:{dataset:{}}}},observationLabel:"Previous observation"};cloudGetTile=()=>new Promise(()=>{})');
+  await h.run('drawCloud({time:10000},{readyOnly:true})');
+  assert.match(h.elements.cloudStatus.textContent,/skipping unready/);
+  h.run('cloudTileCache.set(cloudTileKey({z:6,x:36,y:19},10000),{canvas:{width:256,height:256},times:[]});cloudGetTile=(c,t)=>Promise.resolve(cloudTileCache.get(cloudTileKey(c,t)));cloudCrossfade=async()=>{}');
+  const labels=[];h.context.statusSpy=t=>labels.push(t);h.run('cloudStatus=statusSpy');
+  await h.run('drawCloud({time:10000},{readyOnly:true})');
+  assert(!labels.some(t=>t.includes('Loading satellite')));
+});
+test('failed tiles are not redownloaded on every playback tick',async()=>{
+  const h=harness();let calls=0;
+  h.context.failSource=async()=>{calls++;throw new Error('offline');};h.run('cloudLoadSource=failSource');
+  await assert.rejects(h.run('cloudGetTile({z:6,x:36,y:19},10000)'));
+  const first=calls;await assert.rejects(h.run('cloudGetTile({z:6,x:36,y:19},10000)'),/deferred/);assert.equal(calls,first);
 });
