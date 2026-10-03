@@ -186,3 +186,17 @@ test('failed tiles are not redownloaded on every playback tick',async()=>{
   await assert.rejects(h.run('cloudGetTile({z:6,x:36,y:19},10000)'));
   const first=calls;await assert.rejects(h.run('cloudGetTile({z:6,x:36,y:19},10000)'),/deferred/);assert.equal(calls,first);
 });
+
+test('a failed tile cannot permanently block otherwise cached playback',async()=>{
+  const h=harness();h.run(`cloudEnsureMetadata=async()=>{};
+    cloudLayer={_tileZoom:6,hasCompleteFrame:true,_tiles:{
+      a:{current:true,coords:{z:6,x:36,y:19},el:{dataset:{}}},
+      b:{current:true,coords:{z:6,x:37,y:19},el:{dataset:{cloudTime:'old'},getContext:()=>({clearRect(){}})}}}};
+    cloudTileCache.set(cloudTileKey({z:6,x:36,y:19},10000),{canvas:{width:256,height:256},times:[{id:'eumet',day:9000,night:9000}]});
+    cloudDeferTileRetry(cloudTileKey({z:6,x:37,y:19},10000));
+    cloudCrossfade=async()=>{};`);
+  await h.run('drawCloud({time:10000},{readyOnly:true})');
+  assert.match(h.elements.cloudStatus.textContent,/Partial cloud coverage/);
+  assert.equal(h.run('cloudLayer.displayTime'),10000);
+  assert.equal(h.run('cloudLayer._tiles.b.el.dataset.cloudTime'),undefined);
+});

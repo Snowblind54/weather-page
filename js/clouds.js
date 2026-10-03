@@ -388,7 +388,7 @@ async function drawCloud(frame,options={}){
     cloudLayer.displayTime=frame.time;cloudLayer.addTo(map);
   }
   const layer=cloudLayer,tiles=cloudVisibleTiles(layer),session=cloudSession;
-  const ready=tiles.every(t=>{try{return cloudTileCache.has(cloudTileKey(t.coords,frame.time));}catch(e){return false;}});
+  const ready=tiles.every(t=>{try{const key=cloudTileKey(t.coords,frame.time);return cloudTileCache.has(key)||(options.readyOnly && (cloudTileRetryAt.get(key)||0)>Date.now());}catch(e){return false;}});
   if(!ready && options.readyOnly){
     // Populate the cache without making playback wait for the network.
     Promise.allSettled(tiles.map(t=>cloudGetTile(t.coords,frame.time))).catch(()=>{});
@@ -404,9 +404,10 @@ async function drawCloud(frame,options={}){
     cloudStatus('Satellite images unavailable. Previous clouds remain at their displayed observation time.','warn');return;
   }
   // Hold a complete previous frame if its replacement has holes.
-  if((failed || partial) && layer.hasCompleteFrame){
+  if((failed || partial) && layer.hasCompleteFrame && !options.readyOnly){
     cloudStatus('Some satellite tiles are unavailable. Holding the previous observation: '+(layer.observationLabel||''),'warn');return;
   }
+  if(options.readyOnly)tiles.forEach((t,i)=>{if(results[i].status==='rejected'){t.el.getContext('2d').clearRect(0,0,256,256);t.el._cloudImage=null;delete t.el.dataset.cloudTime;}});
   const entries=tiles.flatMap((t,i)=>results[i].status==='fulfilled'?[[t.el,results[i].value]]:[]);
   const unchanged=entries.every(([tile,result])=>tile._cloudImage===result.canvas);
   if(!unchanged)await cloudCrossfade(entries,generation);
@@ -433,14 +434,6 @@ function cloudBufferUpcoming(){
   const tiles=cloudVisibleTiles();
   return Promise.allSettled(cloudUpcomingFrames().flatMap((frame,i)=>
     tiles.map(t=>cloudGetTile(t.coords,frame.time,i+1))));
-}
-async function prepareCloudPlayback(){
-  if(!$('cloudOn').checked || !cloudLayer)return;
-  const generation=cloudFrameGeneration;
-  cloudStatus('Buffering satellite animation… · '+(cloudLayer.observationLabel||''));
-  await cloudBufferUpcoming();
-  if(generation===cloudFrameGeneration && $('cloudOn').checked)
-    cloudStatus(cloudLayer?.observationLabel||'Satellite animation ready.','ok');
 }
 function scheduleCloudPrecache(){
   clearTimeout(cloudPrecacheTimer);
