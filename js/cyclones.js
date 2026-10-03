@@ -151,9 +151,14 @@ function renderCyclones(){
       marker=L.marker([point.lat,point.lon],{pane:'cyclonePane',icon:cycloneIcon(system,point),title:cycloneName(system)+' · '+Math.round(point.pressure)+' hPa',riseOnHover:true});
       marker.on('click',()=>openCyclonePopup(cycloneData.systems.find(s=>s.id===system.id)||system));
       marker.addTo(cycloneMarkerGroup);cycloneMarkers.set(system.id,marker);
-    }else{marker.setLatLng([point.lat,point.lon]);marker.setIcon(cycloneIcon(system,point));}
+    }else{marker.setLatLng([point.lat,point.lon]);}
     const element=marker.getElement();
-    if(element)element.setAttribute('title',cycloneName(system)+' · '+Math.round(point.pressure)+' hPa');
+    if(element){
+      element.setAttribute('title',cycloneName(system)+' · '+Math.round(point.pressure)+' hPa');
+      // Keep the SVG in place so forecast playback doesn't restart its rotation.
+      element.querySelector('.cyclone-symbol').style.setProperty('--cyclone-colour',cycloneColour(point.pressure));
+      element.querySelector('.cyclone-pressure').textContent=Math.round(point.pressure)+' hPa';
+    }
   }
   for(const [id,marker] of cycloneMarkers)if(!shown.has(id)){cycloneMarkerGroup.removeLayer(marker);cycloneMarkers.delete(id);}
   renderCyclonePaths(unix);
