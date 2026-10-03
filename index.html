@@ -7,7 +7,7 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.14">
+<link rel="stylesheet" href="css/style.css?v=8.14.1">
 </head>
 <body>
 
@@ -20,7 +20,8 @@
   <div class="row wrap">
     <div>
       <div class="label">Base map</div>
-      <div class="small">Satellite opens by default. Streets includes terrain contours, sea-depth shading and small contour depth numbers in metres. Depth labels appear from zoom 5. <a href="https://tiles.emodnet-bathymetry.eu/legends/legend_multicolour.png" target="_blank" rel="noopener">Depth colour scale (m)</a></div>
+      <div class="small">Satellite opens by default. Streets includes terrain contours, sea-depth shading and small depth numbers in metres. Depth labels appear from zoom 5. <a href="https://tiles.emodnet-bathymetry.eu/legends/legend_multicolour.png" target="_blank" rel="noopener">Depth colour scale (m)</a></div>
+      <div id="depthLabelsStatus" class="small" role="status" hidden></div>
     </div>
     <div>
       <button id="streetBtn">Streets</button>
@@ -171,7 +172,7 @@
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
 <script src="js/config.js?v=8.7"></script>
-<script src="js/map.js?v=8.14"></script>
+<script src="js/map.js?v=8.14.1"></script>
 <script src="js/latvia-warnings.js?v=8.9"></script>
 <script src="js/national-warnings.js?v=8.13"></script>
 <script src="js/warnings.js?v=8.13"></script>
@@ -184,6 +185,7 @@
 <script src="js/radar-capture.js?v=8.7"></script>
 <script src="js/wind.js?v=8.14"></script>
 <script src="js/rainfall.js?v=8.14"></script>
+<script src="js/bathymetry.js?v=8.14.1"></script>
 <script src="js/app.js?v=8.14"></script>
 </body>
 </html>
