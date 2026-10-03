@@ -28,6 +28,13 @@ and while the tab is hidden, and stops completely when disabled. Trail motion is
 scaled for readability rather than representing real travel distance. Wind data:
 Open-Meteo, CC BY 4.0.
 
+Trails use speed bands in m/s: blue 0–3, green 3–6, yellow 6–10,
+orange 10–15, red 15–25, purple 25+. These are visual bands, not warning
+thresholds. Clicking the map while Wind is enabled shows the interpolated
+10 m wind speed (one decimal place), meteorological from-direction, coordinates
+and selected time. An open wind popup follows timeline changes and data refreshes
+and closes when Wind is disabled. Existing warning/marker click actions remain.
+
 Latvian warnings use LVĢMC's public `https://bridinajumi.meteo.lv/list.php`
 and linked CAP documents. `scripts/update_latvia_warnings.py` retains the English
 warning text and simplifies native polygons within 0.0007 degrees (about 80 m).

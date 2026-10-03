@@ -71,6 +71,14 @@ input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-colo
   display:none
 }
 .wind-canvas{pointer-events:none!important}
+.wind-speed-legend{display:flex;flex-wrap:wrap;gap:7px 12px;margin:6px 0 8px}
+.wind-speed-key{display:flex;align-items:center;gap:4px;font-size:10px;color:#ddd;font-variant-numeric:tabular-nums}
+.wind-speed-key i,.wind-popup-heading i{display:inline-block;width:15px;height:4px;border-radius:3px}
+.wind-popup{font:12px/1.45 Arial,sans-serif;color:#17202b;min-width:190px}
+.wind-popup-heading{display:flex;align-items:center;gap:6px;font-weight:700}
+.wind-popup-speed{font-size:27px;font-weight:800;line-height:1.25;margin:6px 0 2px}
+.wind-popup-speed span{font-size:15px;font-weight:600}
+.wind-popup-meta{font-size:10px;color:#56616c;margin-top:6px}
 .credit a{color:#aaa}
 .credit{font-size:9px;color:#777;line-height:1.4;margin-top:12px}
 

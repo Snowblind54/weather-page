@@ -9,6 +9,65 @@ let windData=null;
 let windLoadPromise=null;
 let windRetryAt=0;
 let windLayer=null;
+let windProbe=null;
+let windPopup=null;
+
+// Display bands in m/s; these are a visual scale, not warning thresholds.
+const WIND_SPEED_BANDS=[
+  {min:0,color:'#8fdcff',label:'0–3'},
+  {min:3,color:'#45dfac',label:'3–6'},
+  {min:6,color:'#f5e653',label:'6–10'},
+  {min:10,color:'#ffad42',label:'10–15'},
+  {min:15,color:'#ff585d',label:'15–25'},
+  {min:25,color:'#bd75ff',label:'25+'}
+];
+
+function windSpeedBand(speed){
+  let index=0;
+  while(index<WIND_SPEED_BANDS.length-1 && speed>=WIND_SPEED_BANDS[index+1].min) index++;
+  return index;
+}
+
+function showWindLegend(){
+  const legend=$('windLegend');
+  if(!legend) return;
+  legend.innerHTML=WIND_SPEED_BANDS.map(band=>
+    `<span class="wind-speed-key"><i style="background:${band.color}"></i>${band.label}</span>`
+  ).join('');
+}
+showWindLegend();
+
+function windPopupContent(point,unix){
+  const vector=windAt(point.lat,point.lng,windTimeSlice(unix));
+  if(!vector) return '<div class="wind-popup"><b>Wind unavailable</b><p>No wind data for this location at the selected time.</p></div>';
+  const speed=Math.hypot(...vector);
+  const band=WIND_SPEED_BANDS[windSpeedBand(speed)];
+  const bearing=(Math.atan2(-vector[0],-vector[1])*180/Math.PI+360)%360;
+  const compass=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  const direction=speed<0.1?'Calm':`From ${compass[Math.round(bearing/22.5)%16]} · ${Math.round(bearing)%360}°`;
+  const lon=((point.lng+180)%360+360)%360-180;
+  return `<div class="wind-popup">
+    <div class="wind-popup-heading"><i style="background:${band.color}"></i>Wind at this point</div>
+    <div class="wind-popup-speed">${speed.toFixed(1)} <span>m/s</span></div>
+    <div>${direction}</div>
+    <div class="wind-popup-meta">${point.lat.toFixed(3)}°, ${lon.toFixed(3)}°<br>${htmlEscape(fmt(unix))}</div>
+    <div class="wind-popup-meta">10 m model wind · interpolated estimate</div>
+  </div>`;
+}
+
+function updateWindPopup(){
+  if(!windPopup||!windProbe||!map.hasLayer(windPopup)) return;
+  windPopup.setContent(windPopupContent(windProbe,selectedWindTime()));
+}
+
+map.on('click',event=>{
+  if(!$('windOn').checked) return;
+  // Keep warning polygons and station markers' existing click actions.
+  if(event.originalEvent?.target?.closest?.('.leaflet-interactive,.leaflet-marker-icon,.leaflet-popup')) return;
+  windProbe=event.latlng;
+  if(!windPopup) windPopup=L.popup({maxWidth:280,className:'wind-popup-container'});
+  windPopup.setLatLng(windProbe).setContent(windPopupContent(windProbe,selectedWindTime())).openOn(map);
+});
 
 function windVector(speed,direction){
   if(!Number.isFinite(speed)||speed<0||!Number.isFinite(direction)) return null;
@@ -243,6 +302,7 @@ const WindCanvasLayer=L.Layer.extend({
     const density=Number($('windDensity').value)/100;
     const count=Math.min(2400,Math.round(seeds.length*this.step*this.step/900*density));
     this.particles=Array.from({length:count},()=>this.seed(true));
+    this.segments=WIND_SPEED_BANDS.map(()=>[]);
     this.canvas.style.visibility='visible';
     this.lastFrame=null;
     this.raf=requestAnimationFrame(t=>this.animate(t));
@@ -276,9 +336,8 @@ const WindCanvasLayer=L.Layer.extend({
     ctx.fillRect(0,0,this.width,this.height);
     ctx.globalCompositeOperation='source-over';
     ctx.lineWidth=1.15;ctx.lineCap='round';
-    ctx.strokeStyle='rgba(255,255,255,0.85)';
     ctx.shadowColor='rgba(0,25,40,0.8)';ctx.shadowBlur=1.5;
-    ctx.beginPath();
+    for(const segments of this.segments) segments.length=0;
     for(let i=0;i<this.particles.length;i++){
       let p=this.particles[i];
       const vector=this.sample(p.x,p.y);
@@ -289,23 +348,37 @@ const WindCanvasLayer=L.Layer.extend({
       const scale=dt*6*Math.min(1,45/Math.max(speed,0.01));
       const x=p.x+vector[0]*scale,y=p.y-vector[1]*scale;
       if(speed>0.1 && this.sample(x,y)){
-        ctx.moveTo(p.x,p.y);ctx.lineTo(x,y);
+        this.segments[windSpeedBand(speed)].push(p.x,p.y,x,y);
       }
       p.x=x;p.y=y;
     }
-    ctx.stroke();
+    // One stroke per speed band rather than per particle keeps drawing cheap.
+    for(let band=0;band<WIND_SPEED_BANDS.length;band++){
+      const segments=this.segments[band];
+      if(!segments.length) continue;
+      ctx.strokeStyle=WIND_SPEED_BANDS[band].color;
+      ctx.beginPath();
+      for(let i=0;i<segments.length;i+=4){
+        ctx.moveTo(segments[i],segments[i+1]);
+        ctx.lineTo(segments[i+2],segments[i+3]);
+      }
+      ctx.stroke();
+    }
     ctx.shadowBlur=0;
   }
 });
 
 function hideWind(){
   if(windLayer&&map.hasLayer(windLayer)) map.removeLayer(windLayer);
+  if(windPopup&&map.hasLayer(windPopup)) map.removeLayer(windPopup);
+  windProbe=null;
   $('windStatus').textContent='Wind layer is off.';
   $('windStatus').className='status';
 }
 
 function renderWind(unix){
   if(!$('windOn').checked) return false;
+  updateWindPopup();
   const slice=windTimeSlice(unix);
   if(!slice){
     if(windLayer&&map.hasLayer(windLayer)) map.removeLayer(windLayer);
