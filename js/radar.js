@@ -416,6 +416,9 @@ async function applyFrame(options={}){
   const cloudTask=options.skipCloud?Promise.resolve():drawCloud(frame,{readyOnly:!!options.cloudReadyOnly}).catch(console.error);
   if(options.awaitCloud) await cloudTask;
   await drawRadar(frame);
+  // A slow radar request must not start older national imagery after the
+  // playback clock has already moved to another frame.
+  if(frames[Number($('timeline').value)]?.time!==frame.time)return;
   await drawDirectNationalRadars(frame.time);
 }
 
