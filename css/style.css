@@ -68,10 +68,7 @@ input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-colo
   box-shadow:0 0 0 1px rgba(255,255,255,.18),0 1px 4px rgba(0,0,0,.5)
 }
 .temp-observed-dot{
-  display:inline-block;
-  margin-right:3px;
-  font-size:7px;
-  vertical-align:1px
+  display:none
 }
 .credit{font-size:9px;color:#777;line-height:1.4;margin-top:12px}
 
