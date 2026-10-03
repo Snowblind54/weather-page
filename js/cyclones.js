@@ -1,7 +1,7 @@
 // Closed low-pressure centres derived from a consistent NOAA GFS forecast run.
 let cycloneData=null,cycloneLoadPromise=null,cycloneLoadedAt=0,cycloneRetryAt=0,cycloneRefreshFailed=false;
 let cycloneMarkerGroup=null,cyclonePathGroup=null,cycloneHistoryGroup=null,cyclonePopup=null,cycloneProbeId=null;
-let cyclonePlaying=false,cyclonePlayTimer=null;
+let cyclonePlaying=false,cyclonePlayTimer=null,cycloneTrackTime=null;
 const cycloneMarkers=new Map();
 map.createPane('cyclonePathsPane');map.getPane('cyclonePathsPane').style.zIndex='610';
 map.createPane('cyclonePane');map.getPane('cyclonePane').style.zIndex='645';
@@ -68,7 +68,8 @@ function cyclonePointAt(system,unix){
   return point;
 }
 
-function cycloneSelectedTime(){return Math.floor(Date.now()/1000)+Number($('cycloneForecastHour').value)*3600;}
+function cycloneTrackStart(){return cycloneTrackTime??(cycloneTrackTime=Math.floor(Date.now()/1000));}
+function cycloneSelectedTime(){return cycloneTrackStart()+Number($('cycloneForecastHour').value)*3600;}
 function cycloneUsable(){return cycloneData && Date.now()/1000-cycloneData.modelRun<=18*3600 && cycloneSelectedTime()<=cycloneData.forecastEnd;}
 function cycloneColour(pressure){return pressure<970?'#cc83ff':pressure<985?'#ff6976':pressure<1000?'#ffc65b':'#7ddcff';}
 function cycloneName(system){return system.name||'Unnamed low-pressure system';}
@@ -116,7 +117,8 @@ function openCyclonePopup(system){
   cyclonePopup.setLatLng([point.lat,point.lon]).setContent(cyclonePopupContent(system,point)).openOn(map);
 }
 
-function renderCyclonePaths(unix){
+function renderCyclonePaths(){
+  const unix=cycloneTrackStart();
   if(cyclonePathGroup){map.removeLayer(cyclonePathGroup);cyclonePathGroup=null;}
   if(!$('cyclonePathsOn').checked || !cycloneUsable())return;
   const layers=[];
@@ -198,7 +200,7 @@ function renderCyclones(){
     }
   }
   for(const [id,marker] of cycloneMarkers)if(!shown.has(id)){cycloneMarkerGroup.removeLayer(marker);cycloneMarkers.delete(id);}
-  renderCyclonePaths(unix);renderCycloneHistory();
+  renderCyclonePaths();renderCycloneHistory();
   if(cycloneProbeId){
     const system=cycloneData.systems.find(s=>s.id===cycloneProbeId),point=system&&cyclonePointAt(system,unix);
     if(point&&shown.has(system.id)&&map.hasLayer(cyclonePopup))cyclonePopup.setLatLng([point.lat,point.lon]).setContent(cyclonePopupContent(system,point));
@@ -228,7 +230,7 @@ async function loadCyclones(force=false){
       try{
         const response=await fetch('data/cyclones.json',{cache:'no-store',signal:controller.signal});
         if(!response.ok)throw new Error('Cyclone feed HTTP '+response.status);
-        cycloneData=validateCyclones(await response.json());cycloneLoadedAt=Date.now();cycloneRetryAt=0;cycloneRefreshFailed=false;
+        cycloneData=validateCyclones(await response.json());cycloneTrackTime=Math.floor(Date.now()/1000);cycloneLoadedAt=Date.now();cycloneRetryAt=0;cycloneRefreshFailed=false;
       }catch(error){
         cycloneRetryAt=Date.now()+60000;cycloneRefreshFailed=true;
         if(!cycloneData)throw error;

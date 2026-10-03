@@ -11,6 +11,7 @@ function closeWeatherPanel(returnFocus=false){
   $('nav-'+id).setAttribute('aria-expanded','false');
   openedWeatherPanel=null;
   if(returnFocus)$('nav-'+id).focus();
+  syncTimelineCadence();
 }
 function positionWeatherPanel(){
   if(!openedWeatherPanel)return;
@@ -25,6 +26,7 @@ function openWeatherPanel(id){
   $(id).hidden=false;
   $('nav-'+id).setAttribute('aria-expanded','true');
   positionWeatherPanel();
+  syncTimelineCadence();
 }
 for(const button of document.querySelectorAll('[data-panel]')){
   button.addEventListener('click',()=>openWeatherPanel(button.dataset.panel));
@@ -92,3 +94,14 @@ for(const id of ['radarOn','cloudOn','tempOn','heatmapOn','windOn','rain1h','rai
   $(id).addEventListener('change',updateTimelineLoading);
 }
 updateTimelineLoading();
+
+function syncTimelineCadence(){
+  const tenMinutes=openedWeatherPanel==='cloudSection' || $('cloudOn').checked;
+  if(tenMinutes===cloudTimelineMode)return;
+  stop();
+  updateWeatherTimeline(tenMinutes);
+  applyFrame().catch(console.error);
+  if($('cloudOn').checked)scheduleCloudPrecache();
+}
+$('cloudOn').addEventListener('change',syncTimelineCadence);
+syncTimelineCadence();

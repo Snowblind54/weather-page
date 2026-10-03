@@ -48,12 +48,14 @@ test('paths are separate, centre popup and forecasts preserve the viewport',()=>
   h.elements.cyclonePathsOn.checked=true;h.elements.cyclonePathsOn.listeners.change();
   assert.ok(h.run('cyclonePathGroup.children.some(l=>l.points?.length>1)'));
   const before=h.run('cycloneMarkers.values().next().value.point[1]');
+  const projected=h.run('JSON.stringify(cyclonePathGroup.children)');
   h.run('openCyclonePopup(fixture.systems[0])');
   assert.equal(h.run('cyclonePopup.options.autoPan'),false);assert.equal(h.run('cyclonePopup.options.keepInView'),false);
   assert.match(h.run('cyclonePopup.content'),/Moving speed/);assert.match(h.run('cyclonePopup.content'),/no official name/);
   assert.match(h.run('cyclonePopup.content'),/m\/s/);assert.match(h.run('cyclonePopup.content'),/excludes gusts/);assert.match(h.run('cyclonePopup.content'),/Highest model gust/);assert.match(h.run('cyclonePopup.content'),/32.1 m\/s/);
   h.elements.cycloneForecastHour.value='24';h.elements.cycloneForecastHour.listeners.input();
   assert.ok(h.run('cycloneMarkers.values().next().value.point[1]')>before);
+  assert.equal(h.run('JSON.stringify(cyclonePathGroup.children)'),projected,'forecast geometry and labels stay fixed while centre moves');
   assert.equal(h.map.moves,0);
   h.elements.cycloneCoverage.listeners.click();assert.equal(h.map.moves,1);
   h.elements.cyclonePlay.listeners.click();assert.equal(h.timers.size,1);

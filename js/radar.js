@@ -1,3 +1,19 @@
+// Keep every radar observation; the cloud view selects only 10-minute slots.
+let radarTimelineFrames=[],cloudTimelineMode=false;
+function updateWeatherTimeline(tenMinutes=cloudTimelineMode){
+  cloudTimelineMode=tenMinutes;
+  if(!radarTimelineFrames.length)return;
+  const selected=frames[Number($('timeline').value)]?.time;
+  const next=tenMinutes?radarTimelineFrames.filter(f=>Math.floor(f.time/60)%10===0):radarTimelineFrames;
+  if(!next.length)return;
+  frames=next;
+  $('timeline').max=frames.length-1;
+  let index=frames.length-1;
+  if(selected!=null)index=frames.reduce((best,f,i)=>Math.abs(f.time-selected)<Math.abs(frames[best].time-selected)?i:best,0);
+  $('timeline').value=index;
+  if(typeof renderTimelineTicks==='function')renderTimelineTicks();
+}
+
 // Radar fading belongs to the radar module; cloud tiles fade independently.
 function fadeInRadarLayer(layer,targetOpacity=.86,duration=160){
   const el=layer.getElement?.();
@@ -466,10 +482,12 @@ async function loadOfficialRadarList(){
 
   if(!fs.length) throw new Error('KAIA returned no composite frames');
 
-  frames=fs.slice(-25);
+  radarTimelineFrames=fs.slice(-25);
+  frames=radarTimelineFrames;
   $('timeline').min=0;
   $('timeline').max=frames.length-1;
   $('timeline').value=frames.length-1;
+  updateWeatherTimeline();
 
   $('radarStatus').textContent=`Radar: ${frames.length} official 5-minute Estonian frames found.`;
   $('radarStatus').className='status ok';

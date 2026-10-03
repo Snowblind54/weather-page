@@ -1,0 +1,22 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+test('cloud timeline selects ten-minute observations and restores every radar frame',()=>{
+  const timeline={value:24,max:24};
+  const context={frames:Array.from({length:25},(_,i)=>({time:1800000000+i*300})),Math,$:()=>timeline};
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(__dirname+'/../js/radar.js','utf8').split('// Radar fading belongs')[0],context);
+  vm.runInContext('radarTimelineFrames=frames;updateWeatherTimeline(true)',context);
+  assert.equal(context.frames.length,13);
+  assert(context.frames.every(f=>Math.floor(f.time/60)%10===0));
+  assert.equal(timeline.value,12);
+  timeline.value=3;
+  const selected=context.frames[3].time;
+  vm.runInContext('updateWeatherTimeline(false)',context);
+  assert.equal(context.frames.length,25);
+  assert.equal(context.frames[timeline.value].time,selected);
+  timeline.value=7;
+  vm.runInContext('updateWeatherTimeline(true)',context);
+  assert.equal(Math.abs(context.frames[timeline.value].time-(1800000000+7*300)),300);
+});
