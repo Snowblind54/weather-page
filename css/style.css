@@ -257,3 +257,6 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 @keyframes timeline-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.timeline-spinner{animation:none;border-color:var(--accent);border-right-color:transparent}}
 @media(max-width:380px){.timeline-heading{gap:5px}.timeline-loading{font-size:9px}.timeline-heading button{min-width:60px;padding:4px 7px}}
+
+.timeline-heading #refresh{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;min-width:28px;margin-left:0;padding:0;border-radius:50%;font-size:21px;line-height:1;color:var(--accent)}
+.timeline-heading #refresh:hover{background:rgba(137,225,206,.14)}
