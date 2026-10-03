@@ -10,6 +10,7 @@ const nordicRadarLists=new Map(),nordicRadarFrames=new Map(),nordicRadarPending=
 const nordicRadarJobs=new Map(),nordicRadarQueue=[];
 let nordicRadarWorker=null,nordicRadarJobId=0,nordicRadarDownloads=0,nordicRadarGeneration=0,nordicRadarRefreshTimer=null;
 const nordicRadarLayers=new Map();
+let nordicRadarArchive=null;
 function nordicRadarStatus(text,kind='status'){
   $('nordicRadarStatus').textContent=text;$('nordicRadarStatus').className=kind;
 }
@@ -62,12 +63,33 @@ function fmiRadarRecords(xml){
   }
   return records;
 }
+function validNordicRadarArchiveFrame(frame,source){
+  return frame.source===source.id&&['dk','iskef','isska','isx2'].includes(frame.station)&&
+    Number.isFinite(frame.time)&&frame.format==='png'&&
+    /^data\/radar-cache\/(dk|iskef|isska|isx2)-\d+-[a-f0-9]{12}\.png$/.test(frame.url)&&
+    frame.bounds?.length===2&&frame.bounds.every(point=>point.length===2&&point.every(Number.isFinite))&&
+    frame.bounds[0][0]>=-85&&frame.bounds[1][0]<=85&&frame.bounds[0][0]<frame.bounds[1][0]&&
+    frame.bounds[0][1]>=-180&&frame.bounds[1][1]<=180&&frame.bounds[0][1]<frame.bounds[1][1]&&
+    trustedNordicRadarUrl(frame.source_url);
+}
+async function cachedNordicRadar(source){
+  if(!nordicRadarArchive||Date.now()-nordicRadarArchive.at>120000){
+    const promise=fetch('data/nordic-radar-cache.json?v='+Math.floor(Date.now()/120000),{cache:'no-cache'})
+      .then(response=>{if(!response.ok)throw new Error('Radar archive HTTP '+response.status);return response.json();});
+    nordicRadarArchive={at:Date.now(),promise};
+  }
+  const data=await nordicRadarArchive.promise;
+  return (data.frames||[]).filter(frame=>validNordicRadarArchiveFrame(frame,source)).sort((a,b)=>a.time-b.time);
+}
 async function listNordicRadar(source,force=false){
   const cached=nordicRadarLists.get(source.id);
   if(!force&&cached&&Date.now()-cached.at<120000)return cached.promise;
   const promise=(async()=>{
     const last=Math.floor(Date.now()/1000),first=last-3*3600;
     let records=[];
+    if(source.id==='dk'||source.id==='is'){
+      try{records=await cachedNordicRadar(source);if(records.length)return records;}catch(error){console.warn(source.name+' archive unavailable',error);}
+    }
     if(source.id==='fi'){
       const params=new URLSearchParams({service:'WFS',version:'2.0.0',request:'getFeature',storedquery_id:'fmi::radar::composite::rr',starttime:new Date(first*1000).toISOString(),endtime:new Date(last*1000).toISOString()});
       records=fmiRadarRecords(await nordicRadarFetch('https://opendata.fmi.fi/wfs?'+params));
@@ -110,12 +132,12 @@ async function listNordicRadar(source,force=false){
     return records;
   })();
   nordicRadarLists.set(source.id,{at:Date.now(),promise});
-  try{return await promise;}catch(error){nordicRadarLists.delete(source.id);throw error;}
+  return promise;
 }
 function ensureNordicRadarWorker(){
   if(nordicRadarWorker)return nordicRadarWorker;
   if(!window.Worker||!window.OffscreenCanvas)throw new Error('This browser needs Web Workers and OffscreenCanvas for Nordic radar');
-  const worker=new Worker('js/nordic-radar-worker.js?v=8.32',{type:'module'});nordicRadarWorker=worker;
+  const worker=new Worker('js/nordic-radar-worker.js?v=8.33',{type:'module'});nordicRadarWorker=worker;
   worker.onmessage=event=>{
     const job=nordicRadarJobs.get(event.data.id);if(!job)return;
     clearTimeout(job.timer);nordicRadarJobs.delete(event.data.id);
@@ -147,18 +169,32 @@ function nordicRadarFrame(record,edge){
   }
   if(nordicRadarPending.has(key))return nordicRadarPending.get(key);
   const promise=new Promise((resolve,reject)=>{
-    nordicRadarQueue.push({resolve,reject,run:async()=>{
+    nordicRadarQueue.push({key,resolve,reject,run:async()=>{
       if(!$('radarOn').checked)throw new Error('Radar disabled');
-      const buffer=await nordicRadarFetch(record.url,'binary');
+      const descriptor={...record};
+      if(record.station==='fi'){
+        const url=new URL(record.url),width=Number(url.searchParams.get('width')),height=Number(url.searchParams.get('height'));
+        const scale=Math.min(1,edge/Math.max(width,height));
+        if(Number.isFinite(scale)&&scale>0){
+          url.searchParams.set('width',String(Math.max(1,Math.round(width*scale))));
+          url.searchParams.set('height',String(Math.max(1,Math.round(height*scale))));
+          descriptor.url=url.href;
+        }
+      }
+      let buffer;
+      if(record.format==='png'){
+        const response=await fetch(record.url);if(!response.ok)throw new Error('Radar image HTTP '+response.status);
+        buffer=await response.arrayBuffer();
+      }else buffer=await nordicRadarFetch(descriptor.url,'binary');
       if(!$('radarOn').checked)throw new Error('Radar disabled');
-      const result=await projectNordicRadar(buffer,record,edge);
+      const result=record.format==='png'?{blob:new Blob([buffer],{type:'image/png'}),bounds:record.bounds}:await projectNordicRadar(buffer,descriptor,edge);
       if(!$('radarOn').checked)throw new Error('Radar disabled');
       const entry={...result,url:URL.createObjectURL(result.blob),time:record.time};
       nordicRadarFrames.set(key,entry);
       while(nordicRadarFrames.size>180 || [...nordicRadarFrames.values()].reduce((bytes,frame)=>bytes+frame.blob.size,0)>24*1024*1024){const oldKey=nordicRadarFrames.keys().next().value;URL.revokeObjectURL(nordicRadarFrames.get(oldKey).url);nordicRadarFrames.delete(oldKey);}
       return entry;
     }});runNordicRadarQueue();
-  }).finally(()=>nordicRadarPending.delete(key));
+  }).finally(()=>{if(nordicRadarPending.get(key)===promise)nordicRadarPending.delete(key);});
   nordicRadarPending.set(key,promise);return promise;
 }
 function clearNordicRadars(){
@@ -175,27 +211,19 @@ function nordicRadarEdge(){const zoom=map.getZoom();return zoom>=7?2000:zoom<=4?
 async function drawNordicRadars(unix,{force=false}={}){
   if(!$('radarOn').checked){clearNordicRadars();return;}
   const generation=++nordicRadarGeneration,edge=nordicRadarEdge(),visible=NORDIC_RADAR_SOURCES.filter(nordicRadarVisible);
+  // A rapid scrub should prepare the selected frame, not a backlog of old selections.
+  for(const job of nordicRadarQueue.splice(0)){nordicRadarPending.delete(job.key);job.reject(new Error('Radar selection changed'));}
   const wanted=new Set(visible.map(source=>source.id));
   for(const [id,layer] of nordicRadarLayers)if(!wanted.has(id.split(':')[0])){map.removeLayer(layer);nordicRadarLayers.delete(id);}
   if(!visible.length){nordicRadarStatus('Nordic radar: outside this view.');return;}
   nordicRadarStatus('Loading Nordic radar…');
-  const results=await Promise.allSettled(visible.map(async source=>{
-    const records=await listNordicRadar(source,force);
-    if(generation!==nordicRadarGeneration||!$('radarOn').checked)throw new Error('Radar selection changed');
-    const stations=[...new Set(records.map(record=>record.station))];
-    const selected=stations.map(station=>radarObservationAt(records.filter(record=>record.station===station),unix)).filter(Boolean);
-    if(!selected.length)throw new Error(source.name+' unavailable at '+fmt(unix));
-    const rendered=await Promise.allSettled(selected.map(async record=>({record,frame:await nordicRadarFrame(record,edge)})));
-    return {source,rendered};
-  }));
-  if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;
-  const labels=[],keep=new Set();let failed=0;
-  for(let index=0;index<results.length;index++){
-    const result=results[index],source=visible[index];
-    if(result.status!=='fulfilled'){labels.push(source.name+' unavailable');failed++;continue;}
-    const times=[];let missing=0;
-    for(const frameResult of result.value.rendered){
-      if(frameResult.status!=='fulfilled'){missing++;continue;}
+  const labels=visible.map(source=>source.name+' loading…');let failed=0,pending=visible.length;
+  function finishSource(source,index,result){
+    if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;
+    const keep=new Set(),times=[];let missing=0;
+    if(result.error){console.warn(source.name+' radar unavailable',result.error);missing++;}
+    for(const frameResult of result.rendered||[]){
+      if(frameResult.status!=='fulfilled'){console.warn(source.name+' radar frame unavailable',frameResult.reason);missing++;continue;}
       const {record,frame}=frameResult.value,id=source.id+':'+record.station;
       const previous=nordicRadarLayers.get(id);
       if(previous?.radarUrl!==frame.url){
@@ -204,13 +232,28 @@ async function drawNordicRadars(unix,{force=false}={}){
       }
       keep.add(id);times.push(record.time);
     }
-    if(!times.length){labels.push(source.name+' unavailable');failed++;}
-    else {labels.push(source.name+' '+fmt(Math.min(...times))+(missing?' · partial coverage':''));if(missing)failed++;}
+    for(const [id,layer] of nordicRadarLayers)if(id.startsWith(source.id+':')&&!keep.has(id)){map.removeLayer(layer);nordicRadarLayers.delete(id);}
+    labels[index]=times.length?source.name+' '+fmt(Math.min(...times))+(missing?' · partial coverage':''):source.name+' unavailable';
+    if(missing||!times.length)failed++;
+    pending--;
+    for(const layer of nordicRadarLayers.values())layer.bringToFront();weatherFront();
+    nordicRadarStatus((pending?'Loading Nordic radar · ':'')+labels.join(' · '),failed?'status warn':pending?'status':'status ok');
   }
-  // An unavailable selected observation must not leave a different time on the map.
-  for(const [id,layer] of nordicRadarLayers)if(!keep.has(id)){map.removeLayer(layer);nordicRadarLayers.delete(id);}
-  for(const layer of nordicRadarLayers.values())layer.bringToFront();weatherFront();
-  nordicRadarStatus(labels.join(' · '),failed?'status warn':'status ok');
+  await Promise.allSettled(visible.map(async(source,index)=>{
+    try{
+      const records=await listNordicRadar(source,force);
+      if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;
+      const stations=[...new Set(records.map(record=>record.station))];
+      const selected=stations.map(station=>radarObservationAt(records.filter(record=>record.station===station),unix)).filter(Boolean);
+      if(!selected.length)throw new Error(source.name+' unavailable at '+fmt(unix));
+      const rendered=await Promise.allSettled(selected.map(async record=>({record,frame:await nordicRadarFrame(record,edge)})));
+      // Missing stations count as partial coverage rather than a dry radar image.
+      const missing=stations.length-selected.length;
+      for(let i=0;i<missing;i++)rendered.push({status:'rejected',reason:new Error('Station has no matching observation')});
+      finishSource(source,index,{rendered});
+    }catch(error){finishSource(source,index,{error});}
+  }));
+  if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;
   if(playing){
     const next=frames[Number($('timeline').value)+1];
     if(next)for(const source of visible){

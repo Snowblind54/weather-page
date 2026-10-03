@@ -32,3 +32,22 @@ test('Norwegian WKT2 parameters retain the native grid projection and Mercator l
  assert.match(m.radarProjection(wkt),/lat_1=58.964/);assert.match(m.radarProjection(wkt),/lon_0=0/);assert.throws(()=>m.radarProjection('PROJCRS["unsupported"]'));
  for(const lat of [54,64,74])assert(Math.abs(m.latitudeAtY(m.mercatorY(lat))-lat)<1e-10);
 });
+test('static radar archives accept only bounded official PNG observations',()=>{
+ const c=harness();c.frame={source:'dk',station:'dk',time:100,format:'png',url:'data/radar-cache/dk-100-0123456789ab.png',bounds:[[52,3],[60,21]],source_url:'https://opendataapi.dmi.dk/v1/radardata/download/a.h5'};
+ assert.equal(vm.runInContext("validNordicRadarArchiveFrame(frame,{id:'dk'})",c),true);
+ c.frame.url='https://example.com/tracking.png';assert.equal(vm.runInContext("validNordicRadarArchiveFrame(frame,{id:'dk'})",c),false);
+ c.frame.url='data/radar-cache/dk-100-0123456789ab.png';c.frame.bounds=[[60,3],[52,21]];assert.equal(vm.runInContext("validNordicRadarArchiveFrame(frame,{id:'dk'})",c),false);
+});
+test('each source paints independently and an older pending selection cannot repaint the map',async()=>{
+ const c=harness();const elements={radarOn:{checked:true},nordicRadarStatus:{},timeline:{value:0}};c.$=id=>elements[id];c.fmt=t=>String(t);c.weatherFront=()=>{};c.playing=true;c.frames=[];
+ c.map.getZoom=()=>5;c.map.removeLayer=()=>{};c.L={imageOverlay:(url)=>({radarUrl:url,addTo(){return this},bringToFront(){}})};
+ let resolveOld;c.oldFrame=new Promise(resolve=>resolveOld=resolve);
+ vm.runInContext("NORDIC_RADAR_SOURCES.splice(2);nordicRadarVisible=()=>true;listNordicRadar=async source=>[{time:100,station:source.id},{time:200,station:source.id}];nordicRadarFrame=(record)=>record.station==='se'&&record.time===100?oldFrame:Promise.resolve({url:record.station+record.time,bounds:[[53,4],[71,31]]})",c);
+ const old=vm.runInContext('drawNordicRadars(100)',c);await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(vm.runInContext("nordicRadarLayers.get('fi:fi').radarUrl",c),'fi100');
+ assert.match(elements.nordicRadarStatus.textContent,/SE.*loading/);
+ await vm.runInContext('drawNordicRadars(200)',c);
+ resolveOld({url:'se100',bounds:[[53,4],[71,31]]});await old;
+ assert.equal(vm.runInContext("nordicRadarLayers.get('se:se').radarUrl",c),'se200');
+ assert.equal(vm.runInContext("nordicRadarLayers.get('fi:fi').radarUrl",c),'fi200');
+});

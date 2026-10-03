@@ -200,7 +200,7 @@ $('refresh').onclick=async()=>{
   $('mapStatus').className='status';
   try{
     // A manual refresh should bypass the short LV/LT processed-image cache.
-    if($('radarOn').checked){directRadarImageCache.clear();nordicRadarLists.clear();}
+    if($('radarOn').checked){directRadarImageCache.clear();nordicRadarLists.clear();nordicRadarArchive=null;}
     await loadOfficialRadarList();
     if(temperatureEnabled()) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);
