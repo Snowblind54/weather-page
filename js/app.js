@@ -5,6 +5,7 @@ function stop(){
   if(timer)clearTimeout(timer);timer=null;
 }
 function start(){
+  if(typeof cycloneTimelineActive==='function' && cycloneTimelineActive()){toggleCyclonePlayback();return;}
   stop();requestCloudHistory();
   playing=true;$('play').textContent='❚❚ Pause';
   const generation=playbackGeneration;
@@ -138,6 +139,9 @@ $('radarOn').addEventListener('change',async()=>{
 });
 
 $('timeline').addEventListener('input',()=>{
+  if(cycloneTimelineActive()){
+    stopCyclonePlayback();$('cycloneForecastHour').value=$('timeline').value;renderCyclones();updateCycloneTimeline();return;
+  }
   stop();requestCloudHistory();
 
   const i=Number($('timeline').value);
@@ -158,6 +162,7 @@ $('timeline').addEventListener('input',()=>{
   timelineDebounceTimer=setTimeout(settleTimelineSelection,140);
 });
 function settleTimelineSelection(){
+  if(cycloneTimelineActive())return;
   clearTimeout(timelineDebounceTimer);timelineDebounceTimer=null;
   const frame=frames[Number($('timeline').value)];
   if($('cloudOn').checked && frame)drawCloud(frame,{scrub:true}).catch(console.error);
@@ -166,20 +171,22 @@ function settleTimelineSelection(){
 // Mouse/touch release and keyboard commits settle without waiting for debounce.
 $('timeline').addEventListener('change',settleTimelineSelection);
 
-$('play').onclick=()=>playing?stop():start();
+$('play').onclick=()=>cycloneTimelineActive()?toggleCyclonePlayback():playing?stop():start();
 $('oldest').onclick=()=>{
+  if(cycloneTimelineActive()){stopCyclonePlayback();$('cycloneForecastHour').value=$('timeline').min;renderCyclones();return;}
   stop();requestCloudHistory();
   $('timeline').value=$('timeline').min;
   applyFrame().catch(console.error);
 };
 $('latest').onclick=()=>{
+  if(cycloneTimelineActive()){stopCyclonePlayback();$('cycloneForecastHour').value=0;renderCyclones();return;}
   stop();requestCloudHistory();
   $('timeline').value=$('timeline').max;
   applyFrame().catch(console.error);
 };
 
 $('refresh').onclick=async()=>{
-  stop();
+  stop();stopCyclonePlayback();
   $('mapStatus').textContent='Refreshing official weather data…';
   $('mapStatus').className='status';
   try{

@@ -44,3 +44,15 @@ test('wind colours interpolate continuously through anchors, with purple and ext
   }
   for(const speed of [-10,0,12.4,33,100])assert(vm.runInContext(`windColourIndex(${speed})`,context)>=0&&vm.runInContext(`windColourIndex(${speed})`,context)<=100);
 });
+
+test('wind particle drawing samples once per particle and batches strokes without blurred shadows',()=>{
+  let samples=0,strokes=0;
+  const ctx={fillRect(){},beginPath(){},moveTo(){},lineTo(){},stroke(){strokes++;}};
+  const context={Math,Number,Object,Array,requestAnimationFrame:()=>1,L:{Layer:{extend:methods=>methods}},windColourIndex:()=>0};
+  vm.createContext(context);
+  const source=read('wind.js');vm.runInContext(source.slice(source.indexOf('const WindCanvasLayer='),source.indexOf('function hideWind')),context);
+  context.ctx=ctx;context.sampleSpy=()=>{samples++;return [2,3];};
+  vm.runInContext(`windTest=Object.create(WindCanvasLayer);Object.assign(windTest,{ctx,lastFrame:null,width:500,height:400,mode:'sustained',
+    colours:['#fff'],segments:[[]],particles:Array.from({length:10},()=>({x:100,y:100,age:0,life:3})),sample:sampleSpy,validPoint:()=>true});windTest.animate(1000);`,context);
+  assert.equal(samples,10);assert.equal(strokes,1);assert.equal(ctx.shadowBlur,0);
+});

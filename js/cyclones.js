@@ -54,7 +54,8 @@ function cycloneBearing(a,b){
 }
 
 function cyclonePointAt(system,unix){
-  const points=system.points;
+  // Forecast points take priority where past runs overlap this model run.
+  const points=[...(system.history||[]).filter(p=>p.time<system.points[0]?.time),...system.points];
   if(!points.length || unix<points[0].time || unix>points.at(-1).time) return null;
   let a=points[0],b=points[1];
   for(let i=1;i<points.length;i++){
@@ -119,14 +120,15 @@ function openCyclonePopup(system){
 
 function renderCyclonePaths(){
   const unix=cycloneTrackStart();
+  if($('cyclonePathsOn').checked && cyclonePathGroup?._trackData===cycloneData && cyclonePathGroup._trackTime===unix)return;
   if(cyclonePathGroup){map.removeLayer(cyclonePathGroup);cyclonePathGroup=null;}
   if(!$('cyclonePathsOn').checked || !cycloneUsable())return;
   const layers=[];
   for(const system of cycloneData.systems){
-    const current=cyclonePointAt(system,unix);
-    if(!cycloneVisiblePosition(current))continue;
     const end=Math.min(unix+48*3600,system.points.at(-1).time);
-    const points=[current,...system.points.filter(p=>p.time>unix&&p.time<end)];
+    const current=cyclonePointAt(system,unix)||system.points.find(p=>p.time>=unix&&p.time<end&&cycloneVisiblePosition(p));
+    if(!cycloneVisiblePosition(current))continue;
+    const points=[current,...system.points.filter(p=>p.time>current.time&&p.time<end)];
     const endpoint=cyclonePointAt(system,end);if(endpoint&&end>unix)points.push(endpoint);
     // Split any association gap; don't draw an invented path across a break.
     const pieces=[];let piece=[points[0]];
@@ -144,12 +146,14 @@ function renderCyclonePaths(){
     }
   }
   cyclonePathGroup=L.layerGroup(layers).addTo(map);
+  cyclonePathGroup._trackData=cycloneData;cyclonePathGroup._trackTime=unix;
 }
 
 function renderCycloneHistory(){
+  if($('cycloneHistoryOn').checked && cycloneHistoryGroup?._trackData===cycloneData && cycloneHistoryGroup._trackTime===cycloneTrackStart())return;
   if(cycloneHistoryGroup){map.removeLayer(cycloneHistoryGroup);cycloneHistoryGroup=null;}
   if(!$('cycloneHistoryOn').checked || !cycloneUsable())return;
-  const now=Math.floor(Date.now()/1000),layers=[];
+  const now=cycloneTrackStart(),layers=[];
   for(const system of cycloneData.systems){
     // History is tied to actual clock time, even while viewing a future forecast.
     const current=cyclonePointAt(system,now);
@@ -170,12 +174,14 @@ function renderCycloneHistory(){
       pane:'cyclonePathsPane',color:cycloneColour(current.pressure),weight:3,opacity:.75,interactive:false}));
   }
   cycloneHistoryGroup=L.layerGroup(layers).addTo(map);
+  cycloneHistoryGroup._trackData=cycloneData;cycloneHistoryGroup._trackTime=now;
 }
 
 function renderCyclones(){
   if(!$('cycloneOn').checked)return;
   const hour=Number($('cycloneForecastHour').value),unix=cycloneSelectedTime();
-  $('cycloneTimeLabel').textContent=(hour?'+'+hour+' h · ':'Now · ')+fmt(unix);
+  if(typeof updateCycloneTimeline==='function')updateCycloneTimeline();
+  $('cycloneTimeLabel').textContent=(hour?(hour>0?'+':'')+hour+' h · ':'Now · ')+fmt(unix);
   if(!cycloneUsable()){
     stopCyclonePlayback();hideCycloneLayers();$('cycloneStatus').textContent='Cyclone forecast is unavailable or too old. Refresh to load a recent model run.';
     $('cycloneStatus').className='status warn';return;
@@ -247,6 +253,7 @@ function reportCycloneError(error){
 }
 function stopCyclonePlayback(){
   cyclonePlaying=false;if(cyclonePlayTimer)clearInterval(cyclonePlayTimer);cyclonePlayTimer=null;$('cyclonePlay').textContent='▶ Forecast';
+  if(typeof cycloneTimelineActive==='function'&&cycloneTimelineActive())$('play').textContent='▶ Play';
 }
 $('cycloneOn').addEventListener('change',()=>{
   setWeatherSectionState('cycloneSection',$('cycloneOn').checked);
@@ -258,14 +265,18 @@ $('cyclonePathsOn').addEventListener('change',()=>{if($('cycloneOn').checked)ren
 $('cycloneForecastHour').addEventListener('input',()=>{stopCyclonePlayback();renderCyclones();});
 $('cycloneNow').addEventListener('click',()=>{stopCyclonePlayback();$('cycloneForecastHour').value='0';renderCyclones();});
 $('cycloneCoverage').addEventListener('click',()=>map.fitBounds([[30,-75],[75,35]],{padding:[30,30]}));
-$('cyclonePlay').addEventListener('click',()=>{
+function toggleCyclonePlayback(){
+  if(!$('cycloneOn').checked)return;
   if(cyclonePlaying)return stopCyclonePlayback();
   if(!cycloneUsable())return;
   cyclonePlaying=true;$('cyclonePlay').textContent='❚❚ Pause';
+  if(typeof cycloneTimelineActive==='function'&&cycloneTimelineActive())$('play').textContent='❚❚ Pause';
   cyclonePlayTimer=setInterval(()=>{
-    let hour=Number($('cycloneForecastHour').value)+3;if(hour>48)hour=0;
+    let hour=Number($('cycloneForecastHour').value)+1;
+    if(hour>48)hour=typeof cycloneTimelineMinimum==='function'?cycloneTimelineMinimum():0;
     $('cycloneForecastHour').value=String(hour);renderCyclones();
   },900);
-});
+}
+$('cyclonePlay').addEventListener('click',toggleCyclonePlayback);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCyclonePlayback();});
 setInterval(()=>{if($('cycloneOn').checked)loadCyclones().catch(reportCycloneError);},5*60*1000);

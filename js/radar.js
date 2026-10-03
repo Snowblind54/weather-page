@@ -3,10 +3,12 @@ let radarTimelineFrames=[],cloudTimelineMode=false;
 function updateWeatherTimeline(tenMinutes=cloudTimelineMode){
   cloudTimelineMode=tenMinutes;
   if(!radarTimelineFrames.length)return;
-  const selected=frames[Number($('timeline').value)]?.time;
+  const cycloneMode=typeof cycloneTimelineActive==='function' && cycloneTimelineActive();
+  const selected=cycloneMode?null:frames[Number($('timeline').value)]?.time;
   const next=tenMinutes?radarTimelineFrames.filter(f=>Math.floor(f.time/60)%10===0):radarTimelineFrames;
   if(!next.length)return;
   frames=next;
+  if(cycloneMode)return;
   $('timeline').max=frames.length-1;
   let index=frames.length-1;
   if(selected!=null)index=frames.reduce((best,f,i)=>Math.abs(f.time-selected)<Math.abs(frames[best].time-selected)?i:best,0);
@@ -417,6 +419,7 @@ async function drawDirectNationalRadars(unix,{force=false}={}){
 }
 
 async function applyFrame(options={}){
+  if(typeof cycloneTimelineActive==='function' && cycloneTimelineActive())return;
   const i=Number($('timeline').value);
   const frame=frames[i];
   if(!frame)return;
@@ -484,9 +487,9 @@ async function loadOfficialRadarList(){
 
   radarTimelineFrames=fs.slice(-25);
   frames=radarTimelineFrames;
-  $('timeline').min=0;
-  $('timeline').max=frames.length-1;
-  $('timeline').value=frames.length-1;
+  if(!(typeof cycloneTimelineActive==='function' && cycloneTimelineActive())){
+    $('timeline').min=0;$('timeline').max=frames.length-1;$('timeline').value=frames.length-1;
+  }
   updateWeatherTimeline();
 
   $('radarStatus').textContent=`Radar: ${frames.length} official 5-minute Estonian frames found.`;
