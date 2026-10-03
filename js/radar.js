@@ -1,3 +1,12 @@
+// Radar fading belongs to the radar module; cloud tiles fade independently.
+function fadeInRadarLayer(layer,targetOpacity=.86,duration=160){
+  const el=layer.getElement?.();
+  if(!el){layer.setOpacity(targetOpacity);return;}
+  el.style.transition=`opacity ${duration}ms linear`;
+  layer.setOpacity(0);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>layer.setOpacity(targetOpacity)));
+}
+
 function colorRate(v){
   if(!Number.isFinite(v) || v<0.05) return [0,0,0,0];
   if(v<0.10) return [156,221,255,155];
@@ -130,7 +139,7 @@ async function drawRadar(frame){
     radarLayer=nextLayer;
 
     // Radar opacity is intentionally fixed now that the UI slider is gone.
-    fadeInImageLayer(nextLayer,0.86,160);
+    fadeInRadarLayer(nextLayer,0.86,160);
 
     setTimeout(()=>{
       if(oldLayer && oldLayer!==radarLayer && map.hasLayer(oldLayer)){
