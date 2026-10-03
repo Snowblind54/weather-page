@@ -256,13 +256,15 @@ function cloudTileKey(coords,time){
   const ids=cloudTileSources(coords);
   const versions=ids.map(id=>{
     const p=cloudProducts[id];
-    return id+':'+cloudAvailableTime(p,p.day,time)+':'+cloudAvailableTime(p,p.night,time);
+    try{return id+':'+cloudAvailableTime(p,p.day,time)+':'+cloudAvailableTime(p,p.night,time);}
+    catch(e){return id+':unavailable';}
   }).join('|');
   return `${coords.z}/${coords.x}/${coords.y}/${cloudTileResolution(coords)}/${versions}`;
 }
 function cloudGetTile(coords,time,priority=0){
   let key;
   try{key=cloudTileKey(coords,time);}catch(e){return Promise.reject(e);}
+  if(cloudTileCache.get(key)?.partial && (cloudTileRetryAt.get(key)||0)<=Date.now())cloudTileCache.delete(key);
   if(cloudTileCache.has(key)){
     const hit=cloudTileCache.get(key);cloudTileCache.delete(key);cloudTileCache.set(key,hit);
     return Promise.resolve(hit);
@@ -291,7 +293,7 @@ function cloudGetTile(coords,time,priority=0){
       }
       tile.partial=sources.length<ids.length;
       if(tile.partial)cloudDeferTileRetry(key);
-      if(session===cloudSession && !tile.partial){
+      if(session===cloudSession){
         cloudTileCache.set(key,tile);
         while(cloudTileCache.size>CLOUD_TILE_CACHE_LIMIT || cloudCacheBytes()>CLOUD_CACHE_BYTES)cloudTileCache.delete(cloudTileCache.keys().next().value);
       }
@@ -412,11 +414,9 @@ async function drawCloud(frame,options={}){
   if(!successful.length && tiles.length){
     cloudStatus('Satellite images unavailable. Previous clouds remain at their displayed observation time.','warn');return;
   }
-  // Hold a complete previous frame if its replacement has holes.
-  if((failed || partial) && layer.hasCompleteFrame && !options.readyOnly){
-    cloudStatus('Some satellite tiles are unavailable. Holding the previous observation: '+(layer.observationLabel||''),'warn');return;
-  }
-  if(options.readyOnly)tiles.forEach((t,i)=>{if(results[i].status==='rejected'){t.el.getContext('2d').clearRect(0,0,256,256);t.el._cloudImage=null;delete t.el.dataset.cloudTime;}});
+  // An unavailable source must not freeze an entire Atlantic/Europe frame.
+  // Clear missing tiles rather than presenting old imagery as the selected time.
+  tiles.forEach((t,i)=>{if(results[i].status==='rejected'){t.el.getContext('2d').clearRect(0,0,256,256);t.el._cloudImage=null;delete t.el.dataset.cloudTime;}});
   const entries=tiles.flatMap((t,i)=>results[i].status==='fulfilled'?[[t.el,results[i].value]]:[]);
   const unchanged=entries.every(([tile,result])=>tile._cloudImage===result.canvas);
   if(!unchanged){
@@ -438,7 +438,7 @@ async function drawCloud(frame,options={}){
 }
 function requestCloudHistory(){cloudHistoryRequested=true;}
 function cloudUpcomingFrames(){
-  const tiles=cloudVisibleTiles(),i=Number($('timeline').value);
+  const tiles=cloudVisibleTiles(),i=Math.max(0,Math.min(frames.length-1,Number($('timeline').value)));
   // Keep current + buffered frames within the canvas cache budget.
   const wide=cloudVisibleTiles().every(t=>t.coords.z<=4);
   const capacity=cloudCacheCapacity(tiles);
@@ -456,10 +456,10 @@ function cloudBufferUpcoming(){
 }
 function scheduleCloudPrecache(){
   clearTimeout(cloudPrecacheTimer);
-  if(!cloudHistoryRequested || !$('cloudOn').checked || !cloudLayer)return;
-  const generation=cloudFrameGeneration,session=cloudSession;
+  if(!cloudHistoryRequested || !$('cloudOn').checked || !cloudLayer || (typeof cycloneTimelineActive==='function' && cycloneTimelineActive()))return;
+  const session=cloudSession;
   cloudPrecacheTimer=setTimeout(()=>{
-    if(generation!==cloudFrameGeneration || session!==cloudSession)return;
+    if(session!==cloudSession)return;
     // Buffer a small rolling window, never the entire two-hour history.
     cloudBufferUpcoming().catch(()=>{});
   },100);

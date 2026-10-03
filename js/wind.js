@@ -331,7 +331,7 @@ const WindCanvasLayer=L.Layer.extend({
     if(!this._map||!this.ctx||document.hidden) return;
     const size=this._map.getSize();
     this.width=size.x;this.height=size.y;
-    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const dpr=Math.min(window.devicePixelRatio||1,1.5);
     this.canvas.width=Math.round(size.x*dpr);
     this.canvas.height=Math.round(size.y*dpr);
     this.canvas.style.width=size.x+'px';this.canvas.style.height=size.y+'px';
@@ -368,7 +368,7 @@ const WindCanvasLayer=L.Layer.extend({
       return;
     }
     const density=Number($('windDensity').value)/100;
-    const count=Math.min(2400,Math.round(seeds.length*this.step*this.step/900*density));
+    const count=Math.min(1600,Math.round(seeds.length*this.step*this.step/900*density));
     this.particles=Array.from({length:count},()=>this.seed(true));
     this.colours=WIND_COLOUR_PALETTES[this.mode];
     this.segments=this.colours.map(()=>[]);
@@ -401,6 +401,11 @@ const WindCanvasLayer=L.Layer.extend({
     }
     return [u,v];
   },
+  validPoint(x,y){
+    if(x<0||y<0||x>=this.width||y>=this.height)return false;
+    const index=Math.floor(y/this.step)*this.cols+Math.floor(x/this.step);
+    return !!(this.field[index]&&this.field[index+1]&&this.field[index+this.cols]&&this.field[index+this.cols+1]);
+  },
   animate(t){
     this.raf=requestAnimationFrame(next=>this.animate(next));
     if(this.lastFrame!==null&&t-this.lastFrame<1000/30) return;
@@ -412,7 +417,8 @@ const WindCanvasLayer=L.Layer.extend({
     ctx.fillRect(0,0,this.width,this.height);
     ctx.globalCompositeOperation='source-over';
     ctx.lineWidth=1.15;ctx.lineCap='round';
-    ctx.shadowColor='rgba(0,25,40,0.8)';ctx.shadowBlur=1.5;
+    // Blurred shadows multiply the cost of gradient strokes on large canvases.
+    ctx.shadowBlur=0;
     for(const segments of this.segments) segments.length=0;
     for(let i=0;i<this.particles.length;i++){
       let p=this.particles[i];
@@ -423,7 +429,7 @@ const WindCanvasLayer=L.Layer.extend({
       // 6 screen pixels/second for each m/s. Mercator preserves local angles.
       const scale=dt*6*Math.min(1,45/Math.max(speed,0.01));
       const x=p.x+vector[0]*scale,y=p.y-vector[1]*scale;
-      if(speed>0.1 && this.sample(x,y)){
+      if(speed>0.1 && this.validPoint(x,y)){
         this.segments[windColourIndex(speed)].push(p.x,p.y,x,y);
       }
       p.x=x;p.y=y;

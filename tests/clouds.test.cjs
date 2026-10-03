@@ -237,3 +237,13 @@ test('switching frames retains queued work for the selected observation',()=>{
   assert.equal(h.run('cloudQueue.length'),1);assert.equal(h.run('cloudQueue[0].key'),'selected');
   assert.equal(h.run('rejected.join()'),'old');
 });
+
+test('partial wide-view tiles are cached and retried after cooldown instead of buffering forever',async()=>{
+  const h=harness();h.run(`calls=0;cloudTileSources=()=>['eumet','gibs'];
+    cloudLoadSource=async(id)=>{calls++;if(id==='gibs')throw new Error('offline');return {id};};
+    cloudProcessTile=()=>({canvas:{width:128,height:128},times:[]});`);
+  await h.run('cloudGetTile({z:3,x:2,y:2},10000)');
+  assert.equal(h.run('cloudTileCache.size'),1);assert.equal(h.run('calls'),2);
+  await h.run('cloudGetTile({z:3,x:2,y:2},10000)');assert.equal(h.run('calls'),2);
+  h.run('cloudTileRetryAt.clear()');await h.run('cloudGetTile({z:3,x:2,y:2},10000)');assert.equal(h.run('calls'),4);
+});
