@@ -3,7 +3,7 @@ test('cyclone timeline opens at Now, uses available history and restores weather
   const els={},now=1800000000;
   const el=id=>els[id]??(els[id]={hidden:true,checked:false,value:'0',min:'0',max:'0',step:'1',textContent:'',style:{},classList:{contains:()=>false,toggle(){}},addEventListener(){},setAttribute(k,v){this[k]=v;},focus(){},replaceChildren(...items){this.children=items;},append(item){this.children.push(item);},getBoundingClientRect:()=>({left:500})});
   const context={Math,Date,Set,Promise,Number,console,$:el,frames:[{time:now-600},{time:now-300},{time:now}],cloudTimelineMode:false,
-    window:{innerWidth:1400,addEventListener(){}},document:{querySelectorAll:()=>[],addEventListener(){},querySelector:()=>el('dock'),createElement:()=>({})},
+    window:{innerWidth:1400,addEventListener(){}},document:{querySelectorAll:()=>[],addEventListener(){},querySelector:()=>el('dock'),createElement:()=>({style:{}})},
     MutationObserver:class{observe(){}},temperatureEnabled:()=>false,activeAccumulationHours:()=>0,
     cycloneData:{systems:[{history:[{time:now-24*3600}],points:[{time:now},{time:now+48*3600}]}]},cyclonePlaying:false,
     cycloneTrackStart:()=>now,cycloneSelectedTime:()=>now+Number(el('cycloneForecastHour').value)*3600,fmt:String,

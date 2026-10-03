@@ -57,6 +57,7 @@ for(const id of [...weatherCategories.map(c=>c[1]),'rain1h','rain24h','rain48h',
 updateCategoryIndicators();
 function renderTimelineTicks(){
   const ticks=$('timelineTicks');
+  ticks.classList.toggle('cyclone-ticks',cycloneTimelineMode);
   if(cycloneTimelineMode){renderCycloneTicks();return;}
   if(!frames.length)return;
   ticks.replaceChildren();
@@ -105,8 +106,9 @@ function cycloneTimelineMinimum(){
 function renderCycloneTicks(){
   const min=Number($('timeline').min),max=Number($('timeline').max);
   const ticks=[min,Math.round(min/2),0,24,max];
+  $('timelineTicks').classList.toggle('cyclone-ticks',true);
   $('timelineTicks').replaceChildren(...[...new Set(ticks)].map(hour=>{
-    const span=document.createElement('span');span.textContent=hour===0?'Now':(hour>0?'+':'')+hour+' h';return span;
+    const span=document.createElement('span');span.textContent=hour===0?'Now':(hour>0?'+':'')+hour+' h';span.style.left=((hour-min)/(max-min)*100)+'%';return span;
   }));
 }
 function updateCycloneTimeline(){
