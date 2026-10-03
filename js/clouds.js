@@ -2,11 +2,16 @@
 const CLOUD_PADDING=8;
 function cloudTileResolution(coords){return coords.z<=4?128:256;}
 function cloudTileSide(coords){return cloudTileResolution(coords)*17/16;}
-const CLOUD_TILE_CACHE_LIMIT=128, CLOUD_CONCURRENCY=4;
+const CLOUD_TILE_CACHE_LIMIT=768, CLOUD_CACHE_BYTES=48*1024*1024, CLOUD_CONCURRENCY=4;
+function cloudCacheBytes(){return [...cloudTileCache.values()].reduce((n,t)=>n+(t.canvas.width||256)*(t.canvas.height||256)*4,0);}
+function cloudCacheCapacity(tiles){
+  const bytes=tiles.reduce((n,t)=>n+cloudTileResolution(t.coords)**2*4,0);
+  return Math.max(1,Math.min(Math.floor(CLOUD_CACHE_BYTES/Math.max(1,bytes)),Math.floor(CLOUD_TILE_CACHE_LIMIT/Math.max(1,tiles.length))));
+}
 const CLOUD_EUMET='https://view.eumetsat.int/geoserver/wms';
 const CLOUD_NOAA='https://nowcoast.noaa.gov/geoserver/observations/satellite/ows';
 const CLOUD_GIBS='https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
-const cloudTileCache=new Map(), cloudTilePromises=new Map();
+const cloudTileCache=new Map(), cloudTilePromises=new Map(), cloudTileRetryAt=new Map();
 const cloudControllers=new Set(), cloudQueue=[];
 let cloudActiveJobs=0, cloudSession=0;
 let cloudHistoryRequested=false, cloudPrecacheTimer=null;
@@ -123,6 +128,7 @@ function cloudViewportSources(){
 async function cloudEnsureMetadata(force=false){
   await Promise.all(cloudViewportSources().map(async id=>{
     const product=cloudProducts[id];
+    if(!force && product.retryAt>Date.now())return;
     if(!force && product.metadataAt && Date.now()-product.metadataAt<5*60000)return;
     if(product.metadataPromise)return product.metadataPromise;
     product.metadataPromise=(async()=>{
@@ -142,7 +148,7 @@ async function cloudEnsureMetadata(force=false){
         }
         if(!latest[product.day] || !latest[product.night])throw new Error('Satellite timestamps unavailable');
         product.latest=latest;product.times=times;product.metadataAt=Date.now();
-      }catch(e){console.warn('Satellite availability:',product.day,e.message);}
+      }catch(e){product.retryAt=Date.now()+30000;console.warn('Satellite availability:',product.day,e.message);}
     })().finally(()=>{product.metadataPromise=null;});
     return product.metadataPromise;
   }));
@@ -261,6 +267,8 @@ function cloudGetTile(coords,time,priority=0){
     const hit=cloudTileCache.get(key);cloudTileCache.delete(key);cloudTileCache.set(key,hit);
     return Promise.resolve(hit);
   }
+  if((cloudTileRetryAt.get(key)||0)>Date.now())return Promise.reject(new Error('Satellite tile retry deferred'));
+  cloudTileRetryAt.delete(key);
   if(cloudTilePromises.has(key)){
     const queued=cloudQueue.find(j=>j.key===key);if(queued)queued.priority=Math.min(priority,queued.priority);
     return cloudTilePromises.get(key);
@@ -282,15 +290,20 @@ function cloudGetTile(coords,time,priority=0){
         tile=await cloudProcessTile(coords,sources);
       }
       tile.partial=sources.length<ids.length;
+      if(tile.partial)cloudDeferTileRetry(key);
       if(session===cloudSession && !tile.partial){
         cloudTileCache.set(key,tile);
-        while(cloudTileCache.size>CLOUD_TILE_CACHE_LIMIT)cloudTileCache.delete(cloudTileCache.keys().next().value);
+        while(cloudTileCache.size>CLOUD_TILE_CACHE_LIMIT || cloudCacheBytes()>CLOUD_CACHE_BYTES)cloudTileCache.delete(cloudTileCache.keys().next().value);
       }
       return tile;
     }});
     cloudPump();
-  }).finally(()=>{if(cloudTilePromises.get(key)===promise)cloudTilePromises.delete(key);});
+  }).catch(error=>{if(session===cloudSession && !/cancelled/i.test(error.message))cloudDeferTileRetry(key);throw error;}).finally(()=>{if(cloudTilePromises.get(key)===promise)cloudTilePromises.delete(key);});
   cloudTilePromises.set(key,promise);return promise;
+}
+function cloudDeferTileRetry(key){
+  cloudTileRetryAt.set(key,Date.now()+30000);
+  while(cloudTileRetryAt.size>CLOUD_TILE_CACHE_LIMIT)cloudTileRetryAt.delete(cloudTileRetryAt.keys().next().value);
 }
 function cloudCancelQueued(){
   for(const job of cloudQueue.splice(0)){cloudTilePromises.delete(job.key);job.reject(new Error('Cloud loading cancelled'));}
@@ -334,10 +347,13 @@ function cloudTimeDescription(results){
 }
 async function cloudCrossfade(entries,generation){
   const old=entries.map(([tile])=>tile._cloudImage),start=performance.now();
+  let lastPaint=-Infinity;
   await new Promise(resolve=>{
     function tick(now){
       if(generation!==cloudFrameGeneration || !$('cloudOn').checked){resolve();return;}
       const f=Math.min(1,(now-start)/320),mix=f*f*(3-2*f);
+      if(f<1 && now-lastPaint<33){requestAnimationFrame(tick);return;}
+      lastPaint=now;
       entries.forEach(([tile,result],i)=>{
         const ctx=tile.getContext('2d');ctx.clearRect(0,0,256,256);
         // Add premultiplied pixels, so the transition does not darken or thicken clouds.
@@ -351,16 +367,17 @@ async function cloudCrossfade(entries,generation){
     requestAnimationFrame(tick);
   });
 }
-async function drawCloud(frame){
+async function drawCloud(frame,options={}){
   const generation=++cloudFrameGeneration;
   if(!$('cloudOn').checked || !frame){
     cloudRequestedTime=null;cloudSession++;cloudHistoryRequested=false;
     clearTimeout(cloudPrecacheTimer);cloudCancelQueued();cloudControllers.forEach(c=>c.abort());cloudTilePromises.clear();
     if(cloudLayer){map.removeLayer(cloudLayer);cloudLayer=null;}
-    cloudTileCache.clear();cloudStopWorker();cloudStatus('Cloud layer is off.');return;
+    cloudTileCache.clear();cloudTileRetryAt.clear();cloudStopWorker();cloudStatus('Cloud layer is off.');return;
   }
   if(!playing)cloudCancelQueued();
-  cloudRequestedTime=frame.time;cloudStatus('Loading satellite clouds…');
+  cloudRequestedTime=frame.time;
+  if(!options.readyOnly && !cloudLayer)cloudStatus('Loading satellite clouds…');
   await cloudEnsureMetadata();
   if(generation!==cloudFrameGeneration || !$('cloudOn').checked)return;
   if(!cloudLayer){
@@ -371,6 +388,14 @@ async function drawCloud(frame){
     cloudLayer.displayTime=frame.time;cloudLayer.addTo(map);
   }
   const layer=cloudLayer,tiles=cloudVisibleTiles(layer),session=cloudSession;
+  const ready=tiles.every(t=>{try{return cloudTileCache.has(cloudTileKey(t.coords,frame.time));}catch(e){return false;}});
+  if(!ready && options.readyOnly){
+    // Populate the cache without making playback wait for the network.
+    Promise.allSettled(tiles.map(t=>cloudGetTile(t.coords,frame.time))).catch(()=>{});
+    cloudStatus((layer.observationLabel||'No satellite observation loaded yet.')+' · Buffering; skipping unready frames','warn');
+    scheduleCloudPrecache();return;
+  }
+  if(!ready)cloudStatus('Loading satellite clouds…');
   const results=await Promise.allSettled(tiles.map(t=>cloudGetTile(t.coords,frame.time)));
   if(generation!==cloudFrameGeneration || session!==cloudSession || layer!==cloudLayer)return;
   const successful=results.filter(r=>r.status==='fulfilled').map(r=>r.value);
@@ -399,7 +424,9 @@ function cloudUpcomingFrames(){
   const tiles=cloudVisibleTiles(),i=Number($('timeline').value);
   // Keep current + buffered frames within the canvas cache budget.
   const wide=cloudVisibleTiles().every(t=>t.coords.z<=4);
-  const count=Math.min(wide?6:3,Math.max(1,Math.floor((wide?120:96)/Math.max(1,tiles.length))-1),Math.max(0,frames.length-1));
+  const capacity=cloudCacheCapacity(tiles);
+  // Retain the full loop when it fits; otherwise use a bounded rolling buffer.
+  const count=Math.min(capacity>=frames.length?frames.length-1:Math.min(wide?6:3,capacity-1),Math.max(0,frames.length-1));
   return Array.from({length:count},(_,n)=>frames[(i+n+1)%frames.length]);
 }
 function cloudBufferUpcoming(){

@@ -8,22 +8,21 @@ function start(){
   stop();requestCloudHistory();
   playing=true;$('play').textContent='❚❚ Pause';
   const generation=playbackGeneration;
-  async function step(){
+  let nextTick=performance.now()+900;
+  function step(){
     if(!playing || generation!==playbackGeneration)return;
-    const started=performance.now();
     let i=Number($('timeline').value)+1;
     if(i>Number($('timeline').max))i=Number($('timeline').min);
     $('timeline').value=i;
-    try{await applyFrame({awaitCloud:true});}catch(e){console.error(e);}
-    if(playing && generation===playbackGeneration){
-      timer=setTimeout(step,Math.max(50,900-(performance.now()-started)));
-    }
+    // Network latency never controls the playback clock. Cloud frames only
+    // replace the displayed observation once every visible tile is ready.
+    applyFrame({cloudReadyOnly:true}).catch(console.error);
+    nextTick+=900;
+    if(nextTick<performance.now())nextTick=performance.now()+900;
+    timer=setTimeout(step,Math.max(0,nextTick-performance.now()));
   }
-  // Show the current observation, then buffer before the first playback step.
-  timer=setTimeout(async()=>{
-    try{await applyFrame({awaitCloud:true});await prepareCloudPlayback();}catch(e){console.error(e);}
-    if(playing && generation===playbackGeneration)timer=setTimeout(step,50);
-  },0);
+  applyFrame().catch(console.error);
+  timer=setTimeout(step,900);
 }
 
 $('locateBtn').addEventListener('click',showMyLocation);
