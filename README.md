@@ -35,6 +35,14 @@ thresholds. Clicking the map while Wind is enabled shows the interpolated
 and selected time. An open wind popup follows timeline changes and data refreshes
 and closes when Wind is disabled. Existing warning/marker click actions remain.
 
+Wind requests also include `wind_gusts_10m` in m/s. The popup labels sustained
+wind and gusts separately; trail colours and motion continue to use sustained
+wind. Gusts are spatially interpolated scalar values from the hourly maximum
+for the hour containing the selected time (the API timestamp marks its end).
+Gusts are not blended across hours, and their hour-ending timestamp is shown.
+Missing gusts display as unavailable rather than zero. Wind cache schema v2
+invalidates old vector-only caches so existing visitors fetch the gust data.
+
 Latvian warnings use LVĢMC's public `https://bridinajumi.meteo.lv/list.php`
 and linked CAP documents. `scripts/update_latvia_warnings.py` retains the English
 warning text and simplifies native polygons within 0.0007 degrees (about 80 m).
