@@ -7,11 +7,11 @@ const root=path.join(__dirname,'..');
 
 function harness(){
   const elements={},layers=new Set(),canvases=[],events={},storage=new Map(),panes=new Map();
-  for(const id of ['rain1h','rain24h','rain48h','rainAccumOpacity','rainAccumOpacityVal','rainAccumStatus','radarSection','windOn']){
+  for(const id of ['rain1h','rain24h','rain48h','rainAccumOpacity','rainAccumOpacityVal','rainAccumStatus','rainSourceStatus','radarSection','windOn']){
     elements[id]={checked:false,value:'65',classList:{toggle(){}},listeners:{},addEventListener(n,f){this.listeners[n]=f;}};
   }
   const map={on(n,f){events[n]=f;},createPane(n){panes.set(n,{style:{}});},getPane:n=>panes.get(n),
-    hasLayer:l=>layers.has(l),removeLayer:l=>layers.delete(l)};
+    hasLayer:l=>layers.has(l),removeLayer:l=>layers.delete(l),getZoom:()=>5};
   function layer(extra={}){return {...extra,addTo(){layers.add(this);return this;}};}
   const context={console,Date,Math,JSON,Number,Map,Set,WeakMap,AbortController,URL,setTimeout,clearTimeout,
     setInterval:()=>0,requestAnimationFrame:f=>setImmediate(f),window:{},map,$:id=>elements[id],
@@ -37,7 +37,9 @@ function harness(){
     [r.bounds[1][1],r.bounds[1][0]],[r.bounds[0][1],r.bounds[1][0]],[r.bounds[0][1],r.bounds[0][0]]]]}})))`);
   context.fixtureFeatures=features;
   run('loadTemperatureCountryFeatures=async()=>fixtureFeatures;');
+  run(fs.readFileSync(path.join(root,'js/official-rainfall.js'),'utf8'));
   run(fs.readFileSync(path.join(root,'js/rainfall.js'),'utf8'));
+  run('officialRainLoadedAt=Date.now();');
   function seed(amount=2){
     context.amount=amount;
     run(`rainData={version:1,savedAt:Date.now(),grids:Object.fromEntries(TEMP_GRID_SPECS.map(spec=>[spec.id,
@@ -124,7 +126,7 @@ test('popup has all totals and keeps wind readings; radar and period controls st
   const content=h.run('rainPopup.content');
   assert.equal(h.run('rainPopup.options.autoPan'),false,'timeline popup updates preserve the map view');
   assert.equal(h.run('rainPopup.options.keepInView'),false);
-  for(const value of ['1 h','24 h','48 h','2.0','48.0','96.0','mm','model estimate']) assert(content.includes(value),value);
+  for(const value of ['1 h','24 h','48 h','2.0','48.0','96.0','mm','Open-Meteo · model']) assert(content.includes(value),value);
   h.elements.windOn.checked=true;h.run('updateAccumulationPopup()');assert(h.run('rainPopup.content.includes("Wind at")'));
   h.elements.rain48h.checked=true;h.run('changeRainfallPeriod(48)');
   assert(!h.elements.rain24h.checked);assert.equal(h.run('activeAccumulationHours()'),48);
@@ -132,7 +134,7 @@ test('popup has all totals and keeps wind readings; radar and period controls st
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   assert(html.indexOf('id="rain1h"')>html.indexOf('id="radarSection"'));
   assert(html.indexOf('id="rain48h"')<html.indexOf('id="warningSection"'));
-  assert(html.includes('js/rainfall.js?v=8.14.2'));
+  assert(html.includes('js/rainfall.js?v=8.15'));
 });
 
 test('loader requests past hours once, validates cache coverage, and respects disable while fetching',async()=>{
@@ -156,7 +158,7 @@ test('loader requests past hours once, validates cache coverage, and respects di
   const race=harness();race.elements.rain24h.checked=true;let release;
   race.context.fetch=async()=>{await new Promise(resolve=>{release=resolve;});return {ok:true,json:async()=>
     Array(4).fill({hourly_units:{rain:'mm',showers:'mm'},hourly:{time:Array.from({length:55},(_,i)=>race.context.frameTime-(54-i)*3600),rain:Array(55).fill(0),showers:Array(55).fill(0)}})};};
-  const pending=race.run('loadRainfall()');race.elements.rain24h.checked=false;release();await pending;
+  const pending=race.run('loadRainfall()');await new Promise(setImmediate);race.elements.rain24h.checked=false;release();await pending;
   assert.equal(race.layers.size,0);
 });
 
@@ -166,4 +168,44 @@ test('rate-limit cooldown prevents repeated requests on period switches',async()
   await assert.rejects(h.run('loadRainfall()'),/busy/);
   await assert.rejects(h.run('loadRainfall()'),/cooling down/);
   assert.equal(calls,1);
+});
+
+
+test('official windows retain true timestamps, exclude missing hours and never cross countries',()=>{
+  const h=harness();h.seed();h.elements.rain24h.checked=true;
+  h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{PL:{name:'Test national source'},LT:{name:'Meteo.lt'}},
+    stations:[0,1,2].map(i=>({country:'PL',code:String(i),name:'Gauge '+i,lat:52+i*.01,lon:19,
+    times:Array.from({length:54},(_,j)=>rainWindowEnd()-(54-j)*3600),amounts:Array(54).fill(3),traces:[]}))};`);
+  assert.equal(h.run('officialRainAt(52,19,24,rainWindowEnd(),"PL").value'),72);
+  assert.equal(h.run('officialRainAt(52,19,24,rainWindowEnd(),"PL").end'),h.context.frameTime-3600,'lag reported explicitly');
+  assert.equal(h.run('officialRainAt(52,19,24,rainWindowEnd(),"LT")'),null,'no foreign gauges');
+  assert.equal(h.run('officialRainAt(54,19,24,rainWindowEnd(),"PL")'),null,'beyond radius uses model');
+  h.run('officialRainData.stations.forEach(s=>s.amounts[30]=null);officialRainWindows.clear();');
+  assert.equal(h.run('officialRainAt(52,19,48,rainWindowEnd(),"PL")'),null,'gaps cannot become dry hours');
+  const popup=h.run('rainfallPopupContent({lat:52,lng:19},rainWindowEnd())');
+  assert(popup.includes('Test national source'));assert(popup.includes('Open-Meteo · model'));
+  assert(popup.includes('Ending'));assert(popup.includes('snow water equivalent'));
+  h.run('officialRainData.generatedAt=Date.now()/1000-4*3600;officialRainWindows.clear();');
+  assert.equal(h.run('officialRainAt(52,19,24,rainWindowEnd(),"PL")'),null,'stale snapshot falls back');
+});
+
+test('snapshot validation rejects null, negative, unsorted and mismatched gauge hours',()=>{
+  const h=harness();
+  h.run(`sample={version:1,generatedAt:Date.now()/1000,sources:{DK:{name:'DMI'}},stations:[{country:'DK',code:'1',lat:56,lon:10,times:[3600,7200],amounts:[0,2]}]};`);
+  assert(h.run('validOfficialRainSnapshot(sample)'));
+  h.run('sample.stations[0].amounts[0]=null;');assert(!h.run('validOfficialRainSnapshot(sample)'));
+  h.run('sample.stations[0].amounts[0]=-0.1;');assert(!h.run('validOfficialRainSnapshot(sample)'));
+  h.run('sample.stations[0].amounts[0]=0;sample.stations[0].times.reverse();');assert(!h.run('validOfficialRainSnapshot(sample)'));
+});
+
+
+test('model outage preserves official rendering and respects rate-limit cooldown',async()=>{
+  const h=harness();h.elements.rain24h.checked=true;let calls=0;
+  h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{},stations:[{country:'DK',times:[],amounts:[]}]};`);
+  h.context.fetch=async()=>{calls++;return {ok:false,status:429};};
+  await h.run('loadRainfall()');
+  assert(h.run('rainModelError.includes("busy")'));
+  assert.equal(h.run('rainData.version'),0,'missing model grid remains missing');
+  await h.run('loadRainfall()');assert.equal(calls,1,'no rate-limit retry storm');
+  h.elements.rain24h.checked=false;h.run('changeRainfallPeriod(24)');
 });
