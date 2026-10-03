@@ -10,6 +10,7 @@ const RAIN_COLOURS=[
 let rainData=null;
 let rainLoadPromise=null;
 let rainRetryAt=0;
+let rainModelError='';
 let rainLayer=null;
 let rainRenderGeneration=0;
 let rainRenderTimer=null;
@@ -112,6 +113,7 @@ async function fetchRainSeries(points){
 
 async function loadRainfall(force=false){
   if(!activeAccumulationHours()) return;
+  await loadOfficialRainfall(force);
   const end=rainWindowEnd();
   if(!force && validRainData(rainData,end)) return queueRainfallRender(0);
   if(!force){
@@ -120,7 +122,10 @@ async function loadRainfall(force=false){
       if(validRainData(cached,end)){rainData=cached;return queueRainfallRender(0);}
     }catch(_){}
   }
-  if(Date.now()<rainRetryAt) throw new Error('Rainfall service is cooling down. Please try again in a minute.');
+  if(Date.now()<rainRetryAt){
+    if(officialRainData?.stations.length && rainData) return queueRainfallRender(0);
+    throw new Error('Rainfall service is cooling down. Please try again in a minute.');
+  }
   if(!rainLoadPromise){
     rainLoadPromise=(async()=>{
       // Avoid competing with the startup temperature grid requests.
@@ -140,12 +145,18 @@ async function loadRainfall(force=false){
       }
       const data={version:1,savedAt:Date.now(),grids};
       if(!validRainData(data,rainWindowEnd())) throw new Error('Completed rainfall hours missing');
-      rainData=data;
+      rainData=data;rainModelError='';
       rainImageCache.clear();
       try{localStorage.setItem(RAIN_CACHE_KEY,JSON.stringify(data));}catch(_){}
       return data;
     })().catch(error=>{
       if(error.rateLimited) rainRetryAt=Date.now()+60000;
+      if(officialRainData?.stations.length){
+        rainModelError=error.message;
+        if(!rainData) rainData={version:0,grids:Object.fromEntries(TEMP_GRID_SPECS.map(spec=>[spec.id,
+          spec.points.map(([lat,lon])=>({lat,lon,times:[],amounts:[]}))]))};
+        rainImageCache.clear();return rainData;
+      }
       throw error;
     }).finally(()=>{rainLoadPromise=null;});
   }
@@ -213,7 +224,7 @@ function rainTotalsAt(lat,lon,end){
 }
 
 async function createRainfallImages(hours,end,generation){
-  const key=hours+'|'+end;
+  const key=hours+'|'+end+'|'+(officialRainData?.generatedAt||0);
   if(rainImageCache.has(key)) return rainImageCache.get(key);
   const features=await loadTemperatureCountryFeatures();
   rainCountryFeatures=features;
@@ -225,6 +236,7 @@ async function createRainfallImages(hours,end,generation){
       throw new Error('Rainfall coverage/coastline missing for '+region.id);
     }
     const values=series.map(s=>rollingRainTotal(s,end,hours));
+    const countryMask=officialRainData?rainCountryMask(region,features):null;
     const cols=spec.longitudes.length,W=region.w,H=region.h;
     const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
     const ctx=canvas.getContext('2d',{alpha:true}),image=ctx.createImageData(W,H);
@@ -232,14 +244,17 @@ async function createRainfallImages(hours,end,generation){
     const lonLookup=Array.from({length:W},(_,x)=>axisBracket(spec.longitudes,west+x/(W-1)*(east-west)));
     for(let y=0;y<H;y++){
       if(generation!==rainRenderGeneration) return null;
-      const latB=axisBracket(spec.latitudes,rasterLatitudeForRow(region,y,H));
+      const lat=rasterLatitudeForRow(region,y,H),latB=axisBracket(spec.latitudes,lat);
       for(let x=0;x<W;x++){
         const lonB=lonLookup[x],index=(y*W+x)*4;
         if(!latB||!lonB) continue;
         const indices=[latB.i0*cols+lonB.i0,latB.i0*cols+lonB.i1,latB.i1*cols+lonB.i0,latB.i1*cols+lonB.i1];
         const weights=[(1-latB.f)*(1-lonB.f),(1-latB.f)*lonB.f,latB.f*(1-lonB.f),latB.f*lonB.f];
-        if(indices.some((i,j)=>weights[j]>1e-10&&!Number.isFinite(values[i]))) continue;
-        const value=bilinearValue(values,cols,latB,lonB);
+        const countryId=countryMask?.ids[countryMask.pixels[index]-1];
+        const lon=west+x/(W-1)*(east-west);
+        const official=officialRainAt(lat,lon,hours,end,RAIN_COUNTRY_CODES[countryId]);
+        if(!official && indices.some((i,j)=>weights[j]>1e-10&&!Number.isFinite(values[i]))) continue;
+        const value=official?official.value:bilinearValue(values,cols,latB,lonB);
         if(!Number.isFinite(value) || value<0.05) continue; // Dry land is transparent.
         const colour=rainColour(value);
         image.data[index]=colour[0];image.data[index+1]=colour[1];image.data[index+2]=colour[2];
@@ -271,7 +286,9 @@ async function renderRainfall(){
   const opacity=Number($('rainAccumOpacity').value)/100;
   rainLayer=L.layerGroup(images.map(region=>L.imageOverlay(region.dataUrl,region.bounds,
     {pane:'rainAccumulationPane',interactive:false,opacity}))).addTo(map);
-  $('rainAccumStatus').textContent=hours+' h rainfall · ending '+fmt(end)+' · Open-Meteo model estimate';
+  $('rainAccumStatus').textContent=hours+' h accumulation · selected end '+fmt(end)+' · official gauges + model fallback';
+  $('rainSourceStatus').textContent=officialRainSourceSummary(hours,end)+(rainModelError?' Model refresh unavailable: '+rainModelError:'');
+  renderOfficialRainLabels();
   $('rainAccumStatus').className='status ok';
   updateAccumulationPopup();
 }
@@ -287,6 +304,7 @@ function queueRainfallRender(delay=90){
 function reportRainfallError(error){
   if(!activeAccumulationHours()) return;
   removeRainfallLayer();
+  removeOfficialRainLabels();
   if(rainPopup && map.hasLayer(rainPopup)) map.removeLayer(rainPopup);
   $('rainAccumStatus').textContent='Rainfall unavailable: '+error.message;
   $('rainAccumStatus').className='status bad';
@@ -294,15 +312,33 @@ function reportRainfallError(error){
 
 function rainfallPopupContent(point,end){
   const totals=rainTotalsAt(point.lat,point.lng,end),selected=activeAccumulationHours();
-  const readings=totals?'<div class="rain-popup-readings">'+RAIN_PERIODS.map(hours=>
-    '<div class="'+(hours===selected?'selected':'')+'"><b>'+hours+' h</b><strong>'+
-      (Number.isFinite(totals[hours])?totals[hours].toFixed(1)+' <small>mm</small>':'Unavailable')+'</strong></div>').join('')+'</div>':
-    '<p>Rainfall data is available on land in the nine supported countries.</p>';
+  const country=point.station?.country||RAIN_COUNTRY_CODES[String(rainfallCountryAt(point.lat,point.lng))];
+  const details={};
+  const readings='<div class="rain-popup-readings">'+RAIN_PERIODS.map(hours=>{
+    const official=officialRainAt(point.lat,point.lng,hours,end,country);
+    let value=official?.value??totals?.[hours];
+    let source=official?official.source+(official.distance<0.1?' · measured':' · gauge estimate'):'Open-Meteo · model';
+    let actualEnd=official?.end||end;
+    // A gauge popup reports this gauge's measurements, not a nearby gauge or
+    // model value presented as a measurement when this gauge has gaps.
+    if(point.station){
+      value=rollingRainTotal(point.station,actualEnd,hours);
+      source=officialRainData.sources[country]?.name+' · measured';
+    }
+    details[hours]={official,value,actualEnd};
+    return '<div class="'+(hours===selected?'selected':'')+'"><b>'+hours+' h</b><strong>'+
+      (Number.isFinite(value)?value.toFixed(1)+' <small>mm</small>':'Unavailable')+'</strong>'+
+      '<span class="rain-popup-source">'+htmlEscape(source)+'<br>Ending '+htmlEscape(fmt(actualEnd))+'</span></div>';
+  }).join('')+'</div>';
+  const current=details[selected],official=current?.official;
+  const gauge=official?'<br>Nearest gauge: '+htmlEscape(official.nearest.name)+' ('+official.distance.toFixed(1)+' km) · '+
+    official.nearestValue.toFixed(1)+' mm'+(official.trace?'<br>Includes trace precipitation below 0.1 mm.':''):'';
+  const note=country?'Official totals: precipitation including snow water equivalent. Model totals: rain + showers, excluding snow.':
+    'Accumulation data is available on land in the nine supported countries.';
   const wind=$('windOn').checked?'<hr>'+windPopupContent(point,selectedWindTime()):'';
-  return '<div class="rain-popup"><b>Accumulated rainfall</b>'+readings+
-    '<div class="rain-popup-meta">Windows ending '+htmlEscape(fmt(end))+'<br>'+point.lat.toFixed(3)+'°, '+point.lng.toFixed(3)+'°'+
-    '<br>Open-Meteo · rain + showers · interpolated model estimate'+
-    '<br>Rolling completed hours; excludes snowfall.</div></div>'+wind;
+  return '<div class="rain-popup"><b>'+(point.station?htmlEscape(point.station.name)+' · measured precipitation':'Accumulated rainfall / precipitation')+'</b>'+readings+
+    '<div class="rain-popup-meta">'+point.lat.toFixed(3)+'°, '+point.lng.toFixed(3)+'°'+gauge+
+    '<br>'+note+'<br>Between gauges: interpolated estimate. Model fallback beyond 100 km or when a period is incomplete.</div></div>'+wind;
 }
 
 function updateAccumulationPopup(){
@@ -326,10 +362,12 @@ function changeRainfallPeriod(hours){
   rainRenderGeneration++;
   clearTimeout(rainRenderTimer);
   removeRainfallLayer();
+  removeOfficialRainLabels();
   if(active){loadRainfall().catch(reportRainfallError);updateAccumulationPopup();}
   else{
     if(rainPopup && map.hasLayer(rainPopup)) map.removeLayer(rainPopup);
     $('rainAccumStatus').textContent='Rainfall accumulation is off.';
+    $('rainSourceStatus').textContent='';
     $('rainAccumStatus').className='status';
   }
 }

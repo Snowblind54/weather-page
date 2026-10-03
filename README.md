@@ -116,8 +116,8 @@ period colours the map at a time; disabling radar does not disable accumulation.
 `js/rainfall.js` requests Open-Meteo hourly `rain` + `showers` in millimetres with
 54 past hours and one current hour. Totals are rolling completed-hour sums ending
 at the hour at or before the selected radar timeline time, capped at the present.
-Snow is excluded. The maps are interpolated model estimates, not gauge or radar
-measurements. Rainfall uses the five existing model grids and the country masks
+Snow is excluded from the model fallback. Since v8.15 official hourly gauge
+precipitation takes priority where a complete window and nearby gauges exist. Rainfall uses the five existing model grids and the country masks
 for EE, LV, LT, FI, SE, NO, IS, PL and DK. Dry ground is transparent; missing hours
 remain unavailable. Masks include coastlines, islands and holes; missing masks
 prevent an unmasked rectangular overlay. The source data is cached for 30 minutes,
@@ -138,3 +138,38 @@ Run rainfall regression checks with `node --test tests/rainfall.test.cjs`.
 Wind and accumulation popups disable Leaflet `autoPan` and `keepInView` (v8.14.2).
 Updating a reading with the two-hour timeline preserves the selected map view,
 including when its existing probe popup has been panned outside the viewport.
+
+
+## Official rainfall / precipitation (v8.15)
+
+`update-rainfall.yml` collects official observations every 15 minutes and on
+collector changes. `scripts/update_rainfall.py` publishes a same-origin
+`data/official-rainfall.json` snapshot, retaining 72 hours. It uses Estonia's
+hourly XML precipitation, LHMT station observation histories, FMI hourly WFS
+`r_1h`, SMHI parameter 7 (good-quality hourly observations), and DMI
+`precip_past1h` with bounded pagination. SMHI histories bootstrap from the last
+months, then refresh from the last day. Estonia's longer totals become available
+only after collecting consecutive hours; missing hours are never synthesized.
+Source failures retain valid prior measurements and don't stop other countries.
+
+`js/official-rainfall.js` selects a complete 1/24/48-hour window per country.
+Reporting lag up to two hours is allowed with the actual end time displayed.
+Older snapshots or incomplete windows fall back to Open-Meteo. Heatmap values
+use inverse-distance weighting of up to six gauges within 100 km, restricted to
+the same country and clipped to coastlines. Model values fill coverage gaps.
+Numeric labels from zoom 6 show actual station totals and open gauge popups.
+Normal map clicks show each period's source, actual end and nearest gauge; a
+gauge click never substitutes model data for an unavailable measurement.
+Official precipitation includes snow water equivalent; model fallback remains
+rain plus showers. DMI trace codes are stored as zero plus a trace flag, and
+popups disclose amounts below 0.1 mm. Units are mm throughout.
+
+Latvia, Norway, Iceland and Poland currently use the model fallback. Poland's
+latest METEO feed provides 10-minute observations rather than a complete hourly
+history; Iceland's tested hourly feed had no usable precipitation values. No
+unverified reporting interval is treated as a rolling rainfall total. Source
+status and the active period's gauge coverage are shown under rain radar.
+
+Run `python3 -m unittest discover -s tests -v` and
+`node --test tests/*.test.cjs` for parsing, history, missing data, source fallback,
+country separation, reporting times and existing map-layer regression checks.
