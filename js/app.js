@@ -8,6 +8,21 @@ function start(){
   stop();requestCloudHistory();
   playing=true;$('play').textContent='❚❚ Pause';
   const generation=playbackGeneration;
+  if($('cloudOn').checked){
+    // Wide satellite frames can take longer than one playback interval. Finish
+    // the selected observation before advancing; never invalidate it on a clock.
+    async function cloudStep(advance=false){
+      if(!playing || generation!==playbackGeneration)return;
+      if(advance){
+        let i=Number($('timeline').value)+1;
+        if(i>Number($('timeline').max))i=Number($('timeline').min);
+        $('timeline').value=i;
+      }
+      try{await applyFrame({awaitCloud:true});}catch(error){console.error(error);}
+      if(playing && generation===playbackGeneration)timer=setTimeout(()=>cloudStep(true),900);
+    }
+    cloudStep();return;
+  }
   let nextTick=performance.now()+900;
   function step(){
     if(!playing || generation!==playbackGeneration)return;

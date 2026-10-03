@@ -99,8 +99,8 @@ test('a delayed frame cannot repaint after the user disables clouds',async()=>{
   h.elements.cloudOn.checked=false;await h.run('drawCloud(null)');release();await drawing;
   assert.equal(h.run('cloudLayer'),null);assert.equal(h.elements.cloudStatus.textContent,'Cloud layer is off.');
 });
-test('playback clock advances despite unresolved requests and stops cleanly',async()=>{
-  const h=harness();h.elements.play={};h.elements.timeline={value:'0',min:'0',max:'2'};
+test('radar-only playback advances despite unresolved requests and stops cleanly',async()=>{
+  const h=harness();h.elements.cloudOn.checked=false;h.elements.play={};h.elements.timeline={value:'0',min:'0',max:'2'};
   h.context.applyFrame=()=>new Promise(()=>{});
   h.run('let playing=false,timer=null;');
   const app=fs.readFileSync(path.join(__dirname,'../js/app.js'),'utf8');
@@ -118,7 +118,7 @@ test('wide tiles have one quarter of the pixels and close zooms retain full-reso
   assert.equal(wide.searchParams.get('width'),'136');assert.equal(close.searchParams.get('width'),'272');
   assert.equal(h.run('cloudTileResolution({z:4})'),128);assert.equal(h.run('cloudTileResolution({z:5})'),256);
   h.run('frames=Array.from({length:24},(_,i)=>({time:10000+i*300}));cloudLayer={_tileZoom:3,_tiles:{a:{current:true,coords:{z:3,x:4,y:2}}}}');
-  assert.equal(h.run('cloudUpcomingFrames().length'),23);
+  assert.equal(h.run('cloudUpcomingFrames().length'),2);
 });
 test('background worker produces identical pixels and transfers buffers for both resolutions',async()=>{
   const {Worker}=require('node:worker_threads');
@@ -163,12 +163,12 @@ test('cancelled satellite downloads cannot start fallback requests',async()=>{
   assert.equal(calls,1);assert.equal(h.run('cloudControllers.size'),0);
 });
 
-test('full-loop buffer respects both pixel memory and tile-count budgets',()=>{
+test('rolling buffer stays bounded by two frames and the cache memory budget',()=>{
   const h=harness();
   h.run('frames=Array.from({length:24},(_,i)=>({time:10000+i*300}));cloudLayer={_tileZoom:3,_tiles:Object.fromEntries(Array.from({length:20},(_,i)=>[i,{current:true,coords:{z:3,x:i,y:2}}]))}');
-  assert.equal(h.run('cloudUpcomingFrames().length'),23);
+  assert.equal(h.run('cloudUpcomingFrames().length'),2);
   h.run('cloudLayer._tileZoom=6;Object.values(cloudLayer._tiles).forEach(t=>t.coords.z=6)');
-  assert.equal(h.run('cloudUpcomingFrames().length'),3);
+  assert.equal(h.run('cloudUpcomingFrames().length'),2);
 });
 test('unready playback frames return promptly and cached frames avoid loading status',async()=>{
   const h=harness();
@@ -225,9 +225,9 @@ test('manual cached previews are immediate, avoid downloads and invalidate older
 test('manual buffering includes both nearby directions; playback buffers forward',()=>{
   const h=harness();h.run(`frames=Array.from({length:12},(_,i)=>({time:i*600}));
     $('timeline').value=6;cloudLayer={_tileZoom:6,_tiles:{a:{current:true,coords:{z:6,x:36,y:19}}}};`);
-  assert.deepEqual(JSON.parse(h.run('JSON.stringify(cloudUpcomingFrames().slice(0,3).map(f=>f.time))')),[4200,3000,4800]);
+  assert.deepEqual(JSON.parse(h.run('JSON.stringify(cloudUpcomingFrames().slice(0,3).map(f=>f.time))')),[4200,3000]);
   h.run('playing=true');
-  assert.deepEqual(JSON.parse(h.run('JSON.stringify(cloudUpcomingFrames().slice(0,3).map(f=>f.time))')),[4200,4800,5400]);
+  assert.deepEqual(JSON.parse(h.run('JSON.stringify(cloudUpcomingFrames().slice(0,3).map(f=>f.time))')),[4200,4800]);
 });
 
 test('switching frames retains queued work for the selected observation',()=>{
@@ -246,4 +246,16 @@ test('partial wide-view tiles are cached and retried after cooldown instead of b
   assert.equal(h.run('cloudTileCache.size'),1);assert.equal(h.run('calls'),2);
   await h.run('cloudGetTile({z:3,x:2,y:2},10000)');assert.equal(h.run('calls'),2);
   h.run('cloudTileRetryAt.clear()');await h.run('cloudGetTile({z:3,x:2,y:2},10000)');assert.equal(h.run('calls'),4);
+});
+
+test('cloud playback waits for a slow frame and cannot restart after Pause',async()=>{
+  const h=harness();h.elements.play={};h.elements.timeline={value:'0',min:'0',max:'2'};
+  const resolvers=[];h.context.applyFrame=options=>{assert.equal(options.awaitCloud,true);return new Promise(resolve=>resolvers.push(resolve));};
+  h.run('let playing=false,timer=null;');
+  const app=fs.readFileSync(path.join(__dirname,'../js/app.js'),'utf8');h.run(app.slice(0,app.indexOf("$('locateBtn')")));
+  h.run('start()');assert.equal(h.timeouts.length,0);assert.equal(h.elements.timeline.value,'0');
+  resolvers.shift()();await new Promise(resolve=>setImmediate(resolve));assert.equal(h.timeouts.length,1);
+  h.timeouts[0].fn();assert.equal(h.elements.timeline.value,1);assert.equal(h.timeouts.length,1);
+  h.run('stop()');resolvers.shift()();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.timeouts.length,1);assert.equal(h.elements.play.textContent,'▶ Play');
 });
