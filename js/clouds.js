@@ -464,11 +464,11 @@ async function drawCloud(frame){
   const generation=++cloudFrameGeneration;
   if(!$('cloudOn').checked || !frame){
     cloudRequestedTime=null;cloudSession++;cloudHistoryRequested=false;
-    clearTimeout(cloudPrecacheTimer);cloudCancelQueued();cloudControllers.forEach(c=>c.abort());
+    clearTimeout(cloudPrecacheTimer);cloudCancelQueued();cloudControllers.forEach(c=>c.abort());cloudTilePromises.clear();
     if(cloudLayer){map.removeLayer(cloudLayer);cloudLayer=null;}
     cloudTileCache.clear();cloudStatus('Cloud layer is off.');return;
   }
-  cloudCancelQueued();
+  if(!playing)cloudCancelQueued();
   cloudRequestedTime=frame.time;cloudStatus('Loading satellite clouds…');
   await cloudEnsureMetadata();
   if(generation!==cloudFrameGeneration || !$('cloudOn').checked)return;
@@ -504,17 +504,33 @@ async function drawCloud(frame){
   scheduleCloudPrecache();
 }
 function requestCloudHistory(){cloudHistoryRequested=true;}
+function cloudUpcomingFrames(){
+  const tiles=cloudVisibleTiles(),i=Number($('timeline').value);
+  // Keep current + buffered frames within the canvas cache budget.
+  const count=Math.min(3,Math.max(1,Math.floor(96/Math.max(1,tiles.length))-1),Math.max(0,frames.length-1));
+  return Array.from({length:count},(_,n)=>frames[(i+n+1)%frames.length]);
+}
+function cloudBufferUpcoming(){
+  const tiles=cloudVisibleTiles();
+  return Promise.allSettled(cloudUpcomingFrames().flatMap((frame,i)=>
+    tiles.map(t=>cloudGetTile(t.coords,frame.time,i+1))));
+}
+async function prepareCloudPlayback(){
+  if(!$('cloudOn').checked || !cloudLayer)return;
+  const generation=cloudFrameGeneration;
+  cloudStatus('Buffering satellite animation… · '+(cloudLayer.observationLabel||''));
+  await cloudBufferUpcoming();
+  if(generation===cloudFrameGeneration && $('cloudOn').checked)
+    cloudStatus(cloudLayer?.observationLabel||'Satellite animation ready.','ok');
+}
 function scheduleCloudPrecache(){
   clearTimeout(cloudPrecacheTimer);
   if(!cloudHistoryRequested || !$('cloudOn').checked || !cloudLayer)return;
   const generation=cloudFrameGeneration,session=cloudSession;
   cloudPrecacheTimer=setTimeout(()=>{
     if(generation!==cloudFrameGeneration || session!==cloudSession)return;
-    const i=Number($('timeline').value),next=frames[i+1]||frames[0];
-    if(!next)return;
-    const tiles=cloudVisibleTiles();
-    // One rolling frame, never an eager download of the full two-hour history.
-    tiles.forEach(t=>cloudGetTile(t.coords,next.time,1).catch(()=>{}));
+    // Buffer a small rolling window, never the entire two-hour history.
+    cloudBufferUpcoming().catch(()=>{});
   },100);
 }
 map.on('movestart zoomstart',()=>{

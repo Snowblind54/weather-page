@@ -7,7 +7,7 @@ function harness(){
   const canvas=()=>({dataset:{},width:256,height:256,getContext:()=>({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(data){this.data=data;},drawImage(){},clearRect(){}})});
   const context={console,Map,Set,Date,Math,Promise,Array,Uint8ClampedArray,Float32Array,URLSearchParams,AbortController,performance,
     document:{createElement:canvas},$:(id)=>elements[id],CLOUD_BOUNDS:[[25,-85],[82,42]],cloudLayer:null,
-    frames:[{time:10000},{time:10300}],fmt:t=>String(t),weatherFront(){},
+    frames:[{time:10000},{time:10300}],playing:false,fmt:t=>String(t),weatherFront(){},
     map:{on:(name,cb)=>events[name]=cb,removeLayer:layer=>layers.delete(layer)},
     L:{GridLayer:{extend:methods=>function(){Object.assign(this,methods);this.setOpacity=()=>{};}}},
     setTimeout:(fn,delay)=>{timeouts.push({fn,delay});return timeouts.length;},clearTimeout(){},
@@ -106,7 +106,7 @@ test('playback waits for the displayed frame and does not overlap asynchronous s
   const app=fs.readFileSync(path.join(__dirname,'../js/app.js'),'utf8');
   h.run(app.slice(0,app.indexOf("$('locateBtn')")));
   h.run('start()');const first=h.timeouts.at(-1);const step=first.fn();
-  assert.equal(h.elements.timeline.value,1);assert.equal(h.timeouts.at(-1),first,'no scheduled next step until ready');
+  assert.equal(h.elements.timeline.value,'0');assert.equal(h.timeouts.at(-1),first,'initial observation stays visible until buffering completes');
   release();await step;assert(h.timeouts.length>1);
   h.run('stop()');const count=h.timeouts.length;await h.timeouts.at(-1).fn();assert.equal(h.timeouts.length,count);
 });

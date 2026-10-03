@@ -16,11 +16,14 @@ function start(){
     $('timeline').value=i;
     try{await applyFrame({awaitCloud:true});}catch(e){console.error(e);}
     if(playing && generation===playbackGeneration){
-      timer=setTimeout(step,Math.max(50,1100-(performance.now()-started)));
+      timer=setTimeout(step,Math.max(50,900-(performance.now()-started)));
     }
   }
-  // Let the first buffered frame start loading before advancing the timeline.
-  scheduleCloudPrecache();timer=setTimeout(step,250);
+  // Show the current observation, then buffer before the first playback step.
+  timer=setTimeout(async()=>{
+    try{await applyFrame({awaitCloud:true});await prepareCloudPlayback();}catch(e){console.error(e);}
+    if(playing && generation===playbackGeneration)timer=setTimeout(step,50);
+  },0);
 }
 
 $('locateBtn').addEventListener('click',showMyLocation);
