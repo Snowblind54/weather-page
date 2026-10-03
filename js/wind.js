@@ -3,7 +3,7 @@ const WIND_CACHE_KEY='balticWeatherWindV4';
 const WIND_CACHE_MS=45*60*1000;
 const WIND_GRIDS=[
   // Broad Atlantic grid, European detail, then the existing Baltic detail.
-  {south:25,north:78,west:-85,east:42,rows:12,cols:25},
+  {south:25,north:82,west:-85,east:42,rows:12,cols:25},
   {south:34,north:74,west:-15,east:42,rows:11,cols:17},
   {south:53,north:61,west:19,east:31,rows:9,cols:9}
 ];
