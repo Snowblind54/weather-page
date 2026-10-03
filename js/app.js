@@ -89,6 +89,10 @@ $('windOn').addEventListener('change',()=>{
   if($('windOn').checked) loadWind().catch(reportWindError);
   else hideWind();
 });
+$('windMode').addEventListener('change',()=>{
+  showWindLegend();
+  if($('windOn').checked) renderWind(selectedWindTime());
+});
 $('windDensity').addEventListener('input',()=>{
   $('windDensityVal').textContent=$('windDensity').value+'%';
   windLayer?.reset();
@@ -188,6 +192,8 @@ $('refresh').onclick=async()=>{
     $('radarStatus').className='status bad';
   }
 };
+
+useSatellite();
 
 setTimeout(()=>map.invalidateSize(true),100);
 setTimeout(()=>map.invalidateSize(true),800);

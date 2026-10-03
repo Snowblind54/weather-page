@@ -17,21 +17,31 @@ const street = L.tileLayer(
     maxZoom:17,
     attribution:'Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)'
   }
-).addTo(map);
+);
 
 const aerial = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   {maxZoom:19,attribution:'Tiles © Esri'}
-);
+).addTo(map);
 
 const satTransport = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
   {maxZoom:19,opacity:0.95,attribution:'Reference © Esri'}
-);
+).addTo(map);
 
 const satPlaces = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
   {maxZoom:19,opacity:0.95,attribution:'Reference © Esri'}
+).addTo(map);
+
+// Transparent sea-only depth shading, underneath all weather overlays.
+map.createPane('bathymetryPane');
+map.getPane('bathymetryPane').style.zIndex='250';
+map.getPane('bathymetryPane').style.pointerEvents='none';
+const seaDepth=L.tileLayer(
+  'https://tiles.emodnet-bathymetry.eu/v12/mean_multicolour/web_mercator/{z}/{x}/{y}.png',
+  {pane:'bathymetryPane',opacity:.65,maxNativeZoom:15,maxZoom:18,
+   attribution:'Sea depth © EMODnet Bathymetry (2024 DTM)'}
 );
 
 let cloudLayer=null; // compatibility alias for the foremost cloud layer
@@ -138,6 +148,7 @@ function useStreet(){
   if(map.hasLayer(satTransport)) map.removeLayer(satTransport);
   if(map.hasLayer(satPlaces)) map.removeLayer(satPlaces);
   if(!map.hasLayer(street)) street.addTo(map);
+  if(!map.hasLayer(seaDepth)) seaDepth.addTo(map);
 
   $('streetBtn').classList.add('active');
   $('satBtn').classList.remove('active');
@@ -145,6 +156,7 @@ function useStreet(){
   weatherFront();
 }
 function useSatellite(){
+  if(map.hasLayer(seaDepth)) map.removeLayer(seaDepth);
   if(map.hasLayer(street)) map.removeLayer(street);
   if(!map.hasLayer(aerial)) aerial.addTo(map);
   if(!map.hasLayer(satTransport)) satTransport.addTo(map);
@@ -318,3 +330,4 @@ function setWeatherSectionState(id,on){
   if(!el) return;
   el.classList.toggle('enabled',!!on);
 }
+

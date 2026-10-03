@@ -1,8 +1,8 @@
 // Wind crosses coastlines: never apply the temperature layer's land mask.
-const WIND_CACHE_KEY='balticWeatherWindV2';
+const WIND_CACHE_KEY='balticWeatherWindV3';
 const WIND_CACHE_MS=45*60*1000;
 const WIND_GRIDS=[
-  {south:52,north:73,west:-28,east:36,rows:8,cols:17},
+  {south:48,north:73,west:-28,east:36,rows:8,cols:17},
   {south:53,north:61,west:19,east:31,rows:9,cols:9}
 ];
 let windData=null;
@@ -22,7 +22,18 @@ const WIND_SPEED_BANDS=[
   {min:25,color:'#bd75ff',label:'25+'}
 ];
 
-function windSpeedBand(speed){
+const WIND_GUST_SPEED_BANDS=[
+  ...WIND_SPEED_BANDS.slice(0,-1),
+  {min:25,color:'#bd75ff',label:'25–33'},
+  {min:33,color:'#ff52c8',label:'>33'}
+];
+
+function currentWindMode(){
+  return $('windMode')?.value==='gust'?'gust':'sustained';
+}
+
+function windSpeedBand(speed,mode='sustained'){
+  if(mode==='gust' && speed>33) return WIND_GUST_SPEED_BANDS.length-1;
   let index=0;
   while(index<WIND_SPEED_BANDS.length-1 && speed>=WIND_SPEED_BANDS[index+1].min) index++;
   return index;
@@ -31,7 +42,10 @@ function windSpeedBand(speed){
 function showWindLegend(){
   const legend=$('windLegend');
   if(!legend) return;
-  legend.innerHTML=WIND_SPEED_BANDS.map(band=>
+  const gustMode=currentWindMode()==='gust';
+  const label=$('windLegendLabel');
+  if(label) label.textContent=(gustMode?'Wind gust speed':'Sustained wind speed')+' · m/s';
+  legend.innerHTML=(gustMode?WIND_GUST_SPEED_BANDS:WIND_SPEED_BANDS).map(band=>
     `<span class="wind-speed-key"><i style="background:${band.color}"></i>${band.label}</span>`
   ).join('');
 }
@@ -43,7 +57,10 @@ function windPopupContent(point,unix){
   if(!vector) return '<div class="wind-popup"><b>Wind unavailable</b><p>No wind data for this location at the selected time.</p></div>';
   const speed=Math.hypot(...vector);
   const gust=windGustAt(point.lat,point.lng,slice);
-  const band=WIND_SPEED_BANDS[windSpeedBand(speed)];
+  const mode=currentWindMode();
+  const bands=mode==='gust'?WIND_GUST_SPEED_BANDS:WIND_SPEED_BANDS;
+  const colourSpeed=mode==='gust'?gust:speed;
+  const band=colourSpeed===null?{color:'#8a97a5'}:bands[windSpeedBand(colourSpeed,mode)];
   const bearing=(Math.atan2(-vector[0],-vector[1])*180/Math.PI+360)%360;
   const compass=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
   const direction=speed<0.1?'Calm':`From ${compass[Math.round(bearing/22.5)%16]} · ${Math.round(bearing)%360}°`;
@@ -101,7 +118,7 @@ function windPoints(grid){
 }
 
 function validWindData(data){
-  return data?.version===2 && Number.isFinite(data.savedAt) &&
+  return data?.version===3 && Number.isFinite(data.savedAt) &&
     data.times?.length>=2 && data.times.every(Number.isFinite) &&
     data.times.every((time,i)=>i===0||time>data.times[i-1]) &&
     Array.isArray(data.grids) && data.grids.length===WIND_GRIDS.length &&
@@ -166,7 +183,7 @@ async function fetchWindData(){
     offset+=count;
     return values;
   });
-  const data={version:2,savedAt:Date.now(),times,grids};
+  const data={version:3,savedAt:Date.now(),times,grids};
   if(!validWindData(data)||!grids[0].some(s=>s.some(Boolean))) throw new Error('No usable wind data returned.');
   return data;
 }
@@ -298,7 +315,9 @@ const WindCanvasLayer=L.Layer.extend({
     this._map=null;
   },
   setTime(unix){
-    if(this.unix===unix && this.data===windData) return;
+    const mode=currentWindMode();
+    if(this.unix===unix && this.data===windData && this.mode===mode) return;
+    this.mode=mode;
     this.unix=unix;
     this.data=windData;
     if(this._map) this.reset();
@@ -331,7 +350,14 @@ const WindCanvasLayer=L.Layer.extend({
       for(let col=0;col<this.cols;col++){
         const x=col*this.step,y=row*this.step;
         const ll=this._map.containerPointToLatLng([x,y]);
-        const vector=windAt(ll.lat,ll.lng,slice);
+        let vector=windAt(ll.lat,ll.lng,slice);
+        if(this.mode==='gust'){
+          const gust=windGustAt(ll.lat,ll.lng,slice);
+          // Gust magnitude is an hourly peak. Use modeled wind direction for
+          // its animation; the gust API does not supply a separate direction.
+          vector=vector && gust!==null && (Math.hypot(...vector)>0.01 || gust===0)
+            ? [...vector,gust] : null;
+        }
         this.field.push(vector);
         if(vector&&x<size.x&&y<size.y) seeds.push([x,y]);
       }
@@ -345,7 +371,8 @@ const WindCanvasLayer=L.Layer.extend({
     const density=Number($('windDensity').value)/100;
     const count=Math.min(2400,Math.round(seeds.length*this.step*this.step/900*density));
     this.particles=Array.from({length:count},()=>this.seed(true));
-    this.segments=WIND_SPEED_BANDS.map(()=>[]);
+    this.bands=this.mode==='gust'?WIND_GUST_SPEED_BANDS:WIND_SPEED_BANDS;
+    this.segments=this.bands.map(()=>[]);
     this.canvas.style.visibility='visible';
     this.lastFrame=null;
     this.raf=requestAnimationFrame(t=>this.animate(t));
@@ -360,11 +387,18 @@ const WindCanvasLayer=L.Layer.extend({
     const fx=x/this.step-col,fy=y/this.step-row;
     const indices=[row*this.cols+col,row*this.cols+col+1,(row+1)*this.cols+col,(row+1)*this.cols+col+1];
     const weights=[(1-fx)*(1-fy),fx*(1-fy),(1-fx)*fy,fx*fy];
-    let u=0,v=0;
+    let u=0,v=0,gust=0;
     for(let i=0;i<4;i++){
       const vector=this.field[indices[i]];
       if(!vector) return null;
       u+=vector[0]*weights[i];v+=vector[1]*weights[i];
+      if(this.mode==='gust') gust+=vector[2]*weights[i];
+    }
+    if(this.mode==='gust'){
+      const sustained=Math.hypot(u,v);
+      if(gust===0) return [0,0,0];
+      if(sustained<=0.01) return null;
+      return [u/sustained*gust,v/sustained*gust,gust];
     }
     return [u,v];
   },
@@ -386,20 +420,20 @@ const WindCanvasLayer=L.Layer.extend({
       const vector=this.sample(p.x,p.y);
       p.age+=dt;
       if(!vector||p.age>p.life){this.particles[i]=this.seed();continue;}
-      const speed=Math.hypot(...vector);
+      const speed=this.mode==='gust'?vector[2]:Math.hypot(...vector);
       // 6 screen pixels/second for each m/s. Mercator preserves local angles.
       const scale=dt*6*Math.min(1,45/Math.max(speed,0.01));
       const x=p.x+vector[0]*scale,y=p.y-vector[1]*scale;
       if(speed>0.1 && this.sample(x,y)){
-        this.segments[windSpeedBand(speed)].push(p.x,p.y,x,y);
+        this.segments[windSpeedBand(speed,this.mode)].push(p.x,p.y,x,y);
       }
       p.x=x;p.y=y;
     }
     // One stroke per speed band rather than per particle keeps drawing cheap.
-    for(let band=0;band<WIND_SPEED_BANDS.length;band++){
+    for(let band=0;band<this.bands.length;band++){
       const segments=this.segments[band];
       if(!segments.length) continue;
-      ctx.strokeStyle=WIND_SPEED_BANDS[band].color;
+      ctx.strokeStyle=this.bands[band].color;
       ctx.beginPath();
       for(let i=0;i<segments.length;i+=4){
         ctx.moveTo(segments[i],segments[i+1]);
@@ -421,6 +455,7 @@ function hideWind(){
 
 function renderWind(unix){
   if(!$('windOn').checked) return false;
+  showWindLegend();
   updateWindPopup();
   const slice=windTimeSlice(unix);
   if(!slice){
@@ -434,7 +469,7 @@ function renderWind(unix){
   if(!map.hasLayer(windLayer)) windLayer.addTo(map);
   const covered=windLayer.seeds?.length;
   $('windStatus').textContent=covered
-    ? `10 m model wind · ${fmt(unix)} · land + sea`
+    ? `10 m model ${currentWindMode()==='gust'?'gusts · hourly peaks':'sustained wind'} · ${fmt(unix)} · land + sea`
     : 'Pan to the Baltics, Nordics, Iceland or surrounding seas to see wind.';
   $('windStatus').className=covered?'status ok':'status';
   return true;
