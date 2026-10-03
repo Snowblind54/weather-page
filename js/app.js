@@ -147,19 +147,24 @@ $('timeline').addEventListener('input',()=>{
     $('timeLabel').textContent=
       fmt(frame.time)+(i===frames.length-1?' · latest':'');
 
-    // Clouds are lightweight once cached, so update/crossfade them immediately
-    // while the thumb is moving. Radar + temperature remain debounced.
-    // Debounce requests while scrubbing; retain the old clouds until tiles are ready.
+    // Cached clouds follow the thumb immediately; uncached observations wait
+    // until dragging pauses. Every preview invalidates older pending renders.
+    if($('cloudOn').checked)drawCloud(frame,{cachedOnly:true,scrub:true}).catch(console.error);
     if($('windOn').checked) renderWind(frame.time);
     if(activeAccumulationHours()) queueRainfallRender(90);
   }
 
-  if(timelineDebounceTimer) clearTimeout(timelineDebounceTimer);
-  timelineDebounceTimer=setTimeout(()=>{
-    applyFrame().catch(console.error);
-    if($('cloudOn').checked) scheduleCloudPrecache();
-  },90);
+  if(timelineDebounceTimer)clearTimeout(timelineDebounceTimer);
+  timelineDebounceTimer=setTimeout(settleTimelineSelection,140);
 });
+function settleTimelineSelection(){
+  clearTimeout(timelineDebounceTimer);timelineDebounceTimer=null;
+  const frame=frames[Number($('timeline').value)];
+  if($('cloudOn').checked && frame)drawCloud(frame,{scrub:true}).catch(console.error);
+  applyFrame({skipCloud:true}).catch(console.error);
+}
+// Mouse/touch release and keyboard commits settle without waiting for debounce.
+$('timeline').addEventListener('change',settleTimelineSelection);
 
 $('play').onclick=()=>playing?stop():start();
 $('oldest').onclick=()=>{
