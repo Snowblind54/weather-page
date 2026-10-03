@@ -45,18 +45,7 @@ const seaDepth=L.tileLayer(
 );
 
 
-let cloudLayer=null; // compatibility alias for the foremost cloud layer
-let cloudLayerLow=null;
-let cloudLayerHigh=null;
-let cloudLayerLowSlot=null;
-let cloudLayerHighSlot=null;
-let cloudBlendFraction=0;
-const cloudImageCache=new Map();
-const cloudFramePromises=new Map();
-const CLOUD_CACHE_LIMIT=18;
-let cloudPrecacheTimer=null;
-let cloudPrecacheGeneration=0;
-let cloudProcessingLabel='';
+let cloudLayer=null;
 let radarLayer=null;
 let balticRadarLayer=null;
 let rainviewerData=null;
@@ -92,7 +81,6 @@ let timer=null;
 let h5Ready=null;
 
 let timelineDebounceTimer=null;
-let cloudRenderGeneration=0;
 let radarSwapGeneration=0;
 
 // Incremented whenever a radar render should become obsolete.
@@ -126,8 +114,9 @@ function iso15(unix){
 function weatherFront(){
   if(temperatureLayer && map.hasLayer(temperatureLayer) && temperatureLayer.bringToFront) temperatureLayer.bringToFront();
 
-  if(cloudLayerLow && map.hasLayer(cloudLayerLow) && cloudLayerLow.bringToFront) cloudLayerLow.bringToFront();
-  if(cloudLayerHigh && map.hasLayer(cloudLayerHigh) && cloudLayerHigh.bringToFront) cloudLayerHigh.bringToFront();
+  if(cloudLayer && map.hasLayer(cloudLayer)){
+    cloudLayer.setZIndex(1);L.DomUtil.toFront(cloudLayer.getContainer());
+  }
   if(radarLayer && map.hasLayer(radarLayer) && radarLayer.bringToFront) radarLayer.bringToFront();
 
   if(map.hasLayer(warningLayerGroup)){

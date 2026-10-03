@@ -1,15 +1,26 @@
+let playbackGeneration=0;
 function stop(){
+  playbackGeneration++;
   playing=false;$('play').textContent='▶ Play';
-  if(timer)clearInterval(timer);timer=null;
+  if(timer)clearTimeout(timer);timer=null;
 }
 function start(){
+  stop();requestCloudHistory();
   playing=true;$('play').textContent='❚❚ Pause';
-  timer=setInterval(async()=>{
+  const generation=playbackGeneration;
+  async function step(){
+    if(!playing || generation!==playbackGeneration)return;
+    const started=performance.now();
     let i=Number($('timeline').value)+1;
-    if(i>Number($('timeline').max)) i=Number($('timeline').min);
+    if(i>Number($('timeline').max))i=Number($('timeline').min);
     $('timeline').value=i;
-    applyFrame().catch(console.error);
-  },850);
+    try{await applyFrame({awaitCloud:true});}catch(e){console.error(e);}
+    if(playing && generation===playbackGeneration){
+      timer=setTimeout(step,Math.max(50,1100-(performance.now()-started)));
+    }
+  }
+  // Let the first buffered frame start loading before advancing the timeline.
+  scheduleCloudPrecache();timer=setTimeout(step,250);
 }
 
 $('locateBtn').addEventListener('click',showMyLocation);
@@ -140,7 +151,7 @@ $('radarOn').addEventListener('change',async()=>{
 });
 
 $('timeline').addEventListener('input',()=>{
-  stop();
+  stop();requestCloudHistory();
 
   const i=Number($('timeline').value);
   const frame=frames[i];
@@ -151,26 +162,26 @@ $('timeline').addEventListener('input',()=>{
 
     // Clouds are lightweight once cached, so update/crossfade them immediately
     // while the thumb is moving. Radar + temperature remain debounced.
-    if($('cloudOn').checked) drawCloud(frame,i).catch(console.error);
+    // Debounce requests while scrubbing; retain the old clouds until tiles are ready.
     if($('windOn').checked) renderWind(frame.time);
     if(activeAccumulationHours()) queueRainfallRender(90);
   }
 
   if(timelineDebounceTimer) clearTimeout(timelineDebounceTimer);
   timelineDebounceTimer=setTimeout(()=>{
-    applyFrame({skipCloud:true}).catch(console.error);
+    applyFrame().catch(console.error);
     if($('cloudOn').checked) scheduleCloudPrecache();
   },90);
 });
 
 $('play').onclick=()=>playing?stop():start();
 $('oldest').onclick=()=>{
-  stop();
+  stop();requestCloudHistory();
   $('timeline').value=$('timeline').min;
   applyFrame().catch(console.error);
 };
 $('latest').onclick=()=>{
-  stop();
+  stop();requestCloudHistory();
   $('timeline').value=$('timeline').max;
   applyFrame().catch(console.error);
 };
@@ -227,7 +238,7 @@ if('requestIdleCallback' in window){
 }else{
   setTimeout(startTemperaturePrefetch,6000);
 }
-setInterval(()=>loadOfficialRadarList().catch(()=>{}),5*60*1000);
+setInterval(()=>{if(!playing && Number($('timeline').value)===Number($('timeline').max))loadOfficialRadarList().catch(()=>{});},5*60*1000);
 setInterval(()=>{
   if($('tempOn').checked) loadTemperatures(false).catch(()=>{});
 },10*60*1000);

@@ -404,7 +404,8 @@ async function applyFrame(options={}){
     queueTemperatureRender(frame.time,55);
   }
 
-  if(!options.skipCloud) drawCloud(frame,i).catch(console.error);
+  const cloudTask=options.skipCloud?Promise.resolve():drawCloud(frame,i).catch(console.error);
+  if(options.awaitCloud) await cloudTask;
   await drawRadar(frame);
   await drawDirectNationalRadars(frame.time);
 }

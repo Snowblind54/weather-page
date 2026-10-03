@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.17</title>
+<title>Baltic Weather Map v8.18</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
@@ -15,7 +15,7 @@
 
 <div class="panel">
   <h1>Baltic Weather Map</h1>
-  <div class="subtitle">Serverless v8.17 · GeoColour by day · IR10.5 by night</div>
+  <div class="subtitle">Serverless v8.18 · Visible clouds by day · Infrared by night</div>
 
   <div class="row wrap">
     <div>
@@ -83,15 +83,15 @@
 
   <div class="section weather-section" id="cloudSection">
     <div class="row">
-      <label class="label"><input id="cloudOn" type="checkbox"> Satellite clouds · Baltics</label>
-      <span class="badge">EUMETSAT GeoColour</span>
+      <label class="label"><input id="cloudOn" type="checkbox"> Satellite clouds · Atlantic & Europe</label>
+      <span class="badge">Meteosat + GOES</span>
     </div>
     <div class="details">
       <div class="grid2">
         <input id="cloudOpacity" type="range" min="0" max="100" value="60">
         <span id="cloudOpacityVal" class="value">60%</span>
       </div>
-      <div class="small">Processed Meteosat imagery for Estonia, Latvia and Lithuania. Frames are preloaded and cross-faded for smoother motion; the newest frame also uses an explicit satellite timestamp.</div>
+      <div class="small">Transparent satellite clouds from the eastern US across the Atlantic to Europe and Moscow (85°W–42°E, 25–82°N). GeoColour / visible imagery by local daylight; infrared at night. Only visible tiles load. Play or move the timeline to buffer animation, with smooth transitions. Northern GOES imagery can arrive later; actual observation times appear below. Far Arctic areas beyond satellite visibility stay transparent.</div>
       <div id="cloudStatus" class="status">Cloud layer is off.</div>
     </div>
   </div>
@@ -195,16 +195,16 @@
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
-<script src="js/config.js?v=8.7"></script>
-<script src="js/map.js?v=8.14.1"></script>
+<script src="js/config.js?v=8.18"></script>
+<script src="js/map.js?v=8.18"></script>
 <script src="js/latvia-warnings.js?v=8.9"></script>
 <script src="js/national-warnings.js?v=8.13"></script>
 <script src="js/warnings.js?v=8.13"></script>
 <script src="js/warning-filters.js?v=8.13"></script>
 <script src="js/temperature.js?v=8.12"></script>
 <script src="js/stations.js?v=8.12"></script>
-<script src="js/clouds.js?v=8.7"></script>
-<script src="js/radar.js?v=8.14"></script>
+<script src="js/clouds.js?v=8.18"></script>
+<script src="js/radar.js?v=8.18"></script>
 <script src="js/radar-history.js?v=8.7"></script>
 <script src="js/radar-capture.js?v=8.7"></script>
 <script src="js/wind.js?v=8.17.1"></script>
@@ -212,6 +212,6 @@
 <script src="js/rainfall.js?v=8.15.1"></script>
 <script src="js/bathymetry.js?v=8.14.1"></script>
 <script src="js/cyclones.js?v=8.17"></script>
-<script src="js/app.js?v=8.16"></script>
+<script src="js/app.js?v=8.18"></script>
 </body>
 </html>
