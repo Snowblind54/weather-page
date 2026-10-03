@@ -14,42 +14,37 @@ let windLayer=null;
 let windProbe=null;
 let windPopup=null;
 
-// Display bands in m/s; these are a visual scale, not warning thresholds.
-const WIND_SPEED_BANDS=[
-  {min:0,color:'#8fdcff',label:'0–3'},
-  {min:3,color:'#45dfac',label:'3–6'},
-  {min:6,color:'#f5e653',label:'6–10'},
-  {min:10,color:'#ffad42',label:'10–15'},
-  {min:15,color:'#ff585d',label:'15–25'},
-  {min:25,color:'#bd75ff',label:'25+'}
+// Continuous colour stops in m/s; these are visual anchors, not alert levels.
+const WIND_COLOUR_STOPS=[
+  {speed:0,color:'#8fdcff'}, {speed:3,color:'#45dfac'},
+  {speed:6,color:'#f5e653'}, {speed:10,color:'#ffad42'},
+  {speed:15,color:'#ff585d'}, {speed:25,color:'#bd75ff'}
 ];
-
-const WIND_GUST_SPEED_BANDS=[
-  ...WIND_SPEED_BANDS.slice(0,-1),
-  {min:25,color:'#bd75ff',label:'25–33'},
-  {min:33,color:'#ff52c8',label:'>33'}
-];
-
-function currentWindMode(){
-  return $('windMode')?.value==='gust'?'gust':'sustained';
+const WIND_GUST_COLOUR_STOPS=[...WIND_COLOUR_STOPS,{speed:33,color:'#ff52c8'}];
+const WIND_COLOUR_STEP=.5,WIND_COLOUR_MAX=50;
+function currentWindMode(){return $('windMode')?.value==='gust'?'gust':'sustained';}
+function windColour(speed,mode='sustained'){
+  if(!Number.isFinite(speed))return '#8a97a5';
+  const stops=mode==='gust'?WIND_GUST_COLOUR_STOPS:WIND_COLOUR_STOPS;
+  speed=Math.max(0,speed);
+  if(speed>=stops.at(-1).speed)return stops.at(-1).color;
+  const index=stops.findIndex((stop,i)=>i>0 && speed<=stop.speed);
+  const a=stops[index-1],b=stops[index],f=(speed-a.speed)/(b.speed-a.speed);
+  const channel=(colour,offset)=>parseInt(colour.slice(offset,offset+2),16);
+  return '#'+[1,3,5].map(offset=>Math.round(channel(a.color,offset)+(channel(b.color,offset)-channel(a.color,offset))*f).toString(16).padStart(2,'0')).join('');
 }
-
-function windSpeedBand(speed,mode='sustained'){
-  if(mode==='gust' && speed>33) return WIND_GUST_SPEED_BANDS.length-1;
-  let index=0;
-  while(index<WIND_SPEED_BANDS.length-1 && speed>=WIND_SPEED_BANDS[index+1].min) index++;
-  return index;
-}
-
+function windColourIndex(speed){return Math.round(Math.max(0,Math.min(WIND_COLOUR_MAX,speed))/WIND_COLOUR_STEP);}
+const WIND_COLOUR_PALETTES=Object.fromEntries(['sustained','gust'].map(mode=>[
+  mode,Array.from({length:WIND_COLOUR_MAX/WIND_COLOUR_STEP+1},(_,i)=>windColour(i*WIND_COLOUR_STEP,mode))
+]));
 function showWindLegend(){
-  const legend=$('windLegend');
-  if(!legend) return;
-  const gustMode=currentWindMode()==='gust';
-  const label=$('windLegendLabel');
-  if(label) label.textContent=(gustMode?'Wind gust speed':'Sustained wind speed')+' · m/s';
-  legend.innerHTML=(gustMode?WIND_GUST_SPEED_BANDS:WIND_SPEED_BANDS).map(band=>
-    `<span class="wind-speed-key"><i style="background:${band.color}"></i>${band.label}</span>`
-  ).join('');
+  const legend=$('windLegend');if(!legend)return;
+  const mode=currentWindMode(),gust=mode==='gust',max=gust?33:25;
+  const stops=gust?WIND_GUST_COLOUR_STOPS:WIND_COLOUR_STOPS;
+  $('windLegendLabel').textContent=(gust?'Wind gust speed':'Sustained wind speed')+' · m/s';
+  const gradient=stops.map(s=>s.color+' '+s.speed/max*100+'%').join(',');
+  const ticks=gust?[0,5,10,15,25,33]:[0,5,10,15,20,25];
+  legend.innerHTML='<div class="wind-gradient" style="background:linear-gradient(90deg,'+gradient+')"></div><div class="wind-gradient-ticks">'+ticks.map(speed=>'<span style="left:'+speed/max*100+'%">'+speed+(speed===max?'+':'')+'</span>').join('')+'</div>';
 }
 showWindLegend();
 
@@ -60,15 +55,14 @@ function windPopupContent(point,unix){
   const speed=Math.hypot(...vector);
   const gust=windGustAt(point.lat,point.lng,slice);
   const mode=currentWindMode();
-  const bands=mode==='gust'?WIND_GUST_SPEED_BANDS:WIND_SPEED_BANDS;
   const colourSpeed=mode==='gust'?gust:speed;
-  const band=colourSpeed===null?{color:'#8a97a5'}:bands[windSpeedBand(colourSpeed,mode)];
+  const colour=windColour(colourSpeed,mode);
   const bearing=(Math.atan2(-vector[0],-vector[1])*180/Math.PI+360)%360;
   const compass=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
   const direction=speed<0.1?'Calm':`From ${compass[Math.round(bearing/22.5)%16]} · ${Math.round(bearing)%360}°`;
   const lon=((point.lng+180)%360+360)%360-180;
   return `<div class="wind-popup">
-    <div class="wind-popup-heading"><i style="background:${band.color}"></i>Wind at this point</div>
+    <div class="wind-popup-heading"><i style="background:${colour}"></i>Wind at this point</div>
     <div class="wind-popup-readings">
       <div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${speed.toFixed(1)} <span>m/s</span></div></div>
       <div><div class="wind-popup-label">Wind gusts</div><div class="wind-popup-speed">${gust===null?'<span>Unavailable</span>':gust.toFixed(1)+' <span>m/s</span>'}</div></div>
@@ -376,8 +370,8 @@ const WindCanvasLayer=L.Layer.extend({
     const density=Number($('windDensity').value)/100;
     const count=Math.min(2400,Math.round(seeds.length*this.step*this.step/900*density));
     this.particles=Array.from({length:count},()=>this.seed(true));
-    this.bands=this.mode==='gust'?WIND_GUST_SPEED_BANDS:WIND_SPEED_BANDS;
-    this.segments=this.bands.map(()=>[]);
+    this.colours=WIND_COLOUR_PALETTES[this.mode];
+    this.segments=this.colours.map(()=>[]);
     this.canvas.style.visibility='visible';
     this.lastFrame=null;
     this.raf=requestAnimationFrame(t=>this.animate(t));
@@ -430,15 +424,15 @@ const WindCanvasLayer=L.Layer.extend({
       const scale=dt*6*Math.min(1,45/Math.max(speed,0.01));
       const x=p.x+vector[0]*scale,y=p.y-vector[1]*scale;
       if(speed>0.1 && this.sample(x,y)){
-        this.segments[windSpeedBand(speed,this.mode)].push(p.x,p.y,x,y);
+        this.segments[windColourIndex(speed)].push(p.x,p.y,x,y);
       }
       p.x=x;p.y=y;
     }
-    // One stroke per speed band rather than per particle keeps drawing cheap.
-    for(let band=0;band<this.bands.length;band++){
+    // Fine colour buckets keep the gradient smooth without a stroke per particle.
+    for(let band=0;band<this.colours.length;band++){
       const segments=this.segments[band];
       if(!segments.length) continue;
-      ctx.strokeStyle=this.bands[band].color;
+      ctx.strokeStyle=this.colours[band];
       ctx.beginPath();
       for(let i=0;i<segments.length;i+=4){
         ctx.moveTo(segments[i],segments[i+1]);

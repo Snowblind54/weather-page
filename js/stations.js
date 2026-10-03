@@ -560,13 +560,13 @@ const loadTemperaturesModelOnly=loadTemperatures;
 loadTemperatures=async function(force=false){
   const results=await Promise.allSettled([
     loadTemperaturesModelOnly(force),
-    loadOfficialTemperatureStations(force)
+    $('tempOn').checked?loadOfficialTemperatureStations(force):Promise.resolve()
   ]);
 
   if(results[0].status==='rejected') throw results[0].reason;
 
   const frame=frames[Number($('timeline').value)];
-  if(frame && $('tempOn').checked) queueTemperatureRender(frame.time,0);
+  if(frame && temperatureEnabled()) queueTemperatureRender(frame.time,0);
 };
 
 const buildTemperatureOverlayModelOnly=buildTemperatureOverlay;

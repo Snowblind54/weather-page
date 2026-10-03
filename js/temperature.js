@@ -1,3 +1,4 @@
+function temperatureEnabled(){return $('tempOn').checked || $('heatmapOn').checked;}
 const TEMP_BOUNDS=[[53.70,20.40],[59.90,28.50]];
 const TEMP_REGIONS=[
   {id:'baltics',bounds:[[53.70,20.40],[59.90,28.50]],w:260,h:205},
@@ -578,7 +579,7 @@ async function createTemperatureImage(unix, token){
 }
 
 async function buildTemperatureOverlay(unix,{precache=false}={}){
-  if(!$('tempOn').checked || !temperatureSeries.length) return;
+  if(!temperatureEnabled() || !temperatureSeries.length) return;
 
   // Station readings do not depend on loading or rendering a heatmap.
   if(!$('heatmapOn')?.checked){
@@ -597,7 +598,7 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   renderTemperatureLabels(unix);
   const token=temperatureRenderToken;
   const result=await createTemperatureImage(unix,token);
-  if(!result || token!==temperatureRenderToken || !$('tempOn').checked) return;
+  if(!result || token!==temperatureRenderToken || !temperatureEnabled()) return;
   if(precache) return;
 
   if(temperatureLayer){
@@ -647,7 +648,7 @@ function scheduleTemperaturePrecache(centerUnix){
   if(temperaturePrecacheTimer) clearTimeout(temperaturePrecacheTimer);
 
   temperaturePrecacheTimer=setTimeout(async()=>{
-    if(!$('tempOn').checked || !temperatureSeries.length) return;
+    if(!$('heatmapOn').checked || !temperatureSeries.length) return;
 
     const center=nearestQuarterHour(centerUnix);
     const candidates=[
@@ -658,7 +659,7 @@ function scheduleTemperaturePrecache(centerUnix){
     ];
 
     for(const t of candidates){
-      if(!$('tempOn').checked) break;
+      if(!$('heatmapOn').checked) break;
       if(temperatureImageCache.has(t)) continue;
 
       // Give the UI a moment between background frames.
@@ -790,7 +791,7 @@ async function ensureTemperatureData(force=false){
   if(temperatureLoadPromise) return temperatureLoadPromise;
 
   temperatureLoadPromise=(async()=>{
-    if($('tempOn')?.checked){
+    if(temperatureEnabled()){
       $('tempStatus').textContent='Temperature: loading regional model data…';
       $('tempStatus').className='status';
     }
@@ -824,7 +825,7 @@ async function loadTemperatures(force=false){
 
   const i=Number($('timeline').value);
   const frame=frames[i];
-  if(frame && $('tempOn').checked) queueTemperatureRender(frame.time,0);
+  if(frame && temperatureEnabled()) queueTemperatureRender(frame.time,0);
 }
 
 async function prefetchTemperatures(){

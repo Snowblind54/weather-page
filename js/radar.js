@@ -409,7 +409,7 @@ async function applyFrame(options={}){
   if($('windOn').checked) renderWind(frame.time);
   if(typeof activeAccumulationHours==='function' && activeAccumulationHours()) queueRainfallRender(55);
 
-  if($('tempOn').checked && temperatureSeries.length){
+  if(temperatureEnabled() && temperatureSeries.length){
     queueTemperatureRender(frame.time,55);
   }
 
