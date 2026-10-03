@@ -66,38 +66,23 @@ $('warningOn').addEventListener('change',async()=>{
   }
 });
 
-$('tempOn').addEventListener('change',async()=>{
-  if(!$('tempOn').checked){
-    temperatureRenderToken++;
-    if(temperatureDebounceTimer) clearTimeout(temperatureDebounceTimer);
-    if(temperaturePrecacheTimer) clearTimeout(temperaturePrecacheTimer);
-
-    if(temperatureLayer){
-      map.removeLayer(temperatureLayer);
-      temperatureLayer=null;
-    }
-    if(map.hasLayer(temperatureLabels)) map.removeLayer(temperatureLabels);
-
-    $('tempStatus').textContent='Temperature: hidden.';
-    $('tempStatus').className='status';
-    return;
+async function updateTemperatureVisibility(){
+  temperatureRenderToken++;
+  if(temperatureDebounceTimer)clearTimeout(temperatureDebounceTimer);
+  if(temperaturePrecacheTimer)clearTimeout(temperaturePrecacheTimer);
+  if(!$('tempOn').checked && map.hasLayer(temperatureLabels))map.removeLayer(temperatureLabels);
+  if(!$('heatmapOn').checked && temperatureLayer){map.removeLayer(temperatureLayer);temperatureLayer=null;}
+  if(!temperatureEnabled()){
+    $('tempStatus').textContent='Temperature layers are off.';
+    $('tempStatus').className='status';return;
   }
-  try{
-    await loadTemperatures();
-  }catch(e){
-    console.error(e);
-    $('tempStatus').textContent=e.rateLimited
-      ? 'Temperature service is rate limited right now. Please try again in about a minute.'
-      : 'Temperature layer could not load: '+e.message;
+  try{await loadTemperatures();}catch(e){
+    $('tempStatus').textContent=e.rateLimited?'Temperature service is rate limited. Please try again in about a minute.':'Temperature could not load: '+e.message;
     $('tempStatus').className=e.rateLimited?'status warn':'status bad';
   }
-});
-
-$('heatmapOn').addEventListener('change',()=>{
-  const i=Number($('timeline').value);
-  const frame=frames[i];
-  if(frame && $('tempOn').checked) queueTemperatureRender(frame.time,0);
-});
+}
+$('tempOn').addEventListener('change',updateTemperatureVisibility);
+$('heatmapOn').addEventListener('change',updateTemperatureVisibility);
 
 $('windOn').addEventListener('change',()=>{
   if($('windOn').checked) loadWind().catch(reportWindError);
@@ -196,7 +181,7 @@ $('refresh').onclick=async()=>{
     // A manual refresh should bypass the short LV/LT processed-image cache.
     if($('radarOn').checked) directRadarImageCache.clear();
     await loadOfficialRadarList();
-    if($('tempOn').checked) await loadTemperatures(true);
+    if(temperatureEnabled()) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);
     if($('windOn').checked) await loadWind().catch(reportWindError);
     $('mapStatus').textContent='Refresh complete.';
@@ -242,7 +227,7 @@ if('requestIdleCallback' in window){
 }
 setInterval(()=>{if(!playing && Number($('timeline').value)===Number($('timeline').max))loadOfficialRadarList().catch(()=>{});},5*60*1000);
 setInterval(()=>{
-  if($('tempOn').checked) loadTemperatures(false).catch(()=>{});
+  if(temperatureEnabled()) loadTemperatures(false).catch(()=>{});
 },10*60*1000);
 
 setInterval(()=>{

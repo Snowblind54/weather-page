@@ -167,7 +167,7 @@ button{font-size:12px;font-weight:600;border-color:var(--border);background:#fff
 button:hover{background:#ffffff13;border-color:#ffffff38}
 button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
-svg{width:21px;height:21px;flex-shrink:0}
+.topbar svg{width:21px;height:21px;flex-shrink:0}
 .topbar{position:absolute;z-index:2100;left:16px;right:16px;top:max(16px,env(safe-area-inset-top));display:flex;align-items:center;gap:22px;padding:10px 14px;background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);backdrop-filter:blur(18px)}
 .brand{display:flex;align-items:center;gap:10px;flex-shrink:0;padding:0 10px 0 2px;border-right:1px solid var(--border)}
 .brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#83e5cd16;color:var(--accent)}
@@ -243,3 +243,10 @@ svg{width:21px;height:21px;flex-shrink:0}
 @media(max-width:380px){.timeline-jumps{margin-top:6px}.weather-panel{max-height:calc(100dvh - 360px)}.timeline-ticks{font-size:9px}}
 @media(max-height:650px) and (min-width:761px){.weather-panel{max-height:calc(100dvh - 200px)}.timeline-dock{bottom:16px}}
 @media(prefers-reduced-motion:reduce){.weather-panel,.source-card{animation:none}button{transition:none}}
+
+.wind-speed-legend{display:block;margin:9px 0 17px}
+.wind-gradient{height:8px;border-radius:99px}
+.wind-gradient-ticks{position:relative;height:18px;margin-top:6px;color:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
+.wind-gradient-ticks span{position:absolute;transform:translateX(-50%)}
+.wind-gradient-ticks span:first-child{transform:none}
+.wind-gradient-ticks span:last-child{transform:translateX(-100%)}
