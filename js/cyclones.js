@@ -213,7 +213,7 @@ function renderCyclones(){
     else closeCyclonePopup();
   }
   const old=Date.now()/1000-cycloneData.modelRun>12*3600;
-  $('cycloneStatus').textContent=shown.size+' '+(shown.size===1?'system':'systems')+' across the region · '+(hour?'forecast':'modelled current positions')+
+  $('cycloneStatus').textContent=shown.size+' '+(shown.size===1?'system':'systems')+' across the region · '+(hour<0?'tracked history':hour?'forecast':'modelled current positions')+
     ' · model run '+fmt(cycloneData.modelRun)+(cycloneData.status==='error'||cycloneRefreshFailed?' · latest refresh failed; using previous forecast':old?' · older model run':'');
   $('cycloneStatus').className='status '+(old||cycloneData.status==='error'||cycloneRefreshFailed?'warn':'ok');
 }
