@@ -13,6 +13,7 @@ function harness(){
     setTimeout:(fn,delay)=>{timeouts.push({fn,delay});return timeouts.length;},clearTimeout(){},
     requestAnimationFrame:fn=>fn(performance.now()+1000)};
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/cloud-pixels.js'),'utf8'),context);
   vm.runInContext(source,context);
   vm.runInContext(`for(const p of Object.values(cloudProducts))p.latest={[p.day]:9000,[p.night]:9000,'msg_fes:clm':9000}`,context);
   return {context,elements,layers,events,timeouts,run:s=>vm.runInContext(s,context)};
@@ -109,4 +110,41 @@ test('playback waits for the displayed frame and does not overlap asynchronous s
   assert.equal(h.elements.timeline.value,'0');assert.equal(h.timeouts.at(-1),first,'initial observation stays visible until buffering completes');
   release();await step;assert(h.timeouts.length>1);
   h.run('stop()');const count=h.timeouts.length;await h.timeouts.at(-1).fn();assert.equal(h.timeouts.length,count);
+});
+test('wide tiles have one quarter of the pixels and close zooms retain full-resolution requests',()=>{
+  const h=harness();
+  const wide=new URL(h.run("cloudMapUrl(cloudProducts.eumet,'mtg_fd:rgb_geocolour',9000,{z:3,x:4,y:2})"));
+  const close=new URL(h.run("cloudMapUrl(cloudProducts.eumet,'mtg_fd:rgb_geocolour',9000,{z:5,x:18,y:9})"));
+  assert.equal(wide.searchParams.get('width'),'136');assert.equal(close.searchParams.get('width'),'272');
+  assert.equal(h.run('cloudTileResolution({z:4})'),128);assert.equal(h.run('cloudTileResolution({z:5})'),256);
+  h.run('frames=Array.from({length:24},(_,i)=>({time:10000+i*300}));cloudLayer={_tileZoom:3,_tiles:{a:{current:true,coords:{z:3,x:4,y:2}}}}');
+  assert.equal(h.run('cloudUpcomingFrames().length'),6);
+});
+test('background worker produces identical pixels and transfers buffers for both resolutions',async()=>{
+  const {Worker}=require('node:worker_threads');
+  const h=harness();
+  const workerSource=fs.readFileSync(path.join(__dirname,'../js/cloud-worker.js'),'utf8');
+  const pixelSource=fs.readFileSync(path.join(__dirname,'../js/cloud-pixels.js'),'utf8');
+  const worker=new Worker(`const {parentPort}=require('node:worker_threads'),vm=require('node:vm');
+    const context={self:{postMessage:(data,transfer)=>parentPort.postMessage(data,transfer)},console};
+    vm.createContext(context);context.importScripts=()=>vm.runInContext(${JSON.stringify(pixelSource)},context);
+    vm.runInContext(${JSON.stringify(workerSource)},context);
+    parentPort.on('message',data=>context.self.onmessage({data}));`,{eval:true});
+  try{
+    for(const size of [128,256]){
+      const side=size*17/16,day=new Uint8ClampedArray(side*side*4);
+      for(let i=0;i<day.length;i+=4){day[i]=220;day[i+1]=225;day[i+2]=230;day[i+3]=255;}
+      const time=Date.parse('2026-09-22T12:00:00Z')/1000;
+      const sources=[{id:'eumet',day,night:null,mask:null,dayTime:time,nightTime:time}];
+      h.context.pixelFixture={sources,coords:{z:5,x:18,y:9},size};
+      const expected=h.run('cloudProcessPixels(pixelFixture.coords,pixelFixture.sources,pixelFixture.size)');
+      const result=await new Promise((resolve,reject)=>{
+        worker.once('error',reject);worker.once('message',resolve);
+        worker.postMessage({id:size,coords:{z:5,x:18,y:9},sources,size},[day.buffer]);
+      });
+      assert.equal(day.byteLength,0,'inputs are transferred rather than copied');
+      assert.equal(result.pixels.length,size*size*4);assert.deepEqual([...result.pixels],[...expected]);
+      assert(result.pixels.some(x=>x>0));
+    }
+  }finally{await worker.terminate();}
 });
