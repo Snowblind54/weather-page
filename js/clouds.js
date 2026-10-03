@@ -89,19 +89,29 @@ function cloudTimeEntries(text){
   }
   return times.filter(t=>t>=Date.now()/1000-5*3600).sort((a,b)=>a-b);
 }
-async function cloudFetch(url,type='text',timeout=16000){
-  const ctrl=new AbortController();cloudControllers.add(ctrl);
-  const timer=setTimeout(()=>ctrl.abort(),timeout);
-  try{
-    const response=await fetch(url,{signal:ctrl.signal,cache:'default'});
-    if(!response.ok) throw new Error('Satellite HTTP '+response.status);
-    if(type==='blob'){
-      const blob=await response.blob();
-      if(!blob.type.startsWith('image/'))throw new Error('Satellite returned non-image data');
-      return blob;
-    }
-    return await response.text();
-  }finally{clearTimeout(timer);cloudControllers.delete(ctrl);}
+async function cloudFetch(url,type='text',timeout=12000){
+  const session=cloudSession;
+  let lastError;
+  // Reuse the same CORS relay as national radar/station layers when direct access fails.
+  for(const candidate of [url,'https://proxy.cors.dev/'+url]){
+    const ctrl=new AbortController();cloudControllers.add(ctrl);
+    const timer=setTimeout(()=>ctrl.abort(),timeout);
+    try{
+      const response=await fetch(candidate,{signal:ctrl.signal,cache:'default'});
+      if(!response.ok)throw new Error('Satellite HTTP '+response.status);
+      if(type==='blob'){
+        const blob=await response.blob();
+        if(!blob.type.startsWith('image/'))throw new Error('Satellite returned non-image data');
+        return blob;
+      }
+      return await response.text();
+    }catch(error){
+      lastError=error;
+      if(session!==cloudSession)throw error;
+      if(error.message==='Satellite HTTP 429')throw error;
+    }finally{clearTimeout(timer);cloudControllers.delete(ctrl);}
+  }
+  throw lastError;
 }
 function cloudViewportSources(){
   const z=Math.min(6,Math.round(map.getZoom())),bounds=map.getBounds();
