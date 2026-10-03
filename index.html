@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Baltic Weather Map v8.22</title>
+<title>Baltic Weather Map v8.23</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.22">
+<link rel="stylesheet" href="css/style.css?v=8.23">
 </head>
 <body>
 
@@ -142,8 +142,8 @@
     </div>
   </div>
 
-<div class="timeline-dock" aria-label="Weather observation timeline">
-    <div class="timeline-heading"><span class="timeline-dot" aria-hidden="true"></span><span class="label">2-hour timeline</span><button id="play">▶ Play</button></div>
+<div class="timeline-dock" aria-label="Weather observation timeline" aria-busy="false">
+    <div class="timeline-heading"><span class="timeline-dot" aria-hidden="true"></span><span class="label">2-hour timeline</span><span id="timelineLoading" class="timeline-loading" role="status" aria-live="polite" hidden><span class="timeline-spinner" aria-hidden="true"></span><span id="timelineLoadingText">Loading data…</span></span><button id="play">▶ Play</button></div>
     <input id="timeline" type="range" min="0" max="0" value="0" step="1" aria-label="Weather observation time" aria-describedby="timeLabel">
     <div id="timelineTicks" class="timeline-ticks" aria-hidden="true"><span>−2 h</span><span>−90 min</span><span>−1 h</span><span>−30 min</span><span>Now</span></div><div id="timeLabel" class="timeline-current">Loading radar frames…</div>
     <div class="timeline-jumps"><button id="oldest">← Oldest</button><button id="latest">Latest →</button></div>
@@ -192,18 +192,18 @@
 <script src="js/national-warnings.js?v=8.13"></script>
 <script src="js/warnings.js?v=8.13"></script>
 <script src="js/warning-filters.js?v=8.13"></script>
-<script src="js/temperature.js?v=8.22"></script>
-<script src="js/stations.js?v=8.22"></script>
+<script src="js/temperature.js?v=8.23"></script>
+<script src="js/stations.js?v=8.23"></script>
 <script src="js/cloud-pixels.js?v=8.19"></script>
 <script src="js/clouds.js?v=8.20.1"></script>
-<script src="js/radar.js?v=8.22"></script>
+<script src="js/radar.js?v=8.23"></script>
 <script src="js/radar-history.js?v=8.7"></script>
 <script src="js/radar-capture.js?v=8.7"></script>
-<script src="js/wind.js?v=8.22"></script>
+<script src="js/wind.js?v=8.23"></script>
 <script src="js/official-rainfall.js?v=8.21"></script>
 <script src="js/rainfall.js?v=8.15.1"></script>
 <script src="js/bathymetry.js?v=8.21"></script>
 <script src="js/cyclones.js?v=8.19"></script>
-<script src="js/app.js?v=8.22"></script>
-<script src="js/ui.js?v=8.22"></script></body>
+<script src="js/app.js?v=8.23"></script>
+<script src="js/ui.js?v=8.23"></script></body>
 </html>

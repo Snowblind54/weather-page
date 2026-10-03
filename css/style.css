@@ -219,14 +219,14 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 .warning-card{background:#ffffff05;border-color:var(--border);padding:12px}
 .warning-card:hover{background:#ffffff0b}
 .timebox{background:#ffffff05;border-color:var(--border);font-size:12px;padding:10px}
-.timeline-dock{position:absolute;z-index:1800;bottom:max(24px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(760px,calc(100vw - 340px));padding:13px 18px 10px;border-radius:17px;border:1px solid var(--border);background:var(--panel);box-shadow:var(--shadow);backdrop-filter:blur(18px)}
-.timeline-heading{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.timeline-dock{position:absolute;z-index:1800;bottom:max(24px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(760px,calc(100vw - 340px));padding:8px 16px 7px;border-radius:14px;border:1px solid var(--border);background:var(--panel);box-shadow:var(--shadow);backdrop-filter:blur(18px)}
+.timeline-heading{display:flex;align-items:center;gap:8px;margin:0 0 3px}
 .timeline-heading .label{font-size:11px;letter-spacing:.15px;font-weight:600}
 .timeline-dot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
-.timeline-heading button{margin-left:auto;font-size:11px;padding:6px 12px;border-radius:8px;min-width:75px}
+.timeline-heading button{margin-left:auto;font-size:11px;padding:4px 10px;border-radius:7px;min-width:70px}
 .timeline-dock input{display:block;height:17px;margin:0;accent-color:var(--accent);cursor:pointer;--progress:100%}
 .timeline-ticks{display:flex;justify-content:space-between;gap:8px;margin:4px 0 0;padding:0 6px;font-size:10px;font-variant-numeric:tabular-nums;color:var(--muted)}
-.timeline-current{font-size:11px;font-variant-numeric:tabular-nums;text-align:center;color:#d4e3eb;line-height:1.5;margin-top:9px}
+.timeline-current{font-size:11px;font-variant-numeric:tabular-nums;text-align:center;color:#d4e3eb;line-height:1.4;margin-top:5px}
 .timeline-jumps{display:flex;justify-content:space-between;margin-top:-20px;pointer-events:none}
 .timeline-jumps button{pointer-events:auto;background:transparent;border:0;padding:2px 0;font-size:10px;color:var(--muted)}
 .basemap-switch{position:absolute;z-index:1800;right:16px;bottom:max(30px,calc(env(safe-area-inset-bottom) + 22px));display:flex;gap:3px;padding:5px;border:1px solid var(--border);border-radius:13px;background:var(--panel);box-shadow:var(--shadow);backdrop-filter:blur(16px)}
@@ -239,7 +239,7 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 .leaflet-control-attribution a{color:#aee4d8!important}
 @media(max-width:1100px){.topbar{gap:10px}.brand{gap:8px}.brand h1{font-size:13px}.brand .subtitle{display:none}.brand-mark{width:30px;height:30px}.category-tab{gap:6px;padding:12px 10px;font-size:12px}}
 @media(max-width:900px){.category-tab svg{display:none}.timeline-dock{left:16px;transform:none;width:calc(100vw - 285px)}.timeline-current{font-size:10px}.timeline-jumps{margin-top:5px}}
-@media(max-width:760px){.topbar{left:10px;right:10px;top:max(10px,env(safe-area-inset-top));padding:10px;flex-wrap:wrap;gap:9px;border-radius:16px}.brand{border:0;flex:1}.brand .subtitle{display:block;font-size:9px}.brand h1{font-size:14px}.utility-button{width:32px;height:32px;order:1}.category-nav{order:2;flex-basis:100%;overflow-x:auto;justify-content:flex-start;gap:4px;scrollbar-width:none}.category-nav::-webkit-scrollbar{display:none}.category-tab{padding:10px 13px;font-size:12px;flex-shrink:0}.weather-panel{top:132px;left:12px!important;width:calc(100vw - 24px);padding:18px;max-height:calc(100dvh - 340px)}.panel-heading{padding-bottom:16px}.panel-heading h2{font-size:23px}.timeline-dock{left:12px;right:12px;width:auto;bottom:max(86px,calc(env(safe-area-inset-bottom) + 76px));padding:12px 14px}.timeline-current{font-size:10px}.timeline-jumps{margin-top:-18px}.timeline-jumps button{font-size:9px}.basemap-switch{right:12px;bottom:max(28px,calc(env(safe-area-inset-bottom) + 22px))}.basemap-switch button{padding:9px 12px}.leaflet-top.leaflet-left{top:132px;left:2px}.leaflet-control-zoom{display:none}}
+@media(max-width:760px){.topbar{left:10px;right:10px;top:max(10px,env(safe-area-inset-top));padding:10px;flex-wrap:wrap;gap:9px;border-radius:16px}.brand{border:0;flex:1}.brand .subtitle{display:block;font-size:9px}.brand h1{font-size:14px}.utility-button{width:32px;height:32px;order:1}.category-nav{order:2;flex-basis:100%;overflow-x:auto;justify-content:flex-start;gap:4px;scrollbar-width:none}.category-nav::-webkit-scrollbar{display:none}.category-tab{padding:10px 13px;font-size:12px;flex-shrink:0}.weather-panel{top:132px;left:12px!important;width:calc(100vw - 24px);padding:18px;max-height:calc(100dvh - 340px)}.panel-heading{padding-bottom:16px}.panel-heading h2{font-size:23px}.timeline-dock{left:12px;right:12px;width:auto;bottom:max(86px,calc(env(safe-area-inset-bottom) + 76px));padding:8px 12px}.timeline-current{font-size:10px}.timeline-jumps{margin-top:-18px}.timeline-jumps button{font-size:9px}.basemap-switch{right:12px;bottom:max(28px,calc(env(safe-area-inset-bottom) + 22px))}.basemap-switch button{padding:9px 12px}.leaflet-top.leaflet-left{top:132px;left:2px}.leaflet-control-zoom{display:none}}
 @media(max-width:380px){.timeline-jumps{margin-top:6px}.weather-panel{max-height:calc(100dvh - 360px)}.timeline-ticks{font-size:9px}}
 @media(max-height:650px) and (min-width:761px){.weather-panel{max-height:calc(100dvh - 200px)}.timeline-dock{bottom:16px}}
 @media(prefers-reduced-motion:reduce){.weather-panel,.source-card{animation:none}button{transition:none}}
@@ -250,3 +250,10 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 .wind-gradient-ticks span{position:absolute;transform:translateX(-50%)}
 .wind-gradient-ticks span:first-child{transform:none}
 .wind-gradient-ticks span:last-child{transform:translateX(-100%)}
+
+.timeline-loading{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--accent);white-space:nowrap}
+.timeline-loading[hidden]{display:none}
+.timeline-spinner{width:10px;height:10px;border:2px solid rgba(137,225,206,.25);border-top-color:var(--accent);border-radius:50%;animation:timeline-spin .8s linear infinite}
+@keyframes timeline-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.timeline-spinner{animation:none;border-color:var(--accent);border-right-color:transparent}}
+@media(max-width:380px){.timeline-heading{gap:5px}.timeline-loading{font-size:9px}.timeline-heading button{min-width:60px;padding:4px 7px}}

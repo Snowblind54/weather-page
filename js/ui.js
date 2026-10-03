@@ -67,3 +67,27 @@ function renderTimelineTicks(){
 }
 new MutationObserver(renderTimelineTicks).observe($('timeline'),{attributes:true,attributeFilter:['min','max']});
 renderTimelineTicks();
+
+// Mirror the existing loaders without starting requests or delaying playback.
+function updateTimelineLoading(){
+  const pending=text=>/\b(loading|downloading|requesting|buffering|preparing|updating)\b/i.test(text);
+  const statusPending=id=>{const el=$(id);return !el.classList.contains('bad') && pending(el.textContent);};
+  const radarPending=statusPending('radarStatus') && ($('radarOn').checked || /requesting.*frame list/i.test($('radarStatus').textContent));
+  const cloudsPending=$('cloudOn').checked && statusPending('cloudStatus');
+  const modelPending=(temperatureEnabled() && statusPending('tempStatus')) ||
+    ($('windOn').checked && statusPending('windStatus')) ||
+    (activeAccumulationHours() && statusPending('rainAccumStatus'));
+  const busy=!!(radarPending || cloudsPending || modelPending);
+  $('timelineLoading').hidden=!busy;
+  document.querySelector('.timeline-dock').setAttribute('aria-busy',String(busy));
+  const text=cloudsPending && /buffering/i.test($('cloudStatus').textContent)?'Buffering…':'Loading data…';
+  if($('timelineLoadingText').textContent!==text)$('timelineLoadingText').textContent=text;
+}
+const timelineLoadingObserver=new MutationObserver(updateTimelineLoading);
+for(const id of ['radarStatus','cloudStatus','tempStatus','windStatus','rainAccumStatus']){
+  timelineLoadingObserver.observe($(id),{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class']});
+}
+for(const id of ['radarOn','cloudOn','tempOn','heatmapOn','windOn','rain1h','rain24h','rain48h']){
+  $(id).addEventListener('change',updateTimelineLoading);
+}
+updateTimelineLoading();
