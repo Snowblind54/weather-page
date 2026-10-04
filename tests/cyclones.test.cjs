@@ -70,6 +70,16 @@ test('stale model cannot leave centres, paths or playback on the map',()=>{
   assert.equal(h.layers.size,0);assert.equal(h.timers.size,0);assert.match(h.elements.cycloneStatus.textContent,/too old/);
 });
 
+test('projected paths and playback reach 72 hours',()=>{
+  const h=harness();h.elements.cyclonePathsOn.checked=true;h.seed();
+  assert.ok(h.run('cyclonePathGroup.children.some(l=>l.options?.icon?.html=== "+72 h")'));
+  h.elements.cycloneForecastHour.value='69';h.elements.cyclonePlay.listeners.click();
+  const advance=[...h.timers.values()][0];advance();
+  assert.equal(Number(h.elements.cycloneForecastHour.value),72);advance();
+  assert.equal(Number(h.elements.cycloneForecastHour.value),0);
+  assert.match(fs.readFileSync(path.join(__dirname,'../index.html'),'utf8'),/id="cycloneForecastHour"[^>]*max="72"/);
+});
+
 test('loading is shared and off during fetch cannot resurrect markers',async()=>{
   const h=harness();let finish,calls=0;
   h.context.fetch=()=>{calls++;return new Promise(resolve=>finish=resolve);};h.elements.cycloneOn.checked=true;
@@ -122,10 +132,11 @@ test('pressure trend uses elapsed history without bridging missing time interval
   h.data.systems[0].history=[{time:now-15*3600,pressure:999}];
   assert.equal(h.run('cycloneTrend(fixture.systems[0],trendPoint).change'),null);
 });
-test('isobars share the model run, use sparse overview spacing and bounded labels, and disappear when disabled',()=>{
+test('isobars retain 1 hPa spacing at every zoom with bounded labels and disappear when disabled',()=>{
   const h=harness(true),run=h.data.modelRun;
-  h.data.pressureContours={version:1,modelRun:run,frames:[{time:run,lines:Array.from({length:12},(_,i)=>({pressure:960+i*4,points:[[-75+i*8,55],[-70+i*8,56],[-65+i*8,57]]}))}]};
-  h.seed();assert.equal(h.run('cycloneIsobarGroup.children.length'),6);assert.ok(h.run('cycloneIsobarLabels.children.length')<=8);
+  h.data.pressureContours={version:1,interval:1,modelRun:run,frames:[{time:run,lines:Array.from({length:12},(_,i)=>({pressure:960+i,points:[[-75+i*8,55],[-70+i*8,56],[-65+i*8,57]]}))}]};
+  h.seed();assert.equal(h.run('cycloneIsobarGroup.children.length'),12);assert.ok(h.run('cycloneIsobarLabels.children.length')<=8);
+  assert.match(h.elements.cycloneIsobarStatus.textContent,/1 hPa spacing/);
   h.map.zoom=5;h.run('renderCycloneIsobars()');assert.equal(h.run('cycloneIsobarGroup.children.length'),12);
   const group=h.run('cycloneIsobarGroup');h.elements.cycloneIsobarOpacity.value='20';h.run('renderCycloneIsobars()');assert.equal(h.run('cycloneIsobarGroup'),group);assert.equal(group.children[0].options.opacity,.2);
   h.elements.cycloneOn.checked=false;h.elements.cycloneOn.listeners.change();assert.equal(h.run('cycloneIsobarGroup'),null);assert.equal(h.elements.cycloneList.children.length,0);
