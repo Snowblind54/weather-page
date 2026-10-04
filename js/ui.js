@@ -10,6 +10,7 @@ function closeWeatherPanel(returnFocus=false){
   $(id).hidden=true;
   $('nav-'+id).setAttribute('aria-expanded','false');
   openedWeatherPanel=null;
+  if(activeAccumulationHours())requestAnimationFrame(renderOfficialRainLabels);
   if(returnFocus)$('nav-'+id).focus();
   syncTimelineCadence();
 }
@@ -18,6 +19,7 @@ function positionWeatherPanel(){
   const button=$('nav-'+openedWeatherPanel),panel=$(openedWeatherPanel);
   const width=Math.min(420,window.innerWidth-24);
   panel.style.left=Math.max(12,Math.min(button.getBoundingClientRect().left,window.innerWidth-width-12))+'px';
+  if(activeAccumulationHours())requestAnimationFrame(renderOfficialRainLabels);
 }
 function openWeatherPanel(id){
   if(openedWeatherPanel===id){closeWeatherPanel(true);return;}

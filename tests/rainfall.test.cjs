@@ -7,23 +7,26 @@ const root=path.join(__dirname,'..');
 
 function harness(){
   const elements={},layers=new Set(),canvases=[],events={},storage=new Map(),panes=new Map();
-  for(const id of ['rain1h','rain24h','rain48h','rainAccumOpacity','rainAccumOpacityVal','rainAccumStatus','rainSourceStatus','radarSection','windOn']){
+  for(const id of ['rain1h','rain24h','rain48h','rainAccumOpacity','rainAccumOpacityVal','rainAccumStatus','rainSourceStatus','rainGaugeStatus','radarSection','windOn']){
     elements[id]={checked:false,value:'65',classList:{toggle(){}},listeners:{},addEventListener(n,f){this.listeners[n]=f;}};
   }
   const map={on(n,f){events[n]=f;},createPane(n){panes.set(n,{style:{}});},getPane:n=>panes.get(n),
-    hasLayer:l=>layers.has(l),removeLayer:l=>layers.delete(l),getZoom:()=>5};
+    hasLayer:l=>layers.has(l),removeLayer:l=>layers.delete(l),getZoom:()=>5,
+    getBounds:()=>({contains:p=>p.every(Number.isFinite)}),getContainer:()=>({getBoundingClientRect:()=>({x:0,y:0})}),
+    latLngToContainerPoint:p=>({x:(p[1]+26)*20,y:(72-p[0])*20})};
   function layer(extra={}){return {...extra,addTo(){layers.add(this);return this;}};}
   const context={console,Date,Math,JSON,Number,Map,Set,WeakMap,AbortController,URL,setTimeout,clearTimeout,
     setInterval:()=>0,requestAnimationFrame:f=>setImmediate(f),window:{},map,$:id=>elements[id],
     localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},
     selectedWindTime:()=>context.frameTime,frameTime:Math.floor(Date.now()/3600000)*3600,
     fmt:t=>new Date(t*1000).toISOString(),htmlEscape:s=>String(s),windPopupContent:(p,t)=>'Wind at '+t,
-    document:{createElement(){
+    document:{querySelector:()=>null,createElement(){
       const canvas={width:0,height:0,maskFills:0,toDataURL:()=>`data:image/png;test,${canvases.length}`};
       const ctx={save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){canvas.maskFills++;},
         createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData:image=>canvas.pixels=image.data};
       canvas.getContext=()=>ctx;canvases.push(canvas);return canvas;
-    }},L:{imageOverlay:(dataUrl,bounds,options)=>layer({dataUrl,bounds,options,setOpacity(v){this.options.opacity=v;}}),
+    }},L:{divIcon:options=>options,marker:(point,options)=>layer({point,options,events:{},on(n,f){this.events[n]=f;return this;}}),
+      imageOverlay:(dataUrl,bounds,options)=>layer({dataUrl,bounds,options,setOpacity(v){this.options.opacity=v;}}),
       layerGroup:children=>layer({children,eachLayer:f=>children.forEach(f)}),
       popup:options=>layer({options,setContent(v){this.content=v;return this;},setLatLng(v){this.point=v;return this;},openOn(){layers.add(this);return this;}})}
   };
@@ -134,7 +137,7 @@ test('popup has all totals and keeps wind readings; radar and period controls st
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   assert(html.indexOf('id="rain1h"')>html.indexOf('id="radarSection"'));
   assert(html.indexOf('id="rain48h"')<html.indexOf('id="warningSection"'));
-  assert(html.includes('js/rainfall.js?v=8.15.1'));
+  assert.match(html,/script src="js\/rainfall\.js\?v=[\d.]+"/);
 });
 
 test('loader requests past hours once, validates cache coverage, and respects disable while fetching',async()=>{
@@ -216,4 +219,54 @@ test('stale snapshot cannot reuse a cached official heatmap',async()=>{
   h.run(`officialRainData={generatedAt:Date.now()/1000-4*3600};rainImageCache.set('24|'+rainWindowEnd()+'|'+officialRainData.generatedAt,[{dataUrl:'stale'}]);`);
   const images=await h.run('createRainfallImages(24,rainWindowEnd(),rainRenderGeneration)');
   assert.equal(images.length,5);assert.notEqual(images[0].dataUrl,'stale');
+});
+
+function seedGauge(h,{lag=0,amount=2}={}){
+ h.context.gaugeLag=lag;h.context.gaugeAmount=amount;
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000-gaugeLag,sources:{EE:{name:'Estonian Environment Agency'}},
+ stations:[{country:'EE',code:'1',name:'Test gauge',lat:59,lon:25,
+ times:Array.from({length:72},(_,i)=>rainWindowEnd()-gaugeLag-(71-i)*3600),amounts:Array(72).fill(gaugeAmount)}]};`);
+}
+
+test('one real gauge produces mm numbers at wide zooms without a model grid or interpolation neighbours',()=>{
+ const h=harness();h.elements.rain24h.checked=true;seedGauge(h,{amount:0});
+ for(const zoom of [2,5,6]){
+  h.context.map.getZoom=()=>zoom;h.run('renderOfficialRainLabels()');
+  assert.equal(h.run('officialRainLabels.children.length'),1);
+  assert.match(h.run('officialRainLabels.children[0].options.icon.html'),/>0\.0 mm</);
+ }
+ assert.equal(h.run('officialRainAt(59,25,24,rainWindowEnd(),"EE")'),null,'a single gauge is insufficient for the heatmap but remains measured');
+ assert.match(h.elements.rainGaugeStatus.textContent,/1 in view/);
+ h.elements.rain24h.checked=false;h.run('renderOfficialRainLabels()');assert.equal(h.run('officialRainLabels'),null);
+});
+
+test('delayed station numbers retain their actual window and never masquerade as a current heatmap',()=>{
+ const h=harness();h.elements.rain24h.checked=true;seedGauge(h,{lag:4*3600});h.run('renderOfficialRainLabels()');
+ assert.match(h.run('officialRainLabels.children[0].options.icon.html'),/48\.0 mm/);
+ assert.match(h.run('officialRainLabels.children[0].options.icon.html'),/rain-station-delayed/);
+ assert.match(h.elements.rainGaugeStatus.textContent,/delayed readings/);
+ assert.equal(h.run('officialRainWindow("EE",24,rainWindowEnd())'),null);
+ h.run('officialRainLabels.children[0].events.click()');
+ const popup=h.run('rainPopup.content');assert.match(popup,/measured · delayed reading/);
+ assert(popup.includes('Ending '+new Date((h.context.frameTime-4*3600)*1000).toISOString()));
+ assert(popup.includes('48.0 <small>mm</small>'));
+ seedGauge(h,{lag:25*3600});h.run('renderOfficialRainLabels()');assert.equal(h.run('officialRainLabels.children.length'),0,'measurements older than a day are not drawn');
+});
+
+test('station windows exclude future readings and require every hour of the selected period',()=>{
+ const h=harness();seedGauge(h);h.run('officialRainData.stations[0].times.push(rainWindowEnd()+3600);officialRainData.stations[0].amounts.push(999);');
+ assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],24,rainWindowEnd()).value'),48);
+ h.run('officialRainData.stations[0].amounts.fill(null)');
+ assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],24,rainWindowEnd())'),null);
+});
+
+test('station labels appear before model loading finishes and survive model errors',async()=>{
+ const h=harness();h.elements.rain24h.checked=true;seedGauge(h);let release;
+ h.context.waitTemperature=new Promise(resolve=>release=resolve);h.run('temperatureLoadPromise=waitTemperature');
+ h.context.fetch=async()=>({ok:false,status:429});
+ const loading=h.run('loadRainfall()');await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.run('officialRainLabels.children.length'),1,'labels already rendered while model loading is waiting');
+ release();await loading;h.run("reportRainfallError(new Error('model offline'))");
+ assert.equal(h.run('officialRainLabels.children.length'),1,'an unrelated model outage cannot erase measured numbers');
+ h.elements.rain24h.checked=false;h.run('changeRainfallPeriod(24)');
 });

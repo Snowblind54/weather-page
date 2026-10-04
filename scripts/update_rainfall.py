@@ -10,6 +10,8 @@ import gzip
 import json
 import math
 import pathlib
+import threading
+import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -92,17 +94,36 @@ def parse_lithuania(payload):
                    [(o['observationTimeUtc'], o.get('precipitation'), False) for o in payload['observations']])
 
 
+def lithuania_jobs(stations,now,previous):
+    prior={s['code']:s for s in previous if s['country']=='LT'}
+    start=now-dt.timedelta(hours=56)
+    dates=[(start.date()+dt.timedelta(days=i)).isoformat() for i in range((now.date()-start.date()).days+1)]
+    jobs=[]
+    for s in stations:
+        old=prior.get(s['code'])
+        # The latest endpoint supplies the previous 24 hours. Reuse the archive
+        # for earlier hours instead of repeatedly downloading every station/day.
+        recent=old and len(old['times'])>=48 and old['times'][-1]>=int(now.timestamp())-24*3600
+        jobs.extend([(s['code'],'latest')] if recent else [(s['code'],date) for date in dates])
+    return jobs
+
+
 def load_lithuania(now, previous):
     base = 'https://api.meteo.lt/v1'
-    stations = download(base + '/stations')
-    start = now - dt.timedelta(hours=56)
-    dates = [(start.date() + dt.timedelta(days=i)).isoformat() for i in range((now.date() - start.date()).days + 1)]
-    jobs = [(s['code'], date) for s in stations for date in dates]
+    lock,next_request=threading.Lock(),[0.0]
+    def get_data(url):
+        # LHMT permits 180 requests/minute; leave headroom for other clients.
+        with lock:
+            time.sleep(max(0,next_request[0]-time.monotonic()))
+            next_request[0]=time.monotonic()+0.5
+        return download(url)
+    stations = get_data(base + '/stations')
+    jobs = lithuania_jobs(stations,now,previous)
     records = []
     def get(job):
         code, date = job
         try:
-            return parse_lithuania(download(base + '/stations/' + code + '/observations/' + date))
+            return parse_lithuania(get_data(base + '/stations/' + code + '/observations/' + date))
         except Exception as error:
             print('LT station skipped', code, date, error, flush=True)
             return None
@@ -149,7 +170,7 @@ def load_sweden(now, previous):
         rows = s.get('value', [])
         # Bootstrap once from station history, thereafter only last-day records.
         old = prior.get(str(s['key']))
-        period = 'latest-day' if old and len(old['times']) >= 48 else 'latest-months'
+        period = 'latest-day' if old and len(old['times']) >= 48 and old['times'][-1]>=int(now.timestamp())-24*3600 else 'latest-months'
         try:
             data = download(base + '/station/' + str(s['key']) + '/period/' + period + '/data.json')
             rows = data['value']

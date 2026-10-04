@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Northern Weather Map v8.36.1</title>
+<title>Northern Weather Map v8.37</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.29">
+<link rel="stylesheet" href="css/style.css?v=8.37">
 </head>
 <body>
 
@@ -87,6 +87,7 @@
         <label><input id="rain24h" type="checkbox" aria-label="24-hour rainfall accumulation">24 hours</label>
         <label><input id="rain48h" type="checkbox" aria-label="48-hour rainfall accumulation">48 hours</label>
       </div>
+      <div id="rainGaugeStatus" class="small" role="status"></div>
       <div class="accumulation-details">
         <label class="small" for="rainAccumOpacity">Rainfall heatmap opacity</label>
         <div class="grid2">
@@ -95,7 +96,7 @@
         </div>
         <div class="rain-legend" aria-label="Accumulated rainfall colour scale in millimetres"></div>
         <div class="rain-legend-values"><span>0.1</span><span>1</span><span>5</span><span>10</span><span>25</span><span>50</span><span>100</span><span>150+ mm</span></div>
-        <div class="small">Choose one rainfall period; click it again to turn it off. Click the map for 1, 24 and 48-hour totals in mm. Covers Estonia, Latvia, Lithuania, Finland, Sweden, Norway, Iceland, Poland and Denmark, clipped to their coastlines. Official hourly gauge observations take priority where complete. Numeric labels show measured precipitation; the heatmap estimates values between gauges. Open-Meteo rain + showers fills countries and gaps without usable observations. Official precipitation can include snow water equivalent. Each rolling window ends at the last completed hour at the selected timeline time.</div>
+        <div class="small">Choose one rainfall period; click it again to turn it off. Click the map for 1, 24 and 48-hour totals in mm. Covers Estonia, Latvia, Lithuania, Finland, Sweden, Norway, Iceland, Poland and Denmark, clipped to their coastlines. Official hourly gauge observations take priority where complete. Numeric labels show measured precipitation at all zoom levels; click a number for its station, source and ending time. ◷ marks readings delayed by more than two hours. The heatmap estimates values between gauges. Open-Meteo rain + showers fills countries and gaps without usable observations. Official precipitation can include snow water equivalent. The heatmap uses the completed hour at the selected timeline time. Station numbers retain the most recent complete measured window within the previous day, with their actual ending time shown above and in the popup.</div>
         <div id="rainSourceStatus" class="small" role="status"></div>
         <div id="rainAccumStatus" class="status" role="status">Rainfall accumulation is off.</div>
       </div>
@@ -203,10 +204,10 @@
 <script src="js/radar-capture.js?v=8.36.1"></script>
 <script src="js/nordic-radar.js?v=8.36.1"></script>
 <script src="js/wind.js?v=8.28"></script>
-<script src="js/official-rainfall.js?v=8.21"></script>
-<script src="js/rainfall.js?v=8.15.1"></script>
+<script src="js/official-rainfall.js?v=8.37"></script>
+<script src="js/rainfall.js?v=8.37"></script>
 <script src="js/bathymetry.js?v=8.21"></script>
 <script src="js/cyclones.js?v=8.29"></script>
 <script src="js/app.js?v=8.36.1"></script>
-<script src="js/ui.js?v=8.34"></script></body>
+<script src="js/ui.js?v=8.37"></script></body>
 </html>

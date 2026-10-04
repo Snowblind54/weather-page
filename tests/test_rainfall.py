@@ -50,6 +50,14 @@ class Rainfall(unittest.TestCase):
         before_update = raw.replace(str(END+1200), str(END+300))
         self.assertEqual(rain.parse_estonia(before_update)[0]['times'], [END-3600])
 
+    def test_lithuania_uses_latest_for_recent_archived_histories(self):
+        recent=rain.station('LT','a','A',55,24,[(END-i*3600,0,False) for i in range(54)])
+        jobs=rain.lithuania_jobs([{'code':'a'},{'code':'new'}],NOW,[recent])
+        self.assertEqual([j for j in jobs if j[0]=='a'],[('a','latest')])
+        self.assertGreaterEqual(len([j for j in jobs if j[0]=='new']),3)
+        jobs=rain.lithuania_jobs([{'code':'a'}],NOW+dt.timedelta(hours=25),[recent])
+        self.assertNotIn(('a','latest'),jobs,'long gaps require historical backfill')
+
 
 if __name__ == '__main__':
     unittest.main()
