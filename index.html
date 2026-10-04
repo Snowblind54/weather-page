@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Northern Weather Map v8.52</title>
+<title>Northern Weather Map v8.53</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
@@ -105,7 +105,7 @@
 
   <div class="weather-panel weather-section" id="cycloneSection" hidden="" role="region" aria-labelledby="cycloneSection-title">
     <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="cycloneSection-title">Cyclones</h2><p>Centres, history &amp; forecasts</p></div><div class="panel-actions"><button class="info-button" data-info="cycloneSection-sources" aria-controls="cycloneSection-sources" aria-expanded="false" aria-label="Cyclones sources">i</button><button class="close-panel" aria-label="Close Cyclones menu">×</button></div></div><div id="cycloneSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>NOAA / NCEP GFS model fields for low-pressure centres, pressure, movement, wind, gusts and tracks. NOAA NHC supplies matched Atlantic tropical-storm names. European names are checked against dated Met Office storm impacts and named MET Norway wind alerts. Matches to model centres are inferred from region and time; ambiguous systems keep tracking IDs. Past tracks contain elapsed modelled positions, not official observed tracks.</p><div class="source-links"><a href="https://nomads.ncep.noaa.gov/" target="_blank" rel="noopener">NOAA GFS ↗</a><a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener">NOAA NHC ↗</a></div><div class="small">Solid trails show elapsed modelled centres, retained across matched model runs as history accumulates. Dashed paths show the forecast with 12-hour steps. Click a rotating centre for pressure, movement, nearby wind and gusts. Use View coverage to find systems across the region.</div>
-      <div class="small">Closed low-pressure centres and paths derived from NOAA GFS; colours indicate pressure. Only centres at or below 1000 hPa are displayed. Includes ordinary Atlantic and European lows. Isobars use the same GFS sea-level pressure forecast, with 8 hPa spacing in the overview and 4 hPa when zoomed in. Pressure trends show 6-hour deepening or filling; this is not an impact warning. Official Atlantic tropical-storm names are shown when matched to NHC; other lows use tracking IDs. Forecast time is independent of the rain-radar timeline. New model runs every 6 hours; feed checked about every 3 hours. All times are local to your device.</div>
+      <div class="small">Closed low-pressure centres and paths derived from NOAA GFS; colours indicate pressure. Only centres at or below 1000 hPa are displayed. Includes ordinary Atlantic and European lows. Isobars use the same GFS sea-level pressure forecast, with 1 hPa spacing at every zoom. Pressure trends show 6-hour deepening or filling; this is not an impact warning. Official Atlantic tropical-storm names are shown when matched to NHC; other lows use tracking IDs. Forecast time is independent of the rain-radar timeline. New model runs every 6 hours; feed checked about every 3 hours, allowing 4 hours for a complete run. Isobars advance in 3-hour forecast steps and refresh with the model snapshot. “Older model run” means the run is over 12 hours old. All times are local to your device.</div>
       </div><div class="row">
       <label class="label"><input id="cycloneOn" type="checkbox"> Cyclones</label>
       <span class="badge">North Atlantic · northern Europe</span>
@@ -114,10 +114,10 @@
       <label class="label control-line"><input id="cycloneIsobarsOn" type="checkbox" checked> Pressure contours · isobars</label>
       <label class="small" for="cycloneIsobarOpacity">Isobar opacity</label><input id="cycloneIsobarOpacity" type="range" min="10" max="70" value="35" step="5"><div id="cycloneIsobarStatus" class="small">Quiet pressure contours follow the forecast.</div>
       <label class="label control-line"><input id="cycloneHistoryOn" type="checkbox" checked> Past centre tracks · up to 48 h</label>
-      <label class="label control-line"><input id="cyclonePathsOn" type="checkbox"> Projected centre paths · next 48 h</label>
+      <label class="label control-line"><input id="cyclonePathsOn" type="checkbox"> Projected centre paths · next 72 h</label>
       <div class="row"><button id="cycloneCoverage">View coverage</button><button id="cyclonePlay">▶ Forecast</button><button id="cycloneNow">Now</button></div>
-      <label class="small" for="cycloneForecastHour">Cyclone forecast · now to +48 h</label>
-      <input id="cycloneForecastHour" type="range" min="0" max="48" value="0" step="3" aria-label="Cyclone forecast hours ahead">
+      <label class="small" for="cycloneForecastHour">Cyclone forecast · now to +72 h</label>
+      <input id="cycloneForecastHour" type="range" min="0" max="72" value="0" step="3" aria-label="Cyclone forecast hours ahead">
       <div id="cycloneTimeLabel" class="timebox">Current modelled positions</div>
       <div class="warning-legend cyclone-legend" aria-label="Centre pressure colours in hectopascals">
         <span class="warning-key"><i style="background:#7ddcff"></i>1000 hPa</span>
@@ -223,7 +223,7 @@
 <script src="js/official-rainfall.js?v=8.38"></script>
 <script src="js/rainfall.js?v=8.37.1"></script>
 <script src="js/bathymetry.js?v=8.21"></script>
-<script src="js/cyclones.js?v=8.48"></script>
+<script src="js/cyclones.js?v=8.53"></script>
 <script src="js/cyclone-details.js?v=8.47"></script>
 <script src="js/app.js?v=8.36.1"></script>
 <script src="js/snow.js?v=8.45"></script>
@@ -231,5 +231,4 @@
 <script src="js/snow-depth.js?v=8.46"></script>
 <script src="js/ui.js?v=8.46"></script></body>
 </html>
-
 

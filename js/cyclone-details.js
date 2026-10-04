@@ -81,7 +81,7 @@ function renderCycloneIsobars(){
   const frames=cycloneData.pressureContours?.frames||[],unix=cycloneSelectedTime();
   let frame=null;for(const candidate of frames)if(candidate.time<=unix)frame=candidate;else break;
   if(!frame || unix-frame.time>3*3600){hideCycloneIsobars();$('cycloneIsobarStatus').textContent='Pressure contours unavailable for this model time.';return;}
-  const zoom=map.getZoom(),interval=zoom<5?8:4,key=cycloneData.modelRun+'/'+frame.time+'/'+interval;
+  const interval=cycloneData.pressureContours.interval||4,key=cycloneData.modelRun+'/'+frame.time+'/'+interval;
   const opacity=Number($('cycloneIsobarOpacity').value)/100;
   if(key!==cycloneIsobarKey){
     hideCycloneIsobars();const layers=[];

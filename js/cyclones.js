@@ -90,7 +90,7 @@ function cyclonePopupContent(system,point){
   const before=cyclonePointAt(system,point.time-6*3600);
   const change=trend?trend.change:before?point.pressure-before.pressure:null;
   const pressureChange=change==null?'Unavailable':(change>=0?'+':'')+change.toFixed(1)+' hPa / 6 h';
-  const end=Math.min(point.time+48*3600,system.points.at(-1).time);
+  const end=Math.min(cycloneTrackStart()+72*3600,system.points.at(-1).time);
   const nhc=system.nhc;
   const official=nhc?'<div class="cyclone-advisory"><b>Latest NHC advisory · '+htmlEscape(fmt(nhc.issuedAt))+'</b><br>'+htmlEscape(nhc.classification)+
     ' · '+nhc.pressure.toFixed(0)+' hPa · sustained wind '+nhc.windMS.toFixed(1)+' m/s<br>Moving '+nhc.movementKMH.toFixed(1)+' km/h'+
@@ -128,7 +128,7 @@ function renderCyclonePaths(){
   for(const system of cycloneData.systems){
     const current=cyclonePointAt(system,unix);
     if(!cycloneVisiblePosition(current) || !cycloneVisiblePosition(cyclonePointAt(system,cycloneSelectedTime())))continue;
-    const end=Math.min(unix+48*3600,system.points.at(-1).time);
+    const end=Math.min(unix+72*3600,system.points.at(-1).time);
     const points=[current,...system.points.filter(p=>p.time>unix&&p.time<end)];
     const endpoint=cyclonePointAt(system,end);if(endpoint&&end>unix)points.push(endpoint);
     // Split any association gap; don't draw an invented path across a break.
@@ -140,7 +140,7 @@ function renderCyclonePaths(){
     }
     if(piece.length>1)pieces.push(piece);
     for(const part of pieces)layers.push(L.polyline(part.map(p=>[p.lat,p.lon]),{pane:'cyclonePathsPane',color:cycloneColour(current.pressure),weight:2.5,dashArray:'7 7',opacity:.9,interactive:false}));
-    for(const h of [12,24,36,48]){
+    for(const h of [12,24,36,48,60,72]){
       const t=unix+h*3600,p=cyclonePointAt(system,t);if(!cycloneVisiblePosition(p)||t>end)continue;
       layers.push(L.circleMarker([p.lat,p.lon],{pane:'cyclonePathsPane',radius:3,weight:1,color:'#fff',fillColor:cycloneColour(p.pressure),fillOpacity:1,interactive:false}));
       layers.push(L.marker([p.lat,p.lon],{pane:'cyclonePathsPane',interactive:false,keyboard:false,
@@ -271,10 +271,9 @@ $('cyclonePlay').addEventListener('click',()=>{
   if(!cycloneUsable())return;
   cyclonePlaying=true;$('cyclonePlay').textContent='❚❚ Pause';
   cyclonePlayTimer=setInterval(()=>{
-    let hour=Number($('cycloneForecastHour').value)+3;if(hour>48)hour=0;
+    let hour=Number($('cycloneForecastHour').value)+3;if(hour>72)hour=0;
     $('cycloneForecastHour').value=String(hour);renderCyclones();
   },900);
 });
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCyclonePlayback();});
 setInterval(()=>{if($('cycloneOn').checked)loadCyclones().catch(reportCycloneError);},5*60*1000);
-

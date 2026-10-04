@@ -119,8 +119,17 @@ class PressureAndNames(unittest.TestCase):
         frame=c.pressure_contours(lats,lons,pressure,STAMP)
         self.assertEqual(frame['time'],STAMP)
         self.assertTrue(frame['lines'])
+        self.assertEqual(sorted({line['pressure'] for line in frame['lines']}), list(range(971, 1010)))
         for line in frame['lines']:
             self.assertTrue(all(abs(x-(line['pressure']-1000))<.01 for x,y in line['points']))
+
+    def test_old_four_hpa_contours_are_rebuilt_even_for_the_same_model_run(self):
+        previous = {'windFieldsVersion': 2, 'modelRun': STAMP, 'forecastEnd': STAMP+96*3600,
+                    'pressureContours': {'version': 1, 'interval': 4}}
+        self.assertFalse(c.reusable_forecast(previous, STAMP))
+        previous['pressureContours']['interval'] = 1
+        self.assertTrue(c.reusable_forecast(previous, STAMP))
+        self.assertFalse(c.reusable_forecast(previous, STAMP+6*3600))
 
     def test_official_annual_list_is_not_a_named_active_event(self):
         from cyclone_names import parse_uk

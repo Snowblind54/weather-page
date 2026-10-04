@@ -24,6 +24,7 @@ OUTPUT = pathlib.Path(__file__).resolve().parents[1] / 'data/cyclones.json'
 FILTER = 'https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p50.pl'
 BOUNDS = [[20, -85], [82, 45]]
 STEPS = list(range(0, 97, 3))
+PRESSURE_INTERVAL = 1
 
 
 def distance(a, b):
@@ -288,13 +289,20 @@ def pressure_contours(lats,lons,pressure,valid):
     smooth=gaussian_filter(pressure,.8,mode='nearest')
     generator=contourpy.contour_generator(x=lons,y=lats,z=smooth,line_type='Separate')
     lines=[]
-    for level in range(920,1053,4):
+    for level in range(920,1053,PRESSURE_INTERVAL):
         for points in generator.lines(level):
             if len(points)<6:continue
             simplified=simplify_contour(points)
             if len(simplified)<2:continue
             lines.append({'pressure':level,'points':np.round(simplified,3).tolist()})
     return {'time':valid,'lines':lines}
+
+
+def reusable_forecast(previous, stamp):
+    return (previous.get('pressureContours', {}).get('version') == 1 and
+            previous.get('pressureContours', {}).get('interval') == PRESSURE_INTERVAL and
+            previous.get('windFieldsVersion') == 2 and previous.get('modelRun') == stamp and
+            previous.get('forecastEnd', 0) >= stamp+96*3600)
 
 
 def collect(now, previous):
@@ -314,7 +322,7 @@ def collect(now, previous):
     if run is None or (now-run).total_seconds() > 18*3600:
         raise ValueError('No recent complete GFS model cycle')
     stamp = int(run.timestamp())
-    if previous.get('pressureContours',{}).get('version') == 1 and previous.get('windFieldsVersion') == 2 and previous.get('modelRun') == stamp and previous.get('forecastEnd', 0) >= stamp+96*3600:
+    if reusable_forecast(previous, stamp):
         systems = json.loads(json.dumps(previous['systems']))
         for s in systems:
             s['name'] = None; s.pop('nhc', None);s.pop('europeanName',None)
@@ -343,7 +351,7 @@ def collect(now, previous):
             'bounds': BOUNDS, 'source': 'NOAA / NCEP GFS 0.5°', 'sourceUrl': 'https://nomads.ncep.noaa.gov/',
             'method': 'Closed pressure minima; 400 km ring depth ≥2 hPa; ≥9-hour persistence; tracked every 3 hours.',
             'nhcStatus': nhc, 'europeanNamesStatus':european,
-            'pressureContours':{'version':1,'interval':4,'modelRun':stamp,'frames':contours},'systems': systems}
+            'pressureContours':{'version':1,'interval':PRESSURE_INTERVAL,'modelRun':stamp,'frames':contours},'systems': systems}
 
 
 def main():
@@ -367,4 +375,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
