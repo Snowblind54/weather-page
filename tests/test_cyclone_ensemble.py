@@ -17,12 +17,13 @@ class Ensemble(unittest.TestCase):
         from unittest.mock import patch
         from urllib.error import HTTPError
         def read(url,*args):
-            # The control has all hours, while perturbed members stop at 72.
-            if '.idx' in url or ('gec00' not in url and any(f'f{h:03d}' in url for h in (96,90,84,78))):
+            # Control has all hours; perturbed members stop at 72. The public
+            # mirror lags the main archive for this fixture.
+            if 's3.amazonaws.com' in url or ('gec00' not in url and any(f'f{h:03d}' in url for h in (96,90,84,78))):
                 raise HTTPError(url,404,'Not published',{},None)
-            return b'GRIB'
+            return b'1:0:d=x:PRMSL:mean sea level:x\n'
         run=dt.datetime.fromtimestamp(STAMP,dt.timezone.utc)
-        with patch.object(e,'read_url',side_effect=read),patch.object(e,'decode_pressure'):
+        with patch.object(e,'read_url',side_effect=read):
             self.assertEqual(e.pressure_source(run,999999),('nomads',72))
         gfs={'modelRun':STAMP,'systems':[track()]}
         short=track();short['points']=short['points'][:13]
@@ -31,12 +32,9 @@ class Ensemble(unittest.TestCase):
         self.assertLessEqual(max(p['time'] for p in snapshot['systems'][0]['frames']),snapshot['forecastEnd'])
 
     def test_nomads_fallback_keeps_the_requested_cycle_member_and_pressure_field(self):
-        from urllib.parse import parse_qs,urlparse
         run=dt.datetime.fromtimestamp(STAMP,dt.timezone.utc)
-        params=parse_qs(urlparse(e.nomads_url(run,'p30',96)).query)
-        self.assertEqual(params['file'],['gep30.t12z.pgrb2a.0p50.f096'])
-        self.assertEqual(params['dir'],['/gefs.20261004/12/atmos/pgrb2ap5'])
-        self.assertEqual(params['var_PRMSL'],['on'])
+        url=e.nomads_field_url(run,'p30',96)
+        self.assertEqual(url,'https://nomads.ncep.noaa.gov/pub/data/nccf/com/gens/prod/gefs.20261004/12/atmos/pgrb2ap5/gep30.t12z.pgrb2a.0p50.f096')
 
     def test_pressure_byte_range_uses_only_mean_sea_level(self):
         index='1:0:d=x:PRES:surface:6 hour fcst\n2:123:d=x:PRMSL:mean sea level:6 hour fcst\n3:456:d=x:TMP:2 m above ground:x\n'

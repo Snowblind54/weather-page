@@ -13,7 +13,6 @@ import pathlib
 import tempfile
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
 
 import numpy as np
@@ -33,34 +32,25 @@ def field_url(run, member, hour):
             f'ge{member}.t{run.hour:02d}z.pgrb2a.0p50.f{hour:03d}')
 
 
-def nomads_url(run, member, hour):
-    params = dict(file=f'ge{member}.t{run.hour:02d}z.pgrb2a.0p50.f{hour:03d}',
-                  lev_mean_sea_level='on',var_PRMSL='on',subregion='',
-                  leftlon=-85,rightlon=45,bottomlat=20,toplat=82,
-                  dir=f'/gefs.{run:%Y%m%d}/{run.hour:02d}/atmos/pgrb2ap5')
-    return 'https://nomads.ncep.noaa.gov/cgi-bin/filter_gefs_atmos_0p50a.pl?'+urllib.parse.urlencode(params)
+def nomads_field_url(run, member, hour):
+    return field_url(run,member,hour).replace(BUCKET,'https://nomads.ncep.noaa.gov/pub/data/nccf/com/gens/prod')
 
 
 def pressure_source(run, deadline):
-    try:
-        for hour in (0,96):
-            pressure_range(read_url(field_url(run,'c00',hour)+'.idx',deadline).decode())
-        return 'aws', 96
-    except (OSError, ValueError):
-        print('GEFS public mirror cycle not ready; using NOAA NOMADS for the same cycle',flush=True)
-    # A new cycle is published progressively. Retain its complete available
-    # native horizon rather than discarding all members until hour 96 arrives.
-    for hour in reversed(STEPS[4:]):
-        try:
-            # Control output can arrive ahead of perturbed members. Check
-            # members from across the publication groups before collecting.
-            for member in ('c00','p01','p15','p30'):
-                raw = read_url(nomads_url(run,member,hour),deadline)
-                decode_pressure(raw,int(run.timestamp())+hour*3600,member)
-            return 'nomads', hour
-        except urllib.error.HTTPError as error:
-            if error.code!=404:
-                raise
+    # Static byte ranges avoid the filter service's expensive per-request jobs.
+    # Publication is progressive; check perturbed members as well as control.
+    for source, field in (('aws',field_url),('nomads',nomads_field_url)):
+        for hour in reversed(STEPS[4:]):
+            try:
+                for member in ('c00','p01','p15','p30'):
+                    pressure_range(read_url(field(run,member,hour)+'.idx',deadline).decode())
+                return source, hour
+            except urllib.error.HTTPError as error:
+                if error.code!=404:
+                    break
+            except (OSError,ValueError):
+                break
+        print('GEFS',source,'complete horizon not ready; checking the next official archive',flush=True)
     raise ValueError('GEFS cycle has not published a complete 24-hour horizon yet')
 
 
@@ -131,12 +121,9 @@ def member_tracks(run, member, deadline, source='aws', forecast_hours=96):
     for hour in STEPS:
         if hour>forecast_hours:
             break
-        if source=='nomads':
-            raw = read_url(nomads_url(run,member,hour),deadline)
-        else:
-            url = field_url(run, member, hour)
-            start, end = pressure_range(read_url(url+'.idx', deadline).decode())
-            raw = read_url(url,deadline,start,end)
+        url = (nomads_field_url if source=='nomads' else field_url)(run,member,hour)
+        start, end = pressure_range(read_url(url+'.idx', deadline).decode())
+        raw = read_url(url,deadline,start,end)
         valid = int(run.timestamp())+hour*3600
         lats, lons, pressure = decode_pressure(raw, valid, member)
         zero = np.zeros_like(pressure)
