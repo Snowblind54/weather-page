@@ -308,3 +308,7 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 .cyclone-card-heading b{white-space:nowrap}
 .cyclone-trend{font-size:11px;font-weight:600}.cyclone-trend.deepening{color:#ffb4a2}.cyclone-trend.filling{color:#9edbd0}.cyclone-trend.steady,.cyclone-trend.unknown{color:#b4c6d0}
 .cyclone-card-meta{font-size:10px;color:var(--muted);line-height:1.5}
+
+.cyclone-popup .cyclone-trend.deepening{color:#a44235}
+.cyclone-popup .cyclone-trend.filling{color:#176a57}
+.cyclone-popup .cyclone-trend.steady,.cyclone-popup .cyclone-trend.unknown{color:#4b5965}
