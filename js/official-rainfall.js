@@ -155,6 +155,7 @@ function renderOfficialRainLabels(){
         rainProbe={lat:s.lat,lng:s.lon,station:s};
         if(!rainPopup)rainPopup=L.popup({maxWidth:350,className:'rain-popup-container',autoPan:false,keepInView:false});
         rainPopup.setLatLng(rainProbe).setContent(rainfallPopupContent(rainProbe,rainWindowEnd())).openOn(map);
+        requestAnimationFrame(renderOfficialRainLabels);
       });markers.push(marker);
   }
   officialRainLabels=L.layerGroup(markers).addTo(map);
