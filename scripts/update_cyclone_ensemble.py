@@ -52,8 +52,11 @@ def pressure_source(run, deadline):
     # native horizon rather than discarding all members until hour 96 arrives.
     for hour in reversed(STEPS[4:]):
         try:
-            raw = read_url(nomads_url(run,'c00',hour),deadline)
-            decode_pressure(raw,int(run.timestamp())+hour*3600,'c00')
+            # Control output can arrive ahead of perturbed members. Check
+            # members from across the publication groups before collecting.
+            for member in ('c00','p01','p15','p30'):
+                raw = read_url(nomads_url(run,member,hour),deadline)
+                decode_pressure(raw,int(run.timestamp())+hour*3600,member)
             return 'nomads', hour
         except urllib.error.HTTPError as error:
             if error.code!=404:
