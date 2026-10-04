@@ -214,6 +214,35 @@ function runNordicRadarQueue(){
     job.run().then(job.resolve,job.reject).finally(()=>{nordicRadarDownloads--;runNordicRadarQueue();});
   }
 }
+function decodeNordicRadarImage(url){
+  // Preload the actual display element, including decoding, rather than only
+  // the PNG bytes. Leaflet can reuse this ready image without a second load.
+  return new Promise((resolve,reject)=>{
+    const image=new Image();image.decoding='async';
+    let settled=false;
+    const finish=(error)=>{
+      if(settled)return;settled=true;clearTimeout(timer);image.onload=image.onerror=null;
+      if(error){image.src='';reject(error);}else resolve(image);
+    };
+    const timer=setTimeout(()=>finish(new Error('Radar image decoding timed out')),8000);
+    image.onerror=()=>finish(new Error('Radar image could not be displayed'));
+    image.onload=async()=>{
+      try{
+        if(!image.naturalWidth||!image.naturalHeight)throw new Error('Empty radar image');
+        if(image.decode)await image.decode();
+        finish();
+      }catch(error){finish(error);}
+    };
+    image.src=url;
+  });
+}
+function orderNordicRadarLayers(){
+  // Keep cross-border priority independent of network completion order.
+  const priority=['no','se','fi','dk','is'];
+  const ordered=[...nordicRadarLayers].sort(([a],[b])=>priority.indexOf(a.split(':')[0])-priority.indexOf(b.split(':')[0])||(a<b?-1:a>b?1:0));
+  for(const [,layer] of ordered)layer.bringToFront();
+  weatherFront();
+}
 function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}){
   const key=record.url+'|'+edge;
   if(nordicRadarFrames.has(key)){
@@ -254,8 +283,17 @@ function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}
       if(!allowed())throw new Error('Radar preparation paused');
       radarFootprints.set(record.station,{...(result.coverage||{bounds:result.bounds}),at:Date.now()});
       const entry={...result,url:result.canvas?'dmi:'+key:URL.createObjectURL(result.blob),time:record.time};
+      if(entry.blob){
+        try{
+          entry.image=await decodeNordicRadarImage(entry.url);
+          if(!allowed())throw new Error('Radar preparation paused');
+        }catch(error){URL.revokeObjectURL(entry.url);throw error;}
+      }
+      // Count decoded pixels as well as compressed bytes. Active layers keep
+      // their image element even if its object URL is evicted from this cache.
+      entry.bytes=(entry.blob?.size||0)+(entry.image?entry.image.naturalWidth*entry.image.naturalHeight*4:entry.canvas.width*entry.canvas.height*4);
       nordicRadarFrames.set(key,entry);
-      while(nordicRadarFrames.size>180 || [...nordicRadarFrames.values()].reduce((bytes,frame)=>bytes+(frame.blob?.size??frame.canvas.width*frame.canvas.height*4),0)>48*1024*1024){const oldKey=nordicRadarFrames.keys().next().value,old=nordicRadarFrames.get(oldKey);if(old.blob)URL.revokeObjectURL(old.url);nordicRadarFrames.delete(oldKey);}
+      while(nordicRadarFrames.size>180 || [...nordicRadarFrames.values()].reduce((bytes,frame)=>bytes+frame.bytes,0)>48*1024*1024){const oldKey=nordicRadarFrames.keys().next().value,old=nordicRadarFrames.get(oldKey);if(old.blob)URL.revokeObjectURL(old.url);nordicRadarFrames.delete(oldKey);}
       return entry;
     }};
     if(background)nordicRadarQueue.push(job);
@@ -304,7 +342,9 @@ async function drawNordicRadars(unix,{force=false}={}){
       const {record,frame}=frameResult.value,id=source.id+':'+record.station;
       const previous=nordicRadarLayers.get(id);
       if(previous?.radarUrl!==frame.url){
-        const layer=(frame.canvas?dmiRadarCanvasLayer(frame):L.imageOverlay(frame.url,frame.bounds,{opacity:.84,interactive:false})).addTo(map);layer.radarUrl=frame.url;
+        // The old layer stays visible throughout download and decoding. Add
+        // the ready replacement before removing it, in the same paint turn.
+        const layer=(frame.canvas?dmiRadarCanvasLayer(frame):L.imageOverlay(frame.image,frame.bounds,{opacity:.84,interactive:false})).addTo(map);layer.radarUrl=frame.url;
         nordicRadarLayers.set(id,layer);if(previous)map.removeLayer(previous);
       }
       keep.add(id);times.push(record.time);
@@ -313,7 +353,7 @@ async function drawNordicRadars(unix,{force=false}={}){
     labels[index]=times.length?source.name+' '+fmt(Math.min(...times))+(missing?' · partial coverage':''):source.name+' unavailable';
     if(missing||!times.length)failed++;
     pending--;
-    for(const layer of nordicRadarLayers.values())layer.bringToFront();weatherFront();
+    orderNordicRadarLayers();
     nordicRadarStatus((pending?'Loading Nordic radar · ':'')+labels.join(' · '),failed?'status warn':pending?'status':'status ok');
   }
   await Promise.allSettled(visible.map(async(source,index)=>{
@@ -351,4 +391,3 @@ map.on('moveend',()=>{
     }
   },180);
 });
-
