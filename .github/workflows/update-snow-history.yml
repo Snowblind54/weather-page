@@ -1,0 +1,42 @@
+name: Update daily snow history
+on:
+  schedule:
+    - cron: '17 6,15 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/update_snow_history.py
+      - scripts/requirements-snow-history.txt
+      - tests/test_snow_history.py
+      - .github/workflows/update-snow-history.yml
+permissions:
+  contents: write
+concurrency:
+  group: update-daily-snow-history
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/requirements-snow-history.txt
+      - run: pip install -r scripts/requirements-snow-history.txt
+      - name: Test archive conversion
+        run: python -m unittest discover -s tests -p test_snow_history.py -v
+      - name: Cache official daily analyses
+        run: python scripts/update_snow_history.py
+      - name: Publish rolling archive
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/snow-history.json data/snow-history/
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Refresh 14-day official IMS snow archive'
+          git pull --rebase origin main
+          git push origin HEAD:main
