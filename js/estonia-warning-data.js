@@ -34,6 +34,19 @@ function estoniaWarningValidity(effective,expires,description){
   };
 }
 
+async function fetchEstoniaWarningForecast(){
+  const response=await fetch('data/estonia-warnings.json',{cache:'no-store'});
+  if(!response.ok)throw new Error('Estonia forecast HTTP '+response.status);
+  const snapshot=await response.json();
+  const fetched=Date.parse(snapshot.fetchedAt);
+  if(snapshot.schemaVersion!==1||!Array.isArray(snapshot.records)||!Array.isArray(snapshot.forecastDays)||!Number.isFinite(fetched))throw new Error('Invalid Estonia forecast snapshot');
+  if(Date.now()-fetched>6*60*60*1000||fetched>Date.now()+5*60*1000)throw new Error('Estonia forecast snapshot is out of date');
+  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Tallinn',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  if(!snapshot.forecastDays.includes(today))throw new Error('Estonia forecast does not cover today');
+  if(snapshot.records.some(w=>!w.area||!w.event||![1,2,3].includes(w.level)||!Number.isFinite(Date.parse(w.effective))||!Number.isFinite(Date.parse(w.expires))||Date.parse(w.expires)<=Date.parse(w.effective)))throw new Error('Invalid Estonia forecast warning');
+  return snapshot.records;
+}
+
 let estoniaMarineWarningGeometry=null,estoniaMarineWarningGeometryPending=null;
 function loadEstoniaMarineWarningGeometry(){
   if(estoniaMarineWarningGeometry)return Promise.resolve(estoniaMarineWarningGeometry);

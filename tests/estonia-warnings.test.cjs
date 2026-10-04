@@ -79,3 +79,28 @@ test('marine geometry download is shared and a failed request can be retried',as
  c.fetch=async()=>{calls++;return {ok:true,json:async()=>JSON.parse(read('data/estonia-marine-warning-zones.geojson'))}};
  assert.equal((await vm.runInContext('loadEstoniaMarineWarningGeometry()',c)).size,6);await vm.runInContext('loadEstoniaMarineWarningGeometry()',c);assert.equal(calls,2);
 });
+test('full official forecast paints the five tomorrow counties and keeps marine regions offshore',async()=>{
+ const c=harness();const snapshot=JSON.parse(read('data/estonia-warnings.json'));
+ snapshot.fetchedAt='2026-10-04T19:19:15Z';c.fetch=async()=>({ok:true,json:async()=>snapshot});
+ const records=await vm.runInContext('fetchEstoniaWarningForecast()',c);c.records=records;
+ vm.runInContext('warningRecords=warningsForTodayAndTomorrow(records)',c);
+ assert.deepEqual(Array.from(c.warningRecords.filter(w=>w.id==='5111'),w=>w.area).sort(),['Harju maakond','Hiiu maakond','Lääne maakond','Pärnu maakond','Saare maakond'].sort());
+ assert.equal(c.warningRecords.filter(w=>w.id==='5129').length,0); // Tuesday is outside the window.
+ const painted=[];c.map={hasLayer:()=>false};c.weatherFront=()=>{};
+ c.warningLayerGroup={clearLayers(){},addLayer(){},addTo(){},eachLayer(){}};
+ c.L={geoJSON(feature){painted.push(feature);return {bindPopup(){}}}};
+ c.county={features:Object.values({37:'Harju',39:'Hiiu',56:'Lääne',68:'Pärnu',74:'Saare',79:'Tartu'}).map(name=>({properties:{name:name+' maakond'},geometry:{type:'Polygon',coordinates:[]}}))};
+ c.zones=new Map(JSON.parse(read('data/estonia-marine-warning-zones.geojson')).features.map(f=>[f.properties.area,f]));
+ vm.runInContext('loadCountyGeometry=async()=>county;loadEstoniaMarineWarningGeometry=async()=>zones',c);
+ await vm.runInContext('renderWarnings()',c);
+ assert.equal(painted.filter(f=>!f.properties.water).length,5);
+ assert(!painted.some(f=>f.properties.name==='Tartu maakond'));
+ assert.equal(c.elements.warningList.children.filter(card=>card.warningRecord.id==='5111'&&card.innerHTML.includes('starts tomorrow')).length,5);
+});
+test('forecast snapshot rejects stale and malformed data, accepts a current official all-clear',async()=>{
+ const c=harness();let snapshot={schemaVersion:1,fetchedAt:'2026-10-04T19:19:15Z',forecastDays:['2026-10-04'],records:[]};
+ c.fetch=async()=>({ok:true,json:async()=>snapshot});assert.equal((await vm.runInContext('fetchEstoniaWarningForecast()',c)).length,0);
+ snapshot={...snapshot,fetchedAt:'2026-10-04T12:00Z'};await assert.rejects(vm.runInContext('fetchEstoniaWarningForecast()',c),/out of date/);
+ snapshot={...snapshot,fetchedAt:'2026-10-04T19:19:15Z',records:[{area:'Harju',event:'Wind',level:1,effective:'invalid',expires:'invalid'}]};
+ await assert.rejects(vm.runInContext('fetchEstoniaWarningForecast()',c),/Invalid Estonia forecast warning/);
+});
