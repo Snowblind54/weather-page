@@ -83,7 +83,7 @@ async function loadSnowDepth(force=false){
   $('snowDepthStatus').textContent='Loading station snow depths…';
   try{
     if(!snowDepthRequest){
-      snowDepthRequest=fetch('data/official-snow-depth.json?t='+Math.floor(Date.now()/(5*60*1000)),{cache:'no-store',signal:AbortSignal.timeout(15000)})
+      snowDepthRequest=fetch('data/official-snow-depth.json?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(15000)})
         .then(async response=>{
           if(!response.ok)throw new Error('Snow-depth snapshot HTTP '+response.status);
           const data=await response.json();
