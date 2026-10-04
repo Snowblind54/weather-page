@@ -11,7 +11,7 @@ const snowDepthSources={
 };
 let snowDepthData=null,snowDepthLoadedAt=0,snowDepthRequest=null,snowDepthRenderTimer=null;
 const snowDepthMaxAge=7*24*3600;
-function snowDepthEnabled(){return snowMode && $('snowDepthOn').checked;}
+function snowDepthEnabled(){return snowMode && !(typeof snowHistoryActive!=='undefined' && snowHistoryActive) && $('snowDepthOn').checked;}
 function snowDepthEscape(value){
   return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }

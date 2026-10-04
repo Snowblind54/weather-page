@@ -46,14 +46,14 @@ function snowStatus(text,kind=''){
   $('snowMapStatus').textContent=text;
 }
 function snowTileStatus(){
-  if(!snowMode)return;
+  if(!snowMode || (typeof snowHistoryActive!=='undefined' && snowHistoryActive))return;
   if(snowTilesFailed){
     snowStatus(snowTilesLoaded?'Some snow tiles could not load. Refresh to retry.':'Snow coverage could not load. Refresh to retry.','bad');
   }else{
     snowStatus(snowSourceLabel+' · snow cover, not snow depth','ok');
   }
 }
-snowLayer.on('loading',()=>{snowTilesFailed=0;snowTilesLoaded=0;if(snowMode)snowStatus('Loading snow coverage…');});
+snowLayer.on('loading',()=>{snowTilesFailed=0;snowTilesLoaded=0;if(snowMode && !(typeof snowHistoryActive!=='undefined' && snowHistoryActive))snowStatus('Loading snow coverage…');});
 snowLayer.on('tileerror',()=>{snowTilesFailed++;});
 snowLayer.on('tileload',()=>{snowTilesLoaded++;});
 snowLayer.on('load',snowTileStatus);
@@ -79,6 +79,7 @@ function enterSnowView(){
   map.fitBounds([[0,-180],[83,180]],{padding:[16,16],animate:false});
   snowLayer.addTo(map);
   refreshSnowCoverage();
+  if(typeof loadSnowHistory==='function')loadSnowHistory();
   if(typeof loadSnowDepth==='function')loadSnowDepth();
   snowRefreshTimer=setInterval(()=>{if(!document.hidden)refreshSnowCoverage();},30*60*1000);
 }
@@ -87,6 +88,7 @@ function exitSnowView({restore=true}={}){
   snowMode=false;snowMetadataGeneration++;
   clearInterval(snowRefreshTimer);snowRefreshTimer=null;
   map.removeLayer(snowLayer);
+  if(typeof exitSnowHistory==='function')exitSnowHistory();
   if(typeof hideSnowDepth==='function')hideSnowDepth();
   $('snowOn').checked=false;
   $('nav-snowSection').classList.remove('layer-active');
@@ -122,18 +124,18 @@ async function refreshSnowCoverage(){
     snowSourceLabel=date && Number.isFinite(date.getTime())
       ?'Source file: '+date.toISOString().slice(0,10)+' UTC · daily IMS analysis'
       :'Latest daily IMS analysis · source date unavailable';
-    $('snowDate').textContent=snowSourceLabel;
+    if(!(typeof snowHistoryActive!=='undefined' && snowHistoryActive))$('snowDate').textContent=snowSourceLabel;
   }catch(error){
     if(!snowMode || generation!==snowMetadataGeneration)return;
     // Imagery works without the catalog endpoint; never invent an observation date.
     snowLayer.rasterId=null;
     snowSourceLabel='Latest daily IMS analysis · source date unavailable';
-    $('snowDate').textContent=snowSourceLabel;
+    if(!(typeof snowHistoryActive!=='undefined' && snowHistoryActive))$('snowDate').textContent=snowSourceLabel;
     console.warn('Snow metadata unavailable',error);
   }finally{
     if(snowMode && generation===snowMetadataGeneration){
       snowLayer.refreshKey=Date.now();
-      snowLayer.redraw();
+      if(!(typeof snowHistoryActive!=='undefined' && snowHistoryActive))snowLayer.redraw();
       $('snowRefresh').disabled=false;
     }
   }
@@ -142,7 +144,8 @@ $('snowOn').addEventListener('change',()=>{$('snowOn').checked?enterSnowView():e
 $('snowOpacity').addEventListener('input',()=>{
   $('snowOpacityVal').textContent=$('snowOpacity').value+'%';
   snowLayer.setOpacity(Number($('snowOpacity').value)/100);
+  if(typeof snowHistoryLayer!=='undefined' && snowHistoryLayer)snowHistoryLayer.setOpacity(Number($('snowOpacity').value)/100);
 });
-$('snowRefresh').addEventListener('click',refreshSnowCoverage);
+$('snowRefresh').addEventListener('click',()=>{refreshSnowCoverage();if(typeof loadSnowHistory==='function')loadSnowHistory(true);});
 $('snowOverview').addEventListener('click',()=>map.fitBounds([[0,-180],[83,180]],{padding:[16,16],animate:false}));
 $('snowReturn').addEventListener('click',()=>{exitSnowView();closeWeatherPanel(true);});
