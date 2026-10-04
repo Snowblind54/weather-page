@@ -51,3 +51,23 @@ test('each source paints independently and an older pending selection cannot rep
  assert.equal(vm.runInContext("nordicRadarLayers.get('se:se').radarUrl",c),'se200');
  assert.equal(vm.runInContext("nordicRadarLayers.get('fi:fi').radarUrl",c),'fi200');
 });
+test('Iceland live relay accepts only this service and uses live data ahead of the archive',async()=>{
+ const c=harness();c.fetch=async url=>{assert.equal(url,'https://northern-weather-radar.franz-sammel54.chatgpt.site/api/iceland/radar');return {ok:true,json:async()=>({frames:[{time:Math.floor(Date.now()/1000)-300,station:'iskef',format:'h5',path:'/api/iceland/file/2026-10-04/iskef/T_PAGZ41_C_BIRK_20261004003002.h5',source_url:'https://brunnur.vedur.is/radar/data/2026-10-04/iskef/T_PAGZ41_C_BIRK_20261004003002.h5'}]})};};c.AbortController=AbortController;
+ const records=await vm.runInContext("listNordicRadar({id:'is',name:'IMO'})",c);assert.equal(records.length,1);assert.match(records[0].url,/northern-weather-radar/);
+ for(const url of ['https://evil.example/api/iceland/file/2026-10-04/iskef/T_PAGZ41_C_BIRK_20261004003002.h5','https://northern-weather-radar.franz-sammel54.chatgpt.site/api/iceland/file/2026-10-04/iskef/T_PAJZ41_C_BIRK_20261004003002.h5']){c.url=url;assert.equal(vm.runInContext('trustedIcelandRadarRelay(url)',c),false);}
+});
+test('polar interpolation wraps north, blends known-zero echoes and keeps nodata missing',async()=>{
+ const m=await import('../js/radar-grid.mjs');const starts=[0,90,180,270],ends=[90,180,270,360];
+ const grid={width:2,height:4,rscale:1000,rstart:0,gain:1,offset:0,nodata:255,undetect:0,values:new Uint8Array([20,20,20,20,20,20,0,0]),rayLookup:m.makeRayLookup(starts,ends),raySampling:m.makeRaySampling(starts,ends),reflectivity:Float32Array.from({length:256},(_,i)=>10**(i/10))};
+ const sample=m.polarInterpolation(0,1000,grid);assert(sample);assert.equal(Math.floor(sample.index/2),3);
+ const rate=m.polarReflectivity(sample.index,sample.weights,grid);assert(rate>0&&rate<m.radarRate(20,{...grid,quantity:'DBZH'}));
+ grid.values[0]=255;assert(Number.isNaN(m.polarReflectivity(sample.index,sample.weights,grid)));
+ assert.equal(m.polarInterpolation(0,2100,grid),null);
+ const sparse=m.makeRaySampling([0,90],[1,91]);assert.equal(sparse.lower[450],-1);
+});
+test('Iceland latest clock advances without changing historical selections',()=>{
+ const c=harness();const elements={timeline:{value:1,max:1},timeLabel:{}};c.$=id=>elements[id];c.fmt=String;c.playing=false;c.cloudTimelineMode=false;c.renderTimelineTicks=()=>{};
+ c.end=Math.floor(Date.now()/1000/300)*300-300;vm.runInContext('let radarTimelineFrames=[{time:end-600},{time:end-300}];let frames=radarTimelineFrames',c);
+ vm.runInContext('followNordicRadarClock()',c);assert.equal(vm.runInContext('frames.at(-1).time',c),c.end);assert.equal(elements.timeline.value,2);
+ elements.timeline.value=0;vm.runInContext('radarTimelineFrames.at(-1).time-=300;followNordicRadarClock()',c);assert.equal(elements.timeline.value,0);assert.equal(vm.runInContext('frames.at(-1).time',c),c.end-300);
+});

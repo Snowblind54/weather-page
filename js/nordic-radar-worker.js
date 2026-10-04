@@ -1,5 +1,5 @@
 // Decoding, reprojection and colour conversion stay off the map's UI thread.
-import {radarRate,radarColour,mercatorY,latitudeAtY,polarIndex,cartesianIndex,makeRayLookup,radarProjection} from './radar-grid.mjs';
+import {radarRate,radarColour,mercatorY,latitudeAtY,polarIndex,cartesianIndex,makeRayLookup,makeRaySampling,polarInterpolation,polarReflectivity,radarProjection} from './radar-grid.mjs?v=8.34';
 let libraries=null,hdf=null,hdfFs=null,sequence=Promise.resolve();
 const mappings=new Map();
 function scalar(value){return Array.isArray(value)||ArrayBuffer.isView(value)?value[0]:value;}
@@ -34,7 +34,10 @@ async function decodeHdf(buffer,proj4){
       const w=attributes(group.get('where')),h=attributes(group.get('how'));
       const lat=Number(scalar(where.lat)),lon=Number(scalar(where.lon));
       Object.assign(grid,{projection:`+proj=aeqd +lat_0=${lat} +lon_0=${lon} +datum=WGS84 +units=m +x_0=0 +y_0=0`,rscale:Number(scalar(w.rscale)),rstart:Number(scalar(w.rstart))*1000,elevation:Number(scalar(w.elangle))});
-      if(h.startazA?.length===height&&h.stopazA?.length===height)grid.rayLookup=makeRayLookup(h.startazA,h.stopazA);
+      if(h.startazA?.length===height&&h.stopazA?.length===height){
+        grid.rayLookup=makeRayLookup(h.startazA,h.stopazA);grid.raySampling=makeRaySampling(h.startazA,h.stopazA);
+        grid.reflectivity=Float32Array.from({length:256},(_,value)=>Math.pow(10,(value*grid.gain+grid.offset)/10));
+      }
       else if(Number(scalar(w.a1gate)))throw new Error('Polar scan lacks azimuth coordinates');
       const range=width*grid.rscale;Object.assign(grid,{left:-range,top:range,dx:range*2/width,dy:range*2/height});
     }else{
@@ -54,7 +57,7 @@ async function decodeTiff(buffer,descriptor,tiff){
   return {values,width:image.getWidth(),height:image.getHeight(),left:box[0],top:box[3],dx:(box[2]-box[0])/image.getWidth(),dy:(box[3]-box[1])/image.getHeight(),projection,quantity:descriptor.quantity,gain:descriptor.gain??1,offset:descriptor.offset??0,nodata:descriptor.nodata??Number(image.getGDALNoData()),undetect:descriptor.undetect};
 }
 function mappingFor(grid,edge,proj4){
-  const key=JSON.stringify([grid.width,grid.height,grid.projection,grid.left,grid.top,grid.dx,grid.dy,grid.polar,edge,grid.rscale,grid.elevation,grid.rayLookup&&Array.from(grid.rayLookup)]);
+  const key=JSON.stringify([grid.width,grid.height,grid.projection,grid.left,grid.top,grid.dx,grid.dy,grid.polar,edge,grid.rstart,grid.rscale,grid.elevation,grid.rayLookup&&Array.from(grid.rayLookup),grid.raySampling&&Array.from(grid.raySampling.fraction)]);
   if(mappings.has(key))return mappings.get(key);
   const inverse=proj4(grid.projection,'EPSG:4326'),forward=proj4('EPSG:4326',grid.projection);
   let west=180,east=-180,south=85,north=-85;
@@ -65,16 +68,18 @@ function mappingFor(grid,edge,proj4){
   if(![west,east,south,north].every(Number.isFinite)||east<=west||north<=south)throw new Error('Invalid radar geographic extent');
   const top=mercatorY(north),bottom=mercatorY(south),aspect=((east-west)*Math.PI/180)/(top-bottom);
   const width=Math.round(aspect>1?edge:edge*aspect),height=Math.round(aspect>1?edge/aspect:edge);
-  const indices=new Int32Array(width*height);
+  const indices=new Int32Array(width*height),weights=grid.raySampling?new Uint16Array(width*height):null;
   for(let row=0;row<height;row++){
     const lat=latitudeAtY(top-(row+.5)/height*(top-bottom));
     for(let col=0;col<width;col++){
       const [x,y]=forward.forward([west+(col+.5)/width*(east-west),lat]);
-      indices[row*width+col]=grid.polar?polarIndex(x,y,grid):cartesianIndex(x,y,grid);
+      const i=row*width+col;
+      if(weights){const sample=polarInterpolation(x,y,grid);indices[i]=sample?.index??-1;weights[i]=sample?.weights??0;}
+      else indices[i]=grid.polar?polarIndex(x,y,grid):cartesianIndex(x,y,grid);
     }
   }
-  const result={indices,width,height,bounds:[[south,west],[north,east]]};mappings.set(key,result);
-  while(mappings.size>6)mappings.delete(mappings.keys().next().value);
+  const result={indices,weights,width,height,bounds:[[south,west],[north,east]]};mappings.set(key,result);
+  while(mappings.size>6||([...mappings.values()].reduce((n,m)=>n+m.indices.byteLength+(m.weights?.byteLength||0),0)>64*1024*1024&&mappings.size>1))mappings.delete(mappings.keys().next().value);
   return result;
 }
 async function render(message){
@@ -83,7 +88,8 @@ async function render(message){
   const mapping=mappingFor(grid,message.edge,proj4),pixels=new Uint8ClampedArray(mapping.indices.length*4);
   for(let i=0;i<mapping.indices.length;i++){
     const index=mapping.indices[i];if(index<0)continue;
-    const colour=radarColour(radarRate(grid.values[index],grid));pixels.set(colour,i*4);
+    const rate=mapping.weights?polarReflectivity(index,mapping.weights[i],grid):radarRate(grid.values[index],grid);
+    pixels.set(radarColour(rate),i*4);
   }
   const canvas=new OffscreenCanvas(mapping.width,mapping.height);canvas.getContext('2d').putImageData(new ImageData(pixels,mapping.width,mapping.height),0,0);
   return {blob:await canvas.convertToBlob({type:'image/png'}),bounds:mapping.bounds,pixels:mapping.indices.length};

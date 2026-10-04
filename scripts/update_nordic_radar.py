@@ -58,6 +58,13 @@ def colour_rates(values, what, how):
     rates = 10 ** (measured / 10)
     rates = (rates / float(how.get('zr-a', 200))) ** (1 / float(how.get('zr-b', 1.6)))
     valid = (values != what.get('nodata')) & (values != what.get('undetect')) & np.isfinite(rates) & (rates >= .05)
+    rates[~valid] = np.nan
+    return colour_rate_field(rates)
+
+
+def colour_rate_field(rates):
+    import numpy as np
+    valid = np.isfinite(rates) & (rates >= .05)
     stops = [.1, .3, .5, 1, 2, 4, 8, 16, 50, float('inf')]
     colours = np.array([[156,221,255,210],[54,170,255,210],[0,216,154,210],[232,247,0,210],
                         [255,196,0,210],[255,123,0,210],[255,42,42,210],[211,0,215,210],
@@ -65,6 +72,36 @@ def colour_rates(values, what, how):
     pixels = colours[np.minimum(np.searchsorted(stops, rates, side='right'), len(colours)-1)]
     pixels[~valid] = 0
     return pixels
+
+
+def polar_rates(values, what, how, starts, stops, azimuth, ranges):
+    """Bilinear linear-Z sampling; undetect is zero, unknown data stays unknown."""
+    import numpy as np
+    spans = (np.asarray(stops)-np.asarray(starts))%360
+    centres = (np.asarray(starts)+spans/2)%360
+    order = np.argsort(centres); centres = centres[order]
+    position = (np.searchsorted(centres, azimuth, side='right')-1)%len(centres)
+    following = (position+1)%len(centres)
+    distance = (centres[following]-centres[position])%360
+    angular = np.clip(((azimuth-centres[position])%360)/np.maximum(distance,.00001),0,1)
+    # Match the worker's compact interpolation weights.
+    angular = np.round(angular*255)/255
+    centred = np.clip(ranges-.5,0,values.shape[1]-1)
+    col = np.floor(centred).astype(int); right = np.minimum(col+1,values.shape[1]-1)
+    radial = np.round((centred-col)*255)/255
+    row = order[position]; next_row = order[following]
+    z = np.zeros(azimuth.shape, dtype=np.float32)
+    valid = (ranges>=0)&(ranges<values.shape[1])&(distance<=2*np.maximum(spans[row],spans[next_row]))
+    for r,c,weight in ((row,col,(1-angular)*(1-radial)),(row,right,(1-angular)*radial),
+                       (next_row,col,angular*(1-radial)),(next_row,right,angular*radial)):
+        sample = values[r,c]
+        valid &= (weight==0)|(sample!=what.get('nodata'))
+        reflectivity = 10**((sample.astype(np.float32)*float(what.get('gain',1))+float(what.get('offset',0)))/10)
+        reflectivity[sample==what.get('undetect')] = 0
+        z += weight*reflectivity
+    rates = (z/float(how.get('zr-a',200)))**(1/float(how.get('zr-b',1.6)))
+    rates[~valid] = np.nan
+    return rates
 
 
 def scalar(value):
@@ -101,11 +138,6 @@ def project(raw, edge=2000):
             left, top, dx, dy = -radius, radius, radius*2/cols, radius*2/rows
             if h is None or 'startazA' not in h.attrs or 'stopazA' not in h.attrs:
                 raise ValueError('Missing polar azimuth coordinates')
-            lookup = np.full(3600, -1, dtype=np.int32)
-            for ray, (start, stop) in enumerate(zip(h.attrs['startazA'], h.attrs['stopazA'])):
-                start = float(start)%360; span = (float(stop)-start)%360
-                bins = np.arange(int(np.floor(start*10)), int(np.ceil((start+span)*10)))%3600
-                lookup[bins] = ray
         else:
             projection = where['projdef']
             forward = Transformer.from_crs('EPSG:4326', projection, always_xy=True)
@@ -125,14 +157,15 @@ def project(raw, edge=2000):
         lat = np.degrees(2*np.arctan(np.exp(mtop-(np.arange(height)+.5)/height*(mtop-mbottom)))-np.pi/2)
         x, y = forward.transform(*np.meshgrid(lon,lat))
         if polar:
-            col = np.floor((np.hypot(x,y)/np.cos(np.radians(elevation))-rstart)/rscale).astype(int)
+            ranges = (np.hypot(x,y)/np.cos(np.radians(elevation))-rstart)/rscale
             azimuth = (np.degrees(np.arctan2(x,y))+360)%360
-            row = lookup[np.floor(azimuth*10).astype(int)%3600]
+            rates = polar_rates(values,what,how,h.attrs['startazA'],h.attrs['stopazA'],azimuth,ranges)
+            pixels = colour_rate_field(rates)
         else:
             col = np.floor((x-left)/dx).astype(int); row = np.floor((top-y)/dy).astype(int)
-        valid = (col>=0)&(col<cols)&(row>=0)&(row<rows)
-        sampled = values[np.clip(row,0,rows-1),np.clip(col,0,cols-1)]
-        pixels = colour_rates(sampled,what,how); pixels[~valid] = 0
+            valid = (col>=0)&(col<cols)&(row>=0)&(row<rows)
+            sampled = values[np.clip(row,0,rows-1),np.clip(col,0,cols-1)]
+            pixels = colour_rates(sampled,what,how); pixels[~valid] = 0
         output = io.BytesIO(); Image.fromarray(pixels).save(output,format='PNG',optimize=True)
         return output.getvalue(), [[south,west],[north,east]]
 

@@ -22,6 +22,17 @@ class NordicRadar(unittest.TestCase):
         feature['asset']['data']['href']='https://example.com/fake.h5'
         self.assertEqual(radar.parse_dmi({'features':[feature]},1791066000,1791067000),[])
 
+    def test_polar_interpolation_preserves_missing_and_zero_echo(self):
+        try: import numpy as np
+        except ImportError: self.skipTest('Optional radar rendering dependencies are absent')
+        values=np.array([[20,20],[20,20],[20,20],[0,0]],dtype=np.uint8)
+        what={'gain':1,'offset':0,'nodata':255,'undetect':0}
+        args=([0,90,180,270],[90,180,270,360],np.array([0.]),np.array([1.]))
+        rate=radar.polar_rates(values,what,{},*args)[0]
+        self.assertGreater(rate,0);self.assertLess(rate,(100/200)**(1/1.6))
+        values[0,0]=255
+        self.assertTrue(np.isnan(radar.polar_rates(values,what,{},*args)[0]))
+
     def test_nodata_undetect_and_light_rain(self):
         try: import numpy as np
         except ImportError: self.skipTest('Radar image dependencies are installed by the radar workflow')
