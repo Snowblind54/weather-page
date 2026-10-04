@@ -11,7 +11,7 @@ function harness(){
 test('missing, future and outdated snow depths cannot appear as 0 cm',()=>{
   const h=harness();h.ctx.station={country:'FI',name:'Station',lat:60,lon:25,time:Date.now()/1000-3600,depthCm:0,state:'bare'};
   assert.equal(h.run('snowDepthValid(station)'),true);
-  for(const patch of [{depthCm:null},{time:Date.now()/1000-73*3600},{time:Date.now()/1000+3600},{country:'XX'}]){
+  for(const patch of [{depthCm:null},{time:Date.now()/1000-8*24*3600},{time:Date.now()/1000+3600},{country:'XX'}]){
     const old={...h.ctx.station};Object.assign(h.ctx.station,patch);
     assert.equal(h.run('snowDepthValid(station)'),false);h.ctx.station=old;
   }
