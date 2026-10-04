@@ -37,7 +37,7 @@ async function preloadVisibleRadars(){
           // Keep the latest full-resolution DMI canvas within the cache budget.
           if(source.id==='dk'&&edge>1400&&back)return;
           const record=radarObservationAt(observations,target-back*300);
-          if(record)await nordicRadarFrame(record,edge,{background:true,canPrepare:allowed});
+          if(record&&radarRecordVisible(record))await nordicRadarFrame(record,edge,{background:true,canPrepare:allowed});
         };
         tasks.push(prepare);if(!allowed())break;
         await prepare(0);
@@ -72,3 +72,61 @@ async function preloadVisibleRadars(){
 }
 map.on('moveend',()=>scheduleRadarPreload());
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseRadarPreload();else scheduleRadarPreload();});
+
+
+// Rolling playback window: selected frames retain priority over these jobs.
+let radarPlaybackPreloadTimer=null,radarPlaybackPreloadGeneration=0,radarPlaybackPreloadRunning=false,radarPlaybackPreloadAgain=false;
+function scheduleRadarPlaybackPreload(){
+  if(document.hidden||!$('radarOn').checked)return;
+  clearTimeout(radarPlaybackPreloadTimer);
+  radarPlaybackPreloadTimer=setTimeout(()=>{radarPlaybackPreloadTimer=null;preloadRadarPlayback();},60);
+}
+function invalidateRadarPlaybackPreload(){
+  radarPlaybackPreloadGeneration++;clearTimeout(radarPlaybackPreloadTimer);radarPlaybackPreloadTimer=null;
+}
+function radarPlaybackTargets(){
+  const index=Number($('timeline').value),count=frames.length,saveData=navigator.connection?.saveData;
+  if(!count)return [];
+  const offsets=saveData?[1]:[1,2,3,4,5,6,-1,-2];
+  return [...new Set(offsets.map(offset=>(index+offset+count)%count))].filter(i=>i!==index).map(i=>frames[i]);
+}
+async function preloadRadarPlayback(){
+  if(document.hidden||!$('radarOn').checked)return;
+  if(radarPlaybackPreloadRunning){radarPlaybackPreloadAgain=true;return;}
+  radarPlaybackPreloadRunning=true;
+  const generation=radarPlaybackPreloadGeneration;
+  const allowed=()=>generation===radarPlaybackPreloadGeneration&&!document.hidden&&$('radarOn').checked;
+  const targets=radarPlaybackTargets(),latest=frames.at(-1)?.time,edge=nordicRadarEdge();
+  const visible=NORDIC_RADAR_SOURCES.filter(nordicRadarVisible);
+  try{
+  const tasks=visible.map(async source=>{
+    const records=await listNordicRadar(source);
+    const stations=[...new Set(records.map(record=>record.station))];
+    for(const target of targets){
+      if(!allowed())break;
+      for(const station of stations){
+        if(!allowed())break;
+        const record=radarObservationAt(records.filter(record=>record.station===station),target.time);
+        if(record&&radarRecordVisible(record)){
+          try{await nordicRadarFrame(record,edge,{background:true,canPrepare:allowed});}catch(_){}
+        }
+      }
+    }
+  });
+  if(radarPreloadVisible(RADAR_BOUNDS))tasks.push((async()=>{
+    for(const target of targets){if(!allowed())break;try{if(target.url)await h5ToRadarImage(target,{quiet:true});}catch(_){}
+      await new Promise(resolve=>setTimeout(resolve,80));}
+  })());
+  for(const source of visibleBalticRadarSources())tasks.push((async()=>{
+    for(const target of targets){if(!allowed())break;try{await prepareBalticRadarFrame(source,target.time,latest);}catch(_){}}
+  })());
+  await Promise.allSettled(tasks);
+  }finally{
+    radarPlaybackPreloadRunning=false;
+    const again=radarPlaybackPreloadAgain||generation!==radarPlaybackPreloadGeneration;radarPlaybackPreloadAgain=false;
+    if(again)scheduleRadarPlaybackPreload();
+  }
+}
+map.on('moveend',()=>{invalidateRadarPlaybackPreload();scheduleRadarPlaybackPreload();});
+$('radarOn').addEventListener('change',()=>{invalidateRadarPlaybackPreload();if($('radarOn').checked)scheduleRadarPlaybackPreload();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidateRadarPlaybackPreload();else scheduleRadarPlaybackPreload();});

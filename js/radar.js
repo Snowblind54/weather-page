@@ -49,8 +49,8 @@ async function ensureH5(){
 }
 
 function cacheSet(key,val){
-  radarImageCache.set(key,val);
-  while(radarImageCache.size>MAX_CACHE){
+  radarImageCache.delete(key);radarImageCache.set(key,val);
+  while(radarImageCache.size>MAX_CACHE || [...radarImageCache.values()].reduce((bytes,image)=>bytes+image.length*2,0)>16*1024*1024){
     const first=radarImageCache.keys().next().value;
     radarImageCache.delete(first);
   }
@@ -58,7 +58,7 @@ function cacheSet(key,val){
 
 const radarImagePending=new Map();
 function h5ToRadarImage(frame,options={}){
-  if(radarImageCache.has(frame.id))return Promise.resolve(radarImageCache.get(frame.id));
+  if(radarImageCache.has(frame.id)){const image=radarImageCache.get(frame.id);cacheSet(frame.id,image);return Promise.resolve(image);}
   if(radarImagePending.has(frame.id))return radarImagePending.get(frame.id);
   const promise=prepareKaiaRadarImage(frame,options).finally(()=>{if(radarImagePending.get(frame.id)===promise)radarImagePending.delete(frame.id);});
   radarImagePending.set(frame.id,promise);return promise;
@@ -137,7 +137,7 @@ async function drawRadar(frame){
   const myGeneration=++radarRenderGeneration;
   const mySwapGeneration=++radarSwapGeneration;
 
-  if(!$('radarOn').checked || !frame?.url){
+  if(!$('radarOn').checked || !frame?.url || !map.getBounds().intersects(L.latLngBounds(RADAR_BOUNDS))){
     if(radarLayer){
       map.removeLayer(radarLayer);
       radarLayer=null;
@@ -221,6 +221,7 @@ async function applyFrame(options={}){
 
   const cloudTask=options.skipCloud?Promise.resolve():drawCloud(frame,{readyOnly:!!options.cloudReadyOnly}).catch(console.error);
   if(options.awaitCloud) await cloudTask;
+  if(typeof scheduleRadarPlaybackPreload==='function')scheduleRadarPlaybackPreload();
   // Every regional source starts independently; KAIA latency cannot block it.
   const nordicTask=drawNordicRadars(frame.time).catch(console.error);
   const balticTask=drawDirectNationalRadars(frame.time).catch(console.error);
@@ -299,3 +300,4 @@ async function loadOfficialRadarList(){
     $('radarStatus').className='status warn';await applyFrame();
   }
 }
+

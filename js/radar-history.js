@@ -63,7 +63,7 @@ async function lvHistory(source,target,latest,force=false){
 }
 function prepareBalticRadarFrame(source,unix,latest,force=false){
   const key=source.id+'|'+unix,cached=directRadarImageCache.get(key);
-  if(!force&&cached&&Date.now()-cached.at<60000)return Promise.resolve(cached.frame);
+  if(!force&&cached){directRadarImageCache.delete(key);directRadarImageCache.set(key,cached);return Promise.resolve(cached.frame);}
   const pendingKey=key+'|'+force;
   if(balticRadarPending.has(pendingKey))return balticRadarPending.get(pendingKey);
   const promise=(source.id==='lt'?ltHistory(source,unix):lvHistory(source,unix,latest,force))
@@ -100,3 +100,4 @@ async function drawDirectNationalRadars(unix,{force=false}={}){
     $('radarStatus').className=failed?'status warn':pending?'status':'status ok';
   }));
 }
+

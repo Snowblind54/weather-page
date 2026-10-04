@@ -39,7 +39,7 @@ test('static radar archives accept only bounded official PNG observations',()=>{
  c.frame.url='data/radar-cache/dk-100-0123456789ab.png';c.frame.bounds=[[60,3],[52,21]];assert.equal(vm.runInContext("validNordicRadarArchiveFrame(frame,{id:'dk'})",c),false);
 });
 test('each source paints independently and an older pending selection cannot repaint the map',async()=>{
- const c=harness();const elements={radarOn:{checked:true},nordicRadarStatus:{},timeline:{value:0}};c.$=id=>elements[id];c.fmt=t=>String(t);c.weatherFront=()=>{};c.playing=true;c.frames=[];
+ const c=harness();const elements={radarOn:{checked:true},nordicRadarStatus:{},timeline:{value:0}};c.$=id=>elements[id];c.fmt=t=>String(t);c.weatherFront=()=>{};c.playing=true;c.frames=[];c.scheduleRadarPlaybackPreload=()=>{};
  c.map.getZoom=()=>5;c.map.removeLayer=()=>{};c.L={imageOverlay:(url)=>({radarUrl:url,addTo(){return this},bringToFront(){}})};
  let resolveOld;c.oldFrame=new Promise(resolve=>resolveOld=resolve);
  vm.runInContext("NORDIC_RADAR_SOURCES.splice(2);nordicRadarVisible=()=>true;listNordicRadar=async source=>[{time:100,station:source.id},{time:200,station:source.id}];nordicRadarFrame=(record)=>record.station==='se'&&record.time===100?oldFrame:Promise.resolve({url:record.station+record.time,bounds:[[53,4],[71,31]]})",c);
@@ -93,4 +93,24 @@ test('queued foreground frames overtake background history and obsolete backgrou
  const chosen=vm.runInContext('nordicRadarFrame(records[2],900)',c);assert.deepEqual(started,['first','selected']);
  resolvers[1]();await chosen;toggle.checked=false;resolvers[0]();await first;await rejected;
  assert.deepEqual(started,['first','selected']);
+});
+
+
+test('close zoom uses native footprints; overview and unknown sources retain cross-border coverage',()=>{
+ const c=harness();let zoom=7;
+ c.map.getZoom=()=>zoom;c.map.getBounds=()=>({intersects:b=>b[0][1]<25&&b[1][1]>24});
+ c.L={latLngBounds:b=>b};
+ vm.runInContext("radarFootprints.set('no',{bounds:[[54,-1],[76,10]],at:Date.now()})",c);
+ assert.equal(vm.runInContext("nordicRadarVisible({id:'no',bounds:[[54,-1],[76,40]]})",c),false);
+ zoom=4;assert.equal(vm.runInContext("nordicRadarVisible({id:'no',bounds:[[54,-1],[76,40]]})",c),true);
+ zoom=7;assert.equal(vm.runInContext("nordicRadarVisible({id:'fi',bounds:[[56,16],[73,38]]})",c),true);
+});
+test('worker footprint follows scan geometry even when every measurement is dry',async()=>{
+ const m=await import('../js/radar-grid.mjs');const worker=fs.readFileSync(path.join(__dirname,'../js/nordic-radar-worker.js'),'utf8').replace(/^import .*;$/m,'');
+ const c={...m,console,Uint8Array,Int32Array,Uint16Array,Array,Map,Math,Number,JSON,self:{},proj4:(from,to)=>({forward:([x,y])=>from==='EPSG:4326'?[x*1000,(y-60)*1000]:[x/1000,60+y/1000]})};
+ vm.createContext(c);vm.runInContext(worker,c);
+ c.grid={width:10,height:360,left:-2000,top:2000,dx:400,dy:4000/360,projection:'native',polar:true,rscale:200,rstart:0,elevation:0,values:new Uint8Array(3600)};
+ const coverage=vm.runInContext('mappingFor(grid,96,proj4).coverage',c);
+ assert.equal(coverage.cells[0],0);assert.equal(coverage.cells[16*32+16],1);
+ assert(coverage.cells.some(v=>v===0)&&coverage.cells.some(v=>v===1));
 });
