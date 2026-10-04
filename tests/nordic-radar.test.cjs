@@ -1,6 +1,6 @@
 const test=require('node:test');const assert=require('node:assert/strict');const vm=require('node:vm');const fs=require('node:fs');
 const path=require('node:path');const source=fs.readFileSync(path.join(__dirname,'../js/nordic-radar.js'),'utf8');
-function harness(){const c={Map,Set,Date,URL,Number,Array,Object,Promise,console,setTimeout,clearTimeout,map:{on(){}},$:()=>({checked:true,textContent:'',className:''})};vm.createContext(c);vm.runInContext(source,c);return c;}
+function harness(){const c={Image:class{get naturalWidth(){return 2}get naturalHeight(){return 2}set src(value){if(value)queueMicrotask(()=>this.onload?.())}decode(){return Promise.resolve()}},Map,Set,Date,URL,Number,Array,Object,Promise,console,setTimeout,clearTimeout,map:{on(){}},$:()=>({checked:true,textContent:'',className:''})};vm.createContext(c);vm.runInContext(source,c);return c;}
 test('timeline picks only observations at or before the selected time and rejects stale/future frames',()=>{
  const c=harness();c.records=[{time:100},{time:400},{time:700}];
  assert.equal(vm.runInContext('radarObservationAt(records,650).time',c),400);
@@ -42,7 +42,7 @@ test('each source paints independently and an older pending selection cannot rep
  const c=harness();const elements={radarOn:{checked:true},nordicRadarStatus:{},timeline:{value:0}};c.$=id=>elements[id];c.fmt=t=>String(t);c.weatherFront=()=>{};c.playing=true;c.frames=[];c.scheduleRadarPlaybackPreload=()=>{};
  c.map.getZoom=()=>5;c.map.removeLayer=()=>{};c.L={imageOverlay:(url)=>({radarUrl:url,addTo(){return this},bringToFront(){}})};
  let resolveOld;c.oldFrame=new Promise(resolve=>resolveOld=resolve);
- vm.runInContext("NORDIC_RADAR_SOURCES.splice(2);nordicRadarVisible=()=>true;listNordicRadar=async source=>[{time:100,station:source.id},{time:200,station:source.id}];nordicRadarFrame=(record)=>record.station==='se'&&record.time===100?oldFrame:Promise.resolve({url:record.station+record.time,bounds:[[53,4],[71,31]]})",c);
+ vm.runInContext("NORDIC_RADAR_SOURCES.splice(2);nordicRadarVisible=()=>true;listNordicRadar=async source=>[{time:100,station:source.id},{time:200,station:source.id}];nordicRadarFrame=(record)=>record.station==='se'&&record.time===100?oldFrame:Promise.resolve({url:record.station+record.time,image:{src:record.station+record.time},bounds:[[53,4],[71,31]]})",c);
  const old=vm.runInContext('drawNordicRadars(100)',c);await new Promise(resolve=>setImmediate(resolve));
  assert.equal(vm.runInContext("nordicRadarLayers.get('fi:fi').radarUrl",c),'fi100');
  assert.match(elements.nordicRadarStatus.textContent,/SE.*loading/);
@@ -50,6 +50,43 @@ test('each source paints independently and an older pending selection cannot rep
  resolveOld({url:'se100',bounds:[[53,4],[71,31]]});await old;
  assert.equal(vm.runInContext("nordicRadarLayers.get('se:se').radarUrl",c),'se200');
  assert.equal(vm.runInContext("nordicRadarLayers.get('fi:fi').radarUrl",c),'fi200');
+});
+test('old frame remains until decoding finishes; replacement uses the decoded element',async()=>{
+ const c=harness(),elements={radarOn:{checked:true},nordicRadarStatus:{}};
+ c.$=id=>elements[id];c.fmt=String;c.weatherFront=()=>{};c.playing=true;c.scheduleRadarPlaybackPreload=()=>{};
+ c.map.getZoom=()=>5;const displayed=new Set(),images=[];let finishDecode;
+ c.map.removeLayer=layer=>displayed.delete(layer);
+ c.L={imageOverlay:image=>{assert(image.naturalWidth);return {image,addTo(){displayed.add(this);return this},bringToFront(){}}}};
+ c.Image=class{constructor(){images.push(this)}get naturalWidth(){return 512}get naturalHeight(){return 512}set src(value){if(value)queueMicrotask(()=>this.onload?.())}decode(){return images.length===1?Promise.resolve():new Promise(resolve=>finishDecode=resolve)}};
+ c.Blob=Blob;c.URL=class extends URL{static createObjectURL(){return 'blob:'+images.length}static revokeObjectURL(){}};c.fetch=async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)});
+ vm.runInContext("NORDIC_RADAR_SOURCES.splice(1);nordicRadarVisible=()=>true;listNordicRadar=async()=>[{time:100,station:'fi',format:'png',url:'https://opendata.fmi.fi/first'},{time:200,station:'fi',format:'png',url:'https://opendata.fmi.fi/next'}]",c);
+ await vm.runInContext('drawNordicRadars(100)',c);const first=[...displayed][0];
+ const next=vm.runInContext('drawNordicRadars(200)',c);await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(displayed.size,1);assert(displayed.has(first));assert.match(elements.nordicRadarStatus.textContent,/Loading/);
+ finishDecode();await next;assert.equal(displayed.size,1);assert(!displayed.has(first));assert.equal([...displayed][0].image,images[1]);
+});
+test('a disabled layer cannot reappear when a late image finishes decoding',async()=>{
+ const c=harness(),toggle={checked:true};c.$=()=>toggle;c.fmt=String;c.weatherFront=()=>{};c.playing=true;c.scheduleRadarPlaybackPreload=()=>{};c.map.getZoom=()=>5;c.map.removeLayer=()=>{};
+ let finishDecode,added=0;c.L={imageOverlay:()=>({addTo(){added++;return this},bringToFront(){}})};
+ c.Image=class{get naturalWidth(){return 512}get naturalHeight(){return 512}set src(value){if(value)queueMicrotask(()=>this.onload?.())}decode(){return new Promise(resolve=>finishDecode=resolve)}};
+ const revoked=[];c.Blob=Blob;c.URL=class extends URL{static createObjectURL(){return 'blob:late'}static revokeObjectURL(url){revoked.push(url)}};c.fetch=async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)});
+ vm.runInContext("NORDIC_RADAR_SOURCES.splice(1);nordicRadarVisible=()=>true;listNordicRadar=async()=>[{time:100,station:'fi',format:'png',url:'https://opendata.fmi.fi/first'}]",c);
+ const draw=vm.runInContext('drawNordicRadars(100)',c);await new Promise(resolve=>setImmediate(resolve));toggle.checked=false;vm.runInContext('clearNordicRadars()',c);finishDecode();await draw;
+ assert.equal(added,0);assert.deepEqual(revoked,['blob:late']);assert.equal(vm.runInContext('nordicRadarLayers.size',c),0);
+});
+test('cross-border stacking is identical for different source completion orders',()=>{
+ const c=harness();const order=[];c.weatherFront=()=>order.push('weather');c.order=order;
+ for(const ids of [['fi:fi','se:se','no:no','is:isska','is:iskef'],['is:iskef','is:isska','no:no','fi:fi','se:se']]){
+   order.length=0;c.ids=ids;vm.runInContext("nordicRadarLayers.clear();for(const id of ids)nordicRadarLayers.set(id,{bringToFront(){order.push(id)}});orderNordicRadarLayers()",c);
+   assert.deepEqual(order,['no:no','se:se','fi:fi','is:iskef','is:isska','weather']);
+ }
+});
+test('decoded pixel memory is bounded and failures release their object URLs',async()=>{
+ const c=harness();const revoked=[];let next=0;c.Blob=Blob;c.URL={createObjectURL:()=> 'blob:'+(next++),revokeObjectURL:url=>revoked.push(url)};c.fetch=async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)});
+ c.Image=class{get naturalWidth(){return 2000}get naturalHeight(){return 2000}set src(value){if(value)queueMicrotask(()=>this.onload?.())}decode(){return Promise.resolve()}};
+ for(let i=0;i<4;i++){c.record={url:'frame'+i,format:'png'};await vm.runInContext('nordicRadarFrame(record,2000)',c)}
+ assert.equal(vm.runInContext('nordicRadarFrames.size',c),3);assert.deepEqual(revoked,['blob:0']);
+ c.Image=class{set src(value){if(value)queueMicrotask(()=>this.onerror?.())}};c.record={url:'bad',format:'png'};await assert.rejects(vm.runInContext('nordicRadarFrame(record,2000)',c),/could not be displayed/);assert.equal(revoked.at(-1),'blob:4');
 });
 test('Iceland live relay accepts only this service and uses live data ahead of the archive',async()=>{
  const c=harness();c.fetch=async url=>{assert.equal(url,'https://northern-weather-radar.franz-sammel54.chatgpt.site/api/iceland/radar');return {ok:true,json:async()=>({frames:[{time:Math.floor(Date.now()/1000)-300,station:'iskef',format:'h5',path:'/api/iceland/file/2026-10-04/iskef/T_PAGZ41_C_BIRK_20261004003002.h5',source_url:'https://brunnur.vedur.is/radar/data/2026-10-04/iskef/T_PAGZ41_C_BIRK_20261004003002.h5'}]})};};c.AbortController=AbortController;
