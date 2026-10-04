@@ -136,6 +136,9 @@ input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-colo
 
 
 .rain-station-label{display:inline-block;padding:2px 5px;background:rgba(8,25,37,.85);border:1px solid #90d8ff;border-radius:5px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 1px 4px #0008;}
+.rain-station-delayed{border-style:dashed;border-color:#ffd084;}
+.rain-station-label small{color:#ffd084;font-size:11px;}
+#rainGaugeStatus{line-height:1.5;margin-top:8px;color:var(--accent);}
 .rain-popup-source{display:block;font-size:10px;font-weight:400;line-height:1.3;margin-top:4px;}
 #rainSourceStatus{line-height:1.45;margin-top:7px;}
 

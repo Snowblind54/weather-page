@@ -118,30 +118,50 @@ function removeOfficialRainLabels(){
   if(officialRainLabels){map.removeLayer(officialRainLabels);officialRainLabels=null;}
 }
 
+// A number at a gauge is a measurement, independent of whether there are enough
+// neighbours for a heatmap. Preserve a delayed complete window with its true end.
+function officialStationRainWindow(station,hours,end){
+  for(let i=station.times.length-1;i>=0;i--){
+    const actualEnd=station.times[i];
+    if(actualEnd>end)continue;
+    if(end-actualEnd>24*3600)break;
+    const value=rollingRainTotal(station,actualEnd,hours);
+    if(Number.isFinite(value))return {value,end:actualEnd,delayed:end-actualEnd>2*3600};
+  }
+  return null;
+}
+
 function renderOfficialRainLabels(){
   removeOfficialRainLabels();
   const hours=activeAccumulationHours();
-  if(!hours || !officialRainData || map.getZoom()<6) return;
-  const end=rainWindowEnd(),occupied=[],markers=[];
+  const status=$('rainGaugeStatus');
+  if(!hours){if(status)status.textContent='';return;}
+  if(!officialRainData){if(status)status.textContent='No official station observations available yet.';return;}
+  const end=rainWindowEnd(),occupied=[],markers=[],ends=[];let delayed=0;
   const panel=document.querySelector('.weather-panel:not([hidden])')?.getBoundingClientRect();
   const mapRect=map.getContainer().getBoundingClientRect();
-  for(const country of Object.keys(RAIN_COUNTRY_NAMES)){
-    const window=officialRainWindow(country,hours,end);if(!window)continue;
-    for(const {station:s,value} of window.rows){
+  for(const s of officialRainData.stations){
       if(!map.getBounds().contains([s.lat,s.lon]))continue;
+      const window=officialStationRainWindow(s,hours,end);if(!window)continue;
+      const value=window.value,source=officialRainData.sources[s.country]?.name||s.country;
       const p=map.latLngToContainerPoint([s.lat,s.lon]);
       const underPanel=panel&&p.x+mapRect.x>=panel.left-25&&p.x+mapRect.x<=panel.right+25&&p.y+mapRect.y>=panel.top-12&&p.y+mapRect.y<=panel.bottom+12;
-      if(underPanel || occupied.some(q=>Math.abs(q.x-p.x)<68&&Math.abs(q.y-p.y)<30))continue;
-      occupied.push(p);
-      const marker=L.marker([s.lat,s.lon],{icon:L.divIcon({className:'',iconSize:[60,22],iconAnchor:[30,11],
-        html:'<span class="rain-station-label" title="'+htmlEscape(s.name)+' · '+htmlEscape(window.source)+'">'+value.toFixed(1)+' mm</span>'})});
+      if(underPanel || occupied.some(q=>Math.abs(q.x-p.x)<76&&Math.abs(q.y-p.y)<30))continue;
+      occupied.push(p);ends.push(window.end);if(window.delayed)delayed++;
+      const title=s.name+' · '+hours+' h: '+value.toFixed(1)+' mm · '+source+' · Ending '+fmt(window.end)+(window.delayed?' · delayed reading':'');
+      const marker=L.marker([s.lat,s.lon],{title,icon:L.divIcon({className:'',iconSize:[70,22],iconAnchor:[35,11],
+        html:'<span class="rain-station-label'+(window.delayed?' rain-station-delayed':'')+'" title="'+htmlEscape(title)+'">'+value.toFixed(1)+' mm'+(window.delayed?' <small aria-hidden="true">◷</small>':'')+'</span>'})});
       marker.on('click',()=>{
         rainProbe={lat:s.lat,lng:s.lon,station:s};
         if(!rainPopup)rainPopup=L.popup({maxWidth:350,className:'rain-popup-container',autoPan:false,keepInView:false});
-        rainPopup.setLatLng(rainProbe).setContent(rainfallPopupContent(rainProbe,end)).openOn(map);
+        rainPopup.setLatLng(rainProbe).setContent(rainfallPopupContent(rainProbe,rainWindowEnd())).openOn(map);
       });markers.push(marker);
-    }
   }
   officialRainLabels=L.layerGroup(markers).addTo(map);
+  if(status){
+    const first=Math.min(...ends),last=Math.max(...ends);
+    status.textContent=markers.length?'Measured station numbers: '+markers.length+' in view · '+hours+' h ending '+fmt(first)+(last!==first?' to '+fmt(last):'')+
+      (delayed?' · ◷ marks '+delayed+' delayed readings.':''):'No complete '+hours+' h station totals in this view. Missing hours are never counted as zero.';
+  }
 }
 map.on('moveend zoomend',()=>{if(activeAccumulationHours())renderOfficialRainLabels();});

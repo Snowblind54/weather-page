@@ -114,6 +114,8 @@ async function fetchRainSeries(points){
 async function loadRainfall(force=false){
   if(!activeAccumulationHours()) return;
   await loadOfficialRainfall(force);
+  // Station numbers are usable before the slower model grid has loaded.
+  renderOfficialRainLabels();
   const end=rainWindowEnd();
   if(!force && validRainData(rainData,end)) return queueRainfallRender(0);
   if(!force){
@@ -305,7 +307,7 @@ function queueRainfallRender(delay=90){
 function reportRainfallError(error){
   if(!activeAccumulationHours()) return;
   removeRainfallLayer();
-  removeOfficialRainLabels();
+  renderOfficialRainLabels();
   if(rainPopup && map.hasLayer(rainPopup)) map.removeLayer(rainPopup);
   $('rainAccumStatus').textContent='Rainfall unavailable: '+error.message;
   $('rainAccumStatus').className='status bad';
@@ -323,8 +325,10 @@ function rainfallPopupContent(point,end){
     // A gauge popup reports this gauge's measurements, not a nearby gauge or
     // model value presented as a measurement when this gauge has gaps.
     if(point.station){
-      value=rollingRainTotal(point.station,actualEnd,hours);
-      source=officialRainData.sources[country]?.name+' · measured';
+      const station=officialRainData.stations.find(s=>s.country===point.station.country&&s.code===point.station.code)||point.station;
+      const stationWindow=officialStationRainWindow(station,hours,end);
+      value=stationWindow?.value;actualEnd=stationWindow?.end||end;
+      source=(officialRainData.sources[country]?.name||country)+' · measured'+(stationWindow?.delayed?' · delayed reading':'');
     }
     details[hours]={official,value,actualEnd};
     return '<div class="'+(hours===selected?'selected':'')+'"><b>'+hours+' h</b><strong>'+
