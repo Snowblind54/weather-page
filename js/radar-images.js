@@ -97,20 +97,20 @@ async function prepareDmiRadarImage(record,edge,allowed){
   source.width=source.height=0;
   return {canvas,bounds:plan.bounds};
 }
-function ensureDmiRadarFilter(){
-  if(document.getElementById('dmi-radar-colours'))return;
-  // DMI's web tiles include grey cartography. An SVG colour mask removes that
-  // basemap without accessing or exporting cross-origin image pixels.
+function ensureRadarColourFilter(){
+  if(document.getElementById('radar-echo-colours'))return;
+  // DMI includes grey cartography; LHMT includes grey missing coverage. Remove
+  // achromatic backgrounds without reading cross-origin image pixels.
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width','0');svg.setAttribute('height','0');
   svg.style.position='absolute';svg.setAttribute('aria-hidden','true');
   const channel=index=>Array.from({length:20},(_,i)=>i<15?(i%5===index?1:0):(i===18?1:0)).join(' ');
-  svg.innerHTML=`<defs><filter id="dmi-radar-colours" color-interpolation-filters="sRGB"><feColorMatrix in="SourceGraphic" values="${channel(0)}" result="r"/><feColorMatrix in="SourceGraphic" values="${channel(1)}" result="g"/><feColorMatrix in="SourceGraphic" values="${channel(2)}" result="b"/><feBlend in="r" in2="g" mode="lighten" result="rgmax"/><feBlend in="rgmax" in2="b" mode="lighten" result="maximum"/><feBlend in="r" in2="g" mode="darken" result="rgmin"/><feBlend in="rgmin" in2="b" mode="darken" result="minimum"/><feColorMatrix in="maximum" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0" result="maxalpha"/><feColorMatrix in="minimum" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0" result="minalpha"/><feComposite in="maxalpha" in2="minalpha" operator="arithmetic" k2="1" k3="-1" result="chroma"/><feComponentTransfer in="chroma" result="mask"><feFuncA type="linear" slope="6" intercept="-0.6"/></feComponentTransfer><feComposite in="SourceGraphic" in2="mask" operator="in"/></filter></defs>`;
+  svg.innerHTML=`<defs><filter id="radar-echo-colours" color-interpolation-filters="sRGB"><feColorMatrix in="SourceGraphic" values="${channel(0)}" result="r"/><feColorMatrix in="SourceGraphic" values="${channel(1)}" result="g"/><feColorMatrix in="SourceGraphic" values="${channel(2)}" result="b"/><feBlend in="r" in2="g" mode="lighten" result="rgmax"/><feBlend in="rgmax" in2="b" mode="lighten" result="maximum"/><feBlend in="r" in2="g" mode="darken" result="rgmin"/><feBlend in="rgmin" in2="b" mode="darken" result="minimum"/><feColorMatrix in="maximum" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0" result="maxalpha"/><feColorMatrix in="minimum" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0" result="minalpha"/><feComposite in="maxalpha" in2="minalpha" operator="arithmetic" k2="1" k3="-1" result="chroma"/><feComponentTransfer in="chroma" result="mask"><feFuncA type="linear" slope="6" intercept="-0.6"/></feComponentTransfer><feComposite in="SourceGraphic" in2="mask" operator="in"/></filter></defs>`;
   document.body.appendChild(svg);
 }
 function dmiRadarCanvasLayer(frame){
-  ensureDmiRadarFilter();
+  ensureRadarColourFilter();
   const Layer=L.Layer.extend({
-    onAdd(map){this._map=map;this._canvas=frame.canvas;this._canvas.className='leaflet-image-layer';Object.assign(this._canvas.style,{position:'absolute',pointerEvents:'none',opacity:'.84',filter:'url(#dmi-radar-colours)'});map.getPane('overlayPane').appendChild(this._canvas);map.on('zoom viewreset moveend',this._reset,this);this._reset();},
+    onAdd(map){this._map=map;this._canvas=frame.canvas;this._canvas.className='leaflet-image-layer';Object.assign(this._canvas.style,{position:'absolute',pointerEvents:'none',opacity:'.84',filter:'url(#radar-echo-colours)'});map.getPane('overlayPane').appendChild(this._canvas);map.on('zoom viewreset moveend',this._reset,this);this._reset();},
     onRemove(map){map.off('zoom viewreset moveend',this._reset,this);this._canvas.remove();},
     _reset(){const bounds=L.latLngBounds(frame.bounds),top=this._map.latLngToLayerPoint(bounds.getNorthWest()),bottom=this._map.latLngToLayerPoint(bounds.getSouthEast());L.DomUtil.setPosition(this._canvas,top);this._canvas.style.width=(bottom.x-top.x)+'px';this._canvas.style.height=(bottom.y-top.y)+'px';},
     bringToFront(){this._canvas.parentNode?.appendChild(this._canvas);return this;}
