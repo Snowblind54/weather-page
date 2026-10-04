@@ -34,7 +34,10 @@ def parse_forecast(page):
     records = {}
     for day, bucket in forecast.items():
         datetime.strptime(day, '%Y-%m-%d')
-        for group in bucket['DATA'].values():
+        groups = bucket['DATA']
+        if groups == []:  # PHP can encode an empty calendar bucket as [].
+            groups = {}
+        for group in groups.values():
             for row in group['ROWS']:
                 if row['status'] != 'PUBLIC' or int(row['warning_level']) == 0:
                     continue

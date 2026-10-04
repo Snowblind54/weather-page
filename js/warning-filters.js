@@ -304,11 +304,12 @@ function updateVisibleWarningStatus(){
   if(previous.includes('FI text fallback')) parts.push('FI text fallback');
   if(previous.includes('unavailable')) parts.push('some source unavailable');
   if(previous.includes('LV unavailable')) parts.push('LV unavailable');
+  if(estoniaLegacyForecast) parts.push('EE forecast incomplete · legacy feed only');
 
   const overdue=overdueWarningCountries();
   if(overdue.length) parts.push('Updates overdue: '+overdue.join(', '));
   $('warningStatus').textContent=parts.join(' · ');
-  if(overdue.length) $('warningStatus').className='status warn';
+  if(overdue.length||estoniaLegacyForecast) $('warningStatus').className='status warn';
 }
 
 let warningExpiryTimer=null;

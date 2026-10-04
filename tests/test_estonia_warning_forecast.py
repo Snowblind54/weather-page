@@ -33,6 +33,7 @@ class EstoniaForecastTests(unittest.TestCase):
 
     def test_empty_valid_forecast_and_nonpublic_rows(self):
         self.assertEqual(module.parse_forecast('_var["warningsData"] = {"2026-10-04":{"DATA":{}}};')[1], [])
+        self.assertEqual(module.parse_forecast('_var["warningsData"] = {"2026-10-04":{"DATA":[]}};')[1], [])
         data = json.JSONDecoder().raw_decode(PAGE[re.search(r'_var\["warningsData"\]\s*=\s*', PAGE).end():])[0]
         for day in data.values():
             for group in day['DATA'].values():
