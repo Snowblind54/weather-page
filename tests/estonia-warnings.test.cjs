@@ -80,7 +80,7 @@ test('marine geometry download is shared and a failed request can be retried',as
  assert.equal((await vm.runInContext('loadEstoniaMarineWarningGeometry()',c)).size,6);await vm.runInContext('loadEstoniaMarineWarningGeometry()',c);assert.equal(calls,2);
 });
 test('full official forecast paints the five tomorrow counties and keeps marine regions offshore',async()=>{
- const c=harness();const snapshot=JSON.parse(read('data/estonia-warnings.json'));
+ const c=harness();const snapshot=JSON.parse(read('tests/fixtures/estonia-warning-forecast.json'));
  snapshot.fetchedAt='2026-10-04T19:19:15Z';c.fetch=async()=>({ok:true,json:async()=>snapshot});
  const records=await vm.runInContext('fetchEstoniaWarningForecast()',c);c.records=records;
  vm.runInContext('warningRecords=warningsForTodayAndTomorrow(records)',c);
