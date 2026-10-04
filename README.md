@@ -232,3 +232,22 @@ measurements at the centre or an NHC reported gust. Each is interpolated between
 three-hour forecast steps; an absent gust is shown as unavailable. The new
 windFieldsVersion forces regeneration even for a cached model cycle without
 gusts. Invalid or missing GFS gust fields cannot publish a partial snapshot.
+
+## Live Iceland radar (v8.34)
+
+Iceland now prefers the read-only service at
+`https://northern-weather-radar.franz-sammel54.chatgpt.site/api/iceland/radar`.
+The separate Sites project `appgprj_6ac19f31ed6881918f23101b74a6a8ec` contains
+its source repository and deployment. It reads the official IMO corrected
+T_PAGZ HDF5 directory listings on demand, caches metadata for 45 seconds and
+immutable scans for a day. Only recent paths for iskef, isska and isx2 are
+relayed. Browser CORS is allowed without keys. The map checks every minute
+while Iceland is visible; manual refresh clears its metadata cache. The
+GitHub PNG archive remains a fallback. Denmark's delivery is unchanged.
+
+Latest radar time advances independently of a delayed Estonian frame list;
+historical selections stay fixed. Polar rendering interpolates linear Z
+between measured ray and range centres, treats undetect as zero echo, and
+preserves unknown/nodata and missing-ray gaps. It cannot recover mountain
+shadows or remove every artifact in the source. Projection mappings are capped
+at 64 MiB, HDF decoding stays in the worker and PNG frames remain LRU cached.
