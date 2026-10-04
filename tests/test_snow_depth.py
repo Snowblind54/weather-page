@@ -30,7 +30,7 @@ class SnowDepthTests(unittest.TestCase):
 
     def test_estonia_date_is_observation_day_not_publication_date(self):
         rows = [{'jaam_kood': 'A', 'jaam_nimi': 'Harku', 'aasta': 2026, 'kuu': 10, 'paev': 3,
-                 'element_yhik': 'cm', 'vaartus': 2, 'avaandmed_ts': '2026-10-04T10:00:00Z'}]
+                 'element_yhik_eng': 'cm', 'vaartus': 2, 'avaandmed_ts': '2026-10-04T10:00:00Z'}]
         records = snow.parse_estonia(rows, [{'name': 'Tallinn-Harku', 'latitude': 59.4, 'longitude': 24.6}])
         self.assertEqual(records[0]['time'], snow.timestamp('2026-10-03T00:00:00Z'))
 
