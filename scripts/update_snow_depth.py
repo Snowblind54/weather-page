@@ -8,6 +8,7 @@ import pathlib
 import re
 import urllib.parse
 import urllib.request
+import urllib.error
 import xml.etree.ElementTree as ET
 
 OUTPUT = pathlib.Path(__file__).resolve().parents[1] / 'data/official-snow-depth.json'
@@ -21,9 +22,13 @@ SOURCES = {
 def download(url, as_json=True):
     headers = {'User-Agent': 'NorthernWeather/8.41', 'Accept-Encoding': 'gzip'}
     if 'keskkonnaandmed.envir.ee' in url:
-        headers.update({'Accept-Profile': 'apijahialad', 'Accept': 'application/json'})
-    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=40) as response:
-        raw = response.read()
+        headers.update({'Accept': 'application/json'})
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=40) as response:
+            raw = response.read()
+    except urllib.error.HTTPError as error:
+        detail = error.read(2500).decode('utf-8', errors='replace')
+        raise ValueError(f'HTTP {error.code}: {detail}') from error
     if raw.startswith(b'\x1f\x8b'):
         raw = gzip.decompress(raw)
     return json.loads(raw) if as_json else raw
@@ -186,8 +191,8 @@ def parse_finland(raw):
 def load_finland(now):
     params = dict(service='WFS', version='2.0.0', request='getFeature',
                   storedquery_id='fmi::observations::weather::daily::multipointcoverage',
-                  bbox='19,59,32,71.7', starttime=(now-dt.timedelta(days=3)).isoformat(),
-                  endtime=now.isoformat(), parameters='snow')
+                  bbox='19,59,32,71.7', starttime=(now-dt.timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                  endtime=now.strftime('%Y-%m-%dT%H:%M:%SZ'), parameters='snow')
     return parse_finland(download('https://opendata.fmi.fi/wfs?' + urllib.parse.urlencode(params), False))
 
 
@@ -209,7 +214,20 @@ def parse_sweden(payload):
 
 def load_sweden(now):
     base = 'https://opendata-download-metobs.smhi.se/api/version/1.0/parameter/8'
-    return parse_sweden(download(base + '/station-set/all/period/latest-day/data.json'))
+    meta = download(base + '.json')
+    print('SE metadata sample:', json.dumps(meta.get('station', [])[:1], ensure_ascii=False), flush=True)
+    print('SE parameter:', json.dumps({k: meta.get(k) for k in ('key', 'title', 'summary', 'unit')}, ensure_ascii=False), flush=True)
+    stations = [s for s in meta.get('station', []) if s.get('active') and (not s.get('owner') or s['owner'].upper() == 'SMHI')]
+    def get(s):
+        try:
+            values = download(base + '/station/' + str(s['key']) + '/period/latest-months/data.json')
+            return {**s, 'value': values.get('value', [])}
+        except Exception as error:
+            print('SE station unavailable:', s['key'], str(error)[:200], flush=True)
+            return None
+    with futures.ThreadPoolExecutor(max_workers=8) as pool:
+        rows = [s for s in pool.map(get, stations) if s]
+    return parse_sweden({'parameter': {'key': meta['key'], 'unit': meta['unit']}, 'station': rows})
 
 
 def main():
