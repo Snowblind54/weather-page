@@ -12,18 +12,30 @@ let officialTemperatureStations=[];
 let officialTemperatureLoadedAt=0;
 let officialTemperatureLoadPromise=null;
 let officialTemperatureSourceState={};
+const officialTempFetches=new Map();
 
 function officialTempProxyUrl(url){
   return 'https://proxy.cors.dev/'+url;
 }
 
 async function officialTempFetch(url,{json=false,timeout=14000}={}){
+  const key=(json?'json|':'text|')+url;
+  if(officialTempFetches.has(key))return officialTempFetches.get(key);
+  const promise=fetchOfficialTempResponse(url,{json,timeout});
+  officialTempFetches.set(key,promise);
+  try{return await promise;}
+  finally{if(officialTempFetches.get(key)===promise)officialTempFetches.delete(key);}
+}
+
+async function fetchOfficialTempResponse(url,{json=false,timeout=14000}={}){
   const attempt=async target=>{
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),timeout);
     try{
       const response=await fetch(target,{
-        cache:'no-store',
+        // Revalidate cached responses with the provider; never serve an
+        // unchecked cached observation, but permit a lightweight HTTP 304.
+        cache:'no-cache',
         signal:controller.signal,
         headers:{'Accept':json?'application/json,text/plain,*/*':'application/xml,text/xml,text/html,text/plain,*/*'}
       });
@@ -421,7 +433,9 @@ async function loadOfficialTemperatureStations(force=false){
   if(!force && officialTemperatureStations.length && Date.now()-officialTemperatureLoadedAt<OFFICIAL_TEMP_REFRESH_MS){
     return officialTemperatureStations;
   }
-  if(officialTemperatureLoadPromise && !force) return officialTemperatureLoadPromise;
+  // Refresh joins an already fresh in-flight load rather than starting another
+  // entire country's requests. Completed loads retain the same refresh rules.
+  if(officialTemperatureLoadPromise) return officialTemperatureLoadPromise;
 
   officialTemperatureLoadPromise=(async()=>{
     const settled=await Promise.allSettled(OFFICIAL_TEMP_LOADERS.map(([,loader])=>loader()));
@@ -583,4 +597,3 @@ buildTemperatureOverlay=async function(unix,options={}){
   }
   return result;
 };
-
