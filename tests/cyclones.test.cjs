@@ -4,9 +4,9 @@ const path=require('node:path');
 const vm=require('node:vm');
 const {test}=require('node:test');
 
-function harness(details=false){
+function harness(details=false,ensemble=false){
   const elements={},layers=new Set(),panes=new Map(),timers=new Map();let tick=1;
-  for(const id of ['cycloneOn','cycloneHistoryOn','cyclonePathsOn','cycloneForecastHour','cycloneTimeLabel','cycloneStatus','cycloneSection','cycloneNow','cycloneCoverage','cyclonePlay','cycloneIsobarsOn','cycloneIsobarOpacity','cycloneIsobarStatus','cycloneList','cycloneListSummary','cycloneNamesStatus'])
+  for(const id of ['cycloneOn','cycloneHistoryOn','cyclonePathsOn','cycloneForecastHour','cycloneTimeLabel','cycloneStatus','cycloneSection','cycloneNow','cycloneCoverage','cyclonePlay','cycloneIsobarsOn','cycloneIsobarOpacity','cycloneIsobarStatus','cycloneList','cycloneListSummary','cycloneNamesStatus','cycloneSpreadOn','cyclonePossibleOn','cycloneEnsembleStatus'])
     elements[id]={checked:false,value:'0',textContent:'',listeners:{},addEventListener(n,f){this.listeners[n]=f;},children:[],replaceChildren(){this.children=[];},appendChild(c){this.children.push(c);},getBoundingClientRect(){return {left:1000,right:1400,top:0,bottom:900};}};
   const map={createPane:n=>panes.set(n,{style:{}}),getPane:n=>panes.get(n),hasLayer:l=>layers.has(l),removeLayer:l=>layers.delete(l),
     fitBounds(){this.moves++;},setView(p,z){this.moves++;this.view=p;this.zoom=z;},getZoom(){return this.zoom;},zoom:4,on(){},getSize:()=>({x:1000,y:800}),getContainer:()=>({getBoundingClientRect:()=>({left:0,top:0})}),latLngToContainerPoint:ll=>({x:(ll[1]+85)*7,y:(82-ll[0])*8+100}),moves:0};
@@ -24,11 +24,13 @@ function harness(details=false){
     L:{divIcon:o=>o,marker:(point,options)=>layer({point,options,on(n,f){this[n]=f;return this;},setLatLng(p){this.point=p;return this;},setIcon(v){this.options.icon=v;},getElement:()=>null}),
       layerGroup:(children=[])=>layer({children,eachLayer(fn){this.children.forEach(fn);},addLayer(l){this.children.push(l);},removeLayer(l){this.children=this.children.filter(x=>x!==l);}}),
       polyline:(points,options)=>layer({points,options,setStyle(style){Object.assign(this.options,style);}}),circleMarker:(point,options)=>layer({point,options}),
+      circle:(point,options)=>layer({point,options}),polygon:(points,options)=>layer({points,options}),
       popup:options=>layer({options,setLatLng(p){this.point=p;return this;},setContent(s){this.content=s;return this;},openOn(){layers.add(this);return this;}})}
   };
   vm.createContext(context);const run=s=>vm.runInContext(s,context);
   run(fs.readFileSync(path.join(__dirname,'../js/cyclones.js'),'utf8'));
   if(details){elements.cycloneIsobarsOn.checked=true;elements.cycloneIsobarOpacity.value='35';run(fs.readFileSync(path.join(__dirname,'../js/cyclone-details.js'),'utf8'));}
+  if(ensemble)run(fs.readFileSync(path.join(__dirname,'../js/cyclone-ensemble.js'),'utf8'));
   context.fixture=data;
   const seed=()=>{elements.cycloneOn.checked=true;run('cycloneData=validateCyclones(fixture);renderCyclones();');};
   return {context,run,elements,layers,timers,map,data,seed,setClock(t){clock=t;}};
@@ -170,4 +172,61 @@ test('hourly centres and contours stay synchronized, Now advances and playback u
   h.data.systems[0].points=h.data.systems[0].points.filter(p=>p.time!==run+10800);h.run('renderCyclones()');
   assert.equal(h.run('cycloneMarkers.size'),0,'missing detected centre is not interpolated into an hourly pressure frame');
   assert.match(fs.readFileSync(path.join(__dirname,'../index.html'),'utf8'),/id="cycloneForecastHour"[^>]*step="1"/);
+});
+
+function ensembleFixture(h){
+  const run=h.data.modelRun;
+  return {version:1,methodVersion:1,modelRun:run,generatedAt:h.data.generatedAt,forecastEnd:run+96*3600,stepHours:6,
+    expectedMembers:31,availableMembers:31,spreadPercentile:80,status:'ok',systems:[{id:'GFS-example',
+      members:Array.from({length:31},(_,i)=>({member:i?'p'+String(i).padStart(2,'0'):'c00',
+        points:Array.from({length:17},(_,j)=>({time:run+j*6*3600,lat:55+i*.02,lon:-40+j,pressure:985}))})),
+      frames:Array.from({length:17},(_,i)=>({time:run+i*6*3600,lat:55.3,lon:-40+i,radiusKM:30+i*5,support:31}))}]};
+}
+
+test('ensemble shading and optional member tracks never alter the GFS projected path',()=>{
+  const h=harness(true,true);h.context.ensembleFixture=ensembleFixture(h);
+  h.run('cycloneEnsembleData=validateCycloneEnsemble(ensembleFixture);cycloneEnsembleLoadedAt=Date.now();');
+  h.elements.cyclonePathsOn.checked=true;h.elements.cycloneSpreadOn.checked=true;h.seed();
+  const primary=h.run('JSON.stringify(cyclonePathGroup.children)');
+  assert(h.run('cycloneEnsembleGroup.children.some(l=>l.options.radius>0)'));
+  assert(h.run('cycloneEnsembleGroup.children.every(l=>l.options.interactive===false)'));
+  assert.equal(h.run('cycloneEnsembleGroup.children.filter(l=>l.options.opacity===.25).length'),0);
+  h.elements.cyclonePossibleOn.checked=true;h.elements.cyclonePossibleOn.listeners.change();
+  assert.equal(h.run('cycloneEnsembleGroup.children.filter(l=>l.options.opacity===.25).length'),31);
+  assert.equal(h.run('JSON.stringify(cyclonePathGroup.children)'),primary);
+  assert.match(h.elements.cycloneEnsembleStatus.textContent,/not a probability cone/);
+  h.elements.cycloneSpreadOn.checked=false;h.elements.cycloneSpreadOn.listeners.change();
+  assert.equal(h.run('cycloneEnsembleGroup.children.length'),31);
+  h.elements.cyclonePossibleOn.checked=false;h.elements.cyclonePossibleOn.listeners.change();
+  assert.equal(h.run('cycloneEnsembleGroup'),null);assert.equal(h.run('JSON.stringify(cyclonePathGroup.children)'),primary);
+});
+
+test('ensemble validation rejects corrupt members and insufficient support without affecting centres',()=>{
+  const h=harness(true,true);h.seed();const e=ensembleFixture(h);h.context.ensembleFixture=e;
+  assert.equal(h.run('validateCycloneEnsemble(ensembleFixture).availableMembers'),31);
+  e.systems[0].frames[0].support=9;
+  assert.throws(()=>h.run('validateCycloneEnsemble(ensembleFixture)'),/Invalid ensemble spread/);
+  e.systems[0].frames[0].support=31;e.systems[0].members[1].member='c00';
+  assert.throws(()=>h.run('validateCycloneEnsemble(ensembleFixture)'),/Invalid ensemble member/);
+  assert.equal(h.run('cycloneMarkers.size'),1);
+});
+
+test('ensemble loading is shared, rejects mixed runs, and cannot resurrect an off layer',async()=>{
+  const h=harness(true,true);h.seed();h.elements.cycloneSpreadOn.checked=true;
+  let finish,calls=0;h.context.fetch=()=>{calls++;return new Promise(resolve=>finish=resolve);};
+  const pending=h.run('loadCycloneEnsemble()');h.run('loadCycloneEnsemble()');assert.equal(calls,1);
+  h.elements.cycloneOn.checked=false;h.elements.cycloneOn.listeners.change();
+  finish({ok:true,json:async()=>ensembleFixture(h)});await pending;assert.equal(h.run('cycloneEnsembleGroup'),null);
+  h.elements.cycloneOn.checked=true;h.run('cycloneEnsembleData=null;cycloneEnsembleRetryAt=0;');
+  const wrong=ensembleFixture(h);wrong.modelRun-=6*3600;wrong.forecastEnd-=6*3600;
+  wrong.systems.forEach(s=>{s.frames.forEach(p=>p.time-=6*3600);s.members.forEach(m=>m.points.forEach(p=>p.time-=6*3600));});
+  h.context.fetch=async()=>({ok:true,json:async()=>wrong});await h.run('loadCycloneEnsemble()');
+  assert.equal(h.run('cycloneEnsembleData'),null);assert.match(h.elements.cycloneEnsembleStatus.textContent,/unavailable/);
+  h.run('renderCyclones()');assert.equal(h.run('cycloneMarkers.size'),1);
+});
+
+test('ensemble interpolation and corridor segments do not bridge missing six-hour samples',()=>{
+  const h=harness(false,true);h.context.points=[{time:0,lat:55,lon:-30,radiusKM:10,support:31},{time:12*3600,lat:56,lon:-20,radiusKM:40,support:31}];
+  assert.equal(h.run('ensemblePointAt(points,6*3600,true)'),null);
+  assert.equal(h.run('ensemblePointAt(points,0,true).radiusKM'),10);
 });
