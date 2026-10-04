@@ -4,12 +4,12 @@ const path=require('node:path');
 const vm=require('node:vm');
 const {test}=require('node:test');
 
-function harness(){
+function harness(details=false){
   const elements={},layers=new Set(),panes=new Map(),timers=new Map();let tick=1;
-  for(const id of ['cycloneOn','cycloneHistoryOn','cyclonePathsOn','cycloneForecastHour','cycloneTimeLabel','cycloneStatus','cycloneSection','cycloneNow','cycloneCoverage','cyclonePlay'])
-    elements[id]={checked:false,value:'0',textContent:'',listeners:{},addEventListener(n,f){this.listeners[n]=f;}};
+  for(const id of ['cycloneOn','cycloneHistoryOn','cyclonePathsOn','cycloneForecastHour','cycloneTimeLabel','cycloneStatus','cycloneSection','cycloneNow','cycloneCoverage','cyclonePlay','cycloneIsobarsOn','cycloneIsobarOpacity','cycloneIsobarStatus','cycloneList','cycloneListSummary','cycloneNamesStatus'])
+    elements[id]={checked:false,value:'0',textContent:'',listeners:{},addEventListener(n,f){this.listeners[n]=f;},children:[],replaceChildren(){this.children=[];},appendChild(c){this.children.push(c);},getBoundingClientRect(){return {left:1000,right:1400,top:0,bottom:900};}};
   const map={createPane:n=>panes.set(n,{style:{}}),getPane:n=>panes.get(n),hasLayer:l=>layers.has(l),removeLayer:l=>layers.delete(l),
-    fitBounds(){this.moves++;},moves:0};
+    fitBounds(){this.moves++;},setView(p,z){this.moves++;this.view=p;this.zoom=z;},getZoom(){return this.zoom;},zoom:4,on(){},getSize:()=>({x:1000,y:800}),getContainer:()=>({getBoundingClientRect:()=>({left:0,top:0})}),latLngToContainerPoint:ll=>({x:(ll[1]+85)*7,y:(82-ll[0])*8+100}),moves:0};
   function layer(extra={}){return {...extra,addTo(target){if(target===map)layers.add(this);else target.addLayer(this);return this;}};}
   const now=Math.floor(Date.now()/1000);
   const data={version:1,generatedAt:now,modelRun:now-3600,forecastEnd:now+96*3600,status:'ok',systems:[
@@ -18,14 +18,15 @@ function harness(){
   const context={console,Date,Math,JSON,Number,Map,Set,AbortController,setTimeout,clearTimeout,
     setInterval(f,delay){if(delay<1000){timers.set(tick,f);return tick++;}return 0;},clearInterval:n=>timers.delete(n),
     map,$:id=>elements[id],setWeatherSectionState(){},fmt:t=>new Date(t*1000).toISOString(),htmlEscape:s=>String(s).replaceAll('<','&lt;'),
-    document:{hidden:false,addEventListener(){}},fetch:async()=>({ok:true,json:async()=>JSON.parse(JSON.stringify(data))}),
+    document:{hidden:false,addEventListener(){},createElement(){return {type:'',innerHTML:'',listeners:{},setAttribute(){},addEventListener(k,f){this.listeners[k]=f;}};}},URL,fetch:async()=>({ok:true,json:async()=>JSON.parse(JSON.stringify(data))}),
     L:{divIcon:o=>o,marker:(point,options)=>layer({point,options,on(n,f){this[n]=f;return this;},setLatLng(p){this.point=p;return this;},setIcon(v){this.options.icon=v;},getElement:()=>null}),
-      layerGroup:(children=[])=>layer({children,addLayer(l){this.children.push(l);},removeLayer(l){this.children=this.children.filter(x=>x!==l);}}),
-      polyline:(points,options)=>layer({points,options}),circleMarker:(point,options)=>layer({point,options}),
+      layerGroup:(children=[])=>layer({children,eachLayer(fn){this.children.forEach(fn);},addLayer(l){this.children.push(l);},removeLayer(l){this.children=this.children.filter(x=>x!==l);}}),
+      polyline:(points,options)=>layer({points,options,setStyle(style){Object.assign(this.options,style);}}),circleMarker:(point,options)=>layer({point,options}),
       popup:options=>layer({options,setLatLng(p){this.point=p;return this;},setContent(s){this.content=s;return this;},openOn(){layers.add(this);return this;}})}
   };
   vm.createContext(context);const run=s=>vm.runInContext(s,context);
   run(fs.readFileSync(path.join(__dirname,'../js/cyclones.js'),'utf8'));
+  if(details){elements.cycloneIsobarsOn.checked=true;elements.cycloneIsobarOpacity.value='35';run(fs.readFileSync(path.join(__dirname,'../js/cyclone-details.js'),'utf8'));}
   context.fixture=data;
   const seed=()=>{elements.cycloneOn.checked=true;run('cycloneData=validateCyclones(fixture);renderCyclones();');};
   return {context,run,elements,layers,timers,map,data,seed};
@@ -39,8 +40,8 @@ test('movement units, interpolation, coverage and absent observations',()=>{
   assert.equal(h.run('cyclonePointAt(fixture.systems[0],fixture.forecastEnd+1)'),null);
   h.run('fixture.systems[0].points[1].time=fixture.modelRun+9*3600;');
   assert.equal(h.run('cyclonePointAt(fixture.systems[0],fixture.modelRun+3600)'),null);
-  assert.equal(h.run('cycloneVisiblePosition({lat:40,lon:25})'),false);
-  assert.equal(h.run('cycloneVisiblePosition({lat:55,lon:25})'),true);
+  assert.equal(h.run('cycloneVisiblePosition({lat:40,lon:25,pressure:985})'),false);
+  assert.equal(h.run('cycloneVisiblePosition({lat:55,lon:25,pressure:985})'),true);
 });
 
 test('paths are separate, centre popup and forecasts preserve the viewport',()=>{
@@ -99,4 +100,41 @@ test('past trails remain distinct from forecasts, exclude future points and spli
   assert.equal(h.run('cycloneHistoryGroup'),null);assert.notEqual(h.run('cyclonePathGroup'),null);
   h.data.systems[0].history.push({time:now+1,lat:55,lon:-40,pressure:985});
   assert.throws(()=>h.run('validateCyclones(fixture)'),/Invalid cyclone history point/);
+});
+
+
+test('1000 hPa boundary hides weak centres, trails, forecast labels and list entries',()=>{
+  const h=harness(true);h.data.systems[0].points.forEach(p=>p.pressure=1000.1);
+  h.elements.cyclonePathsOn.checked=true;h.elements.cycloneHistoryOn.checked=true;h.seed();
+  assert.equal(h.run('cycloneMarkers.size'),0);assert.equal(h.elements.cycloneList.children.length,0);
+  assert.equal(h.run('cyclonePathGroup.children.length'),0);assert.equal(h.run('cycloneHistoryGroup.children.length'),0);
+  h.data.systems[0].points.forEach(p=>p.pressure=1000);h.run('renderCyclones()');
+  assert.equal(h.run('cycloneMarkers.size'),1);assert.equal(h.elements.cycloneList.children.length,1);
+  h.elements.cycloneList.children[0].listeners.click();assert.equal(h.map.moves,1);assert.ok(h.run('cyclonePopup.content').includes('1000.0 hPa'));
+});
+test('pressure trend uses elapsed history without bridging missing time intervals',()=>{
+  const h=harness(true),now=h.data.generatedAt;
+  h.data.systems[0].history=[{time:now-7*3600,pressure:990,lat:55,lon:-40},{time:now-4*3600,pressure:987,lat:55,lon:-40}];h.seed();
+  h.context.trendPoint={time:now,pressure:984};
+  assert.equal(h.run('cycloneTrend(fixture.systems[0],trendPoint).kind'),'deepening');
+  assert.equal(h.run('cycloneTrend(fixture.systems[0],trendPoint).change'),-5);
+  h.context.trendPoint.pressure=991;assert.equal(h.run('cycloneTrend(fixture.systems[0],trendPoint).kind'),'filling');
+  h.data.systems[0].history=[{time:now-15*3600,pressure:999}];
+  assert.equal(h.run('cycloneTrend(fixture.systems[0],trendPoint).change'),null);
+});
+test('isobars share the model run, use sparse overview spacing and bounded labels, and disappear when disabled',()=>{
+  const h=harness(true),run=h.data.modelRun;
+  h.data.pressureContours={version:1,modelRun:run,frames:[{time:run,lines:Array.from({length:12},(_,i)=>({pressure:960+i*4,points:[[-75+i*8,55],[-70+i*8,56],[-65+i*8,57]]}))}]};
+  h.seed();assert.equal(h.run('cycloneIsobarGroup.children.length'),6);assert.ok(h.run('cycloneIsobarLabels.children.length')<=8);
+  h.map.zoom=5;h.run('renderCycloneIsobars()');assert.equal(h.run('cycloneIsobarGroup.children.length'),12);
+  const group=h.run('cycloneIsobarGroup');h.elements.cycloneIsobarOpacity.value='20';h.run('renderCycloneIsobars()');assert.equal(h.run('cycloneIsobarGroup'),group);assert.equal(group.children[0].options.opacity,.2);
+  h.elements.cycloneOn.checked=false;h.elements.cycloneOn.listeners.change();assert.equal(h.run('cycloneIsobarGroup'),null);assert.equal(h.elements.cycloneList.children.length,0);
+  h.data.pressureContours.modelRun++;assert.throws(()=>h.run('validateCyclones(fixture)'),/contour archive/);
+});
+test('European official name provenance is escaped and linked only to official hosts',()=>{
+  const h=harness(true);h.data.systems[0].name='<Austen>';
+  h.data.systems[0].europeanName={issuer:'Met Office',url:'https://weather.metoffice.gov.uk/warnings-and-advice/uk-storm-centre'};h.seed();
+  h.run('openCyclonePopup(fixture.systems[0])');const content=h.run('cyclonePopup.content');
+  assert.match(content,/&lt;Austen>/);assert.match(content,/association is inferred/);assert.match(content,/Official source/);
+  assert.equal(h.run('cycloneSafeNameUrl("https://weather.metoffice.gov.uk.evil.example/x")'),null);
 });

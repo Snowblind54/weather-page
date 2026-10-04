@@ -111,5 +111,44 @@ class Cyclones(unittest.TestCase):
         self.assertEqual(result[0]['history'][-1]['lon'], -29)
 
 
+
+class PressureAndNames(unittest.TestCase):
+    def test_isobars_follow_known_analytic_pressure_field(self):
+        lats=np.arange(40,60.1,.5);lons=np.arange(-30,10.1,.5)
+        pressure=1000+np.broadcast_to(lons[None,:],(len(lats),len(lons)))
+        frame=c.pressure_contours(lats,lons,pressure,STAMP)
+        self.assertEqual(frame['time'],STAMP)
+        self.assertTrue(frame['lines'])
+        for line in frame['lines']:
+            self.assertTrue(all(abs(x-(line['pressure']-1000))<.01 for x,y in line['points']))
+
+    def test_official_annual_list_is_not_a_named_active_event(self):
+        from cyclone_names import parse_uk
+        text='<table><tr><td>Austen</td><td></td><td></td></tr><tr><td>Boelo</td><td>1 October 2026</td><td>3 October 2026</td></tr></table>'
+        names=parse_uk(text,RUN);self.assertEqual([n['name'] for n in names],['Boelo'])
+        self.assertEqual(parse_uk(text,RUN+dt.timedelta(days=8)),[])
+
+    def test_european_match_rejects_multiple_lows_and_competing_names(self):
+        from cyclone_names import add_european_names
+        text='<table><tr><td>Example</td><td>1 October 2026</td><td>3 October 2026</td></tr></table>'
+        def download(url):return text.encode() if 'metoffice' in url else b'{"features":[]}'
+        track={'points':[point(h, -10)|{'nearbyGust':30} for h in (0,3,6,9)]}
+        tracks=[track];status=add_european_names(tracks,RUN,download,c.distance)
+        self.assertEqual(status['matched'],1);self.assertEqual(track['name'],'Example');self.assertIn('europeanName',track)
+        ambiguous=[{'points':track['points']},{'points':[p|{'lon':-5} for p in track['points']]}]
+        self.assertEqual(add_european_names(ambiguous,RUN,download,c.distance)['matched'],0)
+        self.assertTrue(all('name' not in t for t in ambiguous))
+        distant=[{'points':[p|{'lon':-45} for p in track['points']]}]
+        self.assertEqual(add_european_names(distant,RUN,download,c.distance)['matched'],0)
+
+    def test_named_met_wind_alert_and_cancellation(self):
+        from cyclone_names import parse_met
+        feature={'geometry':{'type':'Polygon','coordinates':[[[5,60],[10,60],[10,65],[5,60]]]},
+          'properties':{'incidentName':'Example','event':'wind','status':'Actual','eventStartingTime':RUN.isoformat(),
+                        'eventEndingTime':(RUN+dt.timedelta(hours=12)).isoformat()}}
+        self.assertEqual(parse_met({'features':[feature]},RUN)[0]['name'],'Example')
+        feature['properties']['event']='rain';self.assertEqual(parse_met({'features':[feature]},RUN),[])
+        feature['properties']['event']='wind';feature['properties']['status']='Test';self.assertEqual(parse_met({'features':[feature]},RUN),[])
+
 if __name__ == '__main__':
     unittest.main()
