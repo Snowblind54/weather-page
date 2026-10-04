@@ -14,7 +14,16 @@ function validOfficialRainSnapshot(data){
     s.lat>=48 && s.lat<=72.5 && s.lon>=-26 && s.lon<=33 && typeof s.code==='string' &&
     Array.isArray(s.times) && Array.isArray(s.amounts) && s.times.length===s.amounts.length &&
     s.times.every((t,i)=>Number.isFinite(t)&&t%3600===0&&(!i||t>s.times[i-1])) &&
-    s.amounts.every(v=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1000));
+    s.amounts.every(v=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1000) &&
+    (s.accumulations===undefined || (s.country==='IS' && Array.isArray(s.accumulations) &&
+      s.accumulations.every((v,i)=>Number.isFinite(v.end)&&v.end%3600===0&&[24,48].includes(v.hours)&&
+        typeof v.value==='number'&&Number.isFinite(v.value)&&v.value>=0&&v.value<=1000&&
+        (!i||v.end>s.accumulations[i-1].end||(v.end===s.accumulations[i-1].end&&v.hours>s.accumulations[i-1].hours))))));
+}
+
+function officialGaugeRainTotal(station,end,hours){
+  const published=station.accumulations?.find(v=>v.end===end&&v.hours===hours);
+  return published?published.value:rollingRainTotal(station,end,hours);
 }
 
 async function loadOfficialRainfall(force=false){
@@ -52,7 +61,7 @@ function officialRainWindow(country,hours,end){
     // its actual end; never label an older measurement as the selected hour.
     for(let offset=0;offset<=2;offset++){
       const actualEnd=end-offset*3600;
-      const rows=stations.map(station=>({station,value:rollingRainTotal(station,actualEnd,hours)})).filter(s=>Number.isFinite(s.value));
+      const rows=stations.map(station=>({station,value:officialGaugeRainTotal(station,actualEnd,hours)})).filter(s=>Number.isFinite(s.value));
       if(rows.length>=3){result={rows,end:actualEnd,country,source:officialRainData.sources[country]?.name||country};break;}
     }
   }
@@ -121,11 +130,11 @@ function removeOfficialRainLabels(){
 // A number at a gauge is a measurement, independent of whether there are enough
 // neighbours for a heatmap. Preserve a delayed complete window with its true end.
 function officialStationRainWindow(station,hours,end){
-  for(let i=station.times.length-1;i>=0;i--){
-    const actualEnd=station.times[i];
+  const ends=[...new Set([...station.times,...(station.accumulations||[]).filter(v=>v.hours===hours).map(v=>v.end)])].sort((a,b)=>b-a);
+  for(const actualEnd of ends){
     if(actualEnd>end)continue;
     if(end-actualEnd>24*3600)break;
-    const value=rollingRainTotal(station,actualEnd,hours);
+    const value=officialGaugeRainTotal(station,actualEnd,hours);
     if(Number.isFinite(value))return {value,end:actualEnd,delayed:end-actualEnd>2*3600};
   }
   return null;
