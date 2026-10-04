@@ -176,7 +176,7 @@ test('hourly centres and contours stay synchronized, Now advances and playback u
 
 function ensembleFixture(h){
   const run=h.data.modelRun;
-  return {version:1,methodVersion:1,modelRun:run,generatedAt:h.data.generatedAt,forecastEnd:run+96*3600,stepHours:6,
+  return {version:1,methodVersion:2,modelRun:run,generatedAt:h.data.generatedAt,forecastEnd:run+96*3600,stepHours:6,
     expectedMembers:31,availableMembers:31,spreadPercentile:80,status:'ok',systems:[{id:'GFS-example',
       members:Array.from({length:31},(_,i)=>({member:i?'p'+String(i).padStart(2,'0'):'c00',
         points:Array.from({length:17},(_,j)=>({time:run+j*6*3600,lat:55+i*.02,lon:-40+j,pressure:985}))})),

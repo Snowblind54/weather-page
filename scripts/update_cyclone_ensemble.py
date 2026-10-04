@@ -23,7 +23,7 @@ OUTPUT = c.OUTPUT.with_name('cyclone-ensemble.json')
 MEMBERS = ['c00']+[f'p{i:02d}' for i in range(1, 31)]
 STEPS = list(range(0, 97, 6))
 MIN_SUPPORT = 10
-METHOD_VERSION = 1
+METHOD_VERSION = 2
 BUCKET = 'https://noaa-gefs-pds.s3.amazonaws.com'
 
 
@@ -109,6 +109,10 @@ def member_tracks(run, member, deadline):
 
 
 def match_score(reference, candidate):
+    # A later-forming nearby low is not evidence for the original cyclone's
+    # uncertainty. GEFS births may differ by one native six-hour frame only.
+    if abs(reference['points'][0]['time']-candidate['points'][0]['time'])>6*3600:
+        return None
     samples = []
     for p in candidate['points']:
         q = c.point_at(reference['points'], p['time'])
