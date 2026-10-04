@@ -17,6 +17,7 @@ Interactive weather map covering the Baltics and Northern Europe.
 - `js/wind.js` — cached hourly wind grids, offshore sampling and animated canvas trails
 - `js/clouds.js` — EUMETSAT day/night cloud processing and animation
 - `js/radar.js` — KAIA HDF5 rain radar and timeline frame loading
+- `js/radar-capture.js` — viewport-aware background radar preparation
 - `js/app.js` — controls, event handlers, refresh timers and startup
 
 The live site is deployed by GitHub Pages from the `main` branch.
@@ -251,3 +252,7 @@ between measured ray and range centres, treats undetect as zero echo, and
 preserves unknown/nodata and missing-ray gaps. It cannot recover mountain
 shadows or remove every artifact in the source. Projection mappings are capped
 at 64 MiB, HDF decoding stays in the worker and PNG frames remain LRU cached.
+
+## Background radar preparation (v8.35)
+
+After the initial map render, the browser prepares the latest official radar images for visible coverage while radar is hidden, then up to two earlier timeline slots. Preparation adds no map layers and changes no timeline selections. It pauses in hidden tabs, follows viewport changes, uses one Nordic background conversion at a time, and skips history on data-saving connections. The existing image caches are reused on activation; shared in-flight downloads avoid repeating work. Nordic images remain in the bounded 24 MiB / 180-frame cache when toggled off. Metadata expires normally and background preparation checks again every two minutes; enabled Iceland radar retains its one-minute update check. A new country, zoom resolution, immediately enabled layer or slow official source can still require loading. No additional backend is required.

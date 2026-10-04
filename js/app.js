@@ -134,6 +134,7 @@ $('cloudOn').addEventListener('change',async()=>{
 });
 
 $('radarOn').addEventListener('change',async()=>{
+  if($('radarOn').checked)pauseRadarPreload();
   // Immediately invalidate any Estonian frame currently downloading/decoding.
   radarRenderGeneration++;
   radarSwapGeneration++;
@@ -147,6 +148,7 @@ $('radarOn').addEventListener('change',async()=>{
     clearNordicRadars();
     $('radarStatus').textContent='Rain radar: hidden.';
     $('radarStatus').className='status';
+    scheduleRadarPreload();
     return;
   }
 
@@ -200,7 +202,7 @@ $('refresh').onclick=async()=>{
   $('mapStatus').className='status';
   try{
     // A manual refresh should bypass the short LV/LT processed-image cache.
-    if($('radarOn').checked){directRadarImageCache.clear();nordicRadarLists.clear();nordicRadarArchive=null;}
+    directRadarImageCache.clear();nordicRadarLists.clear();nordicRadarArchive=null;
     await loadOfficialRadarList();
     if(temperatureEnabled()) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);
@@ -217,6 +219,7 @@ $('refresh').onclick=async()=>{
     // Accumulation stays refreshable even when a national radar feed is offline.
     if(activeAccumulationHours()) await loadRainfall(true).catch(reportRainfallError);
     if($('cycloneOn').checked) await loadCyclones(true).catch(reportCycloneError);
+    scheduleRadarPreload();
   }
 };
 
@@ -232,10 +235,14 @@ async function bootstrap(){
     console.error(e);
     $('radarStatus').textContent='Official KAIA radar could not start: '+e.message;
     $('radarStatus').className='status bad';
+  }finally{
+    scheduleRadarPreload();
   }
 }
 
 bootstrap();
+// Start Nordic discovery even if Estonia's timeline is slow to respond.
+scheduleRadarPreload(2000);
 
 // Warm the temperature source data after the first map render. This is network
 // work only; the heatmap image itself is still created on demand.
