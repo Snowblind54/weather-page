@@ -1,7 +1,7 @@
 name: Update North Atlantic and Europe cyclones
 on:
   schedule:
-    - cron: '45 */3 * * *'
+    - cron: '45 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -45,4 +45,3 @@ jobs:
           git commit -m 'Refresh North Atlantic and Europe cyclone tracks'
           git pull --rebase origin main
           git push origin HEAD:main
-

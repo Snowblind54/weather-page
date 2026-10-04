@@ -57,6 +57,8 @@ function cycloneBearing(a,b){
 function cyclonePointAt(system,unix){
   const points=system.points;
   if(!points.length || unix<points[0].time || unix>points.at(-1).time) return null;
+  // Hourly frames use detected centres only, never invented positions across gaps.
+  if(cycloneData?.forecastStepHours===1 && unix%3600===0 && !points.some(p=>p.time===unix))return null;
   let a=points[0],b=points[1];
   for(let i=1;i<points.length;i++){
     a=points[i-1];b=points[i];if(unix<=b.time)break;
@@ -69,8 +71,13 @@ function cyclonePointAt(system,unix){
   return point;
 }
 
-function cycloneTrackStart(){return cycloneTrackTime??(cycloneTrackTime=Math.floor(Date.now()/1000));}
-function cycloneSelectedTime(){return cycloneTrackStart()+Number($('cycloneForecastHour').value)*3600;}
+function cycloneTrackStart(){return cycloneTrackTime??(cycloneTrackTime=Math.floor(Date.now()/3600000)*3600);}
+function cycloneFrameTime(requested){
+  const frames=cycloneData?.pressureContours?.frames||[];
+  let frame=null;for(const candidate of frames)if(candidate.time<=requested)frame=candidate;else break;
+  return frame && requested-frame.time<3*3600 ? frame.time : requested;
+}
+function cycloneSelectedTime(){return cycloneFrameTime(cycloneTrackStart()+Number($('cycloneForecastHour').value)*3600);}
 function cycloneUsable(){return cycloneData && Date.now()/1000-cycloneData.modelRun<=18*3600 && cycloneSelectedTime()<=cycloneData.forecastEnd;}
 function cycloneColour(pressure){return pressure<970?'#cc83ff':pressure<985?'#ff6976':pressure<1000?'#ffc65b':'#7ddcff';}
 function cycloneName(system){return system.name||'Unnamed low-pressure system';}
@@ -90,7 +97,7 @@ function cyclonePopupContent(system,point){
   const before=cyclonePointAt(system,point.time-6*3600);
   const change=trend?trend.change:before?point.pressure-before.pressure:null;
   const pressureChange=change==null?'Unavailable':(change>=0?'+':'')+change.toFixed(1)+' hPa / 6 h';
-  const end=Math.min(cycloneTrackStart()+72*3600,system.points.at(-1).time);
+  const end=Math.min(cycloneFrameTime(cycloneTrackStart())+72*3600,system.points.at(-1).time);
   const nhc=system.nhc;
   const official=nhc?'<div class="cyclone-advisory"><b>Latest NHC advisory · '+htmlEscape(fmt(nhc.issuedAt))+'</b><br>'+htmlEscape(nhc.classification)+
     ' · '+nhc.pressure.toFixed(0)+' hPa · sustained wind '+nhc.windMS.toFixed(1)+' m/s<br>Moving '+nhc.movementKMH.toFixed(1)+' km/h'+
@@ -121,7 +128,7 @@ function openCyclonePopup(system){
 }
 
 function renderCyclonePaths(){
-  const unix=cycloneTrackStart();
+  const unix=cycloneFrameTime(cycloneTrackStart());
   if(cyclonePathGroup){map.removeLayer(cyclonePathGroup);cyclonePathGroup=null;}
   if(!$('cyclonePathsOn').checked || !cycloneUsable())return;
   const layers=[];
@@ -153,7 +160,7 @@ function renderCyclonePaths(){
 function renderCycloneHistory(){
   if(cycloneHistoryGroup){map.removeLayer(cycloneHistoryGroup);cycloneHistoryGroup=null;}
   if(!$('cycloneHistoryOn').checked || !cycloneUsable())return;
-  const now=Math.floor(Date.now()/1000),layers=[];
+  const now=cycloneFrameTime(Math.floor(Date.now()/3600000)*3600),layers=[];
   for(const system of cycloneData.systems){
     // History is tied to actual clock time, even while viewing a future forecast.
     const current=cyclonePointAt(system,now);
@@ -179,6 +186,7 @@ function renderCycloneHistory(){
 
 function renderCyclones(){
   if(!$('cycloneOn').checked)return;
+  if(!cyclonePlaying && Number($('cycloneForecastHour').value)===0)cycloneTrackTime=Math.floor(Date.now()/3600000)*3600;
   const hour=Number($('cycloneForecastHour').value),unix=cycloneSelectedTime();
   $('cycloneTimeLabel').textContent=(hour?'+'+hour+' h · ':'Now · ')+fmt(unix);
   if(!cycloneUsable()){
@@ -233,12 +241,12 @@ async function loadCyclones(force=false){
   if(Date.now()<cycloneRetryAt)return renderCyclones();
   if(!cycloneLoadPromise){
     $('cycloneStatus').textContent='Loading North Atlantic and northern Europe cyclones…';
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
     cycloneLoadPromise=(async()=>{
       try{
         const response=await fetch('data/cyclones.json',{cache:'no-store',signal:controller.signal});
         if(!response.ok)throw new Error('Cyclone feed HTTP '+response.status);
-        cycloneData=validateCyclones(await response.json());cycloneTrackTime=Math.floor(Date.now()/1000);cycloneLoadedAt=Date.now();cycloneRetryAt=0;cycloneRefreshFailed=false;
+        cycloneData=validateCyclones(await response.json());cycloneLoadedAt=Date.now();cycloneRetryAt=0;cycloneRefreshFailed=false;
       }catch(error){
         cycloneRetryAt=Date.now()+60000;cycloneRefreshFailed=true;
         if(!cycloneData)throw error;
@@ -271,9 +279,10 @@ $('cyclonePlay').addEventListener('click',()=>{
   if(!cycloneUsable())return;
   cyclonePlaying=true;$('cyclonePlay').textContent='❚❚ Pause';
   cyclonePlayTimer=setInterval(()=>{
-    let hour=Number($('cycloneForecastHour').value)+3;if(hour>72)hour=0;
+    let hour=Number($('cycloneForecastHour').value)+1;if(hour>72)hour=0;
     $('cycloneForecastHour').value=String(hour);renderCyclones();
   },900);
 });
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCyclonePlayback();});
 setInterval(()=>{if($('cycloneOn').checked)loadCyclones().catch(reportCycloneError);},5*60*1000);
+setInterval(()=>{if(!document.hidden && $('cycloneOn').checked && !cyclonePlaying && Number($('cycloneForecastHour').value)===0)renderCyclones();},60*1000);
