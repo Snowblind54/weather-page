@@ -296,3 +296,22 @@ corrections and invalid values are rejected. Each period can remain available
 independently of the others. All totals retain the existing actual-ending-time
 and delayed-reading rules; older timeline positions cannot use future totals.
 No additional server, account or API key is required for these two countries.
+
+
+## Request reuse (v8.39)
+
+All browser layer refresh intervals and scheduled collectors remain unchanged.
+Identical in-flight official temperature requests share one download, including
+the existing fallback. A manual refresh joins an active station collection rather
+than repeating every station request. Once that collection finishes, a subsequent
+manual refresh still starts a fresh load. Failures release shared requests so the
+next refresh can recover.
+
+Official temperature requests use HTTP cache revalidation instead of forbidding
+cache storage. A provider-supported HTTP 304 can avoid retransmitting unchanged
+responses; fresh provider validation is still required, so cached observations
+are not served without checking. Providers that ignore conditional requests
+continue returning full responses normally. SMHI's rainfall history checks remain
+at their original frequency, preserving discovery of corrected older readings.
+No changes to radar, cloud resolution, animations, data sources, measurement
+windows or page controls were made.
