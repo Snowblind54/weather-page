@@ -1,6 +1,8 @@
 """Collect official station snow depth, preserving dates and non-numeric states."""
 import concurrent.futures as futures
 import datetime as dt
+import csv
+import io
 import gzip
 import json
 import math
@@ -16,11 +18,15 @@ SOURCES = {
     'EE': {'name': 'Keskkonnaagentuur', 'url': 'https://www.ilmateenistus.ee/'},
     'FI': {'name': 'Finnish Meteorological Institute (FMI)', 'url': 'https://en.ilmatieteenlaitos.fi/open-data'},
     'SE': {'name': 'SMHI', 'url': 'https://www.smhi.se/data/meteorologi/sno'},
+    'LV': {'name': 'LVĢMC', 'url': 'https://data.gov.lv/dati/dataset/hidrometeorologiskie-noverojumi', 'license': 'CC0-1.0'},
+    'LT': {'name': 'Lithuanian Hydrometeorological Service (LHMT)', 'url': 'https://api.meteo.lt/', 'license': 'CC BY-SA 4.0'},
+    'NO': {'name': 'MET Norway', 'url': 'https://seklima.met.no/', 'license': 'CC BY 3.0 NO'},
+    'IS': {'name': 'Icelandic Meteorological Office', 'url': 'https://www.vedur.is/vedur/athuganir/urkoma/'},
 }
 
 
 def download(url, as_json=True):
-    headers = {'User-Agent': 'NorthernWeather/8.41', 'Accept-Encoding': 'gzip'}
+    headers = {'User-Agent': 'NorthernWeather/8.43 (Snowblind54/weather-page)', 'Accept-Encoding': 'gzip'}
     if 'keskkonnaandmed.envir.ee' in url:
         headers.update({'Accept': 'application/json'})
     try:
@@ -59,6 +65,11 @@ def depth(value, country):
             return 0, 'bare', 'No snow'
         if n == 0:
             return 0, 'nearby', 'Station ground bare; snow observed nearby'
+    if country == 'NO':
+        if n == 0:
+            return None, 'trace', 'Less than 0.5 cm (official zero code)'
+        if n == -1:
+            return None, 'patchy', 'Zero snow depth or partial snow cover (official code)'
     if country == 'SE':
         if math.isclose(n, -0.01):
             return None, 'trace', 'Less than 0.5 cm'
@@ -73,7 +84,7 @@ def depth(value, country):
 def record(country, code, name, lat, lon, time, value, quality='', precision='day'):
     parsed = depth(value, country)
     lat, lon = number(lat), number(lon)
-    if parsed is None or lat is None or lon is None or not (53 <= lat <= 72 and 10 <= lon <= 33):
+    if parsed is None or lat is None or lon is None or not (53 <= lat <= 81 and -25 <= lon <= 33):
         return None
     cm, state, note = parsed
     return {'country': country, 'code': str(code), 'name': str(name), 'lat': lat, 'lon': lon,
@@ -246,12 +257,152 @@ def load_sweden(now):
     return parse_sweden({'parameter': {'key': meta['key'], 'unit': meta['unit']}, 'station': rows})
 
 
+def csv_rows(raw):
+    return list(csv.DictReader(io.StringIO(raw.decode('utf-8-sig'))))
+
+
+def parse_latvia(rows, metadata, parameters):
+    stations = {s['STATION_ID']: s for s in metadata}
+    snow_parameters = {p['ABBREVIATION'] for p in parameters
+                       if p['ABBREVIATION'] in ('HSNOW', 'SNOWA') and p['MEASUREMENT_UNIT'] == 'cm'}
+    out = []
+    # Operational CSV timestamps use UTC (same feed as the rainfall collector).
+    for row in rows:
+        meta = stations.get(row['STATION_ID'])
+        if not meta or row['ABBREVIATION'] not in snow_parameters:
+            continue
+        observed = dt.datetime.strptime(row['DATETIME'], '%Y.%m.%d %H:%M:%S').replace(tzinfo=dt.timezone.utc)
+        out.append(record('LV', row['STATION_ID'], meta['NAME'], meta['GEOGR2'], meta['GEOGR1'],
+                          observed.timestamp(), row['VALUE'], precision='instant'))
+    return latest(out)
+
+
+def load_latvia(now):
+    catalog = download('https://data.gov.lv/dati/api/3/action/package_show?id=hidrometeorologiskie-noverojumi')
+    resources = {r['name']: r['url'] for r in catalog['result']['resources']}
+    keys = ['Meteoroloģiskie operatīvie dati', 'Meteoroloģiskās stacijas', 'Meteoroloģiskie parametri']
+    return parse_latvia(*(csv_rows(download(resources[key], False)) for key in keys))
+
+
+def parse_lithuania(payload):
+    s = payload['station']
+    return latest(record('LT', s['code'], s['name'], s['coordinates']['latitude'], s['coordinates']['longitude'],
+                         v['observationTimeUtc'].replace(' ', 'T')+'Z', v.get('snowDepth'), precision='instant')
+                  for v in payload.get('observations', []))
+
+
+def load_lithuania(now):
+    base = 'https://api.meteo.lt/v1/stations'
+    stations = download(base)
+    def get(s):
+        try:
+            return parse_lithuania(download(base+'/'+s['code']+'/observations/latest'))
+        except Exception as error:
+            print('LT station unavailable:', s['code'], str(error)[:200], flush=True)
+            return []
+    # At most 180 requests/minute; four concurrent requests for the ~50 stations.
+    with futures.ThreadPoolExecutor(max_workers=4) as pool:
+        return latest(r for rows in pool.map(get, stations) for r in rows)
+
+
+def parse_norway(payload, metadata):
+    stations = {s['id']: s for s in metadata if 'MET.NO' in s.get('stationHolders', [])}
+    out = []
+    for row in payload.get('data') or []:
+        code = row['sourceId'].split(':')[0]
+        s = stations.get(code)
+        if not s:
+            continue
+        for v in row.get('observations', []):
+            # Exclude corrected/interpolated and unreliable readings; retain measured values.
+            if v.get('elementId') != 'surface_snow_thickness' or v.get('unit') != 'cm' or v.get('qualityCode') not in (0, 2, 4):
+                continue
+            offset = re.fullmatch(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?', v.get('timeOffset', 'PT0H'))
+            if not offset:
+                continue
+            hours, minutes, seconds = (float(n or 0) for n in offset.groups())
+            observed = timestamp(row['referenceTime']) + hours*3600 + minutes*60 + seconds
+            lon, lat = s['geometry']['coordinates'][:2]
+            out.append(record('NO', code, s.get('shortName') or s['name'], lat, lon, observed, v.get('value'),
+                              'approved' if v['qualityCode'] == 0 else 'provisional', 'instant'))
+    return latest(out)
+
+
+def load_norway(now):
+    # Public backend used by MET Norway's Seklima site; no borrowed API credentials.
+    base = 'https://rim.k8s.met.no/api/v1/'
+    start = (now-dt.timedelta(days=7)).strftime('%Y-%m-%d')
+    end = (now+dt.timedelta(days=1)).strftime('%Y-%m-%d')
+    params = dict(sourceName='', weatherElements='surface_snow_thickness', timeResolution='days',
+                  **{'from': start, 'to': end}, includeRegions='false')
+    metadata = download(base+'stations?'+urllib.parse.urlencode(params)).get('data') or []
+    official = [s for s in metadata if 'MET.NO' in s.get('stationHolders', [])]
+    out = []
+    for i in range(0, len(official), 40):
+        params = dict(sources=','.join(s['id'] for s in official[i:i+40]), referenceTime=start+'/'+end,
+                      elements='surface_snow_thickness', timeResolution='days')
+        try:
+            out += parse_norway(download(base+'observations?'+urllib.parse.urlencode(params)), official)
+        except Exception as error:
+            print('NO station batch unavailable:', str(error)[:200], flush=True)
+    return latest(out)
+
+
+def parse_iceland(raw, metadata):
+    out = []
+    for line in raw.decode('latin-1').splitlines():
+        fields = line.split(maxsplit=7)
+        if len(fields) != 8 or fields[0] not in ('sk', 'ur'):
+            continue
+        _, code, day, clock, value, cover, mountains, name = fields
+        s = metadata.get(code)
+        if not s:
+            continue
+        observed = day+'T'+clock+'Z'  # Iceland uses UTC throughout the year.
+        r = record('IS', code, name.strip(), s['lat'], s['lon'], observed, value, 'provisional', 'instant')
+        if r:
+            if cover in ('1', '2', '3'):
+                r['note'] = 'Patchy ground cover; depth measured at station'
+            out.append(r)
+    return latest(out)
+
+
+def load_iceland(now):
+    raw = download('https://brunnur.vedur.is/athuganir/urkoma/snj0a.txt', False)
+    cache_path = OUTPUT.parent/'iceland-snow-stations.json'
+    metadata = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+    codes = {fields[1] for line in raw.decode('latin-1').splitlines()
+             if len(fields := line.split(maxsplit=7)) == 8 and number(fields[4]) is not None}
+    def get(code):
+        saved = metadata.get(code)
+        if saved and now.timestamp()-saved.get('fetchedAt', 0) < 30*24*3600:
+            return code, saved
+        try:
+            html = download('https://www.vedur.is/gogn/athuganir/stod/vst'+code+'.html', False).decode('latin-1')
+            # Official station page gives north latitude and west longitude in decimal degrees.
+            match = re.search(r'Staðsetning.*?\((\d+\.\d+),\s*(\d+\.\d+)\)', html, re.S)
+            if not match:
+                raise ValueError('Official station coordinates missing')
+            return code, dict(lat=float(match[1]), lon=-float(match[2]), fetchedAt=int(now.timestamp()))
+        except Exception as error:
+            print('IS station metadata unavailable:', code, str(error)[:200], flush=True)
+            return code, saved
+    with futures.ThreadPoolExecutor(max_workers=4) as pool:
+        for code, s in pool.map(get, sorted(codes)):
+            if s:
+                metadata[code] = s
+    cache_path.parent.mkdir(exist_ok=True)
+    cache_path.write_text(json.dumps(metadata, ensure_ascii=False, separators=(',', ':'))+'\n')
+    return parse_iceland(raw, metadata)
+
+
 def main():
     now = dt.datetime.now(dt.timezone.utc)
     previous = json.loads(OUTPUT.read_text()) if OUTPUT.exists() else {}
     providers, records = {}, []
-    loaders = {'EE': load_estonia, 'FI': load_finland, 'SE': load_sweden}
-    with futures.ThreadPoolExecutor(max_workers=3) as pool:
+    loaders = {'EE': load_estonia, 'FI': load_finland, 'SE': load_sweden,
+               'LV': load_latvia, 'LT': load_lithuania, 'NO': load_norway, 'IS': load_iceland}
+    with futures.ThreadPoolExecutor(max_workers=7) as pool:
         jobs = {country: pool.submit(load, now) for country, load in loaders.items()}
         for country, job in jobs.items():
             try:
