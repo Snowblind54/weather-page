@@ -16,6 +16,7 @@ Interactive weather map covering the Baltics and Northern Europe.
 - `js/stations.js` — official national temperature observations
 - `js/wind.js` — cached hourly wind grids, offshore sampling and animated canvas trails
 - `js/clouds.js` — EUMETSAT day/night cloud processing and animation
+- `js/snow.js` — daily Northern Hemisphere NOAA IMS snow/ice coverage and dedicated map view
 - `js/radar.js` — KAIA HDF5 rain radar and timeline frame loading
 - `js/radar-capture.js` — viewport-aware background radar preparation
 - `js/app.js` — controls, event handlers, refresh timers and startup
@@ -315,3 +316,12 @@ continue returning full responses normally. SMHI's rainfall history checks remai
 at their original frequency, preserving discovery of corrected older readings.
 No changes to radar, cloud resolution, animations, data sources, measurement
 windows or page controls were made.
+
+
+## Snow coverage
+
+The Snow category automatically opens a Northern Hemisphere view and displays the latest NOAA / U.S. National Ice Center IMS snow and ice analysis at 1 km source resolution. White represents snow-covered land; cyan represents sea ice. This is snow extent, not snow depth or snowfall. Snow disables the other weather overlays through their existing controls; exiting restores the previous view and selected layers. The intraday weather timeline is hidden during Snow mode because the NOAA service exposes the latest daily analysis only.
+
+The layer requests viewport tiles from the NOAA ImageServer exportImage endpoint in EPSG:3857 with nearest-neighbour categorical rendering. Other classes become NoData, keeping the basemap visible. Metadata supplies the source file date and raster ID; tiles are pinned to that ID. If metadata cannot load, imagery uses the latest mosaic and explicitly reports the date as unavailable. Tile errors are shown as unavailable coverage. The Mercator map cannot show the immediate polar cap above 85°N. Refresh is available manually and every 30 minutes while Snow is active.
+
+Sources: https://usicecenter.gov/Products/ImsHome and https://mapservices.weather.noaa.gov/raster/rest/services/obs/usnic_ims_snow_ice_1km/ImageServer . Dataset DOI: https://doi.org/10.7265/N52R3PMC .

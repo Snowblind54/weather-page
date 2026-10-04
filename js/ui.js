@@ -1,7 +1,7 @@
 // Navigation opens controls independently of whether their map layers are enabled.
 const weatherCategories=[
   ['tempSection','tempOn'],['windSection','windOn'],['cloudSection','cloudOn'],
-  ['radarSection','radarOn'],['cycloneSection','cycloneOn'],['warningSection','warningOn']
+  ['radarSection','radarOn'],['snowSection','snowOn'],['cycloneSection','cycloneOn'],['warningSection','warningOn']
 ];
 let openedWeatherPanel=null;
 function closeWeatherPanel(returnFocus=false,refreshRain=true){
@@ -22,6 +22,8 @@ function positionWeatherPanel(){
   if(activeAccumulationHours())requestAnimationFrame(renderOfficialRainLabels);
 }
 function openWeatherPanel(id){
+  if(id==='snowSection')enterSnowView();
+  else if(id!=='mapSettings' && snowMode)exitSnowView();
   if(openedWeatherPanel===id){closeWeatherPanel(true);return;}
   closeWeatherPanel();
   openedWeatherPanel=id;
@@ -112,3 +114,4 @@ function syncTimelineCadence(){
 }
 $('cloudOn').addEventListener('change',syncTimelineCadence);
 syncTimelineCadence();
+
