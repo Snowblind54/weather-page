@@ -3,7 +3,11 @@ const snowDepthLabels=L.layerGroup();
 const snowDepthSources={
   EE:{name:'Keskkonnaagentuur',url:'https://www.ilmateenistus.ee/'},
   FI:{name:'Finnish Meteorological Institute (FMI)',url:'https://en.ilmatieteenlaitos.fi/open-data'},
-  SE:{name:'SMHI',url:'https://www.smhi.se/data/meteorologi/sno'}
+  SE:{name:'SMHI',url:'https://www.smhi.se/data/meteorologi/sno'},
+  LV:{name:'LVĢMC',url:'https://data.gov.lv/dati/dataset/hidrometeorologiskie-noverojumi'},
+  LT:{name:'Lithuanian Hydrometeorological Service (LHMT)',url:'https://api.meteo.lt/'},
+  NO:{name:'MET Norway',url:'https://seklima.met.no/'},
+  IS:{name:'Icelandic Meteorological Office',url:'https://www.vedur.is/vedur/athuganir/urkoma/'}
 };
 let snowDepthData=null,snowDepthLoadedAt=0,snowDepthRequest=null,snowDepthRenderTimer=null;
 const snowDepthMaxAge=7*24*3600;
@@ -13,7 +17,7 @@ function snowDepthEscape(value){
 }
 function snowDepthValid(s,now=Date.now()/1000){
   if(!s || !snowDepthSources[s.country] || !s.name || !Number.isFinite(s.lat) || !Number.isFinite(s.lon))return false;
-  if(s.lat<53 || s.lat>72 || s.lon<10 || s.lon>33 || !Number.isFinite(s.time) || s.time>now || now-s.time>snowDepthMaxAge)return false;
+  if(s.lat<53 || s.lat>81 || s.lon<-25 || s.lon>33 || !Number.isFinite(s.time) || s.time>now || now-s.time>snowDepthMaxAge)return false;
   if(['trace','patchy'].includes(s.state))return s.depthCm===null;
   return Number.isFinite(s.depthCm) && s.depthCm>=0 && s.depthCm<=1500;
 }
@@ -104,7 +108,8 @@ $('snowDepthOn').addEventListener('change',()=>loadSnowDepth());
 $('snowDepthZero').addEventListener('change',renderSnowDepth);
 $('snowDepthRegion').addEventListener('click',()=>{
   $('snowDepthOn').checked=true;
-  map.fitBounds([[57,11],[71,32]],{padding:[30,30],animate:false});
+  const stations=(snowDepthData?.stations||[]).filter(s=>snowDepthValid(s));
+  map.fitBounds(stations.length?stations.map(s=>[s.lat,s.lon]):[[54,-25],[71,33]],{padding:[30,30],animate:false});
   loadSnowDepth();
 });
 map.on('moveend zoomend',()=>{

@@ -325,3 +325,12 @@ The Snow category automatically opens a Northern Hemisphere view and displays th
 The layer requests viewport tiles from the NOAA ImageServer exportImage endpoint in EPSG:3857 with nearest-neighbour categorical rendering. Other classes become NoData, keeping the basemap visible. Metadata supplies the source file date and raster ID; tiles are pinned to that ID. If metadata cannot load, imagery uses the latest mosaic and explicitly reports the date as unavailable. Tile errors are shown as unavailable coverage. The Mercator map cannot show the immediate polar cap above 85°N. Refresh is available manually and every 30 minutes while Snow is active.
 
 Sources: https://usicecenter.gov/Products/ImsHome and https://mapservices.weather.noaa.gov/raster/rest/services/obs/usnic_ims_snow_ice_1km/ImageServer . Dataset DOI: https://doi.org/10.7265/N52R3PMC .
+
+
+## Official station snow depth (v8.43)
+
+The Snow layer shows measured station snow depth in Estonia, Latvia, Lithuania, Finland, Sweden, Norway and Iceland alongside NOAA IMS snow cover. The shared JSON snapshot refreshes every three hours through `Update official snow depth`; visitors only fetch the shared snapshot. Missing values never become zero. Readings retain observation times; labels older than 36 hours are dashed and observations older than seven days are hidden.
+
+Sources: Keskkonnaagentuur daily climate data; FMI daily WFS snow; SMHI parameter 8 (metres converted to cm); LVĢMC open operational CSV snow parameters HSNOW/SNOWA (cm, CC0); LHMT / Meteo.lt snowDepth (cm, CC BY-SA 4.0); MET Norway's public Seklima backend surface_snow_thickness (cm, CC BY 3.0 NO); Icelandic Meteorological Office daily `snj0a.txt` (cm, measured at 09:00 UTC, provisional). LHMT's adapted data retain CC BY-SA 4.0 and source attribution in the map. The snapshot includes source links and licensing metadata.
+
+Norway includes only stations held by MET.NO, rejects interpolated/modelled and unreliable quality codes, and applies the source time offset. Official zero/negative special snow codes stay trace/patchy states. Iceland station coordinates come from official station pages, cached in `data/iceland-snow-stations.json` for 30 days. Missing depth values in Iceland's daily feed are omitted even when ground-cover codes are present. Public feed outages retain previous observations with their original timestamps.

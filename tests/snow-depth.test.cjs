@@ -28,3 +28,13 @@ test('popup reports observation day, provisional quality and escapes station tex
   assert.match(html,/&lt;Station&gt;/);assert.match(html,/observation day/);
   assert.match(html,/Older reading/);assert.match(html,/Provisional official reading/);
 });
+
+test('new countries accept Iceland and Norway coordinates and source links',()=>{
+  const h=harness();
+  for(const [country,lat,lon] of [['IS',64.13,-21.91],['NO',60.3,5.3],['LV',57,24],['LT',54.6,25.1]]){
+    h.ctx.station={country,name:'Official station',lat,lon,time:Date.now()/1000-3600,depthCm:8,state:'depth',timePrecision:'instant'};
+    assert.equal(h.run('snowDepthValid(station)'),true);
+    assert.match(h.run('snowDepthPopup(station)'),/https:/);
+  }
+  h.ctx.station.lon=-90;assert.equal(h.run('snowDepthValid(station)'),false);
+});
