@@ -203,6 +203,7 @@ $('refresh').onclick=async()=>{
   try{
     // A manual refresh should bypass the short LV/LT processed-image cache.
     directRadarImageCache.clear();nordicRadarLists.clear();nordicRadarArchive=null;
+    lvRadarList=null;radarNativeImages.clear();
     await loadOfficialRadarList();
     if(temperatureEnabled()) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);

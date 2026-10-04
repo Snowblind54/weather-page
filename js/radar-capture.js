@@ -34,6 +34,8 @@ async function preloadVisibleRadars(){
       for(const station of new Set(records.map(record=>record.station))){
         const observations=records.filter(record=>record.station===station);
         const prepare=async back=>{
+          // Keep the latest full-resolution DMI canvas within the cache budget.
+          if(source.id==='dk'&&edge>1400&&back)return;
           const record=radarObservationAt(observations,target-back*300);
           if(record)await nordicRadarFrame(record,edge,{background:true,canPrepare:allowed});
         };
