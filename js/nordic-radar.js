@@ -178,19 +178,28 @@ function projectNordicRadar(buffer,descriptor,edge){
 }
 function runNordicRadarQueue(){
   while(nordicRadarDownloads<2&&nordicRadarQueue.length){
+    // Background preparation uses one slot; selected observations take priority.
+    if(nordicRadarQueue[0].background&&nordicRadarDownloads)break;
     const job=nordicRadarQueue.shift();nordicRadarDownloads++;
     job.run().then(job.resolve,job.reject).finally(()=>{nordicRadarDownloads--;runNordicRadarQueue();});
   }
 }
-function nordicRadarFrame(record,edge){
+function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}){
   const key=record.url+'|'+edge;
   if(nordicRadarFrames.has(key)){
     const entry=nordicRadarFrames.get(key);nordicRadarFrames.delete(key);nordicRadarFrames.set(key,entry);return Promise.resolve(entry);
   }
-  if(nordicRadarPending.has(key))return nordicRadarPending.get(key);
+  if(nordicRadarPending.has(key)){
+    if(!background){
+      const index=nordicRadarQueue.findIndex(job=>job.key===key);
+      if(index>=0){const [job]=nordicRadarQueue.splice(index,1);job.background=false;nordicRadarQueue.unshift(job);runNordicRadarQueue();}
+    }
+    return nordicRadarPending.get(key);
+  }
+  const allowed=()=>$('radarOn').checked||(background&&canPrepare());
   const promise=new Promise((resolve,reject)=>{
-    nordicRadarQueue.push({key,resolve,reject,run:async()=>{
-      if(!$('radarOn').checked)throw new Error('Radar disabled');
+    const job={key,background,resolve,reject,run:async()=>{
+      if(!allowed())throw new Error('Radar preparation paused');
       const descriptor={...record};
       if(record.station==='fi'){
         const url=new URL(record.url),width=Number(url.searchParams.get('width')),height=Number(url.searchParams.get('height'));
@@ -206,24 +215,25 @@ function nordicRadarFrame(record,edge){
         const response=await fetch(record.url);if(!response.ok)throw new Error('Radar image HTTP '+response.status);
         buffer=await response.arrayBuffer();
       }else buffer=await nordicRadarFetch(descriptor.url,'binary');
-      if(!$('radarOn').checked)throw new Error('Radar disabled');
+      if(!allowed())throw new Error('Radar preparation paused');
       const result=record.format==='png'?{blob:new Blob([buffer],{type:'image/png'}),bounds:record.bounds}:await projectNordicRadar(buffer,descriptor,edge);
-      if(!$('radarOn').checked)throw new Error('Radar disabled');
+      if(!allowed())throw new Error('Radar preparation paused');
       const entry={...result,url:URL.createObjectURL(result.blob),time:record.time};
       nordicRadarFrames.set(key,entry);
       while(nordicRadarFrames.size>180 || [...nordicRadarFrames.values()].reduce((bytes,frame)=>bytes+frame.blob.size,0)>24*1024*1024){const oldKey=nordicRadarFrames.keys().next().value;URL.revokeObjectURL(nordicRadarFrames.get(oldKey).url);nordicRadarFrames.delete(oldKey);}
       return entry;
-    }});runNordicRadarQueue();
+    }};
+    if(background)nordicRadarQueue.push(job);
+    else{const index=nordicRadarQueue.findIndex(queued=>queued.background);nordicRadarQueue.splice(index<0?nordicRadarQueue.length:index,0,job);}
+    runNordicRadarQueue();
   }).finally(()=>{if(nordicRadarPending.get(key)===promise)nordicRadarPending.delete(key);});
   nordicRadarPending.set(key,promise);return promise;
 }
 function clearNordicRadars(){
   nordicRadarGeneration++;
   for(const layer of nordicRadarLayers.values())map.removeLayer(layer);nordicRadarLayers.clear();
-  for(const job of nordicRadarQueue.splice(0))job.reject(new Error('Radar disabled'));
-  for(const job of nordicRadarJobs.values()){clearTimeout(job.timer);job.reject(new Error('Radar disabled'));}nordicRadarJobs.clear();
-  nordicRadarWorker?.terminate();nordicRadarWorker=null;
-  for(const entry of nordicRadarFrames.values())URL.revokeObjectURL(entry.url);nordicRadarFrames.clear();
+  // Hiding the layer keeps the bounded image cache and shared preparation alive.
+  for(let i=nordicRadarQueue.length-1;i>=0;i--)if(!nordicRadarQueue[i].background){const [job]=nordicRadarQueue.splice(i,1);nordicRadarPending.delete(job.key);job.reject(new Error('Radar disabled'));}
   clearTimeout(nordicRadarRefreshTimer);nordicRadarRefreshTimer=null;
   nordicRadarStatus('Nordic radar is off.');
 }
@@ -244,7 +254,7 @@ async function drawNordicRadars(unix,{force=false}={}){
   const generation=++nordicRadarGeneration,edge=nordicRadarEdge(),visible=NORDIC_RADAR_SOURCES.filter(nordicRadarVisible);
   if(visible.some(source=>source.id==='is')){followNordicRadarClock();if(typeof frames!=='undefined')unix=frames[Number($('timeline').value)]?.time||unix;}
   // A rapid scrub should prepare the selected frame, not a backlog of old selections.
-  for(const job of nordicRadarQueue.splice(0)){nordicRadarPending.delete(job.key);job.reject(new Error('Radar selection changed'));}
+  for(let i=nordicRadarQueue.length-1;i>=0;i--)if(!nordicRadarQueue[i].background){const [job]=nordicRadarQueue.splice(i,1);nordicRadarPending.delete(job.key);job.reject(new Error('Radar selection changed'));}
   const wanted=new Set(visible.map(source=>source.id));
   for(const [id,layer] of nordicRadarLayers)if(!wanted.has(id.split(':')[0])){map.removeLayer(layer);nordicRadarLayers.delete(id);}
   if(!visible.length){nordicRadarStatus('Nordic radar: outside this view.');return;}

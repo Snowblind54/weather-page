@@ -71,3 +71,26 @@ test('Iceland latest clock advances without changing historical selections',()=>
  vm.runInContext('followNordicRadarClock()',c);assert.equal(vm.runInContext('frames.at(-1).time',c),c.end);assert.equal(elements.timeline.value,2);
  elements.timeline.value=0;vm.runInContext('radarTimelineFrames.at(-1).time-=300;followNordicRadarClock()',c);assert.equal(elements.timeline.value,0);assert.equal(vm.runInContext('frames.at(-1).time',c),c.end-300);
 });
+
+test('background Nordic preparation is reused on activation and survives hiding the layer',async()=>{
+ const c=harness(),toggle={checked:false};c.$=()=>toggle;c.Blob=Blob;c.URL={createObjectURL:()=> 'blob:prepared',revokeObjectURL:()=>assert.fail('cached image was released')};
+ let downloads=0,resolveDownload;c.fetch=()=>{downloads++;return new Promise(resolve=>resolveDownload=resolve)};
+ c.record={url:'data/radar-cache/dk-100-0123456789ab.png',format:'png',time:100,bounds:[[52,3],[60,21]]};
+ const preparing=vm.runInContext('nordicRadarFrame(record,900,{background:true,canPrepare:()=>true})',c);
+ toggle.checked=true;const selected=vm.runInContext('nordicRadarFrame(record,900)',c);
+ assert.equal(preparing,selected);resolveDownload({ok:true,arrayBuffer:async()=>new ArrayBuffer(4)});await preparing;
+ toggle.checked=false;vm.runInContext('clearNordicRadars()',c);
+ toggle.checked=true;const cached=await vm.runInContext('nordicRadarFrame(record,900)',c);
+ assert.equal(cached.url,'blob:prepared');assert.equal(downloads,1);
+});
+test('queued foreground frames overtake background history and obsolete background work stops',async()=>{
+ const c=harness(),toggle={checked:false};c.$=()=>toggle;c.Blob=Blob;c.URL={createObjectURL:()=> 'blob:x',revokeObjectURL(){}};
+ const started=[],resolvers=[];c.fetch=url=>{started.push(url);return new Promise(resolve=>resolvers.push(()=>resolve({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)})))};
+ c.records=['first','history','selected'].map(url=>({url,format:'png',time:100}));
+ const first=vm.runInContext('nordicRadarFrame(records[0],900,{background:true,canPrepare:()=>true})',c);
+ const old=vm.runInContext('nordicRadarFrame(records[1],900,{background:true,canPrepare:()=>false})',c);const rejected=assert.rejects(old,/preparation paused/);
+ assert.deepEqual(started,['first']);toggle.checked=true;
+ const chosen=vm.runInContext('nordicRadarFrame(records[2],900)',c);assert.deepEqual(started,['first','selected']);
+ resolvers[1]();await chosen;toggle.checked=false;resolvers[0]();await first;await rejected;
+ assert.deepEqual(started,['first','selected']);
+});

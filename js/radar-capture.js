@@ -1,12 +1,72 @@
-// v8.6: keep a small direct-source Latvian history warm while the page is open.
-async function captureLatestLatviaRadar(){
-  const source=DIRECT_RADAR_SOURCES.find(s=>s.id==='lv');
-  if(!source) return;
-
-  const time=Math.floor(Date.now()/1000/LV_STEP)*LV_STEP;
-  const dataUrl=await nationalRadarImage(source,false);
-  saveLvLocal(time,dataUrl);
+// Prepare radar without adding layers or changing the selected weather time.
+let radarPreloadTimer=null,radarPreloadGeneration=0,radarPreloadRunning=false,radarPreloadAgain=false;
+function radarPreloadVisible(bounds){return map.getBounds().intersects(L.latLngBounds(bounds));}
+function radarPreloadAllowed(generation){
+  return generation===radarPreloadGeneration&&!document.hidden&&!$('radarOn').checked;
 }
-
-setTimeout(()=>captureLatestLatviaRadar().catch(()=>{}),8000);
-setInterval(()=>captureLatestLatviaRadar().catch(()=>{}),5*60*1000);
+function pauseRadarPreload(){
+  radarPreloadGeneration++;clearTimeout(radarPreloadTimer);radarPreloadTimer=null;
+}
+function scheduleRadarPreload(delay=1200){
+  pauseRadarPreload();
+  if(document.hidden||$('radarOn').checked)return;
+  radarPreloadTimer=setTimeout(()=>{
+    radarPreloadTimer=null;
+    if('requestIdleCallback' in window)requestIdleCallback(()=>preloadVisibleRadars(),{timeout:2000});
+    else preloadVisibleRadars();
+  },delay);
+}
+async function preloadVisibleRadars(){
+  if(document.hidden||$('radarOn').checked)return;
+  if(radarPreloadRunning){radarPreloadAgain=true;return;}
+  radarPreloadRunning=true;
+  const generation=radarPreloadGeneration,allowed=()=>radarPreloadAllowed(generation);
+  const visible=NORDIC_RADAR_SOURCES.filter(nordicRadarVisible),edge=nordicRadarEdge();
+  const latest=(typeof frames!=='undefined'?frames.at(-1)?.time:0)||Math.floor(Date.now()/1000/300)*300-300;
+  const target=visible.some(source=>source.id==='is')?Math.floor(Date.now()/1000/300)*300-300:latest;
+  const recent=navigator.connection?.saveData?0:2;
+  const tasks=[];
+  try{
+    // A slow metadata endpoint must not hold up other countries' latest images.
+    const latestTasks=visible.map(async source=>{
+      const records=await listNordicRadar(source);
+      if(!allowed())return;
+      for(const station of new Set(records.map(record=>record.station))){
+        const observations=records.filter(record=>record.station===station);
+        const prepare=async back=>{
+          const record=radarObservationAt(observations,target-back*300);
+          if(record)await nordicRadarFrame(record,edge,{background:true,canPrepare:allowed});
+        };
+        tasks.push(prepare);if(!allowed())break;
+        await prepare(0);
+      }
+    });
+    if(radarPreloadVisible(RADAR_BOUNDS)){
+      const prepare=async back=>{
+        const observations=typeof radarTimelineFrames!=='undefined'?radarTimelineFrames:frames;
+        const frame=radarObservationAt(observations,target-back*300);
+        if(frame?.url)await h5ToRadarImage(frame,{quiet:true});
+      };tasks.push(prepare);latestTasks.push(prepare(0));
+    }
+    for(const source of visibleBalticRadarSources()){
+      const prepare=back=>prepareBalticRadarFrame(source,target-back*300,latest);
+      tasks.push(prepare);latestTasks.push(prepare(0));
+    }
+    await Promise.allSettled(latestTasks);
+    for(let back=1;back<=recent&&allowed();back++){
+      for(const prepare of tasks){
+        if(!allowed())break;
+        // Yield between conversions so the map and other layers stay usable.
+        await new Promise(resolve=>setTimeout(resolve,80));
+        if(!allowed())break;
+        try{await prepare(back);}catch(_){/* Enabling radar reports source failures normally. */}
+      }
+    }
+  }finally{
+    radarPreloadRunning=false;
+    const again=radarPreloadAgain||generation!==radarPreloadGeneration;radarPreloadAgain=false;
+    if(!document.hidden&&!$('radarOn').checked)scheduleRadarPreload(again?500:120000);
+  }
+}
+map.on('moveend',()=>scheduleRadarPreload());
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseRadarPreload();else scheduleRadarPreload();});

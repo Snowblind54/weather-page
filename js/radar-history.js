@@ -177,10 +177,19 @@ async function lvHistory(source,target,latestTimeline,force=false){
   const local=nearestLvLocal(target);return local?{dataUrl:local.dataUrl,time:local.time,mode:'local captured history'}:null;
 }
 
+const balticRadarPending=new Map();
+function prepareBalticRadarFrame(source,unix,latest,force=false){
+  const key=[source.id,unix,latest,force].join('|');
+  if(balticRadarPending.has(key))return balticRadarPending.get(key);
+  const promise=(source.id==='lt'?ltHistory(source,unix,force):lvHistory(source,unix,latest,force))
+    .finally(()=>{if(balticRadarPending.get(key)===promise)balticRadarPending.delete(key);});
+  balticRadarPending.set(key,promise);return promise;
+}
+function visibleBalticRadarSources(){return DIRECT_RADAR_SOURCES.filter(source=>map.getBounds().intersects(L.latLngBounds(source.bounds)));}
 drawDirectNationalRadars=async function(unix,{force=false}={}){
   if(!$('radarOn').checked){clearDirectNationalRadars();return}
   const generation=++directRadarGeneration,latest=frames[frames.length-1]?.time||unix;
-  const results=await Promise.allSettled(DIRECT_RADAR_SOURCES.map(async source=>({source,frame:source.id==='lt'?await ltHistory(source,unix,force):await lvHistory(source,unix,latest,force)})));
+  const results=await Promise.allSettled(visibleBalticRadarSources().map(async source=>({source,frame:await prepareBalticRadarFrame(source,unix,latest,force)})));
   if(generation!==directRadarGeneration||!$('radarOn').checked)return;
   const next=L.layerGroup(),labels=[];let missing=0;
   for(const r of results){

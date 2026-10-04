@@ -56,11 +56,20 @@ function cacheSet(key,val){
   }
 }
 
-async function h5ToRadarImage(frame){
+const radarImagePending=new Map();
+function h5ToRadarImage(frame,options={}){
+  if(radarImageCache.has(frame.id))return Promise.resolve(radarImageCache.get(frame.id));
+  if(radarImagePending.has(frame.id))return radarImagePending.get(frame.id);
+  const promise=prepareKaiaRadarImage(frame,options).finally(()=>{if(radarImagePending.get(frame.id)===promise)radarImagePending.delete(frame.id);});
+  radarImagePending.set(frame.id,promise);return promise;
+}
+async function prepareKaiaRadarImage(frame,{quiet=false}={}){
   if(radarImageCache.has(frame.id)) return radarImageCache.get(frame.id);
 
-  $('radarStatus').textContent='Radar: downloading official KAIA frame '+fmt(frame.time)+'…';
-  $('radarStatus').className='status';
+  if(!quiet){
+    $('radarStatus').textContent='Radar: downloading official KAIA frame '+fmt(frame.time)+'…';
+    $('radarStatus').className='status';
+  }
 
   const r=await fetch(frame.url,{cache:'no-store'});
   if(!r.ok) throw new Error('radar file HTTP '+r.status);
