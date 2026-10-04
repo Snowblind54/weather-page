@@ -4,13 +4,13 @@ const weatherCategories=[
   ['radarSection','radarOn'],['cycloneSection','cycloneOn'],['warningSection','warningOn']
 ];
 let openedWeatherPanel=null;
-function closeWeatherPanel(returnFocus=false){
+function closeWeatherPanel(returnFocus=false,refreshRain=true){
   if(!openedWeatherPanel)return;
   const id=openedWeatherPanel;
   $(id).hidden=true;
   $('nav-'+id).setAttribute('aria-expanded','false');
   openedWeatherPanel=null;
-  if(activeAccumulationHours())requestAnimationFrame(renderOfficialRainLabels);
+  if(refreshRain&&activeAccumulationHours())requestAnimationFrame(renderOfficialRainLabels);
   if(returnFocus)$('nav-'+id).focus();
   syncTimelineCadence();
 }
@@ -44,7 +44,11 @@ for(const button of document.querySelectorAll('[data-info]')){
 }
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeWeatherPanel(true);});
 document.addEventListener('pointerdown',event=>{
-  if(!event.target.closest('.topbar,.weather-panel'))closeWeatherPanel();
+  if(!event.target.closest('.topbar,.weather-panel')){
+    // Keep a gauge under the pointer until its click has opened the popup.
+    const gauge=event.target.closest('.leaflet-marker-icon')?.querySelector('.rain-station-label');
+    closeWeatherPanel(false,!gauge);
+  }
 });
 window.addEventListener('resize',positionWeatherPanel);
 function updateCategoryIndicators(){
