@@ -85,7 +85,8 @@ async function drawDirectNationalRadars(unix,{force=false}={}){
       const previous=directRadarLayers.get(source.id);
       if(previous?.radarUrl!==frame.dataUrl){
         const layer=L.imageOverlay(frame.dataUrl,frame.bounds,{opacity:source.opacity,interactive:false});layer.radarUrl=frame.dataUrl;
-        balticRadarLayer.addLayer(layer);if(previous)balticRadarLayer.removeLayer(previous);directRadarLayers.set(source.id,layer);
+        if(source.id==='lt')ensureRadarColourFilter();
+        balticRadarLayer.addLayer(layer);if(source.id==='lt')layer.getElement().style.filter='url(#radar-echo-colours)';if(previous)balticRadarLayer.removeLayer(previous);directRadarLayers.set(source.id,layer);
       }
       labels[index]=source.id.toUpperCase()+' official '+fmt(frame.time);
     }catch(error){
