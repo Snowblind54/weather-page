@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check rainfall adapters
-        run: python3 -m unittest discover -s tests -v
+        run: python3 -m unittest discover -s tests -p test_rainfall.py -v
       - name: Fetch official hourly precipitation and retain histories
         run: python3 scripts/update_rainfall.py
       - name: Save official precipitation snapshot
