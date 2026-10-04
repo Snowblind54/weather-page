@@ -7,7 +7,8 @@ let cycloneEnsembleLoadedAt=0,cycloneEnsembleRetryAt=0,cycloneEnsembleFailed=fal
 function validateCycloneEnsemble(data){
   const now=Date.now()/1000;
   if(data?.version!==1 || data.methodVersion!==2 || !Number.isFinite(data.modelRun) || data.modelRun>now+300 ||
-    !Number.isFinite(data.generatedAt) || data.generatedAt>now+300 || data.forecastEnd!==data.modelRun+96*3600 ||
+    !Number.isFinite(data.generatedAt) || data.generatedAt>now+300 || !Number.isInteger(data.forecastEnd) ||
+    data.forecastEnd<data.modelRun+24*3600 || data.forecastEnd>data.modelRun+96*3600 || (data.forecastEnd-data.modelRun)%(6*3600)!==0 ||
     data.stepHours!==6 || data.expectedMembers!==31 || !Number.isInteger(data.availableMembers) || data.availableMembers<20 || data.availableMembers>31 ||
     data.spreadPercentile!==80 || !['ok','partial'].includes(data.status) || !Array.isArray(data.systems) || data.systems.length>150)throw new Error('Invalid ensemble snapshot');
   const ids=new Set();let total=0;
@@ -100,6 +101,7 @@ function renderCycloneEnsemble(){
       '. Shading: 80th-percentile spread of matched centres, not a probability cone or wind footprint. Native 6-hour steps.'
     :'GEFS '+available+'/31 members · too few unambiguous matching tracks for the visible systems; no spread drawn.';
   if(cycloneEnsembleData.status==='partial')status.textContent+=' Some ensemble members are unavailable.';
+  if(cycloneEnsembleData.forecastEnd<cycloneEnsembleData.modelRun+96*3600)status.textContent+=' Ensemble data currently extends '+((cycloneEnsembleData.forecastEnd-cycloneEnsembleData.modelRun)/3600)+' h from the model run; later frames are still arriving.';
   if(cycloneEnsembleFailed)status.textContent+=' Latest ensemble refresh failed; using this same-run snapshot.';
   if(Date.now()-cycloneEnsembleLoadedAt>30*60*1000)loadCycloneEnsemble();
 }

@@ -230,3 +230,13 @@ test('ensemble interpolation and corridor segments do not bridge missing six-hou
   assert.equal(h.run('ensemblePointAt(points,6*3600,true)'),null);
   assert.equal(h.run('ensemblePointAt(points,0,true).radiusKM'),10);
 });
+
+test('progressively published ensemble horizons render and disclose the available forecast end',()=>{
+  const h=harness(true,true);const e=ensembleFixture(h);e.forecastEnd=e.modelRun+72*3600;
+  e.systems.forEach(s=>{s.frames=s.frames.filter(p=>p.time<=e.forecastEnd);s.members.forEach(m=>m.points=m.points.filter(p=>p.time<=e.forecastEnd));});
+  h.context.ensembleFixture=e;h.run('cycloneEnsembleData=validateCycloneEnsemble(ensembleFixture);cycloneEnsembleLoadedAt=Date.now();');
+  h.elements.cycloneSpreadOn.checked=true;h.seed();
+  assert.match(h.elements.cycloneEnsembleStatus.textContent,/extends 72 h from the model run/);
+  assert(h.run('cycloneEnsembleGroup.children.length>0'));
+  e.forecastEnd+=3600;assert.throws(()=>h.run('validateCycloneEnsemble(ensembleFixture)'),/Invalid ensemble snapshot/);
+});
