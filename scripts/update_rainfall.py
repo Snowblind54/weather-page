@@ -29,6 +29,7 @@ SOURCES = {
     'DK': ('Danish Meteorological Institute', 'https://www.dmi.dk/friedata/dokumentation/meteorological-observations-data'),
     'LV': ('LVĢMC', 'https://data.gov.lv/dati/dataset/hidrometeorologiskie-noverojumi'),
     'IS': ('Icelandic Meteorological Office (IMO)', 'https://www.vedur.is/gogn/athuganir/urkoma.html'),
+    'NO': ('MET Norway / Seklima', 'https://seklima.met.no/observations/'),
 }
 
 
@@ -215,6 +216,67 @@ def load_iceland(now, previous):
     return parse_iceland(download(SOURCES['IS'][1], False), metadata)
 
 
+def parse_norway(payload, metadata):
+    """Measured hourly sums, with Frost referenceTime as the period's end.
+
+    Hourly timestamps already contain the observation time: unlike some daily
+    observations, timeOffset must not be added. Keep the primary sensor/series
+    and measured quality codes, excluding corrected or interpolated values.
+    """
+    stations = {s['id']: s for s in metadata if 'MET.NO' in s.get('stationHolders', [])}
+    grouped = {}
+    for row in payload.get('data') or []:
+        source = row['sourceId'].split(':')
+        code = source[0]
+        if code not in stations or (len(source) > 1 and source[1] != '0'):
+            continue
+        for observation in row.get('observations') or []:
+            if (observation.get('elementId') != 'sum(precipitation_amount PT1H)' or
+                    observation.get('unit') != 'mm' or observation.get('timeResolution') != 'PT1H' or
+                    observation.get('qualityCode') not in (0, 2, 4) or
+                    observation.get('timeSeriesId', 0) != 0):
+                continue
+            value = amount(observation.get('value'))
+            if value is None:
+                continue
+            grouped.setdefault(code, []).append((row['referenceTime'], value, False))
+    records = []
+    for code, rows in grouped.items():
+        s = stations[code]
+        lon, lat = s['geometry']['coordinates'][:2]
+        if not (48 <= lat <= 72.5 and -26 <= lon <= 33):
+            continue
+        records.append(station('NO', code, s.get('shortName') or s['name'], lat, lon, rows))
+    return records
+
+
+def load_norway(now, previous):
+    # Public backend used by Seklima; no borrowed credentials or browser proxy.
+    base = 'https://rim.k8s.met.no/api/v1/'
+    old = [s for s in previous if s['country'] == 'NO']
+    complete = old and all(len(s['times']) >= 48 and s['times'][-1] >= unix(now)-24*3600 for s in old)
+    start = (now-dt.timedelta(hours=24 if complete else 72)).date().isoformat()
+    end = (now+dt.timedelta(days=1)).date().isoformat()
+    params = dict(sourceName='', weatherElements='sum(precipitation_amount PT1H)',
+                  timeResolution='hours', **{'from': start, 'to': end}, includeRegions='false')
+    metadata = download(base+'stations?'+urllib.parse.urlencode(params)).get('data') or []
+    official = [s for s in metadata if 'MET.NO' in s.get('stationHolders', []) and
+                s.get('geometry', {}).get('coordinates') and
+                48 <= s['geometry']['coordinates'][1] <= 72.5 and
+                -26 <= s['geometry']['coordinates'][0] <= 33]
+    def collect(batch):
+        params = dict(sources=','.join(s['id'] for s in batch), referenceTime=start+'/'+end,
+                      elements='sum(precipitation_amount PT1H)', timeResolution='hours')
+        try:
+            return parse_norway(download(base+'observations?'+urllib.parse.urlencode(params)), batch)
+        except Exception as error:
+            print('NO rainfall batch unavailable:', str(error)[:200], flush=True)
+            return []
+    batches = [official[i:i+40] for i in range(0, len(official), 40)]
+    with futures.ThreadPoolExecutor(max_workers=3) as pool:
+        return [s for records in pool.map(collect, batches) for s in records]
+
+
 def parse_lithuania(payload):
     s = payload['station']
     return station('LT', s['code'], s['name'], s['coordinates']['latitude'], s['coordinates']['longitude'],
@@ -386,7 +448,7 @@ def merge(previous, incoming, now):
 
 
 LOADERS = {'EE': load_estonia, 'LT': load_lithuania, 'FI': load_finland, 'SE': load_sweden, 'DK': load_denmark,
-           'LV': load_latvia, 'IS': load_iceland}
+           'LV': load_latvia, 'IS': load_iceland, 'NO': load_norway}
 
 
 def main():

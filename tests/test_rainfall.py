@@ -11,6 +11,47 @@ END = int(NOW.timestamp())
 
 
 class Rainfall(unittest.TestCase):
+    def test_norway_measured_primary_hourly_sums_keep_reference_time_and_gaps(self):
+        meta = [{'id': 'SN18700', 'name': 'Oslo', 'stationHolders': ['MET.NO'],
+                 'geometry': {'coordinates': [10.7, 59.9]}},
+                {'id': 'PRIVATE', 'name': 'Private', 'stationHolders': ['Other'],
+                 'geometry': {'coordinates': [10.7, 59.9]}}]
+        def row(time, value, **overrides):
+            observation = dict(elementId='sum(precipitation_amount PT1H)', value=value,
+                               unit='mm', timeResolution='PT1H', timeOffset='PT1H',
+                               qualityCode=0, timeSeriesId=0)
+            observation.update(overrides)
+            return dict(sourceId='SN18700:0', referenceTime=time, observations=[observation])
+        rows = [row('2026-10-03T10:00:00Z', 1.2), row('2026-10-03T09:00:00Z', 0),
+                row('2026-10-03T08:00:00Z', None), row('2026-10-03T07:00:00Z', -1),
+                row('2026-10-03T06:00:00Z', 99, qualityCode=1),
+                row('2026-10-03T05:00:00Z', 99, timeSeriesId=1),
+                row('2026-10-03T04:00:00Z', 99, elementId='sum(precipitation_amount P1D)')]
+        alternate = row('2026-10-03T10:00:00Z', 99); alternate['sourceId'] = 'SN18700:1'; rows.append(alternate)
+        private = row('2026-10-03T10:00:00Z', 99); private['sourceId'] = 'PRIVATE:0'; rows.append(private)
+        s = rain.parse_norway({'data': rows}, meta)[0]
+        self.assertEqual((s['country'], s['lat'], s['lon']), ('NO', 59.9, 10.7))
+        self.assertEqual(s['times'], [END-3600, END])
+        self.assertEqual(s['amounts'], [0, 1.2])
+
+    def test_norway_loader_batches_public_requests_without_credentials(self):
+        from unittest.mock import patch
+        from urllib.parse import parse_qs, urlsplit
+        requests = []
+        def download(url):
+            requests.append(url)
+            if '/stations?' in url:
+                return {'data': [{'id': 'SN18700', 'name': 'Oslo', 'stationHolders': ['MET.NO'],
+                                  'geometry': {'coordinates': [10.7, 59.9]}}]}
+            return {'data': []}
+        with patch.object(rain, 'download', download):
+            self.assertEqual(rain.load_norway(NOW, []), [])
+        self.assertEqual(len(requests), 2)
+        query = parse_qs(urlsplit(requests[-1]).query)
+        self.assertEqual(query['elements'], ['sum(precipitation_amount PT1H)'])
+        self.assertEqual(query['referenceTime'], ['2026-09-30/2026-10-04'])
+        self.assertNotIn('client', requests[-1])
+
     def test_latvia_hourly_utc_decimal_coordinates_and_missing_values(self):
         meta = [{'STATION_ID': 'a', 'NAME': 'Rīga', 'GEOGR1': '24.1', 'GEOGR2': '56.9',
                  'LATITUDE': '565400', 'LONGITUDE': '0240600'}]
