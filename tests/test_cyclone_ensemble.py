@@ -17,7 +17,8 @@ class Ensemble(unittest.TestCase):
         from unittest.mock import patch
         from urllib.error import HTTPError
         def read(url,*args):
-            if '.idx' in url or 'f096' in url or 'f090' in url or 'f084' in url or 'f078' in url:
+            # The control has all hours, while perturbed members stop at 72.
+            if '.idx' in url or ('gec00' not in url and any(f'f{h:03d}' in url for h in (96,90,84,78))):
                 raise HTTPError(url,404,'Not published',{},None)
             return b'GRIB'
         run=dt.datetime.fromtimestamp(STAMP,dt.timezone.utc)
