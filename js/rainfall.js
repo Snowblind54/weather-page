@@ -336,7 +336,7 @@ function rainfallPopupContent(point,end){
       '<span class="rain-popup-source">'+htmlEscape(source)+'<br>Ending '+htmlEscape(fmt(actualEnd))+'</span></div>';
   }).join('')+'</div>';
   const current=details[selected],official=current?.official;
-  const gauge=official?'<br>Nearest gauge: '+htmlEscape(official.nearest.name)+' ('+official.distance.toFixed(1)+' km) · '+
+  const gauge=!point.station&&official?'<br>Nearest gauge: '+htmlEscape(official.nearest.name)+' ('+official.distance.toFixed(1)+' km) · '+
     official.nearestValue.toFixed(1)+' mm'+(official.trace?'<br>Includes trace precipitation below 0.1 mm.':''):'';
   const note=country?'Official totals: precipitation including snow water equivalent. Model totals: rain + showers, excluding snow.':
     'Accumulation data is available on land in the nine supported countries.';
