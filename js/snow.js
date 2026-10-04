@@ -79,6 +79,7 @@ function enterSnowView(){
   map.fitBounds([[0,-180],[83,180]],{padding:[16,16],animate:false});
   snowLayer.addTo(map);
   refreshSnowCoverage();
+  if(typeof loadSnowDepth==='function')loadSnowDepth();
   snowRefreshTimer=setInterval(()=>{if(!document.hidden)refreshSnowCoverage();},30*60*1000);
 }
 function exitSnowView({restore=true}={}){
@@ -86,6 +87,7 @@ function exitSnowView({restore=true}={}){
   snowMode=false;snowMetadataGeneration++;
   clearInterval(snowRefreshTimer);snowRefreshTimer=null;
   map.removeLayer(snowLayer);
+  if(typeof hideSnowDepth==='function')hideSnowDepth();
   $('snowOn').checked=false;
   $('nav-snowSection').classList.remove('layer-active');
   document.body.classList.remove('snow-view');
@@ -99,6 +101,7 @@ function exitSnowView({restore=true}={}){
 }
 async function refreshSnowCoverage(){
   if(!snowMode)return;
+  if(typeof loadSnowDepth==='function')loadSnowDepth(true);
   const generation=++snowMetadataGeneration;
   $('snowRefresh').disabled=true;
   try{

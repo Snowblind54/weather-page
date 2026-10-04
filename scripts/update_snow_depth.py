@@ -101,7 +101,7 @@ def parse_estonia(rows, metadata):
     by_name = {normal_name(s.get('jaam_nimi', s.get('name', ''))): s for s in metadata}
     out = []
     for row in rows:
-        if row.get('element_yhik') not in ('cm', 'sentimeeter'):
+        if row.get('element_yhik', row.get('element_yhik_eng')) not in ('cm', 'sentimeeter'):
             continue
         meta = by_code.get(str(row.get('jaam_kood'))) or by_name.get(normal_name(row.get('jaam_nimi', '')))
         if not meta:
@@ -161,14 +161,30 @@ def parse_finland(raw):
     if any(local(e) == 'ExceptionText' for e in root.iter()):
         raise ValueError('FMI: ' + ' '.join(e.text or '' for e in root.iter() if local(e) == 'ExceptionText'))
     names = {}
+    points = {}
+    for point in root.iter():
+        if local(point) != 'Point':
+            continue
+        ident = next((value for key, value in point.attrib.items() if key.split('}')[-1] == 'id'), '')
+        pos = next((e.text or '' for e in point.iter() if local(e) == 'pos'), '').split()
+        if ident and len(pos) >= 2:
+            points[ident] = pos
     for location in root.iter():
         if local(location) != 'Location':
             continue
         fields = {local(e): (e.text or '').strip() for e in location.iter()}
         pos = fields.get('pos', '').split()
+        if len(pos) < 2:
+            for e in location.iter():
+                if local(e) == 'representativePoint':
+                    href = next((v for k, v in e.attrib.items() if k.split('}')[-1] == 'href'), '')
+                    pos = points.get(href.lstrip('#'), [])
+        station_name = next((e.text.strip() for e in location.iter() if local(e) == 'name' and e.text
+                             and not any(word in e.attrib.get('codeSpace', '').lower() for word in ('region', 'country'))),
+                            fields.get('name') or 'FMI station')
         if len(pos) >= 2:
             names[(round(float(pos[0]), 5), round(float(pos[1]), 5))] = (
-                fields.get('identifier') or ','.join(pos), fields.get('name') or 'FMI station')
+                fields.get('identifier') or ','.join(pos), station_name)
     records = []
     for coverage in root.iter():
         if local(coverage) != 'MultiPointCoverage':

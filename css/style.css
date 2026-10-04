@@ -275,5 +275,19 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 .snow-map-key .snow-legend{margin:0 0 5px}
 #snowMapStatus{font-size:10px;color:var(--muted);line-height:1.5}
 #snowSection button:disabled{opacity:.5;cursor:wait}
-@media(min-width:761px){.category-nav{overflow-x:auto;justify-content:flex-start;scrollbar-width:none}.category-nav::-webkit-scrollbar{display:none}}
+@media(min-width:761px){.category-nav{overflow-x:auto;justify-content:center;scrollbar-width:none}.category-nav::-webkit-scrollbar{display:none}}
 @media(max-width:760px){.snow-map-key{left:12px;right:12px;max-width:none;bottom:max(86px,calc(env(safe-area-inset-bottom) + 76px));padding:10px 12px}}
+
+/* Keep the weather menu centred across the available header space. */
+@media(min-width:1101px){.topbar{display:grid;grid-template-columns:200px minmax(0,1fr) 200px;gap:10px}.brand{width:max-content}.utility-button{justify-self:end}.category-nav{width:100%;justify-content:safe center}.category-tab{padding:12px 10px}}
+@media(min-width:761px) and (max-width:1100px){.category-nav{justify-content:safe center}}
+.snow-depth-label{display:inline-block;white-space:nowrap;padding:3px 6px;border:1px solid #bddbff;border-radius:7px;background:#15304dec;color:#fff;font:700 11px/16px ui-sans-serif,system-ui,sans-serif;box-shadow:0 1px 5px #0007}
+.snow-depth-marker{background:none;border:0}
+.snow-depth-stale{border:1px dashed #ffd083}
+.snow-depth-zero{background:#243744df;color:#d6e0e8;font-weight:500}
+.snow-depth-popup{color:#17202b;font:12px/1.5 ui-sans-serif,system-ui,sans-serif;min-width:190px}
+.snow-depth-popup p{margin:6px 0;font-size:11px}
+.snow-depth-popup .snow-depth-value{font-size:25px;font-weight:750;margin:5px 0}
+.snow-depth-popup .snow-depth-old{color:#805300}
+.snow-depth-popup a{color:#1268aa}
+#snowDepthRegion{margin-top:9px}

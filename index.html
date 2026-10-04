@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Northern Weather Map v8.40</title>
+<title>Northern Weather Map v8.41</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.40">
+<link rel="stylesheet" href="css/style.css?v=8.41">
 </head>
 <body>
 
@@ -146,10 +146,11 @@
 
 <div class="weather-panel weather-section" id="snowSection" hidden role="region" aria-labelledby="snowSection-title">
   <div class="panel-heading"><div><div class="eyebrow">NORTHERN HEMISPHERE</div><h2 id="snowSection-title">Snow</h2><p>Daily snow cover &amp; sea ice</p></div><div class="panel-actions"><button class="info-button" data-info="snowSection-sources" aria-controls="snowSection-sources" aria-expanded="false" aria-label="Snow sources">i</button><button class="close-panel" aria-label="Close Snow menu">×</button></div></div>
-  <div id="snowSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>NOAA / U.S. National Ice Center / National Weather Service. Interactive Multisensor Snow and Ice Mapping System (IMS), daily Northern Hemisphere snow and ice analysis at 1 km resolution. Analysts combine satellite and surface information.</p><div class="source-links"><a href="https://usicecenter.gov/Products/ImsHome" target="_blank" rel="noopener">USNIC IMS ↗</a><a href="https://mapservices.weather.noaa.gov/raster/rest/services/obs/usnic_ims_snow_ice_1km/ImageServer" target="_blank" rel="noopener">NOAA map service ↗</a><a href="https://doi.org/10.7265/N52R3PMC" target="_blank" rel="noopener">Dataset &amp; citation ↗</a></div><p>Latest analysis only; the service has no historical timeline. White shows snow-covered land, cyan shows sea ice. Transparent areas include snow-free surfaces and missing data. This layer shows coverage, not depth or falling snow. The map projection displays up to 85°N; the immediate polar cap is outside this view.</p></div>
+  <div id="snowSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>NOAA / U.S. National Ice Center / National Weather Service. Interactive Multisensor Snow and Ice Mapping System (IMS), daily Northern Hemisphere snow and ice analysis at 1 km resolution. Analysts combine satellite and surface information.</p><div class="source-links"><a href="https://usicecenter.gov/Products/ImsHome" target="_blank" rel="noopener">USNIC IMS ↗</a><a href="https://mapservices.weather.noaa.gov/raster/rest/services/obs/usnic_ims_snow_ice_1km/ImageServer" target="_blank" rel="noopener">NOAA map service ↗</a><a href="https://doi.org/10.7265/N52R3PMC" target="_blank" rel="noopener">Dataset &amp; citation ↗</a></div><p>Latest analysis only; the service has no historical timeline. White shows snow-covered land, cyan shows sea ice. Transparent areas include snow-free surfaces and missing data. The white/cyan imagery shows coverage, not depth or falling snow. Station labels provide measured snow depths separately. Depth sources: Keskkonnaagentuur daily climate data (cm), FMI daily snow observations (cm), and SMHI parameter 8 (metres converted to cm). Special trace and patchy snow codes remain separate from numeric depths. Provisional readings are identified in the popup. The map projection displays up to 85°N; the immediate polar cap is outside this view.</p></div>
   <div class="row"><label class="label"><input id="snowOn" type="checkbox"> Northern Hemisphere snow coverage</label><span class="badge">daily · 1 km</span></div>
   <div class="details"><label class="small" for="snowOpacity">Snow layer opacity</label><div class="grid2"><input id="snowOpacity" type="range" min="10" max="100" value="85"><span id="snowOpacityVal" class="value">85%</span></div>
   <div class="snow-legend"><span><i class="snow-swatch"></i>Snow cover</span><span><i class="ice-swatch"></i>Sea ice</span></div>
+  <div class="section snow-depth-controls"><div class="row"><label class="label"><input id="snowDepthOn" type="checkbox" checked> Station snow depth · cm</label><span class="badge">official observations</span></div><div class="row"><label class="label"><input id="snowDepthZero" type="checkbox" checked> Show stations reporting 0 cm</label></div><div class="small">Estonia, Finland and Sweden. Click a reading for its station, observation date and source. Measurements older than 72 hours are hidden.</div><button id="snowDepthRegion" type="button">View depth stations</button><div id="snowDepthStatus" class="status" role="status" aria-live="polite">Station depths load when Snow opens.</div></div>
   <div id="snowDate" class="small">Latest daily IMS analysis</div><div class="row wrap"><button id="snowOverview" type="button">Hemisphere view</button><button id="snowRefresh" type="button">Refresh snow</button><button id="snowReturn" type="button">Return to weather</button></div><div id="snowStatus" class="status" role="status" aria-live="polite">Snow coverage is off.</div></div>
 </div>
 <div id="snowMapKey" class="snow-map-key" hidden><div class="snow-legend"><span><i class="snow-swatch"></i>Snow cover</span><span><i class="ice-swatch"></i>Sea ice</span></div><div id="snowMapStatus" role="status">Latest daily IMS analysis</div></div>
@@ -219,7 +220,8 @@
 <script src="js/bathymetry.js?v=8.21"></script>
 <script src="js/cyclones.js?v=8.29"></script>
 <script src="js/app.js?v=8.36.1"></script>
-<script src="js/snow.js?v=8.40"></script>
+<script src="js/snow.js?v=8.41"></script>
+<script src="js/snow-depth.js?v=8.41"></script>
 <script src="js/ui.js?v=8.40"></script></body>
 </html>
 
