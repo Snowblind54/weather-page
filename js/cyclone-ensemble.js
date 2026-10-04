@@ -6,7 +6,7 @@ let cycloneEnsembleLoadedAt=0,cycloneEnsembleRetryAt=0,cycloneEnsembleFailed=fal
 
 function validateCycloneEnsemble(data){
   const now=Date.now()/1000;
-  if(data?.version!==1 || data.methodVersion!==1 || !Number.isFinite(data.modelRun) || data.modelRun>now+300 ||
+  if(data?.version!==1 || data.methodVersion!==2 || !Number.isFinite(data.modelRun) || data.modelRun>now+300 ||
     !Number.isFinite(data.generatedAt) || data.generatedAt>now+300 || data.forecastEnd!==data.modelRun+96*3600 ||
     data.stepHours!==6 || data.expectedMembers!==31 || !Number.isInteger(data.availableMembers) || data.availableMembers<20 || data.availableMembers>31 ||
     data.spreadPercentile!==80 || !['ok','partial'].includes(data.status) || !Array.isArray(data.systems) || data.systems.length>150)throw new Error('Invalid ensemble snapshot');
@@ -94,8 +94,9 @@ function renderCycloneEnsemble(){
     cycloneEnsembleGroup=L.layerGroup(layers).addTo(map);cycloneEnsembleKey=key;
   }
   const available=cycloneEnsembleData.availableMembers;
+  const support=matched.map(s=>ensemblePointAt(s.frames,cycloneSelectedTime(),true)?.support);
   status.textContent=matched.length
-    ?'GEFS '+available+'/31 members · '+matched.map(s=>s.members.length+' matched to '+(cycloneData.systems.find(x=>x.id===s.id)?.name||s.id)).join('; ')+
+    ?'GEFS '+available+'/31 members · '+matched.length+'/'+shown.length+' visible systems matched. Selected-hour spread support: '+support.map(n=>n==null?'insufficient':n+'/'+available).join(', ')+
       '. Shading: 80th-percentile spread of matched centres, not a probability cone or wind footprint. Native 6-hour steps.'
     :'GEFS '+available+'/31 members · too few unambiguous matching tracks for the visible systems; no spread drawn.';
   if(cycloneEnsembleData.status==='partial')status.textContent+=' Some ensemble members are unavailable.';

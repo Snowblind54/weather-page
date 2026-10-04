@@ -36,6 +36,10 @@ class Ensemble(unittest.TestCase):
         member=track();member['points']=member['points'][:2]
         self.assertIsNone(e.match_score(track(),member))
 
+    def test_later_forming_nearby_low_is_not_matched_to_the_original_cyclone(self):
+        late=track();late['points']=late['points'][4:]
+        self.assertIsNone(e.match_score(track(),late))
+
     def test_spread_requires_support_and_does_not_bridge_missing_centres(self):
         members=[track(offset=i*.02) for i in range(31)]
         frames=e.spread_frames(members,STAMP,31)
