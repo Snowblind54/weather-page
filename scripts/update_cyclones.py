@@ -17,6 +17,8 @@ import urllib.request
 import numpy as np
 from scipy.ndimage import gaussian_filter, minimum_filter
 from scipy.optimize import linear_sum_assignment
+import contourpy
+from cyclone_names import add_european_names
 
 OUTPUT = pathlib.Path(__file__).resolve().parents[1] / 'data/cyclones.json'
 FILTER = 'https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p50.pl'
@@ -35,7 +37,7 @@ def display_region(lat, lon):
 
 
 def download(url):
-    request = urllib.request.Request(url, headers={'User-Agent': 'BalticWeatherMap/8.16'})
+    request = urllib.request.Request(url, headers={'User-Agent': 'NorthernWeather/8.47 (github.com/Snowblind54/weather-page)'})
     for attempt in range(2):
         try:
             with urllib.request.urlopen(request, timeout=45) as response:
@@ -262,6 +264,39 @@ def retain_history(systems, previous, now, model_run):
     return systems
 
 
+def simplify_contour(points,tolerance=.12):
+    """Douglas–Peucker simplification; retain genuine closed contour geometry."""
+    if len(points)<3:return points
+    keep={0,len(points)-1};stack=[(0,len(points)-1)]
+    while stack:
+        start,end=stack.pop()
+        if end-start<2:continue
+        segment=points[end]-points[start];length=float(segment@segment)
+        inner=points[start+1:end]
+        if length:
+            fraction=np.clip((inner-points[start])@segment/length,0,1)
+            delta=inner-(points[start]+fraction[:,None]*segment)
+        else:delta=inner-points[start]
+        distances=np.sum(delta*delta,axis=1);index=int(np.argmax(distances))
+        if distances[index]>tolerance*tolerance:
+            middle=start+index+1;keep.add(middle);stack.extend([(start,middle),(middle,end)])
+    return points[sorted(keep)]
+
+
+def pressure_contours(lats,lons,pressure,valid):
+    # The same sea-level field and valid times as the centre tracks.
+    smooth=gaussian_filter(pressure,.8,mode='nearest')
+    generator=contourpy.contour_generator(x=lons,y=lats,z=smooth,line_type='Separate')
+    lines=[]
+    for level in range(920,1053,4):
+        for points in generator.lines(level):
+            if len(points)<6:continue
+            simplified=simplify_contour(points)
+            if len(simplified)<2:continue
+            lines.append({'pressure':level,'points':np.round(simplified,3).tolist()})
+    return {'time':valid,'lines':lines}
+
+
 def collect(now, previous):
     # GFS is produced every six hours; allow four hours for the complete run.
     base = (now-dt.timedelta(hours=4)).replace(minute=0, second=0, microsecond=0)
@@ -279,10 +314,11 @@ def collect(now, previous):
     if run is None or (now-run).total_seconds() > 18*3600:
         raise ValueError('No recent complete GFS model cycle')
     stamp = int(run.timestamp())
-    if previous.get('windFieldsVersion') == 2 and previous.get('modelRun') == stamp and previous.get('forecastEnd', 0) >= stamp+96*3600:
+    if previous.get('pressureContours',{}).get('version') == 1 and previous.get('windFieldsVersion') == 2 and previous.get('modelRun') == stamp and previous.get('forecastEnd', 0) >= stamp+96*3600:
         systems = json.loads(json.dumps(previous['systems']))
         for s in systems:
-            s['name'] = None; s.pop('nhc', None)
+            s['name'] = None; s.pop('nhc', None);s.pop('europeanName',None)
+        contours=previous['pressureContours']['frames']
     else:
         def get(step):
             if step in seed: return step, seed[step]
@@ -291,20 +327,23 @@ def collect(now, previous):
             return step, raw
         with futures.ThreadPoolExecutor(max_workers=2) as pool:
             fields = dict(pool.map(get, STEPS))
-        frames = []
+        frames = [];contours=[]
         for step in STEPS:
             valid = stamp+step*3600
             lats, lons, grid = decode(fields[step], valid)
             lows = centres(lats, lons, grid, valid);frames.append((valid, lows))
+            contours.append(pressure_contours(lats,lons,grid['pressure'],valid))
             print('Forecast', step, 'h:', len(lows), 'closed centres', flush=True)
         systems = assign_ids(track_frames(frames), previous, run)
     systems = retain_history(systems, previous, now, stamp)
     nhc = add_names(systems, now)
+    european=add_european_names(systems,now,download,distance)
     return {'version': 1, 'windFieldsVersion': 2, 'generatedAt': int(now.timestamp()), 'modelRun': stamp,
             'forecastEnd': stamp+96*3600, 'status': 'ok',
             'bounds': BOUNDS, 'source': 'NOAA / NCEP GFS 0.5°', 'sourceUrl': 'https://nomads.ncep.noaa.gov/',
             'method': 'Closed pressure minima; 400 km ring depth ≥2 hPa; ≥9-hour persistence; tracked every 3 hours.',
-            'nhcStatus': nhc, 'systems': systems}
+            'nhcStatus': nhc, 'europeanNamesStatus':european,
+            'pressureContours':{'version':1,'interval':4,'modelRun':stamp,'frames':contours},'systems': systems}
 
 
 def main():
@@ -328,3 +367,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

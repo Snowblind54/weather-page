@@ -35,11 +35,12 @@ function validateCyclones(data){
     }
 
   }
+  if(typeof validatePressureContours==='function')validatePressureContours(data);
   return data;
 }
 
 function cycloneVisiblePosition(point){
-  return point && point.lon>=-80&&point.lon<=40&&point.lat>=25&&point.lat<=78&&(point.lon< -12||point.lat>=45);
+  return point && point.pressure<=1000 && point.lon>=-80&&point.lon<=40&&point.lat>=25&&point.lat<=78&&(point.lon< -12||point.lat>=45);
 }
 
 function cycloneDistance(a,b){
@@ -85,8 +86,9 @@ function cycloneIcon(system,point){
 
 function cyclonePopupContent(system,point){
   const direction=point.bearing==null?'Almost stationary':['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'][Math.round(point.bearing/22.5)%16]+' · '+Math.round(point.bearing)+'°';
+  const trend=typeof cycloneTrend==='function'?cycloneTrend(system,point):null;
   const before=cyclonePointAt(system,point.time-6*3600);
-  const change=before?point.pressure-before.pressure:null;
+  const change=trend?trend.change:before?point.pressure-before.pressure:null;
   const pressureChange=change==null?'Unavailable':(change>=0?'+':'')+change.toFixed(1)+' hPa / 6 h';
   const end=Math.min(point.time+48*3600,system.points.at(-1).time);
   const nhc=system.nhc;
@@ -94,16 +96,17 @@ function cyclonePopupContent(system,point){
     ' · '+nhc.pressure.toFixed(0)+' hPa · sustained wind '+nhc.windMS.toFixed(1)+' m/s<br>Moving '+nhc.movementKMH.toFixed(1)+' km/h'+
     (typeof nhc.url==='string'&&nhc.url.startsWith('https://www.nhc.noaa.gov/')?' · <a href="'+htmlEscape(nhc.url)+'" target="_blank" rel="noopener">Official advisory</a>':'')+'</div>':'';
   return '<div class="cyclone-popup"><b>'+htmlEscape(cycloneName(system))+'</b><div class="small">'+htmlEscape(system.id)+
-    (system.name?' · name matched to NHC':' · no official name available')+'</div><div class="cyclone-readings">'+
+    (system.europeanName?' · European name, inferred model match':system.name?' · name matched to NHC':' · no official name available')+'</div><div class="cyclone-readings">'+
     '<div><span>Centre pressure</span><strong>'+point.pressure.toFixed(1)+' hPa</strong></div>'+
     '<div><span>Moving speed</span><strong>'+point.speed.toFixed(1)+' km/h <small>('+ (point.speed/3.6).toFixed(1)+' m/s)</small></strong></div>'+
     '<div><span>Moving towards</span><strong>'+direction+'</strong></div>'+
     '<div><span>Pressure change</span><strong>'+pressureChange+'</strong></div>'+
+    (trend?'<div><span>Development</span><strong class="cyclone-trend '+trend.kind+'">'+htmlEscape(trend.text)+'</strong><small>Based on centre pressure, not an impact warning.</small></div>':'')+
     '<div><span>Highest model wind within 200 km</span><strong>'+(point.nearbyWind==null?'Unavailable':point.nearbyWind.toFixed(1)+' m/s')+'</strong><small>10 m wind; excludes gusts</small></div>'+
     '<div><span>Highest model gust within 200 km</span><strong>'+(point.nearbyGust==null?'Unavailable':point.nearbyGust.toFixed(1)+' m/s')+'</strong><small>GFS surface gust estimate</small></div></div>'+
     '<div class="cyclone-meta">Position: '+point.lat.toFixed(2)+'°, '+point.lon.toFixed(2)+'°<br>Valid: '+htmlEscape(fmt(point.time))+
     '<br>Model run: '+htmlEscape(fmt(cycloneData.modelRun))+'<br>Track available until '+htmlEscape(fmt(end))+
-    '<br>NOAA / NCEP GFS 0.5° · derived centre and forecast track. Forecast uncertainty grows with time. Symbol rotation is illustrative.</div>'+official+'</div>';
+    '<br>NOAA / NCEP GFS 0.5° · derived centre and forecast track. Forecast uncertainty grows with time. Symbol rotation is illustrative.</div>'+official+(typeof cycloneEuropeanNameHtml==='function'?cycloneEuropeanNameHtml(system):'')+'</div>';
 }
 
 function closeCyclonePopup(){
@@ -111,7 +114,7 @@ function closeCyclonePopup(){
   cycloneProbeId=null;
 }
 function openCyclonePopup(system){
-  const point=cyclonePointAt(system,cycloneSelectedTime());if(!point)return;
+  const point=cyclonePointAt(system,cycloneSelectedTime());if(!cycloneVisiblePosition(point))return;
   cycloneProbeId=system.id;
   if(!cyclonePopup)cyclonePopup=L.popup({className:'cyclone-popup-container',maxWidth:345,autoPan:false,keepInView:false});
   cyclonePopup.setLatLng([point.lat,point.lon]).setContent(cyclonePopupContent(system,point)).openOn(map);
@@ -124,20 +127,21 @@ function renderCyclonePaths(){
   const layers=[];
   for(const system of cycloneData.systems){
     const current=cyclonePointAt(system,unix);
-    if(!cycloneVisiblePosition(current))continue;
+    if(!cycloneVisiblePosition(current) || !cycloneVisiblePosition(cyclonePointAt(system,cycloneSelectedTime())))continue;
     const end=Math.min(unix+48*3600,system.points.at(-1).time);
     const points=[current,...system.points.filter(p=>p.time>unix&&p.time<end)];
     const endpoint=cyclonePointAt(system,end);if(endpoint&&end>unix)points.push(endpoint);
     // Split any association gap; don't draw an invented path across a break.
-    const pieces=[];let piece=[points[0]];
-    for(let i=1;i<points.length;i++){
-      if(points[i].time-points[i-1].time>6*3600){if(piece.length>1)pieces.push(piece);piece=[];}
-      piece.push(points[i]);
+    const pieces=[];let piece=[];
+    for(const point of points){
+      if(point.pressure>1000){if(piece.length>1)pieces.push(piece);piece=[];continue;}
+      if(piece.length && point.time-piece.at(-1).time>6*3600){if(piece.length>1)pieces.push(piece);piece=[];}
+      piece.push(point);
     }
     if(piece.length>1)pieces.push(piece);
     for(const part of pieces)layers.push(L.polyline(part.map(p=>[p.lat,p.lon]),{pane:'cyclonePathsPane',color:cycloneColour(current.pressure),weight:2.5,dashArray:'7 7',opacity:.9,interactive:false}));
     for(const h of [12,24,36,48]){
-      const t=unix+h*3600,p=cyclonePointAt(system,t);if(!p||t>end)continue;
+      const t=unix+h*3600,p=cyclonePointAt(system,t);if(!cycloneVisiblePosition(p)||t>end)continue;
       layers.push(L.circleMarker([p.lat,p.lon],{pane:'cyclonePathsPane',radius:3,weight:1,color:'#fff',fillColor:cycloneColour(p.pressure),fillOpacity:1,interactive:false}));
       layers.push(L.marker([p.lat,p.lon],{pane:'cyclonePathsPane',interactive:false,keyboard:false,
         icon:L.divIcon({className:'cyclone-track-label',html:'+'+h+' h',iconSize:[42,18],iconAnchor:[-5,9]})}));
@@ -153,7 +157,7 @@ function renderCycloneHistory(){
   for(const system of cycloneData.systems){
     // History is tied to actual clock time, even while viewing a future forecast.
     const current=cyclonePointAt(system,now);
-    if(!cycloneVisiblePosition(current))continue;
+    if(!cycloneVisiblePosition(current) || !cycloneVisiblePosition(cyclonePointAt(system,cycloneSelectedTime())))continue;
     const byTime=new Map();
     for(const point of [...(system.history||[]),...system.points]){
       if(point.time>=now-48*3600 && point.time<=now)byTime.set(point.time,point);
@@ -162,6 +166,7 @@ function renderCycloneHistory(){
     const points=[...byTime.values()].sort((a,b)=>a.time-b.time);
     const pieces=[];let piece=[];
     for(const point of points){
+      if(point.pressure>1000){if(piece.length>1)pieces.push(piece);piece=[];continue;}
       if(piece.length && point.time-piece.at(-1).time>6*3600){if(piece.length>1)pieces.push(piece);piece=[];}
       piece.push(point);
     }
@@ -201,6 +206,7 @@ function renderCyclones(){
   }
   for(const [id,marker] of cycloneMarkers)if(!shown.has(id)){cycloneMarkerGroup.removeLayer(marker);cycloneMarkers.delete(id);}
   renderCyclonePaths();renderCycloneHistory();
+  if(typeof renderCycloneDetails==='function')renderCycloneDetails();
   if(cycloneProbeId){
     const system=cycloneData.systems.find(s=>s.id===cycloneProbeId),point=system&&cyclonePointAt(system,unix);
     if(point&&shown.has(system.id)&&map.hasLayer(cyclonePopup))cyclonePopup.setLatLng([point.lat,point.lon]).setContent(cyclonePopupContent(system,point));
@@ -217,6 +223,8 @@ function hideCycloneLayers(){
   if(cyclonePathGroup){map.removeLayer(cyclonePathGroup);cyclonePathGroup=null;}
   if(cycloneHistoryGroup){map.removeLayer(cycloneHistoryGroup);cycloneHistoryGroup=null;}
   cycloneMarkers.clear();closeCyclonePopup();
+  if(typeof hideCycloneIsobars==='function')hideCycloneIsobars();
+  if(typeof renderCycloneList==='function')renderCycloneList();
 }
 
 async function loadCyclones(force=false){
@@ -269,3 +277,4 @@ $('cyclonePlay').addEventListener('click',()=>{
 });
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCyclonePlayback();});
 setInterval(()=>{if($('cycloneOn').checked)loadCyclones().catch(reportCycloneError);},5*60*1000);
+

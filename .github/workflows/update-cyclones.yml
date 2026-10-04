@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - scripts/update_cyclones.py
+      - scripts/cyclone_names.py
       - scripts/requirements-cyclones.txt
       - tests/test_cyclones.py
       - .github/workflows/update-cyclones.yml
@@ -29,7 +30,7 @@ jobs:
       - name: Install GRIB decoder and tracking dependencies
         run: python -m pip install -r scripts/requirements-cyclones.txt
       - name: Check cyclone detection and association
-        run: python -m unittest discover -s tests -v
+        run: python -m unittest discover -s tests -p test_cyclones.py -v
       - name: Fetch GFS fields, detect centres and project tracks
         run: python scripts/update_cyclones.py
       - name: Save cyclone snapshot
@@ -42,3 +43,4 @@ jobs:
           git commit -m 'Refresh North Atlantic and Europe cyclone tracks'
           git pull --rebase origin main
           git push origin HEAD:main
+
