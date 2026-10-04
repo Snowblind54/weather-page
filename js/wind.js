@@ -52,7 +52,7 @@ function windPopupContent(point,unix){
   const slice=windTimeSlice(unix);
   const vector=windAt(point.lat,point.lng,slice);
   if(!vector) return '<div class="wind-popup"><b>Wind unavailable</b><p>No wind data for this location at the selected time.</p></div>';
-  const speed=Math.hypot(...vector);
+  const speed=Math.hypot(vector[0],vector[1]);
   const gust=windGustAt(point.lat,point.lng,slice);
   const mode=currentWindMode();
   const colourSpeed=mode==='gust'?gust:speed;
@@ -300,7 +300,7 @@ const WindCanvasLayer=L.Layer.extend({
     this.canvas.setAttribute('aria-hidden','true');
     this.ctx=this.canvas.getContext('2d');
     mapInstance.on('movestart zoomstart',this.pause,this);
-    mapInstance.on('moveend zoomend resize',this.reset,this);
+    mapInstance.on('moveend zoomend resize',this.scheduleReset,this);
     this.visibilityHandler=()=>document.hidden?this.pause():this.reset();
     document.addEventListener('visibilitychange',this.visibilityHandler);
     this.reset();
@@ -308,7 +308,7 @@ const WindCanvasLayer=L.Layer.extend({
   onRemove(mapInstance){
     this.pause();
     mapInstance.off('movestart zoomstart',this.pause,this);
-    mapInstance.off('moveend zoomend resize',this.reset,this);
+    mapInstance.off('moveend zoomend resize',this.scheduleReset,this);
     document.removeEventListener('visibilitychange',this.visibilityHandler);
     this.canvas.remove();
     this._map=null;
@@ -319,9 +319,15 @@ const WindCanvasLayer=L.Layer.extend({
     this.mode=mode;
     this.unix=unix;
     this.data=windData;
-    if(this._map) this.reset();
+    if(this._map) this.scheduleReset();
+  },
+  scheduleReset(){
+    if(this.resetRaf) return;
+    this.resetRaf=requestAnimationFrame(()=>{this.resetRaf=null;this.reset();});
   },
   pause(){
+    if(this.resetRaf) cancelAnimationFrame(this.resetRaf);
+    this.resetRaf=null;
     if(this.raf) cancelAnimationFrame(this.raf);
     this.raf=null;
     if(this.canvas) this.canvas.style.visibility='hidden';
@@ -331,37 +337,42 @@ const WindCanvasLayer=L.Layer.extend({
     if(!this._map||!this.ctx||document.hidden) return;
     const size=this._map.getSize();
     this.width=size.x;this.height=size.y;
-    const dpr=Math.min(window.devicePixelRatio||1,1.5);
-    this.canvas.width=Math.round(size.x*dpr);
-    this.canvas.height=Math.round(size.y*dpr);
+    const dpr=Math.min(window.devicePixelRatio||1,1.25);
+    const pixelWidth=Math.round(size.x*dpr),pixelHeight=Math.round(size.y*dpr);
+    if(this.canvas.width!==pixelWidth) this.canvas.width=pixelWidth;
+    if(this.canvas.height!==pixelHeight) this.canvas.height=pixelHeight;
     this.canvas.style.width=size.x+'px';this.canvas.style.height=size.y+'px';
     L.DomUtil.setPosition(this.canvas,this._map.containerPointToLayerPoint([0,0]));
     this.ctx.setTransform(dpr,0,0,dpr,0,0);
+    this.ctx.clearRect(0,0,size.x,size.y);
     const slice=windTimeSlice(this.unix);
     if(!slice) return;
     // Project the geographic field once per map/time change, not per particle.
     this.step=24;
     this.cols=Math.ceil(size.x/this.step)+1;
     this.rows=Math.ceil(size.y/this.step)+1;
-    this.field=[];
-    const seeds=[];
-    for(let row=0;row<this.rows;row++){
-      for(let col=0;col<this.cols;col++){
-        const x=col*this.step,y=row*this.step;
-        const ll=this._map.containerPointToLatLng([x,y]);
-        let vector=windAt(ll.lat,ll.lng,slice);
-        if(this.mode==='gust'){
-          const gust=windGustAt(ll.lat,ll.lng,slice);
-          // Gust magnitude is an hourly peak. Use modeled wind direction for
-          // its animation; the gust API does not supply a separate direction.
-          vector=vector && gust!==null && (Math.hypot(...vector)>0.01 || gust===0)
-            ? [...vector,gust] : null;
+    const origin=this._map.containerPointToLatLng([0,0]);
+    const fieldKey=[size.x,size.y,this._map.getZoom(),origin.lat,origin.lng,this.unix,this.mode].join('/');
+    if(this.fieldKey!==fieldKey || this.fieldData!==windData){
+      this.field=[];this.seeds=[];
+      for(let row=0;row<this.rows;row++){
+        for(let col=0;col<this.cols;col++){
+          const x=col*this.step,y=row*this.step;
+          const ll=this._map.containerPointToLatLng([x,y]);
+          let vector=windAt(ll.lat,ll.lng,slice);
+          if(this.mode==='gust'){
+            const gust=windGustAt(ll.lat,ll.lng,slice);
+            // Gust magnitude is an hourly peak; use modeled wind direction.
+            vector=vector && gust!==null && (Math.hypot(vector[0],vector[1])>0.01 || gust===0)
+              ? [vector[0],vector[1],gust] : null;
+          }
+          this.field.push(vector);
+          if(vector&&x<size.x&&y<size.y) this.seeds.push([x,y]);
         }
-        this.field.push(vector);
-        if(vector&&x<size.x&&y<size.y) seeds.push([x,y]);
       }
+      this.fieldKey=fieldKey;this.fieldData=windData;
     }
-    this.seeds=seeds;
+    const seeds=this.seeds;
     if(!seeds.length){
       $('windStatus').textContent='Pan between the eastern United States, Atlantic, Europe and Moscow to see wind.';
       $('windStatus').className='status';
@@ -373,33 +384,34 @@ const WindCanvasLayer=L.Layer.extend({
     this.colours=WIND_COLOUR_PALETTES[this.mode];
     this.segments=this.colours.map(()=>[]);
     this.canvas.style.visibility='visible';
-    this.lastFrame=null;
+    this.lastFrame=null;this.nextFrameAt=null;
+    this.sampleVector=[0,0,0];
     this.raf=requestAnimationFrame(t=>this.animate(t));
   },
-  seed(randomAge=false){
+  seed(randomAge=false,particle={}){
     const p=this.seeds[Math.floor(Math.random()*this.seeds.length)];
-    return {x:p[0]+Math.random()*this.step,y:p[1]+Math.random()*this.step,age:randomAge?Math.random()*3:0,life:2+Math.random()*3};
+    particle.x=p[0]+Math.random()*this.step;particle.y=p[1]+Math.random()*this.step;
+    particle.age=randomAge?Math.random()*3:0;particle.life=2+Math.random()*3;
+    return particle;
   },
-  sample(x,y){
+  sample(x,y,out){
     if(x<0||y<0||x>=this.width||y>=this.height) return null;
-    const col=Math.floor(x/this.step),row=Math.floor(y/this.step);
-    const fx=x/this.step-col,fy=y/this.step-row;
-    const indices=[row*this.cols+col,row*this.cols+col+1,(row+1)*this.cols+col,(row+1)*this.cols+col+1];
-    const weights=[(1-fx)*(1-fy),fx*(1-fy),(1-fx)*fy,fx*fy];
-    let u=0,v=0,gust=0;
-    for(let i=0;i<4;i++){
-      const vector=this.field[indices[i]];
-      if(!vector) return null;
-      u+=vector[0]*weights[i];v+=vector[1]*weights[i];
-      if(this.mode==='gust') gust+=vector[2]*weights[i];
-    }
+    const gx=x/this.step,gy=y/this.step,col=Math.floor(gx),row=Math.floor(gy);
+    const fx=gx-col,fy=gy-row,index=row*this.cols+col;
+    const a=this.field[index],b=this.field[index+1],c=this.field[index+this.cols],d=this.field[index+this.cols+1];
+    if(!a||!b||!c||!d) return null;
+    const wa=(1-fx)*(1-fy),wb=fx*(1-fy),wc=(1-fx)*fy,wd=fx*fy;
+    let u=a[0]*wa+b[0]*wb+c[0]*wc+d[0]*wd,v=a[1]*wa+b[1]*wb+c[1]*wc+d[1]*wd;
+    let speed=0;
     if(this.mode==='gust'){
+      speed=a[2]*wa+b[2]*wb+c[2]*wc+d[2]*wd;
       const sustained=Math.hypot(u,v);
-      if(gust===0) return [0,0,0];
-      if(sustained<=0.01) return null;
-      return [u/sustained*gust,v/sustained*gust,gust];
+      if(speed===0){u=0;v=0;}
+      else if(sustained<=0.01) return null;
+      else{u=u/sustained*speed;v=v/sustained*speed;}
     }
-    return [u,v];
+    out=out||[0,0,0];out[0]=u;out[1]=v;out[2]=speed;
+    return out;
   },
   validPoint(x,y){
     if(x<0||y<0||x>=this.width||y>=this.height)return false;
@@ -408,7 +420,12 @@ const WindCanvasLayer=L.Layer.extend({
   },
   animate(t){
     this.raf=requestAnimationFrame(next=>this.animate(next));
-    if(this.lastFrame!==null&&t-this.lastFrame<1000/30) return;
+    const interval=1000/30;
+    // Keep a target clock: rounded browser timestamps otherwise skip valid
+    // frames at 60 Hz and make a nominal 30 fps animation run at about 20 fps.
+    if(this.nextFrameAt!=null&&t+0.5<this.nextFrameAt) return;
+    this.nextFrameAt=(this.nextFrameAt??t)+interval;
+    if(this.nextFrameAt<=t) this.nextFrameAt=t+interval;
     const dt=this.lastFrame===null?1/30:Math.min((t-this.lastFrame)/1000,0.1);
     this.lastFrame=t;
     const ctx=this.ctx;
@@ -422,10 +439,10 @@ const WindCanvasLayer=L.Layer.extend({
     for(const segments of this.segments) segments.length=0;
     for(let i=0;i<this.particles.length;i++){
       let p=this.particles[i];
-      const vector=this.sample(p.x,p.y);
+      const vector=this.sample(p.x,p.y,this.sampleVector||(this.sampleVector=[0,0,0]));
       p.age+=dt;
-      if(!vector||p.age>p.life){this.particles[i]=this.seed();continue;}
-      const speed=this.mode==='gust'?vector[2]:Math.hypot(...vector);
+      if(!vector||p.age>p.life){this.seed(false,p);continue;}
+      const speed=this.mode==='gust'?vector[2]:Math.hypot(vector[0],vector[1]);
       // 6 screen pixels/second for each m/s. Mercator preserves local angles.
       const scale=dt*6*Math.min(1,45/Math.max(speed,0.01));
       const x=p.x+vector[0]*scale,y=p.y-vector[1]*scale;
