@@ -215,6 +215,7 @@ function renderCyclones(){
   for(const [id,marker] of cycloneMarkers)if(!shown.has(id)){cycloneMarkerGroup.removeLayer(marker);cycloneMarkers.delete(id);}
   renderCyclonePaths();renderCycloneHistory();
   if(typeof renderCycloneDetails==='function')renderCycloneDetails();
+  if(typeof renderCycloneEnsemble==='function')renderCycloneEnsemble();
   if(cycloneProbeId){
     const system=cycloneData.systems.find(s=>s.id===cycloneProbeId),point=system&&cyclonePointAt(system,unix);
     if(point&&shown.has(system.id)&&map.hasLayer(cyclonePopup))cyclonePopup.setLatLng([point.lat,point.lon]).setContent(cyclonePopupContent(system,point));
@@ -232,6 +233,7 @@ function hideCycloneLayers(){
   if(cycloneHistoryGroup){map.removeLayer(cycloneHistoryGroup);cycloneHistoryGroup=null;}
   cycloneMarkers.clear();closeCyclonePopup();
   if(typeof hideCycloneIsobars==='function')hideCycloneIsobars();
+  if(typeof hideCycloneEnsemble==='function')hideCycloneEnsemble();
   if(typeof renderCycloneList==='function')renderCycloneList();
 }
 
