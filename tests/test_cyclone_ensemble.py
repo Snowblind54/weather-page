@@ -13,6 +13,22 @@ def track(id='GFS-test', offset=0, lon=-30):
 
 
 class Ensemble(unittest.TestCase):
+    def test_progressively_published_cycle_uses_available_horizon_and_can_extend(self):
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+        def read(url,*args):
+            if '.idx' in url or 'f096' in url or 'f090' in url or 'f084' in url or 'f078' in url:
+                raise HTTPError(url,404,'Not published',{},None)
+            return b'GRIB'
+        run=dt.datetime.fromtimestamp(STAMP,dt.timezone.utc)
+        with patch.object(e,'read_url',side_effect=read),patch.object(e,'decode_pressure'):
+            self.assertEqual(e.pressure_source(run,999999),('nomads',72))
+        gfs={'modelRun':STAMP,'systems':[track()]}
+        short=track();short['points']=short['points'][:13]
+        snapshot=e.build_snapshot(gfs,{m:[short] for m in e.MEMBERS},run,72)
+        self.assertEqual(snapshot['forecastEnd'],STAMP+72*3600)
+        self.assertLessEqual(max(p['time'] for p in snapshot['systems'][0]['frames']),snapshot['forecastEnd'])
+
     def test_nomads_fallback_keeps_the_requested_cycle_member_and_pressure_field(self):
         from urllib.parse import parse_qs,urlparse
         run=dt.datetime.fromtimestamp(STAMP,dt.timezone.utc)

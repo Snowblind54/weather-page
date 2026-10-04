@@ -45,10 +45,20 @@ def pressure_source(run, deadline):
     try:
         for hour in (0,96):
             pressure_range(read_url(field_url(run,'c00',hour)+'.idx',deadline).decode())
-        return 'aws'
+        return 'aws', 96
     except (OSError, ValueError):
         print('GEFS public mirror cycle not ready; using NOAA NOMADS for the same cycle',flush=True)
-        return 'nomads'
+    # A new cycle is published progressively. Retain its complete available
+    # native horizon rather than discarding all members until hour 96 arrives.
+    for hour in reversed(STEPS[4:]):
+        try:
+            raw = read_url(nomads_url(run,'c00',hour),deadline)
+            decode_pressure(raw,int(run.timestamp())+hour*3600,'c00')
+            return 'nomads', hour
+        except urllib.error.HTTPError as error:
+            if error.code!=404:
+                raise
+    raise ValueError('GEFS cycle has not published a complete 24-hour horizon yet')
 
 
 def pressure_range(index):
@@ -113,9 +123,11 @@ def decode_pressure(raw, valid, member):
         ec.codes_release(g)
 
 
-def member_tracks(run, member, deadline, source='aws'):
+def member_tracks(run, member, deadline, source='aws', forecast_hours=96):
     frames = []
     for hour in STEPS:
+        if hour>forecast_hours:
+            break
         if source=='nomads':
             raw = read_url(nomads_url(run,member,hour),deadline)
         else:
@@ -189,7 +201,7 @@ def spread_frames(members, stamp, available):
     return frames
 
 
-def build_snapshot(gfs, results, now):
+def build_snapshot(gfs, results, now, forecast_hours=96):
     systems = {s['id']: [] for s in gfs['systems']}
     for member, tracks in results.items():
         for id, track in match_member(gfs['systems'], tracks).items():
@@ -201,7 +213,7 @@ def build_snapshot(gfs, results, now):
             if frames:
                 output.append({'id': id, 'members': members, 'frames': frames})
     return {'version': 1, 'methodVersion': METHOD_VERSION, 'modelRun': gfs['modelRun'], 'generatedAt': int(now.timestamp()),
-            'forecastEnd': gfs['modelRun']+96*3600, 'stepHours': 6, 'expectedMembers': len(MEMBERS),
+            'forecastEnd': gfs['modelRun']+forecast_hours*3600, 'stepHours': 6, 'expectedMembers': len(MEMBERS),
             'availableMembers': len(results), 'status': 'ok' if len(results)==len(MEMBERS) else 'partial',
             'source': 'NOAA / NCEP GEFS', 'sourceUrl': 'https://www.nco.ncep.noaa.gov/pmb/products/gens/',
             'spreadPercentile': 80, 'minSupport': MIN_SUPPORT,
@@ -219,14 +231,21 @@ def main():
     except (OSError, ValueError):
         previous = {}
     if (previous.get('status')=='ok' and previous.get('methodVersion')==METHOD_VERSION and
-        previous.get('modelRun')==gfs['modelRun'] and previous.get('gfsSystems')==sorted(s['id'] for s in gfs['systems'])):
+        previous.get('modelRun')==gfs['modelRun'] and previous.get('forecastEnd')==gfs['modelRun']+96*3600 and
+        previous.get('gfsSystems')==sorted(s['id'] for s in gfs['systems'])):
         print('Reusing ensemble tracks for unchanged GFS run', flush=True)
         return
     run = dt.datetime.fromtimestamp(gfs['modelRun'], dt.timezone.utc)
     results = {}; errors = {}; deadline = time.monotonic()+480
-    source = pressure_source(run,deadline)
+    source, forecast_hours = pressure_source(run,deadline)
+    if (previous.get('status')=='ok' and previous.get('methodVersion')==METHOD_VERSION and
+        previous.get('modelRun')==gfs['modelRun'] and previous.get('forecastEnd',0)>=gfs['modelRun']+forecast_hours*3600 and
+        previous.get('gfsSystems')==sorted(s['id'] for s in gfs['systems'])):
+        print('Reusing available same-cycle ensemble horizon; later frames are not published yet',flush=True)
+        return
+    print('Collecting same-cycle GEFS through forecast hour',forecast_hours,flush=True)
     with futures.ThreadPoolExecutor(max_workers=6) as pool:
-        pending = {pool.submit(member_tracks, run, member, deadline, source): member for member in MEMBERS}
+        pending = {pool.submit(member_tracks, run, member, deadline, source, forecast_hours): member for member in MEMBERS}
         for task in futures.as_completed(pending):
             member = pending[task]
             try:
@@ -237,7 +256,7 @@ def main():
                 print('GEFS',member,'unavailable:',str(error),flush=True)
     if len(results)<20:
         raise ValueError(f'Only {len(results)}/31 complete ensemble members; retaining the previous snapshot')
-    snapshot = build_snapshot(gfs, results, now)
+    snapshot = build_snapshot(gfs, results, now, forecast_hours)
     if errors:
         snapshot['unavailableMembers'] = sorted(errors)
     raw = json.dumps(snapshot, separators=(',', ':'), ensure_ascii=False, allow_nan=False)+'\n'
