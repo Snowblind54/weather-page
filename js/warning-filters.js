@@ -67,7 +67,7 @@ function warningIsTodayOrTomorrow(record){
   const today=warningDateKey(new Date(),timeZone);
   const tomorrow=warningAddDays(today,1);
 
-  const startMs=Date.parse(record?.effective || record?.onset || '');
+  const startMs=Date.parse(record?.onset || record?.effective || '');
 
   // Active warning feeds occasionally omit one or both validity fields.
   // Do not hide those records merely because a timestamp is unavailable.

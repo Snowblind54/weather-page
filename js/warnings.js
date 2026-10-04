@@ -325,8 +325,12 @@ function parseEstoniaWarnings(xmlText){
     const text=(el.textContent||'').trim();
     if(!text) continue;
 
-    const counties=uniqueCounties(text);
-    const marine=uniqueMarine(text);
+    // Use the named location, not wind descriptions (e.g. "läänetuul") or
+    // substrings of sea names ("Läänemere", "lääneosa") as county names.
+    const location=fieldValue(el,['location','areadesc','areaname','countyname','regionname']);
+    const areaText=location||text;
+    const marine=uniqueMarine(areaText);
+    const counties=marine.length?[]:uniqueCounties(areaText);
 
     // Key rule:
     // accept only subtrees that resolve to exactly ONE geographic warning area.
@@ -336,8 +340,7 @@ function parseEstoniaWarnings(xmlText){
     let event=fieldValue(el,eventKeys) || inferEvent(text);
     let level=fieldValue(el,levelKeys) || inferLevel(text);
     const description=fieldValue(el,descKeys);
-    const effective=fieldValue(el,startKeys);
-    const expires=fieldValue(el,endKeys);
+    const validity=estoniaWarningValidity(fieldValue(el,startKeys),fieldValue(el,endKeys),description);
 
     const low=plain(text+' '+event+' '+level+' '+description);
 
@@ -359,8 +362,8 @@ function parseEstoniaWarnings(xmlText){
     candidates.push({
       area,event,level,
       description:description||'',
-      effective:effective||'',
-      expires:expires||'',
+      effective:validity.effective,
+      expires:validity.expires,
       depth:(el.parentElement ? 1 : 0) + [...el.getElementsByTagName('*')].length
     });
   }
@@ -371,7 +374,7 @@ function parseEstoniaWarnings(xmlText){
 
   for(const r of candidates){
     const key=[
-      canonicalCountyName(r.area)||normalizeText(r.area),
+      normalizeMarineArea(r.area)||canonicalCountyName(r.area)||normalizeText(r.area),
       normalizeText(r.event),
       String(r.level).trim(),
       r.effective,
@@ -535,13 +538,20 @@ async function renderWarnings(){
     console.warn('County geometry unavailable',e);
   }
 
+  let marineGeo=null;
+  if(warningRecords.some(w=>normalizeMarineArea(w.area))){
+    try{marineGeo=await loadEstoniaMarineWarningGeometry();}
+    catch(e){console.warn('Marine coastline geometry unavailable',e);}
+  }
+
   if(!$('warningOn').checked) return 0;
   let mapped=0;
 
   for(const w of warningRecords){
     if(Date.parse(w.expires)<=Date.now()) continue;
     const sev=severityInfo(w.level);
-    const county=canonicalCountyName(w.area);
+    const marineKey=normalizeMarineArea(w.area);
+    const county=marineKey?'':canonicalCountyName(w.area);
     let firstLayer=null;
 
     if(county && countyGeo){
@@ -571,19 +581,21 @@ async function renderWarnings(){
 
     // Marine and Peipsi warning zones.
     if(!firstLayer){
-      const marineKey=normalizeMarineArea(w.area);
-      const marinePoly=ESTONIA_MARINE_WARNING_ZONES[marineKey];
+      const marineFeature=marineGeo?.get(marineKey);
 
-      if(marinePoly){
-        const layer=L.polygon(marinePoly,{
+      if(marineFeature){
+        // Holes and disconnected water polygons preserve mainland and islands.
+        // If geometry fails, keep the warning card without painting over land.
+        const layer=L.geoJSON(marineFeature,{pane:'warningPane',style:{
           pane:'warningPane',
           color:sev.color,
           weight:3,
           opacity:.98,
           dashArray:'7 5',
           fillColor:sev.color,
-          fillOpacity:.20
-        });
+          fillOpacity:.20,
+          fillRule:'evenodd'
+        }});
 
         layer.bindPopup(warningPopupHtml(w),{maxWidth:360});
         layer.warningRecord=w;
@@ -600,11 +612,15 @@ async function renderWarnings(){
     card.warningRecord=w;
     card.style.borderLeftColor=sev.color;
 
+    const start=warningLocalTime(w.effective,w.country||'Estonia');
     const end=w.expires?warningLocalTime(w.expires,w.country||'Estonia'):'No expiry provided';
+    const tomorrow=warningAddDays(warningDateKey(new Date(),'Europe/Tallinn'),1);
+    const startsTomorrow=w.effective&&warningDateKey(new Date(w.effective),'Europe/Tallinn')===tomorrow;
 
     card.innerHTML=
       `<div class="warning-title">${htmlEscape(w.event)}</div>`+
-      `<div class="warning-meta">${htmlEscape(sev.name)} · until ${htmlEscape(end)}</div>`+
+      `<div class="warning-meta">${htmlEscape(sev.name)}${startsTomorrow?' · starts tomorrow':''}</div>`+
+      `<div class="warning-meta">${start?'Valid: '+htmlEscape(start)+' – ':'Until '}${htmlEscape(end)}</div>`+
       `<div class="warning-area">${htmlEscape(w.area)}</div>`+
       (w.description?`<div class="warning-meta" style="margin-top:4px">${htmlEscape(w.description)}</div>`:'')+
       (!firstLayer?`<div class="warning-meta" style="margin-top:4px">This warning area is listed, but no map polygon is available for it.</div>`:'');
