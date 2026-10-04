@@ -13,6 +13,7 @@ import pathlib
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import numpy as np
@@ -30,6 +31,24 @@ BUCKET = 'https://noaa-gefs-pds.s3.amazonaws.com'
 def field_url(run, member, hour):
     return (f'{BUCKET}/gefs.{run:%Y%m%d}/{run.hour:02d}/atmos/pgrb2ap5/'
             f'ge{member}.t{run.hour:02d}z.pgrb2a.0p50.f{hour:03d}')
+
+
+def nomads_url(run, member, hour):
+    params = dict(file=f'ge{member}.t{run.hour:02d}z.pgrb2a.0p50.f{hour:03d}',
+                  lev_mean_sea_level='on',var_PRMSL='on',subregion='',
+                  leftlon=-85,rightlon=45,bottomlat=20,toplat=82,
+                  dir=f'/gefs.{run:%Y%m%d}/{run.hour:02d}/atmos/pgrb2ap5')
+    return 'https://nomads.ncep.noaa.gov/cgi-bin/filter_gefs_atmos_0p50a.pl?'+urllib.parse.urlencode(params)
+
+
+def pressure_source(run, deadline):
+    try:
+        for hour in (0,96):
+            pressure_range(read_url(field_url(run,'c00',hour)+'.idx',deadline).decode())
+        return 'aws'
+    except (OSError, ValueError):
+        print('GEFS public mirror cycle not ready; using NOAA NOMADS for the same cycle',flush=True)
+        return 'nomads'
 
 
 def pressure_range(index):
@@ -94,13 +113,17 @@ def decode_pressure(raw, valid, member):
         ec.codes_release(g)
 
 
-def member_tracks(run, member, deadline):
+def member_tracks(run, member, deadline, source='aws'):
     frames = []
     for hour in STEPS:
-        url = field_url(run, member, hour)
-        start, end = pressure_range(read_url(url+'.idx', deadline).decode())
+        if source=='nomads':
+            raw = read_url(nomads_url(run,member,hour),deadline)
+        else:
+            url = field_url(run, member, hour)
+            start, end = pressure_range(read_url(url+'.idx', deadline).decode())
+            raw = read_url(url,deadline,start,end)
         valid = int(run.timestamp())+hour*3600
-        lats, lons, pressure = decode_pressure(read_url(url, deadline, start, end), valid, member)
+        lats, lons, pressure = decode_pressure(raw, valid, member)
         zero = np.zeros_like(pressure)
         lows = c.centres(lats, lons, {'pressure': pressure, 'u': zero, 'v': zero, 'gust': zero}, valid)
         frames.append((valid, lows))
@@ -201,8 +224,9 @@ def main():
         return
     run = dt.datetime.fromtimestamp(gfs['modelRun'], dt.timezone.utc)
     results = {}; errors = {}; deadline = time.monotonic()+480
+    source = pressure_source(run,deadline)
     with futures.ThreadPoolExecutor(max_workers=6) as pool:
-        pending = {pool.submit(member_tracks, run, member, deadline): member for member in MEMBERS}
+        pending = {pool.submit(member_tracks, run, member, deadline, source): member for member in MEMBERS}
         for task in futures.as_completed(pending):
             member = pending[task]
             try:

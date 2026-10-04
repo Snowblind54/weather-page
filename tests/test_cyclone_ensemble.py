@@ -13,6 +13,14 @@ def track(id='GFS-test', offset=0, lon=-30):
 
 
 class Ensemble(unittest.TestCase):
+    def test_nomads_fallback_keeps_the_requested_cycle_member_and_pressure_field(self):
+        from urllib.parse import parse_qs,urlparse
+        run=dt.datetime.fromtimestamp(STAMP,dt.timezone.utc)
+        params=parse_qs(urlparse(e.nomads_url(run,'p30',96)).query)
+        self.assertEqual(params['file'],['gep30.t12z.pgrb2a.0p50.f096'])
+        self.assertEqual(params['dir'],['/gefs.20261004/12/atmos/pgrb2ap5'])
+        self.assertEqual(params['var_PRMSL'],['on'])
+
     def test_pressure_byte_range_uses_only_mean_sea_level(self):
         index='1:0:d=x:PRES:surface:6 hour fcst\n2:123:d=x:PRMSL:mean sea level:6 hour fcst\n3:456:d=x:TMP:2 m above ground:x\n'
         self.assertEqual(e.pressure_range(index),(123,455))
