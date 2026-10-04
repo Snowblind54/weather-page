@@ -5,6 +5,7 @@ const ESTONIA_COUNTY_GEOJSON='https://raw.githubusercontent.com/buildig/EHAK/mas
 
 let estoniaCountyGeo=null;
 let estoniaWarningFetchedAt=0;
+let estoniaLegacyForecast=false;
 
 function htmlEscape(s){
   return String(s||'')
@@ -661,9 +662,18 @@ async function loadWarnings(force=false){
   let estoniaError=null;
   try{
     if(force || Date.now()-estoniaWarningFetchedAt>=10*60*1000){
-      const result=await fetchKaiaWarningXml();
+      let records;
+      try{
+        records=await fetchEstoniaWarningForecast();
+        estoniaLegacyForecast=false;
+      }catch(forecastError){
+        console.warn('Full Estonia forecast unavailable; legacy XML may omit county forecasts',forecastError);
+        const result=await fetchKaiaWarningXml();
+        records=result.parsed ?? parseEstoniaWarnings(result.xml);
+        estoniaLegacyForecast=true;
+      }
       if(generation!==warningLoadGeneration) return;
-      warningRecords=result.parsed ?? parseEstoniaWarnings(result.xml);
+      warningRecords=records;
       estoniaWarningFetchedAt=Date.now();
     }
   }catch(e){
@@ -729,11 +739,12 @@ async function loadWarnings(force=false){
   if(nordicResult?.finlandOfficial===false) parts.push('FI text fallback');
   if(nordicResult?.failedCountries?.length) parts.push(nordicResult.failedCountries.map(country=>country==='Latvia'?'LV unavailable':country+' unavailable').join(' · '));
   if(estoniaError) parts.push('EE unavailable');
+  else if(estoniaLegacyForecast) parts.push('EE forecast incomplete · legacy feed only');
   if(ltError) parts.push('LT unavailable');
   if(nordicError) parts.push('Nordics unavailable');
 
   $('warningStatus').textContent=parts.join(' · ');
-  $('warningStatus').className=(estoniaError||ltError||nordicError||nordicResult?.failedCountries?.length)?'status warn':'status ok';
+  $('warningStatus').className=(estoniaError||estoniaLegacyForecast||ltError||nordicError||nordicResult?.failedCountries?.length)?'status warn':'status ok';
 }
 
 
