@@ -12,6 +12,8 @@ const snowDepthSources={
 let snowDepthData=null,snowDepthLoadedAt=0,snowDepthRequest=null,snowDepthRenderTimer=null;
 const snowDepthMaxAge=7*24*3600;
 function snowDepthEnabled(){return snowMode && !(typeof snowHistoryActive!=='undefined' && snowHistoryActive) && $('snowDepthOn').checked;}
+// Norway's trace state is the official numeric zero code (<0.5 cm).
+function snowDepthIsZero(s){return s.depthCm===0 || (s.country==='NO' && s.state==='trace');}
 function snowDepthEscape(value){
   return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -52,7 +54,7 @@ function renderSnowDepth(){
   const now=Date.now()/1000;
   const stations=snowDepthData.stations.filter(s=>snowDepthValid(s,now));
   const zero=$('snowDepthZero').checked;
-  const visible=stations.filter(s=>zero || s.depthCm!==0);
+  const visible=stations.filter(s=>zero || !snowDepthIsZero(s));
   // Higher depths take precedence when labels would overlap in the overview.
   visible.sort((a,b)=>(b.depthCm??.1)-(a.depthCm??.1));
   const occupied=[],bounds=map.getBounds(),size=map.getSize(),center=map.getCenter().lng;
@@ -66,7 +68,7 @@ function renderSnowDepth(){
     occupied.push(point);
     const old=now-s.time>36*3600;
     const label=snowDepthText(s);
-    const icon=L.divIcon({className:'snow-depth-marker',html:'<span class="snow-depth-label'+(old?' snow-depth-stale':'')+(s.depthCm===0?' snow-depth-zero':'')+'">'+snowDepthEscape(label)+'</span>',
+    const icon=L.divIcon({className:'snow-depth-marker',html:'<span class="snow-depth-label'+(old?' snow-depth-stale':'')+(snowDepthIsZero(s)?' snow-depth-zero':'')+'">'+snowDepthEscape(label)+'</span>',
       iconSize:[58,24],iconAnchor:[29,12]});
     L.marker(ll,{icon,title:s.name+' · '+label,keyboard:true}).bindPopup(snowDepthPopup(s),{maxWidth:300}).addTo(snowDepthLabels);
   }
