@@ -11,6 +11,46 @@ END = int(NOW.timestamp())
 
 
 class Rainfall(unittest.TestCase):
+    def test_latvia_hourly_utc_decimal_coordinates_and_missing_values(self):
+        meta = [{'STATION_ID': 'a', 'NAME': 'Rīga', 'GEOGR1': '24.1', 'GEOGR2': '56.9',
+                 'LATITUDE': '565400', 'LONGITUDE': '0240600'}]
+        def row(date, value, param='HPRAB'):
+            return dict(STATION_ID='a', ABBREVIATION=param, DATETIME=date, VALUE=value)
+        records = rain.parse_latvia([row('2026.10.03 09:00:00', '0'), row('2026-10-03T10:00:00', 2.3),
+                                    row('2026.10.03 08:00:00', ''), row('2026.10.03 07:00:00', '-999'),
+                                    row('2026.10.03 06:00:00', '9999'), row('2026.10.03 05:00:00', 5, 'HTDRY')], meta)
+        s = records[0]
+        self.assertEqual((s['lat'], s['lon']), (56.9, 24.1))
+        self.assertEqual(s['times'], [END-3600, END])
+        self.assertEqual(s['amounts'], [0, 2.3])
+
+    def test_iceland_published_totals_are_not_synthetic_hours(self):
+        raw = '''<h4>Uppsöfnuð úrkoma (mm) til 2026-10-03 kl. 10:</h4><table>
+          <tr><th>Nafn:</th><th>1 klst</th><th>6 klst</th><th>6/12 klst</th><th>12/24 klst</th><th>24/48 klst</th></tr>
+          <tr><td><a href="https://vedur.is/?sid=1">Bláfjöll</a></td><td>0.6</td><td>5</td><td>4.8/9.8</td><td>55.4/65.2</td><td>12.8/78.0</td></tr>
+          <tr><td><a href="https://vedur.is/?sid=2">Missing</a></td><td>9999</td><td>5</td><td>4.8/9.8</td><td>9999/65.2</td><td>1/3</td></tr>
+          <tr><td><a href="https://vedur.is/?sid=3">Correction</a></td><td>-0.1</td><td>5</td><td>4.8/9.8</td><td>-0.1/1</td><td>-0.1/2</td></tr></table>'''
+        meta = [dict(station=i, lat=64, lon=-21) for i in (1, 2, 3)]
+        a, b = rain.parse_iceland(raw, meta)
+        self.assertEqual(a['times'], [END])
+        self.assertEqual(a['amounts'], [0.6])
+        self.assertEqual(a['accumulations'], [{'end': END, 'hours': 24, 'value': 65.2},
+                                             {'end': END, 'hours': 48, 'value': 78.0}])
+        self.assertEqual(b['times'], [])
+        self.assertEqual(b['accumulations'], [{'end': END, 'hours': 48, 'value': 3}])
+        self.assertRaises(ValueError, rain.parse_iceland, raw.replace('24/48 klst', 'changed'), meta)
+        self.assertRaises(ValueError, rain.parse_iceland, raw.replace('til 2026', 'til xxxx'), meta)
+
+    def test_iceland_total_only_history_merge_replacement_and_expiry(self):
+        old = rain.station('IS', '1', 'A', 64, -21, [])
+        old['accumulations'] = [{'end': END, 'hours': 48, 'value': 3},
+                                {'end': END-73*3600, 'hours': 24, 'value': 10}]
+        new = {**old, 'accumulations': [{'end': END, 'hours': 48, 'value': 4},
+                                       {'end': END+3600, 'hours': 24, 'value': 50}]}
+        s = rain.merge([old], [new], NOW)[0]
+        self.assertEqual(s['times'], [])
+        self.assertEqual(s['accumulations'], [{'end': END, 'hours': 48, 'value': 4}])
+
     def test_lithuania_hourly_null_and_utc(self):
         payload = {'station': {'code': 'a', 'name': 'A', 'coordinates': {'latitude': 55, 'longitude': 24}},
                    'observations': [{'observationTimeUtc': '2026-10-03 09:00:00', 'precipitation': 0},

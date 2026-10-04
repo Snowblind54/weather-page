@@ -148,7 +148,8 @@ collector changes. `scripts/update_rainfall.py` publishes a same-origin
 `data/official-rainfall.json` snapshot, retaining 72 hours. It uses Estonia's
 hourly XML precipitation, LHMT station observation histories, FMI hourly WFS
 `r_1h`, SMHI parameter 7 (good-quality hourly observations), and DMI
-`precip_past1h` with bounded pagination. SMHI histories bootstrap from the last
+`precip_past1h` with bounded pagination, LVĢMC hourly `HPRAB`, and IMO published
+accumulated station precipitation. SMHI histories bootstrap from the last
 months, then refresh from the last day. Estonia's longer totals become available
 only after collecting consecutive hours; missing hours are never synthesized.
 Source failures retain valid prior measurements and don't stop other countries.
@@ -158,16 +159,15 @@ Reporting lag up to two hours is allowed with the actual end time displayed.
 Older snapshots or incomplete windows fall back to Open-Meteo. Heatmap values
 use inverse-distance weighting of up to six gauges within 100 km, restricted to
 the same country and clipped to coastlines. Model values fill coverage gaps.
-Numeric labels from zoom 6 show actual station totals and open gauge popups.
+Numeric labels at every zoom show actual station totals and open gauge popups.
 Normal map clicks show each period's source, actual end and nearest gauge; a
 gauge click never substitutes model data for an unavailable measurement.
 Official precipitation includes snow water equivalent; model fallback remains
 rain plus showers. DMI trace codes are stored as zero plus a trace flag, and
 popups disclose amounts below 0.1 mm. Units are mm throughout.
 
-Latvia, Norway, Iceland and Poland currently use the model fallback. Poland's
-latest METEO feed provides 10-minute observations rather than a complete hourly
-history; Iceland's tested hourly feed had no usable precipitation values. No
+Norway and Poland currently use the model fallback. Poland's latest METEO feed
+provides 10-minute observations rather than a complete hourly history. No
 unverified reporting interval is treated as a rolling rainfall total. Source
 status and the active period's gauge coverage are shown under rain radar.
 
@@ -272,3 +272,27 @@ Official gauge numbers render as soon as the observation snapshot loads, indepen
 Each station number sums a complete 1, 24 or 48-hour window at or before the selected completed hour. If publication is delayed, the most recent complete window within the preceding day stays visible, with a dashed border and clock mark when over two hours behind. The visible-gauge status and station popup show the actual ending time. Missing hours and future observations are never included; observations older than a day are hidden. These delayed station readings do not enter the selected-time heatmap, whose original freshness checks and model fallback are preserved. A model-grid failure cannot erase usable station numbers.
 
 The LHMT collector now fetches the latest 24 hours for stations with recent archived histories, rather than fetching all historical dates repeatedly, and spaces request starts at least 0.5 seconds apart. New stations and long outages still receive a historical backfill. SMHI also backfills after long archive gaps. The existing GitHub update job remains scheduled every 15 minutes; scheduled execution can be delayed, so station numbers disclose their measurement age instead of disappearing solely because the entire snapshot is over three hours old.
+
+
+## Latvia and Iceland measured precipitation (v8.38)
+
+The existing scheduled collector now includes LVĢMC hourly `HPRAB` observations
+in mm. The recent 48-hour CSV is combined with a bounded 56-hour query of the
+official hourly archive, avoiding a year-sized download and supplying complete
+48-hour windows immediately where observations exist. UTC timestamps refer to
+the preceding hour. Station locations use the metadata's decimal `GEOGR2`
+latitude and `GEOGR1` longitude, rather than its DMS fields. Missing or invalid
+hours never become zero; source outages retain recent valid histories.
+
+Iceland uses IMO's official accumulated precipitation table and station API
+coordinates. Its 1-hour column is an hourly measurement. In paired `12/24` and
+`24/48` columns, the value after the slash is the complete 24- or 48-hour total;
+the first value is a preceding subperiod, not the required rolling total.
+These published long totals are retained as separate `accumulations` entries
+with their UTC ending times, never expanded into invented hourly observations.
+The numeric markers, station popups and gauge interpolation can use complete
+published windows. Changed columns, absent timestamps, missing codes, negative
+corrections and invalid values are rejected. Each period can remain available
+independently of the others. All totals retain the existing actual-ending-time
+and delayed-reading rules; older timeline positions cannot use future totals.
+No additional server, account or API key is required for these two countries.

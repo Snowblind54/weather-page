@@ -5,11 +5,15 @@ labels that separately from Open-Meteo's rain + showers fallback. Retain 72 hour
 so all three rolling periods can follow the two-hour map timeline.
 """
 import concurrent.futures as futures
+import csv
 import datetime as dt
 import gzip
+from html.parser import HTMLParser
+import io
 import json
 import math
 import pathlib
+import re
 import threading
 import time
 import urllib.parse
@@ -23,6 +27,8 @@ SOURCES = {
     'FI': ('Finnish Meteorological Institute', 'https://en.ilmatieteenlaitos.fi/open-data-manual-fmi-wfs-services'),
     'SE': ('SMHI', 'https://opendata.smhi.se/'),
     'DK': ('Danish Meteorological Institute', 'https://www.dmi.dk/friedata/dokumentation/meteorological-observations-data'),
+    'LV': ('LVĢMC', 'https://data.gov.lv/dati/dataset/hidrometeorologiskie-noverojumi'),
+    'IS': ('Icelandic Meteorological Office (IMO)', 'https://www.vedur.is/gogn/athuganir/urkoma.html'),
 }
 
 
@@ -86,6 +92,127 @@ def parse_estonia(raw):
 
 def load_estonia(now, previous):
     return parse_estonia(download('https://www.ilmateenistus.ee/ilma_andmed/xml/observations.php', False))
+
+
+def csv_rows(raw):
+    return list(csv.DictReader(io.StringIO(raw.decode('utf-8-sig'))))
+
+
+def parse_latvia(rows, metadata):
+    names = {s['STATION_ID']: s for s in metadata}
+    grouped = {}
+    for row in rows:
+        code = row['STATION_ID']
+        if row.get('ABBREVIATION') != 'HPRAB' or code not in names:
+            continue
+        # LVĢMC HPRAB is the preceding hour in mm; timestamps are UTC.
+        value = amount(row.get('VALUE'))
+        if value is None or value > 250:
+            continue
+        date = str(row['DATETIME'])
+        if re.match(r'^\d{4}\.\d{2}\.\d{2} ', date):
+            date = dt.datetime.strptime(date, '%Y.%m.%d %H:%M:%S').isoformat()
+        grouped.setdefault(code, []).append((date, value, False))
+    # GEOGR1/2 are decimal longitude/latitude; LATITUDE/LONGITUDE are DMS.
+    return [station('LV', code, names[code]['NAME'], names[code]['GEOGR2'], names[code]['GEOGR1'], values)
+            for code, values in grouped.items()]
+
+
+def load_latvia(now, previous):
+    base = 'https://data.gov.lv/dati/'
+    package = base + 'dataset/40d80be5-0c09-47c4-80f3-fad4bec19f33/resource/'
+    metadata = csv_rows(download(package + 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d/download/meteo_stacijas.csv', False))
+    recent = csv_rows(download(package + '17460efb-ae99-4d1d-8144-1068f184b05f/download/meteo_operativie_dati.csv', False))
+    archive = []
+    try:
+        start = (now-dt.timedelta(hours=56)).strftime('%Y-%m-%dT%H:%M:%S')
+        end = now.strftime('%Y-%m-%dT%H:%M:%S')
+        sql = ('SELECT "STATION_ID", "ABBREVIATION", "DATETIME", "VALUE" '
+               'FROM "ecc62e27-2071-483c-bca9-5e53d979faa8" '
+               'WHERE "ABBREVIATION" = \'HPRAB\' '
+               f'AND "DATETIME" BETWEEN \'{start}\' AND \'{end}\' ORDER BY "DATETIME" LIMIT 5000')
+        data = download(base + 'api/3/action/datastore_search_sql?' + urllib.parse.urlencode({'sql': sql}))
+        if not data.get('success'):
+            raise ValueError('LVĢMC archive query failed')
+        archive = data['result']['records']
+        if len(archive) >= 5000:
+            raise ValueError('LVĢMC archive query exceeded limit')
+    except Exception as error:
+        # The recent file and retained histories still supply valid windows.
+        print('LV archive unavailable', error, flush=True)
+        archive = []
+    return parse_latvia(archive + recent, metadata)
+
+
+class IcelandRainTable(HTMLParser):
+    """Read the official table structurally, preserving paired interval columns."""
+    def __init__(self):
+        super().__init__()
+        self.rows, self.cells, self.text, self.code = [], [], None, None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'tr':
+            self.cells, self.code = [], None
+        elif tag in ('td', 'th'):
+            self.text = []
+        elif tag == 'a':
+            match = re.search(r'[?&]sid=(\d+)', dict(attrs).get('href', ''))
+            if match:
+                self.code = match[1]
+
+    def handle_data(self, data):
+        if self.text is not None:
+            self.text.append(data)
+
+    def handle_endtag(self, tag):
+        if tag in ('td', 'th') and self.text is not None:
+            self.cells.append(''.join(self.text).strip())
+            self.text = None
+        elif tag == 'tr' and self.cells:
+            self.rows.append((self.code, self.cells))
+
+
+def parse_iceland(raw, metadata):
+    text = raw.decode('utf-8') if isinstance(raw, bytes) else raw
+    match = re.search(r'Uppsöfnuð úrkoma \(mm\) til (\d{4}-\d{2}-\d{2}) kl\. (\d{1,2}):', text)
+    if not match:
+        raise ValueError('IMO accumulation timestamp missing')
+    # Iceland uses UTC throughout the year.
+    end = unix(match[1] + 'T' + match[2].zfill(2) + ':00:00Z')
+    table = IcelandRainTable()
+    table.feed(text)
+    expected = ['Nafn:', '1 klst', '6 klst', '6/12 klst', '12/24 klst', '24/48 klst']
+    if not any(cells[:6] == expected for code, cells in table.rows if code is None):
+        raise ValueError('IMO accumulation columns changed')
+    stations = {str(s['station']): s for s in metadata}
+    records = []
+    for code, cells in table.rows:
+        if code not in stations or len(cells) < 6:
+            continue
+        totals = []
+        for hours, column in ((1, 1), (24, 4), (48, 5)):
+            parts = cells[column].split('/')
+            if len(parts) != (1 if hours == 1 else 2):
+                continue
+            values = [amount(part) for part in parts]
+            # 9999 and negative corrections/missing values must not become rain.
+            if any(value is None for value in values):
+                continue
+            totals.append({'end': end, 'hours': hours, 'value': values[-1]})
+        if not totals:
+            continue
+        meta = stations[code]
+        rows = [(end, t['value'], False) for t in totals if t['hours'] == 1]
+        s = station('IS', code, cells[0], meta['lat'], meta['lon'], rows)
+        # Store published long totals separately: never manufacture hourly data.
+        s['accumulations'] = [t for t in totals if t['hours'] != 1]
+        records.append(s)
+    return records
+
+
+def load_iceland(now, previous):
+    metadata = download('https://api.vedur.is/weather/stations?active=true&station_type=sj')
+    return parse_iceland(download(SOURCES['IS'][1], False), metadata)
 
 
 def parse_lithuania(payload):
@@ -231,7 +358,7 @@ def merge(previous, incoming, now):
     merged = {}
     for s in previous + incoming:
         key = s['country'] + '|' + s['code']
-        target = merged.setdefault(key, {**s, '_hours': {}, '_traces': set()})
+        target = merged.setdefault(key, {**s, '_hours': {}, '_traces': set(), '_totals': {}})
         # New metadata wins; revising a reading replaces it rather than adding it.
         target.update({k: s[k] for k in ('name', 'lat', 'lon')})
         for t, n in zip(s['times'], s['amounts']):
@@ -240,19 +367,26 @@ def merge(previous, incoming, now):
                 target['_traces'].discard(t)
                 if t in s.get('traces', []):
                     target['_traces'].add(t)
+        for total in s.get('accumulations', []):
+            t, hours, value = total['end'], total['hours'], amount(total['value'])
+            if cutoff <= t <= end and t % 3600 == 0 and hours in (24, 48) and value is not None:
+                target['_totals'][(t, hours)] = {'end': t, 'hours': hours, 'value': value}
     result = []
     for s in merged.values():
-        hours, traces = s.pop('_hours'), s.pop('_traces')
-        if not hours:
+        hours, traces, totals = s.pop('_hours'), s.pop('_traces'), s.pop('_totals')
+        if not hours and not totals:
             continue
         s['times'] = sorted(hours)
         s['amounts'] = [hours[t] for t in s['times']]
         s['traces'] = sorted(traces.intersection(hours))
+        if 'accumulations' in s or totals:
+            s['accumulations'] = [totals[key] for key in sorted(totals)]
         result.append(s)
     return sorted(result, key=lambda s: (s['country'], s['code']))
 
 
-LOADERS = {'EE': load_estonia, 'LT': load_lithuania, 'FI': load_finland, 'SE': load_sweden, 'DK': load_denmark}
+LOADERS = {'EE': load_estonia, 'LT': load_lithuania, 'FI': load_finland, 'SE': load_sweden, 'DK': load_denmark,
+           'LV': load_latvia, 'IS': load_iceland}
 
 
 def main():
@@ -267,7 +401,7 @@ def main():
         code, loader = item
         try:
             records = loader(now, previous)
-            if not any(s['times'] for s in records):
+            if not any(s['times'] or s.get('accumulations') for s in records):
                 raise ValueError('No measured hourly precipitation returned')
             return code, records, None
         except Exception as error:

@@ -270,3 +270,30 @@ test('station labels appear before model loading finishes and survive model erro
  assert.equal(h.run('officialRainLabels.children.length'),1,'an unrelated model outage cannot erase measured numbers');
  h.elements.rain24h.checked=false;h.run('changeRainfallPeriod(24)');
 });
+
+
+test('Iceland published accumulations validate and display without inventing hourly history',()=>{
+  const h=harness();h.seed();h.elements.rain24h.checked=true;
+  h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{IS:{name:'Icelandic Meteorological Office (IMO)'}},
+    stations:[{country:'IS',code:'1485',name:'Bláfjöll',lat:64,lon:-21,times:[rainWindowEnd()],amounts:[0.6],
+      accumulations:[{end:rainWindowEnd(),hours:24,value:65.2},{end:rainWindowEnd(),hours:48,value:78}]}]};`);
+  assert(h.run('validOfficialRainSnapshot(officialRainData)'));
+  assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],24,rainWindowEnd()).value'),65.2);
+  assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],48,rainWindowEnd()).value'),78);
+  assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],1,rainWindowEnd()).value'),0.6);
+  assert(h.run('Number.isNaN(rollingRainTotal(officialRainData.stations[0],rainWindowEnd(),24))'),'no manufactured hours');
+  assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],24,rainWindowEnd()-3600)'),null,'no future total on earlier timeline');
+  h.run('renderOfficialRainLabels()');
+  const group=[...h.layers][0];assert.equal(group.children.length,1);
+  assert.match(group.children[0].options.icon.html,/65.2 mm/);
+  group.children[0].events.click();
+  const popup=h.run('rainPopup.content').replace(/<[^>]*>/g,'');
+  assert.match(popup,/65.2 mm/);assert.match(popup,/78.0 mm/);assert.match(popup,/0.6 mm/);
+  assert.match(popup,/Icelandic Meteorological Office/);
+  h.run('officialRainData.stations[0].accumulations[0].value=9999;');
+  assert(!h.run('validOfficialRainSnapshot(officialRainData)'));
+  h.run('officialRainData.stations[0].accumulations[0].value=65.2;officialRainData.stations[0].times=[];officialRainData.stations[0].amounts=[];');
+  assert(h.run('validOfficialRainSnapshot(officialRainData)'),'24/48 totals can exist without 1h reading');
+  assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],24,rainWindowEnd()).value'),65.2);
+  assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],1,rainWindowEnd())'),null);
+});
