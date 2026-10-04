@@ -1,0 +1,35 @@
+name: Update official snow depth
+on:
+  schedule:
+    - cron: '37 */3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/update_snow_depth.py
+      - tests/test_snow_depth.py
+      - .github/workflows/update-snow-depth.yml
+permissions:
+  contents: write
+concurrency:
+  group: update-official-snow-depth
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test snow-depth adapters
+        run: python3 -m unittest discover -s tests -p test_snow_depth.py -v
+      - name: Fetch official snow depth
+        run: python3 scripts/update_snow_depth.py
+      - name: Save station snow-depth snapshot
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/official-snow-depth.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Refresh official station snow depth'
+          git pull --rebase origin main
+          git push origin HEAD:main
