@@ -31,7 +31,7 @@ function trustedNordicRadarUrl(url){
 function trustedIcelandRadarRelay(url){
   try{const u=new URL(url);return u.origin===ICELAND_RADAR_SERVICE&&!u.search&&!u.hash&&/^\/api\/iceland\/file\/\d{4}-\d{2}-\d{2}\/(iskef|isska|isx2)\/T_PAGZ\d+_C_BIRK_\d{14}\.h5$/.test(u.pathname);}catch(_){return false;}
 }
-async function nordicRadarFetch(url,type='text'){
+async function nordicRadarFetch(url,type='text',{proxy=true}={}){
   const relay=trustedIcelandRadarRelay(url);
   if(!trustedNordicRadarUrl(url)&&!relay)throw new Error('Unexpected national radar URL');
   const get=async target=>{
@@ -43,8 +43,8 @@ async function nordicRadarFetch(url,type='text'){
     }finally{clearTimeout(timer);}
   };
   try{return await get(url);}catch(error){
-    if(relay)throw error;
-    // Same existing public relay as the Baltic feeds, only for CORS/network failure.
+    if(relay||!proxy)throw error;
+    // Legacy fallback for raw Nordic files that lack browser CORS support.
     return get(directRadarProxyUrl(url));
   }
 }
@@ -59,7 +59,7 @@ async function liveIcelandRadar(){
     return records.sort((a,b)=>a.time-b.time);
   }finally{clearTimeout(timer);}
 }
-async function nordicRadarJson(url){return JSON.parse(await nordicRadarFetch(url));}
+async function nordicRadarJson(url,options){return JSON.parse(await nordicRadarFetch(url,'text',options));}
 function xmlRadarText(element,name){return element.getElementsByTagNameNS('*',name)[0]?.textContent?.trim()||'';}
 function fmiRadarRecords(xml){
   const doc=new DOMParser().parseFromString(xml,'application/xml');
@@ -107,7 +107,17 @@ async function listNordicRadar(source,force=false){
     if(source.id==='is'){
       try{return await liveIcelandRadar();}catch(error){console.warn('Iceland live service unavailable; trying official archive',error);}
     }
-    if(source.id==='dk'||source.id==='is'){
+    if(source.id==='dk'){
+      try{
+        const params=new URLSearchParams({limit:'100',sortorder:'datetime,DESC',datetime:new Date(first*1000).toISOString()+'/'+new Date(last*1000).toISOString()});
+        const data=await nordicRadarJson('https://opendataapi.dmi.dk/v1/radardata/collections/composite/items?'+params,{proxy:false});
+        records=(data.features||[]).map(file=>({time:Date.parse(file.properties?.datetime)/1000,url:file.asset?.data?.href||file.assets?.data?.href,format:'dmi-wms',station:'dk'}))
+          .filter(record=>Number.isFinite(record.time)&&record.time>=first&&record.time<=last&&trustedNordicRadarUrl(record.url));
+        if(!records.length)throw new Error('DMI has no recent observations');
+        return records.sort((a,b)=>a.time-b.time);
+      }catch(error){console.warn('DMI direct metadata unavailable; trying archive',error);return cachedNordicRadar(source);}
+    }
+    if(source.id==='is'){
       try{records=await cachedNordicRadar(source);if(records.length)return records;}catch(error){console.warn(source.name+' archive unavailable',error);}
     }
     if(source.id==='fi'){
@@ -126,13 +136,6 @@ async function listNordicRadar(source,force=false){
       for(const file of data.features||[]){
         if(file.properties?.dataType!=='dBZ'||!file.assets?.data?.href)continue;
         records.push({time:Date.parse(file.properties.datetime)/1000,url:file.assets.data.href,format:'tif',quantity:'DBZH',projection:file.properties['proj:wkt2'],station:'no'});
-      }
-    }else if(source.id==='dk'){
-      const params=new URLSearchParams({limit:'100',sortorder:'datetime,DESC',datetime:new Date(first*1000).toISOString()+'/'+new Date(last*1000).toISOString()});
-      const data=await nordicRadarJson('https://opendataapi.dmi.dk/v1/radardata/collections/composite/items?'+params);
-      for(const file of data.features||[]){
-        const url=file.asset?.data?.href||file.assets?.data?.href;
-        if(url)records.push({time:Date.parse(file.properties.datetime)/1000,url,format:'h5',station:'dk'});
       }
     }else{
       const days=radarUtcDays(first,last);
@@ -210,17 +213,18 @@ function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}
           descriptor.url=url.href;
         }
       }
-      let buffer;
-      if(record.format==='png'){
+      let buffer,result;
+      if(record.format==='dmi-wms')result=await prepareDmiRadarImage(record,edge,allowed);
+      else if(record.format==='png'){
         const response=await fetch(record.url);if(!response.ok)throw new Error('Radar image HTTP '+response.status);
         buffer=await response.arrayBuffer();
       }else buffer=await nordicRadarFetch(descriptor.url,'binary');
       if(!allowed())throw new Error('Radar preparation paused');
-      const result=record.format==='png'?{blob:new Blob([buffer],{type:'image/png'}),bounds:record.bounds}:await projectNordicRadar(buffer,descriptor,edge);
+      if(!result)result=record.format==='png'?{blob:new Blob([buffer],{type:'image/png'}),bounds:record.bounds}:await projectNordicRadar(buffer,descriptor,edge);
       if(!allowed())throw new Error('Radar preparation paused');
-      const entry={...result,url:URL.createObjectURL(result.blob),time:record.time};
+      const entry={...result,url:result.canvas?'dmi:'+key:URL.createObjectURL(result.blob),time:record.time};
       nordicRadarFrames.set(key,entry);
-      while(nordicRadarFrames.size>180 || [...nordicRadarFrames.values()].reduce((bytes,frame)=>bytes+frame.blob.size,0)>24*1024*1024){const oldKey=nordicRadarFrames.keys().next().value;URL.revokeObjectURL(nordicRadarFrames.get(oldKey).url);nordicRadarFrames.delete(oldKey);}
+      while(nordicRadarFrames.size>180 || [...nordicRadarFrames.values()].reduce((bytes,frame)=>bytes+(frame.blob?.size??frame.canvas.width*frame.canvas.height*4),0)>24*1024*1024){const oldKey=nordicRadarFrames.keys().next().value,old=nordicRadarFrames.get(oldKey);if(old.blob)URL.revokeObjectURL(old.url);nordicRadarFrames.delete(oldKey);}
       return entry;
     }};
     if(background)nordicRadarQueue.push(job);
@@ -269,7 +273,7 @@ async function drawNordicRadars(unix,{force=false}={}){
       const {record,frame}=frameResult.value,id=source.id+':'+record.station;
       const previous=nordicRadarLayers.get(id);
       if(previous?.radarUrl!==frame.url){
-        const layer=L.imageOverlay(frame.url,frame.bounds,{opacity:.84,interactive:false}).addTo(map);layer.radarUrl=frame.url;
+        const layer=(frame.canvas?dmiRadarCanvasLayer(frame):L.imageOverlay(frame.url,frame.bounds,{opacity:.84,interactive:false})).addTo(map);layer.radarUrl=frame.url;
         nordicRadarLayers.set(id,layer);if(previous)map.removeLayer(previous);
       }
       keep.add(id);times.push(record.time);

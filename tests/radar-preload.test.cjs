@@ -40,7 +40,7 @@ test('Estonian activation shares an unfinished background conversion and reuses 
  assert.equal(await vm.runInContext('h5ToRadarImage(frame)',c),'data:prepared');assert.equal(preparations,1);
 });
 test('Baltic activation shares unfinished history preparation',async()=>{
- const c={Map,Set,Promise,Date,console};vm.createContext(c);vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/radar-history.js'),'utf8'),c);
+ const c={Map,Set,Promise,Date,console,directRadarImageCache:new Map()};vm.createContext(c);vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/radar-history.js'),'utf8'),c);
  let calls=0,finish;c.ltHistory=()=>{calls++;return new Promise(resolve=>finish=resolve)};
  const a=vm.runInContext("prepareBalticRadarFrame({id:'lt'},1000,1000)",c),b=vm.runInContext("prepareBalticRadarFrame({id:'lt'},1000,1000)",c);
  assert.equal(a,b);finish({dataUrl:'data:prepared',time:1000});await a;assert.equal(calls,1);

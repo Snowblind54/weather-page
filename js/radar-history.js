@@ -1,204 +1,101 @@
-// v8.6: historical Latvia + Lithuania radar support.
-const LT_RADAR_INFO='https://beta.meteo.lt/?pid=radarai';
-const LT_STEP=300;
-const LV_STEP=600;
-const HIST_TTL=4*60*1000;
-const LV_DISCOVERY_TTL=15*60*1000;
-const LV_LOCAL_KEY='balticWeatherLvRadarHistoryV86';
-const histBundles=new Map();
-const histFrames=new Map();
-let ltTimeCache=null;
-let lvDiscoveryCache=null;
-
-async function radarText(url){
-  const get=async u=>{
-    const c=new AbortController();
-    const t=setTimeout(()=>c.abort(),10000);
-    try{
-      const r=await fetch(u,{cache:'no-store',signal:c.signal});
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      let baseUrl=url;
-      try{
-        const finalUrl=new URL(r.url||url);
-        if(!finalUrl.hostname.includes('proxy.cors.dev')) baseUrl=finalUrl.href;
-      }catch(_){}
-      return {text:await r.text(),url:baseUrl};
-    }finally{clearTimeout(t)}
-  };
-  try{return await get(url)}catch(_){return await get(directRadarProxyUrl(url))}
-}
-
+// Current official Baltic image feeds. Timestamped images work without CORS
+// pixel access, GIF decoding, public proxies or browser-created radar history.
+const LV_RADAR_INDEX='https://videscentrs.lvgmc.lv/data/static_maps?name=Latvija%2FLatvija_satelits';
+const LV_RADAR_FILES='https://videscentrs.lvgmc.lv/kartes-images/Latvija/Latvija_satelits.files.json';
+const balticRadarPending=new Map(),directRadarLayers=new Map();
+let lvRadarList=null;
 function localTimeToUnix(y,m,d,h,min,zone){
   let guess=Date.UTC(y,m-1,d,h,min);
   for(let k=0;k<2;k++){
-    const parts=new Intl.DateTimeFormat('en-GB',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(guess));
-    const p={};
-    for(const x of parts) if(x.type!=='literal') p[x.type]=Number(x.value);
-    const shown=Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second||0);
-    guess=Date.UTC(y,m-1,d,h,min)-(shown-guess);
+    const parts=new Intl.DateTimeFormat('en-GB',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(guess)),p={};
+    for(const part of parts)if(part.type!=='literal')p[part.type]=Number(part.value);
+    guess=Date.UTC(y,m-1,d,h,min)-(Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second||0)-guess);
   }
   return Math.floor(guess/1000);
 }
-
-async function ltLatestUnix(force=false){
-  if(!force&&ltTimeCache&&Date.now()-ltTimeCache.at<180000)return ltTimeCache.unix;
-  let unix=Math.floor(Date.now()/1000/LT_STEP)*LT_STEP;
-  try{
-    const {text}=await radarText(LT_RADAR_INFO);
-    const m=text.match(/Duomenys\s+atnaujinti\s*:\s*(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})/i);
-    if(m) unix=localTimeToUnix(+m[1],+m[2],+m[3],+m[4],+m[5],'Europe/Vilnius');
-  }catch(e){console.warn('LT radar timestamp fallback',e)}
-  ltTimeCache={at:Date.now(),unix};
-  return unix;
+function ltRadarUrl(time){
+  const stamp=new Date(time*1000).toISOString().slice(0,16).replace(/[-:T]/g,'');
+  return 'https://new.meteo.lt/meteo_jobs/radaru_informacija/Header_Radar-composite-'+stamp+'.png';
 }
-
-async function animationBundle(url,force=false){
-  const old=histBundles.get(url);
-  if(!force&&old&&Date.now()-old.at<HIST_TTL)return old;
-  const blob=await fetchDirectRadarBlob(url);
-  const head=new Uint8Array(await blob.slice(0,6).arrayBuffer());
-  const sig=String.fromCharCode(...head);
-  const isGif=/^GIF8[79]a/.test(sig)||/\.gif(?:$|[?&#])/i.test(url)||String(blob.type||'').includes('gif');
-  const type=isGif?'image/gif':(blob.type||'image/png');
-  let count=1;
-  if(isGif&&'ImageDecoder' in window){
-    const dec=new ImageDecoder({data:await blob.arrayBuffer(),type:'image/gif'});
-    try{await dec.tracks.ready;count=Math.max(1,dec.tracks.selectedTrack?.frameCount||1)}finally{try{dec.close()}catch(_){}}
+async function ltHistory(source,target){
+  const slot=Math.floor(Math.min(target,Date.now()/1000)/300)*300;
+  for(let time=slot;time>=target-900;time-=300){
+    try{
+      const url=ltRadarUrl(time);await loadRadarNativeImage(url);
+      return {dataUrl:url,time,bounds:source.bounds,mode:'official history'};
+    }catch(_){/* Publication can lag; try only earlier observations. */}
   }
-  const out={url,blob,type,count,at:Date.now()};
-  histBundles.set(url,out);
-  return out;
+  throw new Error('LHMT has no image within 15 minutes of '+fmt(target));
 }
-
-async function decodeBundleFrame(bundle,index){
-  if(bundle.count<=1||!('ImageDecoder' in window))return decodeRadarDrawable(bundle.blob);
-  const dec=new ImageDecoder({data:await bundle.blob.arrayBuffer(),type:bundle.type});
-  await dec.tracks.ready;
-  const result=await dec.decode({frameIndex:Math.max(0,Math.min(bundle.count-1,index)),completeFramesOnly:true});
-  return {drawable:result.image,width:result.image.displayWidth||result.image.codedWidth,height:result.image.displayHeight||result.image.codedHeight,close:()=>{try{result.image.close()}catch(_){}try{dec.close()}catch(_){}}};
+function parseLvRadarRecords(payload,now=Date.now()/1000){
+  const entries=Array.isArray(payload)?payload:payload?.files;
+  if(!Array.isArray(entries))throw new Error('Invalid LVĢMC radar index');
+  return entries.flatMap(entry=>{
+    const name=typeof entry==='string'?entry:entry?.name;
+    if(typeof name!=='string'||!/^Latvija\/Latvija_satelits\/(?:png\/)?[A-Za-z0-9_.-]+\.png$/.test(name))return [];
+    const match=name.match(/_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(?:_|\.)/);if(!match)return [];
+    const date=new Date(Date.UTC(+match[1],+match[2]-1,+match[3],+match[4],+match[5]));
+    if(date.getUTCFullYear()!==+match[1]||date.getUTCMonth()+1!==+match[2]||date.getUTCDate()!==+match[3]||+match[4]>23||+match[5]>59)return [];
+    const time=localTimeToUnix(+match[1],+match[2],+match[3],+match[4],+match[5],'Europe/Riga');
+    if(!Number.isFinite(time)||time>now||time<now-10800)return [];
+    return [{time,url:'https://videscentrs.lvgmc.lv/kartes-images/'+name}];
+  }).sort((a,b)=>a.time-b.time);
 }
-
-async function processedBundleFrame(source,bundle,index){
-  const key=[source.id,bundle.url,index,Math.floor(bundle.at/HIST_TTL)].join('|');
-  if(histFrames.has(key))return histFrames.get(key);
-  const d=await decodeBundleFrame(bundle,index);
-  try{
-    let sw=d.width,sh=d.height;
-    if(source.cropSquareLeft&&sw>sh*1.08)sw=sh;
-    const scale=Math.min(1,900/sw),w=Math.round(sw*scale),h=Math.round(sh*scale);
-    const c=document.createElement('canvas');c.width=w;c.height=h;
-    const x=c.getContext('2d',{alpha:true,willReadFrequently:true});x.imageSmoothingEnabled=false;
-    x.drawImage(d.drawable,0,0,sw,sh,0,0,w,h);
-    const img=x.getImageData(0,0,w,h),p=img.data;
-    for(let i=0;i<p.length;i+=4){
-      if(!radarPixelLooksLikeEcho(p[i],p[i+1],p[i+2],p[i+3]))p[i+3]=0;
-      else p[i+3]=Math.min(225,Math.max(145,p[i+3]));
+async function listLvRadar(force=false){
+  if(!force&&lvRadarList&&Date.now()-lvRadarList.at<60000)return lvRadarList.promise;
+  const promise=(async()=>{
+    for(const url of [LV_RADAR_INDEX,LV_RADAR_FILES]){
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+      try{
+        const response=await fetch(url,{signal:controller.signal,cache:'no-cache'});
+        if(!response.ok)throw new Error('LVĢMC radar HTTP '+response.status);
+        const records=parseLvRadarRecords(await response.json());if(records.length)return records;
+      }catch(error){console.warn('LVĢMC radar index unavailable',error);}finally{clearTimeout(timer);}
     }
-    x.putImageData(img,0,0);
-    const dataUrl=c.toDataURL('image/png');histFrames.set(key,dataUrl);
-    while(histFrames.size>44)histFrames.delete(histFrames.keys().next().value);
-    return dataUrl;
-  }finally{d.close()}
+    throw new Error('LVĢMC is not publishing recent radar images');
+  })();lvRadarList={at:Date.now(),promise};return promise;
 }
-
-function indexForTime(count,latest,target,step){
-  const back=Math.max(0,Math.round((latest-target)/step));
-  return count-1-back;
+async function lvHistory(source,target,latest,force=false){
+  const records=await listLvRadar(force),record=radarObservationAt(records,target);
+  if(!record)throw new Error('LVĢMC has no observation within 15 minutes of '+fmt(target));
+  await loadRadarNativeImage(record.url);
+  return {dataUrl:record.url,time:record.time,bounds:source.bounds,mode:'official history'};
 }
-
-async function ltHistory(source,target,force=false){
-  const b=await animationBundle(source.url,force);
-  const latest=await ltLatestUnix(force);
-  const i=indexForTime(b.count,latest,target,LT_STEP);
-  if(i<0)return null;
-  return {dataUrl:await processedBundleFrame(source,b,i),time:latest-(b.count-1-i)*LT_STEP,mode:b.count>1?'official history':'latest only'};
-}
-
-function lvCandidate(raw,base){
-  try{
-    const u=new URL(String(raw||'').replaceAll('&amp;','&'),base);
-    const host=u.hostname.toLowerCase();
-    const official=host==='meteo.lv'||host.endsWith('.meteo.lv')||host==='lvgmc.lv'||host.endsWith('.lvgmc.lv');
-    if(!official)return '';
-    if(!/(radar|rix_250)/i.test(u.href)||!/\.gif(?:$|[?&#])/i.test(u.href))return '';
-    return u.href;
-  }catch(_){return ''}
-}
-
-async function discoverLvAnimation(force=false){
-  if(!force&&lvDiscoveryCache&&Date.now()-lvDiscoveryCache.at<LV_DISCOVERY_TTL)return lvDiscoveryCache.url;
-  const src=DIRECT_RADAR_SOURCES.find(s=>s.id==='lv');
-  const urls=new Set(src?[src.url.replace(/\.png(?=$|&|\?)/i,'.gif')]:[]);
-  for(const page of ['https://www.meteo.lv/radars/?nid=482','https://www.meteo.lv/public/28641.html','https://videscentrs.lvgmc.lv/']){
-    try{
-      const r=await radarText(page),doc=new DOMParser().parseFromString(r.text,'text/html');
-      for(const el of doc.querySelectorAll('[src],[href]')){
-        const u=lvCandidate(el.getAttribute('src')||el.getAttribute('href'),r.url||page);if(u)urls.add(u);
-      }
-      for(const m of r.text.matchAll(/(?:https?:\/\/[^\s"'<>]+|\/?[^\s"'<>]+?\.gif(?:\?[^\s"'<>]*)?)/gi)){
-        const u=lvCandidate(m[0],r.url||page);if(u)urls.add(u);
-      }
-    }catch(e){console.warn('LV radar animation discovery',e)}
-  }
-  let found='';
-  for(const u of [...urls].slice(0,10)){
-    try{const b=await animationBundle(u,force);if(b.count>1){found=u;break}}catch(_){}
-  }
-  lvDiscoveryCache={at:Date.now(),url:found};return found;
-}
-
-function lvLocal(){
-  try{
-    const a=JSON.parse(localStorage.getItem(LV_LOCAL_KEY)||'[]');
-    return a.filter(x=>x&&x.dataUrl&&x.time*1000>Date.now()-3*60*60*1000).slice(-14);
-  }catch(_){return []}
-}
-function saveLvLocal(time,dataUrl){
-  const a=lvLocal().filter(x=>x.time!==time);a.push({time,dataUrl});a.sort((x,y)=>x.time-y.time);
-  try{localStorage.setItem(LV_LOCAL_KEY,JSON.stringify(a.slice(-14)))}catch(_){}
-}
-function nearestLvLocal(target){
-  const a=lvLocal();if(!a.length)return null;let b=a[0];for(const x of a)if(Math.abs(x.time-target)<Math.abs(b.time-target))b=x;
-  return Math.abs(b.time-target)<=LV_STEP*.75?b:null;
-}
-
-async function lvHistory(source,target,latestTimeline,force=false){
-  const anim=await discoverLvAnimation(force);
-  if(anim){
-    try{
-      const b=await animationBundle(anim,force),latest=Math.floor(Date.now()/1000/LV_STEP)*LV_STEP,i=indexForTime(b.count,latest,target,LV_STEP);
-      if(i>=0)return {dataUrl:await processedBundleFrame(source,b,i),time:latest-(b.count-1-i)*LV_STEP,mode:'official history'};
-    }catch(e){console.warn('LV official history decode',e)}
-  }
-  if(Math.abs(target-latestTimeline)<=360){
-    const dataUrl=await nationalRadarImage(source,force);saveLvLocal(latestTimeline,dataUrl);
-    return {dataUrl,time:latestTimeline,mode:'latest + local capture'};
-  }
-  const local=nearestLvLocal(target);return local?{dataUrl:local.dataUrl,time:local.time,mode:'local captured history'}:null;
-}
-
-const balticRadarPending=new Map();
 function prepareBalticRadarFrame(source,unix,latest,force=false){
-  const key=[source.id,unix,latest,force].join('|');
-  if(balticRadarPending.has(key))return balticRadarPending.get(key);
-  const promise=(source.id==='lt'?ltHistory(source,unix,force):lvHistory(source,unix,latest,force))
-    .finally(()=>{if(balticRadarPending.get(key)===promise)balticRadarPending.delete(key);});
-  balticRadarPending.set(key,promise);return promise;
+  const key=source.id+'|'+unix,cached=directRadarImageCache.get(key);
+  if(!force&&cached&&Date.now()-cached.at<60000)return Promise.resolve(cached.frame);
+  const pendingKey=key+'|'+force;
+  if(balticRadarPending.has(pendingKey))return balticRadarPending.get(pendingKey);
+  const promise=(source.id==='lt'?ltHistory(source,unix):lvHistory(source,unix,latest,force))
+    .then(frame=>{directRadarImageCache.set(key,{at:Date.now(),frame});while(directRadarImageCache.size>60)directRadarImageCache.delete(directRadarImageCache.keys().next().value);return frame;})
+    .finally(()=>{if(balticRadarPending.get(pendingKey)===promise)balticRadarPending.delete(pendingKey);});
+  balticRadarPending.set(pendingKey,promise);return promise;
 }
 function visibleBalticRadarSources(){return DIRECT_RADAR_SOURCES.filter(source=>map.getBounds().intersects(L.latLngBounds(source.bounds)));}
-drawDirectNationalRadars=async function(unix,{force=false}={}){
-  if(!$('radarOn').checked){clearDirectNationalRadars();return}
-  const generation=++directRadarGeneration,latest=frames[frames.length-1]?.time||unix;
-  const results=await Promise.allSettled(visibleBalticRadarSources().map(async source=>({source,frame:await prepareBalticRadarFrame(source,unix,latest,force)})));
-  if(generation!==directRadarGeneration||!$('radarOn').checked)return;
-  const next=L.layerGroup(),labels=[];let missing=0;
-  for(const r of results){
-    if(r.status!=='fulfilled'||!r.value.frame){labels.push((r.status==='fulfilled'?r.value.source.id.toUpperCase():'National')+' history unavailable');missing++;continue}
-    const {source,frame}=r.value;next.addLayer(L.imageOverlay(frame.dataUrl,source.bounds,{opacity:source.opacity,interactive:false}));
-    labels.push(source.id.toUpperCase()+' '+(frame.mode==='official history'?'official history '+fmt(frame.time):frame.mode==='local captured history'?'local history '+fmt(frame.time):'official latest'));
-  }
-  const old=balticRadarLayer;balticRadarLayer=next;next.addTo(map);if(old&&old!==next&&map.hasLayer(old))map.removeLayer(old);
-  next.eachLayer(l=>l.bringToFront?.());radarLayer?.bringToFront?.();
-  $('radarStatus').textContent=['Radar: EE official KAIA · '+fmt(unix),...labels].join(' · ');
-  $('radarStatus').className=missing?'status warn':'status ok';weatherFront();next.eachLayer(l=>l.bringToFront?.());radarLayer?.bringToFront?.();
-};
+async function drawDirectNationalRadars(unix,{force=false}={}){
+  if(!$('radarOn').checked){clearDirectNationalRadars();return;}
+  const generation=++directRadarGeneration,latest=frames.at(-1)?.time||unix,visible=visibleBalticRadarSources();
+  if(!balticRadarLayer)balticRadarLayer=L.layerGroup().addTo(map);
+  const wanted=new Set(visible.map(source=>source.id)),labels=visible.map(source=>source.id.toUpperCase()+' loading…');let pending=visible.length,failed=0;
+  for(const [id,layer] of directRadarLayers)if(!wanted.has(id)){balticRadarLayer.removeLayer(layer);directRadarLayers.delete(id);}
+  await Promise.allSettled(visible.map(async(source,index)=>{
+    try{
+      const frame=await prepareBalticRadarFrame(source,unix,latest,force);
+      if(generation!==directRadarGeneration||!$('radarOn').checked)return;
+      const previous=directRadarLayers.get(source.id);
+      if(previous?.radarUrl!==frame.dataUrl){
+        const layer=L.imageOverlay(frame.dataUrl,frame.bounds,{opacity:source.opacity,interactive:false});layer.radarUrl=frame.dataUrl;
+        balticRadarLayer.addLayer(layer);if(previous)balticRadarLayer.removeLayer(previous);directRadarLayers.set(source.id,layer);
+      }
+      labels[index]=source.id.toUpperCase()+' official '+fmt(frame.time);
+    }catch(error){
+      if(generation!==directRadarGeneration||!$('radarOn').checked)return;
+      const previous=directRadarLayers.get(source.id);if(previous)balticRadarLayer.removeLayer(previous);directRadarLayers.delete(source.id);
+      labels[index]=source.id.toUpperCase()+': '+error.message;failed++;
+    }
+    if(generation!==directRadarGeneration||!$('radarOn').checked)return;
+    pending--;balticRadarLayer.eachLayer(layer=>layer.bringToFront?.());radarLayer?.bringToFront?.();weatherFront();
+    $('radarStatus').textContent=['Radar: EE official KAIA · '+fmt(unix),...labels].join(' · ');
+    $('radarStatus').className=failed?'status warn':pending?'status':'status ok';
+  }));
+}
