@@ -3,12 +3,12 @@
 const radarNativeImages=new Map(),radarNativePending=new Map();
 function cacheRadarNativeImage(url,result){
   radarNativeImages.delete(url);radarNativeImages.set(url,result);
-  while(radarNativeImages.size>100)radarNativeImages.delete(radarNativeImages.keys().next().value);
+  while(radarNativeImages.size>100 || [...radarNativeImages.values()].reduce((bytes,entry)=>bytes+(entry.image?entry.width*entry.height*4:0),0)>24*1024*1024)radarNativeImages.delete(radarNativeImages.keys().next().value);
 }
 function loadRadarNativeImage(url,{pixels=false}={}){
   const cached=radarNativeImages.get(url);
   if(cached?.error&&Date.now()-cached.at<30000)return Promise.reject(cached.error);
-  if(cached&&!cached.error&&!pixels)return Promise.resolve(cached);
+  if(cached&&!cached.error&&(!pixels||cached.image)){cacheRadarNativeImage(url,cached);return Promise.resolve(cached);}
   if(radarNativePending.has(url))return radarNativePending.get(url);
   const promise=new Promise((resolve,reject)=>{
     const image=new Image();image.decoding='async';image.referrerPolicy='no-referrer';
@@ -19,9 +19,9 @@ function loadRadarNativeImage(url,{pixels=false}={}){
     image.onload=()=>{
       finish();
       if(!image.naturalWidth||!image.naturalHeight){fail();return;}
-      const result={url,width:image.naturalWidth,height:image.naturalHeight,at:Date.now()};
+      const result={url,width:image.naturalWidth,height:image.naturalHeight,at:Date.now(),image};
       cacheRadarNativeImage(url,result);
-      // Keep only URL metadata in the cache; large decoded pictures can be freed.
+      // Retain decoded images within a 24 MiB budget for instant reuse.
       resolve({...result,image});
     };
     image.src=url;
@@ -116,3 +116,4 @@ function dmiRadarCanvasLayer(frame){
     bringToFront(){this._canvas.parentNode?.appendChild(this._canvas);return this;}
   });return new Layer();
 }
+

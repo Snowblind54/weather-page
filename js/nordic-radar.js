@@ -7,7 +7,7 @@ const NORDIC_RADAR_SOURCES=[
   {id:'is',name:'IS · IMO',bounds:[[61,-29],[69,-10]],format:'h5'}
 ];
 const nordicRadarLists=new Map(),nordicRadarFrames=new Map(),nordicRadarPending=new Map();
-const nordicRadarJobs=new Map(),nordicRadarQueue=[];
+const nordicRadarJobs=new Map(),nordicRadarQueue=[],nordicRadarPromote=new Map();
 const ICELAND_RADAR_SERVICE='https://northern-weather-radar.franz-sammel54.chatgpt.site';
 let nordicRadarWorker=null,nordicRadarJobId=0,nordicRadarDownloads=0,nordicRadarGeneration=0,nordicRadarRefreshTimer=null;
 const nordicRadarLayers=new Map();
@@ -15,7 +15,34 @@ let nordicRadarArchive=null;
 function nordicRadarStatus(text,kind='status'){
   $('nordicRadarStatus').textContent=text;$('nordicRadarStatus').className=kind;
 }
-function nordicRadarVisible(source){return map.getBounds().intersects(L.latLngBounds(source.bounds));}
+const radarFootprints=new Map();
+function radarFootprintVisible(footprint){
+  const view=map.getBounds(),bounds=L.latLngBounds(footprint.bounds);
+  if(!view.intersects(bounds))return false;
+  if(!footprint.cells)return true;
+  // Cells describe the native scan geometry, including dry observations.
+  // They never use rain intensity to decide whether a source is needed.
+  const [[south,west],[north,east]]=footprint.bounds;
+  const top=radarMercatorY(north),bottom=radarMercatorY(south),cols=footprint.cols,rows=footprint.rows;
+  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++)if(footprint.cells[y*cols+x]){
+    const cell=[[radarLatitudeAtY(top-(y+1)/rows*(top-bottom)),west+x/cols*(east-west)],
+                [radarLatitudeAtY(top-y/rows*(top-bottom)),west+(x+1)/cols*(east-west)]];
+    if(view.intersects(L.latLngBounds(cell)))return true;
+  }
+  return false;
+}
+function radarRecordVisible(record){
+  if(map.getZoom()<6)return true;
+  const known=radarFootprints.get(record.station);
+  if(record.bounds&&!radarFootprintVisible({bounds:record.bounds}))return false;
+  return !known||Date.now()-known.at>10*60*1000||radarFootprintVisible(known);
+}
+function nordicRadarVisible(source){
+  if(!map.getBounds().intersects(L.latLngBounds(source.bounds)))return false;
+  if(map.getZoom()<6)return true;
+  const stations=source.id==='is'?['iskef','isska','isx2']:[source.id];
+  return stations.some(station=>{const known=radarFootprints.get(station);return !known||Date.now()-known.at>10*60*1000||radarFootprintVisible(known);});
+}
 function radarObservationAt(records,time,maxDelay=900){
   let best=null;
   for(const frame of records||[])if(frame.time<=time && time-frame.time<=maxDelay && (!best||frame.time>best.time))best=frame;
@@ -160,7 +187,7 @@ async function listNordicRadar(source,force=false){
 function ensureNordicRadarWorker(){
   if(nordicRadarWorker)return nordicRadarWorker;
   if(!window.Worker||!window.OffscreenCanvas)throw new Error('This browser needs Web Workers and OffscreenCanvas for Nordic radar');
-  const worker=new Worker('js/nordic-radar-worker.js?v=8.34',{type:'module'});nordicRadarWorker=worker;
+  const worker=new Worker('js/nordic-radar-worker.js?v=8.44',{type:'module'});nordicRadarWorker=worker;
   worker.onmessage=event=>{
     const job=nordicRadarJobs.get(event.data.id);if(!job)return;
     clearTimeout(job.timer);nordicRadarJobs.delete(event.data.id);
@@ -194,12 +221,15 @@ function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}
   }
   if(nordicRadarPending.has(key)){
     if(!background){
+      nordicRadarPromote.get(key)?.();
       const index=nordicRadarQueue.findIndex(job=>job.key===key);
       if(index>=0){const [job]=nordicRadarQueue.splice(index,1);job.background=false;nordicRadarQueue.unshift(job);runNordicRadarQueue();}
     }
     return nordicRadarPending.get(key);
   }
-  const allowed=()=>$('radarOn').checked||(background&&canPrepare());
+  let promoted=!background;
+  const allowed=()=>promoted?$('radarOn').checked:canPrepare();
+  nordicRadarPromote.set(key,()=>{promoted=true;});
   const promise=new Promise((resolve,reject)=>{
     const job={key,background,resolve,reject,run:async()=>{
       if(!allowed())throw new Error('Radar preparation paused');
@@ -222,15 +252,16 @@ function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}
       if(!allowed())throw new Error('Radar preparation paused');
       if(!result)result=record.format==='png'?{blob:new Blob([buffer],{type:'image/png'}),bounds:record.bounds}:await projectNordicRadar(buffer,descriptor,edge);
       if(!allowed())throw new Error('Radar preparation paused');
+      radarFootprints.set(record.station,{...(result.coverage||{bounds:result.bounds}),at:Date.now()});
       const entry={...result,url:result.canvas?'dmi:'+key:URL.createObjectURL(result.blob),time:record.time};
       nordicRadarFrames.set(key,entry);
-      while(nordicRadarFrames.size>180 || [...nordicRadarFrames.values()].reduce((bytes,frame)=>bytes+(frame.blob?.size??frame.canvas.width*frame.canvas.height*4),0)>24*1024*1024){const oldKey=nordicRadarFrames.keys().next().value,old=nordicRadarFrames.get(oldKey);if(old.blob)URL.revokeObjectURL(old.url);nordicRadarFrames.delete(oldKey);}
+      while(nordicRadarFrames.size>180 || [...nordicRadarFrames.values()].reduce((bytes,frame)=>bytes+(frame.blob?.size??frame.canvas.width*frame.canvas.height*4),0)>48*1024*1024){const oldKey=nordicRadarFrames.keys().next().value,old=nordicRadarFrames.get(oldKey);if(old.blob)URL.revokeObjectURL(old.url);nordicRadarFrames.delete(oldKey);}
       return entry;
     }};
     if(background)nordicRadarQueue.push(job);
     else{const index=nordicRadarQueue.findIndex(queued=>queued.background);nordicRadarQueue.splice(index<0?nordicRadarQueue.length:index,0,job);}
     runNordicRadarQueue();
-  }).finally(()=>{if(nordicRadarPending.get(key)===promise)nordicRadarPending.delete(key);});
+  }).finally(()=>{if(nordicRadarPending.get(key)===promise){nordicRadarPending.delete(key);nordicRadarPromote.delete(key);}});
   nordicRadarPending.set(key,promise);return promise;
 }
 function clearNordicRadars(){
@@ -289,8 +320,8 @@ async function drawNordicRadars(unix,{force=false}={}){
     try{
       const records=await listNordicRadar(source,force);
       if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;
-    const stations=source.id==='is'?['iskef','isska','isx2']:[...new Set(records.map(record=>record.station))];
-      const selected=stations.map(station=>radarObservationAt(records.filter(record=>record.station===station),unix)).filter(Boolean);
+    const stations=(source.id==='is'?['iskef','isska','isx2']:[...new Set(records.map(record=>record.station))]).filter(station=>radarRecordVisible({station}));
+      const selected=stations.map(station=>radarObservationAt(records.filter(record=>record.station===station),unix)).filter(record=>record&&radarRecordVisible(record));
       if(!selected.length)throw new Error(source.name+' unavailable at '+fmt(unix));
       const rendered=await Promise.allSettled(selected.map(async record=>({record,frame:await nordicRadarFrame(record,edge)})));
       // Missing stations count as partial coverage rather than a dry radar image.
@@ -301,25 +332,23 @@ async function drawNordicRadars(unix,{force=false}={}){
   }));
   if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;
   if(playing){
-    const next=frames[Number($('timeline').value)+1];
-    if(next)for(const source of visible){
-      listNordicRadar(source).then(records=>{
-        if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;
-        for(const station of new Set(records.map(record=>record.station))){
-          const record=radarObservationAt(records.filter(record=>record.station===station),next.time);
-          if(record)nordicRadarFrame(record,edge).catch(()=>{});
-        }
-      }).catch(()=>{});
-    }
+    scheduleRadarPlaybackPreload();
   }else{
     clearTimeout(nordicRadarRefreshTimer);nordicRadarRefreshTimer=setTimeout(()=>{
-      const time=frames[Number($('timeline').value)]?.time;if(time)drawNordicRadars(time).catch(console.error);
+      const frame=frames[Number($('timeline').value)];if(frame){
+      Promise.allSettled([drawNordicRadars(frame.time),drawDirectNationalRadars(frame.time),drawRadar(frame)]);
+      scheduleRadarPlaybackPreload();
+    }
     },visible.some(source=>source.id==='is')?60000:120000);
   }
 }
 map.on('moveend',()=>{
   if(!$('radarOn').checked)return;
   clearTimeout(nordicRadarRefreshTimer);nordicRadarRefreshTimer=setTimeout(()=>{
-    const time=frames[Number($('timeline').value)]?.time;if(time)drawNordicRadars(time).catch(console.error);
+    const frame=frames[Number($('timeline').value)];if(frame){
+      Promise.allSettled([drawNordicRadars(frame.time),drawDirectNationalRadars(frame.time),drawRadar(frame)]);
+      scheduleRadarPlaybackPreload();
+    }
   },180);
 });
+

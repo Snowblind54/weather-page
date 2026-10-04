@@ -88,7 +88,7 @@ let radarSwapGeneration=0;
 // after the radar has been switched off or the timeline has moved.
 let radarRenderGeneration=0;
 const radarImageCache=new Map();
-const MAX_CACHE=6;
+const MAX_CACHE=32;
 
 function fmt(unix){
   return new Intl.DateTimeFormat(undefined,{

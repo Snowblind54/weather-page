@@ -28,3 +28,14 @@ test('Denmark uses direct official metadata ahead of the archive and never fetch
  const c=harness();const now=Math.floor(Date.now()/1000),calls=[];c.fetch=async url=>{calls.push(url);return {ok:true,text:async()=>JSON.stringify({features:[{properties:{datetime:new Date((now-600)*1000).toISOString()},asset:{data:{href:'https://opendataapi.dmi.dk/v1/radardata/download/scan.h5'}}}]})};};c.cachedNordicRadar=()=>assert.fail('archive used despite direct observations');const frames=await vm.runInContext("listNordicRadar({id:'dk'})",c);assert.equal(frames[0].format,'dmi-wms');assert.equal(calls.length,1);assert(calls[0].startsWith('https://opendataapi.dmi.dk/'));
  c.fetch=async url=>{assert(url.startsWith('https://opendataapi.dmi.dk/'));throw new Error('offline');};c.cachedNordicRadar=async()=>[{time:now-600,format:'png'}];assert.equal((await vm.runInContext("listNordicRadar({id:'dk'},true)",c))[0].format,'png');
 });
+
+
+test('historical Baltic frames remain cached beyond a minute and decoded native images are reused',async()=>{
+ const c=harness();c.directRadarImageCache=new Map();let calls=0;c.ltHistory=async()=>{calls++;return {dataUrl:'official.png',time:100}};
+ await vm.runInContext("prepareBalticRadarFrame({id:'lt'},100,200)",c);
+ vm.runInContext("directRadarImageCache.get('lt|100').at-=120000",c);
+ await vm.runInContext("prepareBalticRadarFrame({id:'lt'},100,200)",c);assert.equal(calls,1);
+ let image;c.Image=class{constructor(){image=this;}set src(value){}get naturalWidth(){return 512;}get naturalHeight(){return 512;}};
+ const first=vm.runInContext("loadRadarNativeImage('native.png',{pixels:true})",c);image.onload();const loaded=await first;
+ const again=await vm.runInContext("loadRadarNativeImage('native.png',{pixels:true})",c);assert.equal(again.image,loaded.image);
+});

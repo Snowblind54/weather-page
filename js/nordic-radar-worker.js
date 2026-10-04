@@ -68,6 +68,7 @@ function mappingFor(grid,edge,proj4){
   if(![west,east,south,north].every(Number.isFinite)||east<=west||north<=south)throw new Error('Invalid radar geographic extent');
   const top=mercatorY(north),bottom=mercatorY(south),aspect=((east-west)*Math.PI/180)/(top-bottom);
   const width=Math.round(aspect>1?edge:edge*aspect),height=Math.round(aspect>1?edge/aspect:edge);
+  const cols=32,rows=32,cells=new Uint8Array(cols*rows);
   const indices=new Int32Array(width*height),weights=grid.raySampling?new Uint16Array(width*height):null;
   for(let row=0;row<height;row++){
     const lat=latitudeAtY(top-(row+.5)/height*(top-bottom));
@@ -76,9 +77,11 @@ function mappingFor(grid,edge,proj4){
       const i=row*width+col;
       if(weights){const sample=polarInterpolation(x,y,grid);indices[i]=sample?.index??-1;weights[i]=sample?.weights??0;}
       else indices[i]=grid.polar?polarIndex(x,y,grid):cartesianIndex(x,y,grid);
+      if(indices[i]>=0)cells[Math.min(rows-1,Math.floor(row/height*rows))*cols+Math.min(cols-1,Math.floor(col/width*cols))]=1;
     }
   }
-  const result={indices,weights,width,height,bounds:[[south,west],[north,east]]};mappings.set(key,result);
+  const bounds=[[south,west],[north,east]];
+  const result={indices,weights,width,height,bounds,coverage:{bounds,cols,rows,cells:Array.from(cells)}};mappings.set(key,result);
   while(mappings.size>6||([...mappings.values()].reduce((n,m)=>n+m.indices.byteLength+(m.weights?.byteLength||0),0)>64*1024*1024&&mappings.size>1))mappings.delete(mappings.keys().next().value);
   return result;
 }
@@ -92,7 +95,7 @@ async function render(message){
     pixels.set(radarColour(rate),i*4);
   }
   const canvas=new OffscreenCanvas(mapping.width,mapping.height);canvas.getContext('2d').putImageData(new ImageData(pixels,mapping.width,mapping.height),0,0);
-  return {blob:await canvas.convertToBlob({type:'image/png'}),bounds:mapping.bounds,pixels:mapping.indices.length};
+  return {blob:await canvas.convertToBlob({type:'image/png'}),bounds:mapping.bounds,coverage:mapping.coverage,pixels:mapping.indices.length};
 }
 self.onmessage=event=>{
   const message=event.data;
@@ -101,3 +104,4 @@ self.onmessage=event=>{
     catch(error){self.postMessage({id:message.id,error:error?.message||String(error)});}
   });
 };
+
