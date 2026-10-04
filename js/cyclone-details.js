@@ -56,14 +56,14 @@ function renderCycloneList(){
 function validatePressureContours(data){
   const archive=data.pressureContours;
   if(!archive)return data; // Previous snapshots remain usable while the new run is prepared.
-  if(archive.version!==1 || archive.modelRun!==data.modelRun || !Array.isArray(archive.frames) || archive.frames.length>40)throw new Error('Invalid pressure contour archive');
+  if(archive.version!==1 || archive.modelRun!==data.modelRun || !Array.isArray(archive.frames) || archive.frames.length>100)throw new Error('Invalid pressure contour archive');
   let previous=-Infinity,total=0;
   for(const frame of archive.frames){
     if(!Number.isFinite(frame.time) || frame.time<archive.modelRun || frame.time>data.forecastEnd || frame.time<=previous || !Array.isArray(frame.lines) || frame.lines.length>700)throw new Error('Invalid pressure contour frame');
     previous=frame.time;
     for(const line of frame.lines){
       if(!Number.isFinite(line.pressure) || line.pressure<850 || line.pressure>1100 || !Array.isArray(line.points) || line.points.length<2 || line.points.length>6000)throw new Error('Invalid isobar');
-      total+=line.points.length;if(total>750000)throw new Error('Pressure contours too large');
+      total+=line.points.length;if(total>2250000)throw new Error('Pressure contours too large');
       for(const p of line.points)if(!Array.isArray(p) || p.length!==2 || !Number.isFinite(p[0]) || !Number.isFinite(p[1]) || p[0]<-85 || p[0]>45 || p[1]<20 || p[1]>82)throw new Error('Invalid isobar coordinate');
     }
   }
@@ -80,7 +80,7 @@ function renderCycloneIsobars(){
   }
   const frames=cycloneData.pressureContours?.frames||[],unix=cycloneSelectedTime();
   let frame=null;for(const candidate of frames)if(candidate.time<=unix)frame=candidate;else break;
-  if(!frame || unix-frame.time>3*3600){hideCycloneIsobars();$('cycloneIsobarStatus').textContent='Pressure contours unavailable for this model time.';return;}
+  if(!frame || frame.time!==unix){hideCycloneIsobars();$('cycloneIsobarStatus').textContent='Pressure contours unavailable for this model time.';return;}
   const interval=cycloneData.pressureContours.interval||4,key=cycloneData.modelRun+'/'+frame.time+'/'+interval;
   const opacity=Number($('cycloneIsobarOpacity').value)/100;
   if(key!==cycloneIsobarKey){

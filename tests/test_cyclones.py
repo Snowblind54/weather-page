@@ -128,8 +128,20 @@ class PressureAndNames(unittest.TestCase):
                     'pressureContours': {'version': 1, 'interval': 4}}
         self.assertFalse(c.reusable_forecast(previous, STAMP))
         previous['pressureContours']['interval'] = 1
+        self.assertFalse(c.reusable_forecast(previous, STAMP))
+        previous['forecastStepHours'] = 1
+        previous['pressureContours']['frames'] = [{'time': STAMP+step*3600} for step in c.STEPS]
         self.assertTrue(c.reusable_forecast(previous, STAMP))
         self.assertFalse(c.reusable_forecast(previous, STAMP+6*3600))
+
+    def test_hourly_source_and_detection_persistence(self):
+        self.assertEqual(c.STEPS, list(range(97)))
+        self.assertIn('pgrb2.0p25.f001', c.grid_url(RUN, 1))
+        frames = [(STAMP+h*3600, [point(h, lon=-30+h*.1)]) for h in range(10)]
+        tracks = c.track_frames(frames)
+        self.assertEqual(len(tracks), 1)
+        self.assertEqual(len(tracks[0]['points']), 10)
+        self.assertEqual(c.track_frames(frames[:9]), [])
 
     def test_official_annual_list_is_not_a_named_active_event(self):
         from cyclone_names import parse_uk

@@ -11,11 +11,13 @@ function harness(details=false){
   const map={createPane:n=>panes.set(n,{style:{}}),getPane:n=>panes.get(n),hasLayer:l=>layers.has(l),removeLayer:l=>layers.delete(l),
     fitBounds(){this.moves++;},setView(p,z){this.moves++;this.view=p;this.zoom=z;},getZoom(){return this.zoom;},zoom:4,on(){},getSize:()=>({x:1000,y:800}),getContainer:()=>({getBoundingClientRect:()=>({left:0,top:0})}),latLngToContainerPoint:ll=>({x:(ll[1]+85)*7,y:(82-ll[0])*8+100}),moves:0};
   function layer(extra={}){return {...extra,addTo(target){if(target===map)layers.add(this);else target.addLayer(this);return this;}};}
-  const now=Math.floor(Date.now()/1000);
+  let clock=Date.now();
+  class ClockDate extends Date {static now(){return clock;}}
+  const now=Math.floor(clock/3600000)*3600;
   const data={version:1,generatedAt:now,modelRun:now-3600,forecastEnd:now+96*3600,status:'ok',systems:[
     {id:'GFS-example',name:null,points:Array.from({length:33},(_,i)=>({time:now-3600+i*3*3600,lat:55,lon:-40+i*.5,pressure:985-i*.2,nearbyWind:20,nearbyGust:32+i*.2}))}
   ]};
-  const context={console,Date,Math,JSON,Number,Map,Set,AbortController,setTimeout,clearTimeout,
+  const context={console,Date:ClockDate,Math,JSON,Number,Map,Set,AbortController,setTimeout,clearTimeout,
     setInterval(f,delay){if(delay<1000){timers.set(tick,f);return tick++;}return 0;},clearInterval:n=>timers.delete(n),
     map,$:id=>elements[id],setWeatherSectionState(){},fmt:t=>new Date(t*1000).toISOString(),htmlEscape:s=>String(s).replaceAll('<','&lt;'),
     document:{hidden:false,addEventListener(){},createElement(){return {type:'',innerHTML:'',listeners:{},setAttribute(){},addEventListener(k,f){this.listeners[k]=f;}};}},URL,fetch:async()=>({ok:true,json:async()=>JSON.parse(JSON.stringify(data))}),
@@ -29,7 +31,7 @@ function harness(details=false){
   if(details){elements.cycloneIsobarsOn.checked=true;elements.cycloneIsobarOpacity.value='35';run(fs.readFileSync(path.join(__dirname,'../js/cyclone-details.js'),'utf8'));}
   context.fixture=data;
   const seed=()=>{elements.cycloneOn.checked=true;run('cycloneData=validateCyclones(fixture);renderCyclones();');};
-  return {context,run,elements,layers,timers,map,data,seed};
+  return {context,run,elements,layers,timers,map,data,seed,setClock(t){clock=t;}};
 }
 
 test('movement units, interpolation, coverage and absent observations',()=>{
@@ -73,7 +75,7 @@ test('stale model cannot leave centres, paths or playback on the map',()=>{
 test('projected paths and playback reach 72 hours',()=>{
   const h=harness();h.elements.cyclonePathsOn.checked=true;h.seed();
   assert.ok(h.run('cyclonePathGroup.children.some(l=>l.options?.icon?.html=== "+72 h")'));
-  h.elements.cycloneForecastHour.value='69';h.elements.cyclonePlay.listeners.click();
+  h.elements.cycloneForecastHour.value='71';h.elements.cyclonePlay.listeners.click();
   const advance=[...h.timers.values()][0];advance();
   assert.equal(Number(h.elements.cycloneForecastHour.value),72);advance();
   assert.equal(Number(h.elements.cycloneForecastHour.value),0);
@@ -98,7 +100,7 @@ test('failed refresh discloses prior forecast and corrupt snapshots are rejected
 
 test('past trails remain distinct from forecasts, exclude future points and split missing history',()=>{
   const h=harness(),now=h.data.generatedAt;
-  h.data.systems[0].history=[48,45,24,21,18,15,12,9,6,3].map(age=>({time:now-age*3600,lat:55,lon:-42+age*.01,pressure:985}));
+  h.data.systems[0].history=[47,44,24,21,18,15,12,9,6,3].map(age=>({time:now-age*3600,lat:55,lon:-42+age*.01,pressure:985}));
   h.elements.cycloneHistoryOn.checked=true;h.seed();
   assert.equal(h.run('cyclonePathGroup'),null);assert.equal(h.run('cycloneHistoryGroup.children.length'),2,'long gaps are not bridged');
   const past=h.run('JSON.stringify(cycloneHistoryGroup.children.map(l=>l.points))');
@@ -148,4 +150,24 @@ test('European official name provenance is escaped and linked only to official h
   h.run('openCyclonePopup(fixture.systems[0])');const content=h.run('cyclonePopup.content');
   assert.match(content,/&lt;Austen>/);assert.match(content,/association is inferred/);assert.match(content,/Official source/);
   assert.equal(h.run('cycloneSafeNameUrl("https://weather.metoffice.gov.uk.evil.example/x")'),null);
+});
+
+test('hourly centres and contours stay synchronized, Now advances and playback uses one-hour steps',()=>{
+  const h=harness(true),run=h.data.modelRun;
+  h.data.forecastStepHours=1;
+  h.data.systems[0].points=Array.from({length:97},(_,i)=>({time:run+i*3600,lat:55,lon:-40+i*.1,pressure:985,nearbyWind:20,nearbyGust:32}));
+  h.data.pressureContours={version:1,interval:1,modelRun:run,frames:Array.from({length:97},(_,i)=>({time:run+i*3600,lines:[{pressure:985,points:[[-40+i*.1,55],[-39+i*.1,56]]}]}))};
+  h.setClock((run+5400)*1000);h.seed();
+  assert.equal(h.run('cycloneSelectedTime()'),run+3600);
+  assert.match(h.elements.cycloneIsobarStatus.textContent,new RegExp(new Date((run+3600)*1000).toISOString()));
+  assert.equal(h.run('cycloneMarkers.values().next().value.point[1]'),-39.9);
+  h.setClock((run+7200)*1000);h.run('renderCyclones()');
+  assert.equal(h.run('cycloneSelectedTime()'),run+7200);
+  assert.equal(h.run('cycloneMarkers.values().next().value.point[1]'),-39.8);
+  h.elements.cyclonePlay.listeners.click();[...h.timers.values()][0]();
+  assert.equal(Number(h.elements.cycloneForecastHour.value),1);
+  assert.equal(h.run('cycloneSelectedTime()'),run+10800);
+  h.data.systems[0].points=h.data.systems[0].points.filter(p=>p.time!==run+10800);h.run('renderCyclones()');
+  assert.equal(h.run('cycloneMarkers.size'),0,'missing detected centre is not interpolated into an hourly pressure frame');
+  assert.match(fs.readFileSync(path.join(__dirname,'../index.html'),'utf8'),/id="cycloneForecastHour"[^>]*step="1"/);
 });

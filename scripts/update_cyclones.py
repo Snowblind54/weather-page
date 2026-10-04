@@ -6,6 +6,7 @@ or coverage limits; a forecast line is not an uncertainty cone or warning.
 """
 import concurrent.futures as futures
 import datetime as dt
+import gzip
 import json
 import math
 import pathlib
@@ -21,9 +22,9 @@ import contourpy
 from cyclone_names import add_european_names
 
 OUTPUT = pathlib.Path(__file__).resolve().parents[1] / 'data/cyclones.json'
-FILTER = 'https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p50.pl'
+FILTER = 'https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl'
 BOUNDS = [[20, -85], [82, 45]]
-STEPS = list(range(0, 97, 3))
+STEPS = list(range(97))
 PRESSURE_INTERVAL = 1
 
 
@@ -50,7 +51,7 @@ def download(url):
 
 
 def grid_url(run, step):
-    params = dict(file=f'gfs.t{run.hour:02d}z.pgrb2full.0p50.f{step:03d}',
+    params = dict(file=f'gfs.t{run.hour:02d}z.pgrb2.0p25.f{step:03d}',
                   lev_mean_sea_level='on', lev_10_m_above_ground='on', lev_surface='on',
                   var_PRMSL='on', var_UGRD='on', var_VGRD='on', var_GUST='on', subregion='',
                   leftlon=str(BOUNDS[0][1]), rightlon=str(BOUNDS[1][1]),
@@ -95,7 +96,9 @@ def decode(raw, expected_time):
         raise ValueError('Invalid GFS wind gust units/range')
     if fields['pressure'].min() < 850 or fields['pressure'].max() > 1100:
         raise ValueError('Invalid GFS pressure units/range')
-    return lats, lons, fields
+    # Hourly output is on the 0.25° grid. Keep the existing 0.5° map detail
+    # for detection and contours, sampling every second cell consistently.
+    return lats[::2], lons[::2], {key: value[::2, ::2] for key, value in fields.items()}
 
 
 def sample(array, lats, lons, lat, lon):
@@ -301,6 +304,9 @@ def pressure_contours(lats,lons,pressure,valid):
 def reusable_forecast(previous, stamp):
     return (previous.get('pressureContours', {}).get('version') == 1 and
             previous.get('pressureContours', {}).get('interval') == PRESSURE_INTERVAL and
+            previous.get('forecastStepHours') == 1 and
+            [frame.get('time') for frame in previous.get('pressureContours', {}).get('frames', [])] ==
+            [stamp+step*3600 for step in STEPS] and
             previous.get('windFieldsVersion') == 2 and previous.get('modelRun') == stamp and
             previous.get('forecastEnd', 0) >= stamp+96*3600)
 
@@ -346,10 +352,10 @@ def collect(now, previous):
     systems = retain_history(systems, previous, now, stamp)
     nhc = add_names(systems, now)
     european=add_european_names(systems,now,download,distance)
-    return {'version': 1, 'windFieldsVersion': 2, 'generatedAt': int(now.timestamp()), 'modelRun': stamp,
+    return {'version': 1, 'windFieldsVersion': 2, 'forecastStepHours': 1, 'generatedAt': int(now.timestamp()), 'modelRun': stamp,
             'forecastEnd': stamp+96*3600, 'status': 'ok',
-            'bounds': BOUNDS, 'source': 'NOAA / NCEP GFS 0.5°', 'sourceUrl': 'https://nomads.ncep.noaa.gov/',
-            'method': 'Closed pressure minima; 400 km ring depth ≥2 hPa; ≥9-hour persistence; tracked every 3 hours.',
+            'bounds': BOUNDS, 'source': 'NOAA / NCEP GFS hourly, sampled at 0.5°', 'sourceUrl': 'https://nomads.ncep.noaa.gov/',
+            'method': 'Closed pressure minima; 400 km ring depth ≥2 hPa; ≥9-hour persistence; tracked every hour.',
             'nhcStatus': nhc, 'europeanNamesStatus':european,
             'pressureContours':{'version':1,'interval':PRESSURE_INTERVAL,'modelRun':stamp,'frames':contours},'systems': systems}
 
@@ -368,7 +374,12 @@ def main():
             OUTPUT.write_text(json.dumps(previous, ensure_ascii=False, separators=(',', ':'), allow_nan=False)+'\n')
         raise
     OUTPUT.parent.mkdir(exist_ok=True)
-    OUTPUT.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':'), allow_nan=False)+'\n')
+    payload=json.dumps(result, ensure_ascii=False, separators=(',', ':'), allow_nan=False)+'\n'
+    OUTPUT.write_text(payload)
+    archive=result['pressureContours']['frames']
+    print('Hourly snapshot:',len(archive),'frames;',len(payload.encode()),'JSON bytes;',
+          len(gzip.compress(payload.encode())),'gzip bytes;',
+          sum(len(line['points']) for frame in archive for line in frame['lines']),'contour points',flush=True)
     current = [s for s in result['systems'] if point_at(s['points'], int(now.timestamp()))]
     print('Published', len(result['systems']), 'tracks;', len(current), 'centres active now', flush=True)
 
