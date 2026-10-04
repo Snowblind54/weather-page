@@ -6,7 +6,7 @@ const snowDepthSources={
   SE:{name:'SMHI',url:'https://www.smhi.se/data/meteorologi/sno'}
 };
 let snowDepthData=null,snowDepthLoadedAt=0,snowDepthRequest=null,snowDepthRenderTimer=null;
-const snowDepthMaxAge=72*3600;
+const snowDepthMaxAge=7*24*3600;
 function snowDepthEnabled(){return snowMode && $('snowDepthOn').checked;}
 function snowDepthEscape(value){
   return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

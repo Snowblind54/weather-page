@@ -263,8 +263,8 @@ def main():
                 print(country, 'snow depth unavailable:', error, flush=True)
                 rows = [r for r in previous.get('stations', []) if r['country'] == country]
                 providers[country] = {'status': 'unavailable', 'error': str(error), 'count': len(rows)}
-            # Never relabel retained readings as newly observed; exclude >72 h.
-            records += [s for s in rows if 0 <= now.timestamp()-s['time'] <= 72*3600]
+            # Never relabel retained readings as newly observed; exclude >7 days.
+            records += [s for s in rows if 0 <= now.timestamp()-s['time'] <= 7*24*3600]
             print(country, 'published snow stations:', sum(s['country'] == country for s in records), flush=True)
     OUTPUT.parent.mkdir(exist_ok=True)
     OUTPUT.write_text(json.dumps({'generatedAt': int(now.timestamp()), 'sources': SOURCES,
