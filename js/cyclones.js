@@ -116,7 +116,7 @@ function closeCyclonePopup(){
 function openCyclonePopup(system){
   const point=cyclonePointAt(system,cycloneSelectedTime());if(!cycloneVisiblePosition(point))return;
   cycloneProbeId=system.id;
-  if(!cyclonePopup)cyclonePopup=L.popup({className:'cyclone-popup-container',maxWidth:345,autoPan:false,keepInView:false});
+  if(!cyclonePopup)cyclonePopup=L.popup({className:'cyclone-popup-container',maxWidth:345,maxHeight:Math.max(180,Math.min(340,map.getSize().y/2-130)),autoPan:false,keepInView:false});
   cyclonePopup.setLatLng([point.lat,point.lon]).setContent(cyclonePopupContent(system,point)).openOn(map);
 }
 
