@@ -52,7 +52,7 @@ function loadEstoniaMarineWarningGeometry(){
   if(estoniaMarineWarningGeometry)return Promise.resolve(estoniaMarineWarningGeometry);
   if(estoniaMarineWarningGeometryPending)return estoniaMarineWarningGeometryPending;
   const promise=(async()=>{
-    const response=await fetch('data/estonia-marine-warning-zones.geojson?v=8.60',{cache:'force-cache'});
+    const response=await fetch('data/estonia-marine-warning-zones.geojson?v=8.61',{cache:'force-cache'});
     if(!response.ok)throw new Error('Marine coastline geometry HTTP '+response.status);
     const collection=await response.json();
     if(collection.type!=='FeatureCollection'||!collection.features?.length)throw new Error('Empty marine coastline geometry');
