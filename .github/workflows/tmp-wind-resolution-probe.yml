@@ -1,0 +1,46 @@
+name: Temporary wind resolution probe
+on:
+  push:
+    branches: [feature/fresher-official-wind]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe FMI and MET Norway resolutions
+        run: |
+          python3 - <<'PY'
+          import datetime as dt, json, urllib.parse, urllib.request
+          def get(url):
+              req=urllib.request.Request(url,headers={'User-Agent':'NorthernWeather-probe/1.0'})
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  return r.status, r.read(300000).decode('utf-8','replace')
+          now=dt.datetime.now(dt.timezone.utc)
+          end=now.replace(second=0,microsecond=0,minute=(now.minute//10)*10)
+          params=dict(service='WFS',version='2.0.0',request='getFeature',storedquery_id='fmi::observations::weather::multipointcoverage',bbox='24,60,25,61',starttime=(end-dt.timedelta(hours=1)).isoformat(),endtime=end.isoformat(),timestep=10,parameters='ws_10min,wg_10min,wd_10min')
+          s,b=get('https://opendata.fmi.fi/wfs?'+urllib.parse.urlencode(params)); print('FMI',s,'positions',b.count(' '),'exception', 'ExceptionText' in b)
+          base='https://rim.k8s.met.no/api/v1/'
+          for tr in ['minutes','10minutes','PT10M','hours','']:
+              p=dict(sourceName='',weatherElements='wind_speed',timeResolution=tr,**{'from':(now-dt.timedelta(days=1)).date().isoformat(),'to':(now+dt.timedelta(days=1)).date().isoformat()},includeRegions='false')
+              if not tr: p.pop('timeResolution')
+              try:
+                  s,b=get(base+'stations?'+urllib.parse.urlencode(p)); data=json.loads(b); arr=data.get('data') or []
+                  print('RIM stations',repr(tr),'status',s,'count',len(arr),'sample',[(x.get('id'),x.get('availableTimeSeries',x.get('timeResolution'))) for x in arr[:2]])
+              except Exception as e: print('RIM stations',repr(tr),'ERR',e)
+          # Probe observations for one official station using no resolution, PT10M and hours.
+          p=dict(sourceName='',weatherElements='wind_speed',timeResolution='hours',**{'from':(now-dt.timedelta(days=1)).date().isoformat(),'to':(now+dt.timedelta(days=1)).date().isoformat()},includeRegions='false')
+          data=json.loads(get(base+'stations?'+urllib.parse.urlencode(p))[1]).get('data') or []
+          official=[x for x in data if 'MET.NO' in x.get('stationHolders',[])]
+          sid=official[0]['id']; print('station',sid)
+          ref=(now-dt.timedelta(hours=3)).isoformat()+'/'+now.isoformat()
+          for tr in ['minutes','10minutes','PT10M','hours','']:
+              q=dict(sources=sid,referenceTime=ref,elements='wind_speed,wind_speed_of_gust,max(wind_speed_of_gust PT1H),wind_from_direction')
+              if tr: q['timeResolution']=tr
+              try:
+                  s,b=get(base+'observations?'+urllib.parse.urlencode(q)); d=json.loads(b); rows=d.get('data') or []
+                  print('RIM obs',repr(tr),'status',s,'rows',len(rows),'times',[r.get('referenceTime') for r in rows[-8:]],'elements',sorted({o.get('elementId') for r in rows for o in r.get('observations',[])})[:20])
+              except Exception as e: print('RIM obs',repr(tr),'ERR',e)
+          PY
