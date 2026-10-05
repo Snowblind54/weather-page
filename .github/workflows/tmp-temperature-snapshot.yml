@@ -1,0 +1,44 @@
+name: Temporary temperature snapshot validation
+on:
+  push:
+    branches:
+      - feature/temperature-snapshot
+permissions:
+  contents: write
+jobs:
+  patch-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/temperature-snapshot
+          fetch-depth: 0
+      - name: Patch browser snapshot loader
+        run: python3 scripts/tmp_temperature_snapshot_patch.py
+      - name: Build live temperature snapshot
+        run: python3 scripts/update_official_temperature.py
+      - name: Validate JavaScript and snapshot
+        run: |
+          node --check js/stations.js
+          python3 - <<'PY'
+          import json
+          p=json.load(open('data/official-temperature.json',encoding='utf-8'))
+          assert p['refreshMinutes']==10 and p['historyHours']==3
+          assert p['stations']
+          assert all(s.get('rows') for s in p['stations'])
+          print('snapshot stations',len(p['stations']))
+          print('sources',p['sources'])
+          PY
+          grep -q "OFFICIAL_TEMP_SNAPSHOT_URL='data/official-temperature.json'" js/stations.js
+          grep -q "Northern Weather Map v8.71" index.html
+          grep -q "js/stations.js?v=8.71" index.html
+      - name: Commit generated production changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add js/stations.js index.html data/official-temperature.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Use shared official temperature snapshot'
+          git push origin HEAD:feature/temperature-snapshot
