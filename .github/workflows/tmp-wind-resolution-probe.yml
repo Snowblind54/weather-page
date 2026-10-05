@@ -17,23 +17,24 @@ jobs:
           def get(url):
               req=urllib.request.Request(url,headers={'User-Agent':'NorthernWeather-probe/1.0'})
               with urllib.request.urlopen(req,timeout=30) as r:
-                  return r.status, r.read(300000).decode('utf-8','replace')
+                  return r.status, r.read().decode('utf-8','replace')
           now=dt.datetime.now(dt.timezone.utc)
           end=now.replace(second=0,microsecond=0,minute=(now.minute//10)*10)
           params=dict(service='WFS',version='2.0.0',request='getFeature',storedquery_id='fmi::observations::weather::multipointcoverage',bbox='24,60,25,61',starttime=(end-dt.timedelta(hours=1)).isoformat(),endtime=end.isoformat(),timestep=10,parameters='ws_10min,wg_10min,wd_10min')
-          s,b=get('https://opendata.fmi.fi/wfs?'+urllib.parse.urlencode(params)); print('FMI',s,'positions',b.count(' '),'exception', 'ExceptionText' in b)
+          s,b=get('https://opendata.fmi.fi/wfs?'+urllib.parse.urlencode(params)); print('FMI',s,'exception', 'ExceptionText' in b)
           base='https://rim.k8s.met.no/api/v1/'
+          station_sets={}
           for tr in ['minutes','10minutes','PT10M','hours','']:
               p=dict(sourceName='',weatherElements='wind_speed',timeResolution=tr,**{'from':(now-dt.timedelta(days=1)).date().isoformat(),'to':(now+dt.timedelta(days=1)).date().isoformat()},includeRegions='false')
               if not tr: p.pop('timeResolution')
               try:
                   s,b=get(base+'stations?'+urllib.parse.urlencode(p)); data=json.loads(b); arr=data.get('data') or []
-                  print('RIM stations',repr(tr),'status',s,'count',len(arr),'sample',[(x.get('id'),x.get('availableTimeSeries',x.get('timeResolution'))) for x in arr[:2]])
+                  station_sets[tr]=arr
+                  print('RIM stations',repr(tr),'status',s,'count',len(arr))
               except Exception as e: print('RIM stations',repr(tr),'ERR',e)
-          # Probe observations for one official station using no resolution, PT10M and hours.
-          p=dict(sourceName='',weatherElements='wind_speed',timeResolution='hours',**{'from':(now-dt.timedelta(days=1)).date().isoformat(),'to':(now+dt.timedelta(days=1)).date().isoformat()},includeRegions='false')
-          data=json.loads(get(base+'stations?'+urllib.parse.urlencode(p))[1]).get('data') or []
-          official=[x for x in data if 'MET.NO' in x.get('stationHolders',[])]
+          source=station_sets.get('PT10M') or station_sets.get('') or station_sets.get('hours') or []
+          official=[x for x in source if 'MET.NO' in x.get('stationHolders',[])]
+          if not official: raise RuntimeError('No MET.NO station found')
           sid=official[0]['id']; print('station',sid)
           ref=(now-dt.timedelta(hours=3)).isoformat()+'/'+now.isoformat()
           for tr in ['minutes','10minutes','PT10M','hours','']:
