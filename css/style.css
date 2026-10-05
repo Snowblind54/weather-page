@@ -335,3 +335,9 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 .leaflet-popup-content .cyclone-trend.deepening{color:#ffb4a2}
 .leaflet-popup-content .cyclone-trend.filling{color:#9edbd0}
 .leaflet-popup-content .cyclone-trend.steady,.leaflet-popup-content .cyclone-trend.unknown{color:#b8ccd9}
+
+.official-wind-controls{margin-top:18px!important}
+.official-wind-marker{background:transparent;border:0}
+.official-wind-label{display:block;width:max-content;margin:auto;padding:3px 5px;border:1px solid #a9d9ed80;border-radius:6px;background:#102332ed;box-shadow:0 1px 5px #0007;white-space:nowrap;font:700 11px/17px ui-sans-serif,system-ui,sans-serif}
+.official-wind-label small,.official-wind-separator{font-size:9px;font-weight:500;color:#c6d9e5}
+.official-wind-delayed{border-style:dashed;border-color:#ffd084}

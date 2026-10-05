@@ -169,6 +169,7 @@ $('timeline').addEventListener('input',()=>{
     // until dragging pauses. Every preview invalidates older pending renders.
     if($('cloudOn').checked)drawCloud(frame,{cachedOnly:true,scrub:true}).catch(console.error);
     if($('windOn').checked) renderWind(frame.time);
+    if(typeof renderOfficialWind==='function')renderOfficialWind();
     if(activeAccumulationHours()) queueRainfallRender(90);
   }
 
@@ -208,6 +209,7 @@ $('refresh').onclick=async()=>{
     if(temperatureEnabled()) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);
     if($('windOn').checked) await loadWind().catch(reportWindError);
+    if(typeof officialWindEnabled==='function'&&officialWindEnabled())await loadOfficialWind(true);
     $('mapStatus').textContent='Refresh complete.';
     $('mapStatus').className='status ok';
   }catch(e){
