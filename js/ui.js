@@ -55,11 +55,11 @@ document.addEventListener('pointerdown',event=>{
 window.addEventListener('resize',positionWeatherPanel);
 function updateCategoryIndicators(){
   for(const [section,toggle] of weatherCategories){
-    const active=$(toggle).checked || (section==='windSection' && ['officialWindSustained','officialWindGusts'].some(id=>$(id).checked)) || (section==='tempSection' && $('heatmapOn').checked) || (section==='radarSection' && ['rain1h','rain24h','rain48h'].some(id=>$(id).checked));
+    const active=$(toggle).checked || (section==='windSection' && ['windHeatmapOn','officialWindSustained','officialWindGusts'].some(id=>$(id).checked)) || (section==='tempSection' && $('heatmapOn').checked) || (section==='radarSection' && ['rain1h','rain24h','rain48h'].some(id=>$(id).checked));
     $('nav-'+section).classList.toggle('layer-active',active);
   }
 }
-for(const id of [...weatherCategories.map(c=>c[1]),'rain1h','rain24h','rain48h','heatmapOn','officialWindSustained','officialWindGusts']){
+for(const id of [...weatherCategories.map(c=>c[1]),'rain1h','rain24h','rain48h','heatmapOn','windHeatmapOn','officialWindSustained','officialWindGusts']){
   $(id).addEventListener('change',updateCategoryIndicators);
 }
 updateCategoryIndicators();
@@ -87,7 +87,7 @@ function updateTimelineLoading(){
     (statusPending('radarStatus') && ($('radarOn').checked || /requesting.*frame list/i.test($('radarStatus').textContent))); 
   const cloudsPending=$('cloudOn').checked && statusPending('cloudStatus');
   const modelPending=(temperatureEnabled() && statusPending('tempStatus')) ||
-    ($('windOn').checked && statusPending('windStatus')) ||
+    (windVisualEnabled() && (statusPending('windStatus') || statusPending('windHeatmapStatus'))) ||
     (activeAccumulationHours() && statusPending('rainAccumStatus'));
   const busy=!!(radarPending || cloudsPending || modelPending);
   $('timelineLoading').hidden=!busy;
@@ -96,10 +96,10 @@ function updateTimelineLoading(){
   if($('timelineLoadingText').textContent!==text)$('timelineLoadingText').textContent=text;
 }
 const timelineLoadingObserver=new MutationObserver(updateTimelineLoading);
-for(const id of ['radarStatus','nordicRadarStatus','cloudStatus','tempStatus','windStatus','rainAccumStatus']){
+for(const id of ['radarStatus','nordicRadarStatus','cloudStatus','tempStatus','windStatus','windHeatmapStatus','rainAccumStatus']){
   timelineLoadingObserver.observe($(id),{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class']});
 }
-for(const id of ['radarOn','cloudOn','tempOn','heatmapOn','windOn','rain1h','rain24h','rain48h']){
+for(const id of ['radarOn','cloudOn','tempOn','heatmapOn','windOn','windHeatmapOn','rain1h','rain24h','rain48h']){
   $(id).addEventListener('change',updateTimelineLoading);
 }
 updateTimelineLoading();

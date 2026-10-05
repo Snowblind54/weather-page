@@ -11,6 +11,7 @@ let windData=null;
 let windLoadPromise=null;
 let windRetryAt=0;
 let windLayer=null;
+let windHeatmapLayer=null;
 let windProbe=null;
 let windPopup=null;
 
@@ -23,6 +24,7 @@ const WIND_COLOUR_STOPS=[
 const WIND_GUST_COLOUR_STOPS=[...WIND_COLOUR_STOPS,{speed:33,color:'#ff52c8'}];
 const WIND_COLOUR_STEP=.5,WIND_COLOUR_MAX=50;
 function currentWindMode(){return $('windMode')?.value==='gust'?'gust':'sustained';}
+function windVisualEnabled(){return !!($('windOn')?.checked||$('windHeatmapOn')?.checked);}
 function windColour(speed,mode='sustained'){
   if(!Number.isFinite(speed))return '#8a97a5';
   const stops=mode==='gust'?WIND_GUST_COLOUR_STOPS:WIND_COLOUR_STOPS;
@@ -80,7 +82,7 @@ function updateWindPopup(){
 }
 
 map.on('click',event=>{
-  if(!$('windOn').checked) return;
+  if(!windVisualEnabled()) return;
   // The rainfall popup includes both wind readings when both layers are on.
   if(typeof activeAccumulationHours==='function' && activeAccumulationHours()) return;
   // Keep warning polygons and station markers' existing click actions.
@@ -200,9 +202,10 @@ function reportWindError(error){
 }
 
 async function loadWind(){
-  if(!$('windOn').checked) return;
+  if(!windVisualEnabled()) return;
   if(windData && Date.now()-windData.savedAt<WIND_CACHE_MS){
-    renderWind(selectedWindTime());
+    if($('windOn').checked) renderWind(selectedWindTime());
+    if($('windHeatmapOn').checked) renderWindHeatmap(selectedWindTime());
     return;
   }
   if(Date.now()<windRetryAt) throw new Error('Wind service is cooling down. Please try again shortly.');
@@ -221,6 +224,7 @@ async function loadWind(){
   // A disabled layer can finish caching but must never add itself back.
   await windLoadPromise;
   if($('windOn').checked) renderWind(selectedWindTime());
+  if($('windHeatmapOn').checked) renderWindHeatmap(selectedWindTime());
 }
 
 function windTimeSlice(unix){
@@ -475,6 +479,82 @@ const WindCanvasLayer=L.Layer.extend({
     ctx.shadowBlur=0;
   }
 });
+
+const WindHeatmapLayer=L.Layer.extend({
+  onAdd(mapInstance){
+    this._map=mapInstance;
+    if(!mapInstance.getPane('windHeatmapPane')){
+      mapInstance.createPane('windHeatmapPane');
+      mapInstance.getPane('windHeatmapPane').style.zIndex='570';
+      mapInstance.getPane('windHeatmapPane').style.pointerEvents='none';
+    }
+    this.canvas=L.DomUtil.create('canvas','wind-heatmap-canvas leaflet-zoom-hide',mapInstance.getPane('windHeatmapPane'));
+    this.canvas.setAttribute('aria-hidden','true');
+    this.ctx=this.canvas.getContext('2d');
+    mapInstance.on('moveend zoomend resize',this.scheduleReset,this);
+    this.reset();
+  },
+  onRemove(mapInstance){
+    mapInstance.off('moveend zoomend resize',this.scheduleReset,this);
+    if(this.resetRaf)cancelAnimationFrame(this.resetRaf);
+    this.canvas?.remove();this._map=null;
+  },
+  setTime(unix){
+    const mode=currentWindMode();
+    if(this.unix===unix&&this.data===windData&&this.mode===mode)return;
+    this.unix=unix;this.data=windData;this.mode=mode;
+    if(this._map)this.scheduleReset();
+  },
+  setOpacity(value){if(this.canvas)this.canvas.style.opacity=String(value);},
+  scheduleReset(){
+    if(this.resetRaf)return;
+    this.resetRaf=requestAnimationFrame(()=>{this.resetRaf=null;this.reset();});
+  },
+  reset(){
+    if(!this._map||!this.ctx||!windData)return;
+    const slice=windTimeSlice(this.unix);if(!slice)return;
+    const size=this._map.getSize(),area=size.x*size.y;
+    this.canvas.width=Math.max(1,size.x);this.canvas.height=Math.max(1,size.y);
+    this.canvas.style.width=size.x+'px';this.canvas.style.height=size.y+'px';
+    this.canvas.style.opacity=String(Number($('windHeatmapOpacity').value)/100);
+    L.DomUtil.setPosition(this.canvas,this._map.containerPointToLayerPoint([0,0]));
+    const step=area>=1500000?32:area>=900000?28:24;
+    const cols=Math.ceil(size.x/step)+1,rows=Math.ceil(size.y/step)+1;
+    const low=document.createElement('canvas');low.width=cols;low.height=rows;
+    const lowCtx=low.getContext('2d'),img=lowCtx.createImageData(cols,rows),palette=WIND_COLOUR_PALETTES[this.mode];
+    const rgb=palette.map(hex=>[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]);
+    let shown=0;
+    for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
+      const x=Math.min(size.x,col*step),y=Math.min(size.y,row*step),ll=this._map.containerPointToLatLng([x,y]);
+      const vector=windAt(ll.lat,ll.lng,slice);
+      let speed=null;
+      if(vector) speed=this.mode==='gust'?windGustAt(ll.lat,ll.lng,slice):Math.hypot(vector[0],vector[1]);
+      if(!Number.isFinite(speed))continue;
+      const c=rgb[windColourIndex(speed)],i=(row*cols+col)*4;
+      img.data[i]=c[0];img.data[i+1]=c[1];img.data[i+2]=c[2];img.data[i+3]=230;shown++;
+    }
+    lowCtx.putImageData(img,0,0);
+    this.ctx.clearRect(0,0,size.x,size.y);
+    this.ctx.imageSmoothingEnabled=true;this.ctx.imageSmoothingQuality='high';
+    this.ctx.drawImage(low,0,0,cols,rows,0,0,size.x,size.y);
+    $('windHeatmapStatus').textContent=shown?`Model ${this.mode==='gust'?'gust':'sustained wind'} heatmap · ${fmt(this.unix)}`:'Wind heatmap unavailable in this view.';
+  }
+});
+
+function hideWindHeatmap(){
+  if(windHeatmapLayer&&map.hasLayer(windHeatmapLayer))map.removeLayer(windHeatmapLayer);
+  $('windHeatmapStatus').textContent='Wind heatmap is off.';
+}
+function renderWindHeatmap(unix){
+  if(!$('windHeatmapOn').checked)return false;
+  const slice=windTimeSlice(unix);
+  if(!slice){hideWindHeatmap();$('windHeatmapStatus').textContent=windData?'Wind heatmap is unavailable for this time.':'Loading wind heatmap…';return false;}
+  if(!windHeatmapLayer)windHeatmapLayer=new WindHeatmapLayer();
+  windHeatmapLayer.setTime(unix);
+  if(!map.hasLayer(windHeatmapLayer))windHeatmapLayer.addTo(map);
+  windHeatmapLayer.setOpacity(Number($('windHeatmapOpacity').value)/100);
+  return true;
+}
 
 function hideWind(){
   if(windLayer&&map.hasLayer(windLayer)) map.removeLayer(windLayer);

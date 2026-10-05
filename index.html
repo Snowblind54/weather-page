@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Northern Weather Map v8.60</title>
+<title>Northern Weather Map v8.63</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
@@ -41,8 +41,18 @@
       <span class="badge">10 m wind</span>
     </div>
     <div class="details">
-      <label class="small" for="windMode">Animate</label>
-      <select id="windMode" aria-label="Wind animation type"><option value="sustained">Sustained wind</option><option value="gust">Wind gusts</option></select>
+      <label class="small" for="windMode">Wind field</label>
+      <select id="windMode" aria-label="Wind field type"><option value="sustained">Sustained wind</option><option value="gust">Wind gusts</option></select>
+      <div class="row">
+        <label class="label"><input id="windHeatmapOn" type="checkbox"> Wind heatmap</label>
+        <span class="badge">model field</span>
+      </div>
+      <label class="small" for="windHeatmapOpacity">Heatmap opacity</label>
+      <div class="grid2">
+        <input id="windHeatmapOpacity" type="range" min="10" max="90" value="48" step="5">
+        <span id="windHeatmapOpacityVal" class="value">48%</span>
+      </div>
+      <div id="windHeatmapStatus" class="small" role="status">Wind heatmap is off.</div>
       <label class="small" for="windDensity">Trail density</label>
       <div class="grid2">
         <input id="windDensity" type="range" min="25" max="150" value="75" step="5">
@@ -230,7 +240,7 @@
 <script src="js/radar-history.js?v=8.44"></script>
 <script src="js/radar-capture.js?v=8.44"></script>
 <script src="js/nordic-radar.js?v=8.49"></script>
-<script src="js/wind.js?v=8.62"></script>
+<script src="js/wind.js?v=8.63"></script>
 <script src="js/official-wind.js?v=8.57"></script>
 <script src="js/official-rainfall.js?v=8.38"></script>
 <script src="js/rainfall.js?v=8.37.1"></script>
@@ -238,9 +248,9 @@
 <script src="js/cyclones.js?v=8.55"></script>
 <script src="js/cyclone-details.js?v=8.54"></script>
 <script src="js/cyclone-ensemble.js?v=8.55.2"></script>
-<script src="js/app.js?v=8.57"></script>
+<script src="js/app.js?v=8.63"></script>
 <script src="js/snow.js?v=8.57"></script>
 <script src="js/snow-history.js?v=8.45"></script>
 <script src="js/snow-depth.js?v=8.46"></script>
-<script src="js/ui.js?v=8.57"></script></body>
+<script src="js/ui.js?v=8.63"></script></body>
 </html>
