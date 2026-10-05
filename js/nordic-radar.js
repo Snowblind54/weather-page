@@ -187,7 +187,7 @@ async function listNordicRadar(source,force=false){
 function ensureNordicRadarWorker(){
   if(nordicRadarWorker)return nordicRadarWorker;
   if(!window.Worker||!window.OffscreenCanvas)throw new Error('This browser needs Web Workers and OffscreenCanvas for Nordic radar');
-  const worker=new Worker('js/nordic-radar-worker.js?v=8.79',{type:'module'});nordicRadarWorker=worker;
+  const worker=new Worker('js/nordic-radar-worker.js?v=8.80',{type:'module'});nordicRadarWorker=worker;
   worker.onmessage=event=>{
     const job=nordicRadarJobs.get(event.data.id);if(!job)return;
     clearTimeout(job.timer);nordicRadarJobs.delete(event.data.id);
