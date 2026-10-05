@@ -5,7 +5,7 @@ export function radarRate(value,grid){
   return grid.quantity==='RATE'?measured:Math.pow(Math.pow(10,measured/10)/(grid.zrA||200),1/(grid.zrB||1.6));
 }
 const radarColourStops=[.1,.3,.5,1,2,4,8,16,50,Infinity];
-const radarColours=[[156,221,255,210],[54,170,255,210],[0,216,154,210],[232,247,0,210],[255,196,0,210],[255,123,0,210],[255,42,42,210],[211,0,215,210],[150,0,190,210],[90,0,145,210]],radarTransparent=[0,0,0,0];
+const radarColours=[[156,221,255,210],[54,170,255,210],[0,216,154,210],[232,247,0,210],[255,196,0,210],[255,123,0,210],[255,42,42,210],[211,0,215,210],[150,0,190,210],[255,79,195,220]],radarTransparent=[0,0,0,0];
 export function radarColour(rate){
   if(!Number.isFinite(rate)||rate<.05)return radarTransparent;
   for(let i=0;i<radarColourStops.length;i++)if(rate<radarColourStops[i])return radarColours[i];
