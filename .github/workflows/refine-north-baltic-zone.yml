@@ -1,0 +1,44 @@
+name: Refine North Baltic warning zone
+on:
+  push:
+    branches: [fix/north-baltic-warning-shape]
+    paths:
+      - .github/workflows/refine-north-baltic-zone.yml
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -r scripts/requirements-warning-geometry.txt
+      - name: Refine and rebuild
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/build_estonia_marine_zones.py')
+          s=p.read_text()
+          anchor="    'soome lahe idaosa': [\n        [59.34, 25.43], [59.55, 25.47], [59.67, 25.85], [59.73, 26.40],\n        [59.76, 27.05], [59.76, 27.70], [59.72, 28.30], [59.63, 28.68],\n        [59.51, 28.52], [59.43, 27.95], [59.37, 27.15], [59.34, 26.25],\n        [59.34, 25.43],\n    ],\n"
+          extra=anchor+"    'läänemere põhjaosa': [\n        [58.05, 20.75], [58.30, 20.62], [58.70, 20.72], [59.05, 20.98],\n        [59.28, 21.32], [59.43, 21.70], [59.52, 22.10], [59.50, 22.48],\n        [59.35, 22.78], [59.15, 22.98], [58.90, 22.92], [58.62, 22.68],\n        [58.35, 22.32], [58.15, 21.82], [58.05, 21.25], [58.05, 20.75],\n    ],\n"
+          if anchor not in s: raise SystemExit('anchor missing')
+          p.write_text(s.replace(anchor,extra,1))
+          PY
+          python3 scripts/build_estonia_marine_zones.py
+          python3 -m unittest tests/test_estonia_marine_zones.py -v
+      - name: Bump cache and commit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('js/estonia-warning-data.js')
+          s=p.read_text().replace('geojson?v=8.60','geojson?v=8.61')
+          p.write_text(s)
+          i=Path('index.html')
+          h=i.read_text().replace('js/estonia-warning-data.js?v=8.60','js/estonia-warning-data.js?v=8.61')
+          i.write_text(h)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/build_estonia_marine_zones.py data/estonia-marine-warning-zones.geojson js/estonia-warning-data.js index.html
+          git commit -m 'Shrink North Baltic Estonia marine warning polygon'
+          git push origin HEAD:fix/north-baltic-warning-shape
