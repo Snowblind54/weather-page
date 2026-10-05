@@ -29,6 +29,7 @@ const officialWindLabels=L.layerGroup();
 map.createPane('officialWindPane');map.getPane('officialWindPane').style.zIndex='625';
 let officialWindRenderKey='';
 function officialWindEnabled(){return $('officialWindSustained').checked||$('officialWindGusts').checked;}
+function officialWindNeeded(){return officialWindEnabled()||!!$('windHeatmapOn')?.checked;}
 function officialWindTime(){
   // Latest means the latest available station feed; historical frames must not
   // borrow later measurements just because the radar's latest frame is older.
@@ -105,17 +106,18 @@ function renderOfficialWind(){
   $('officialWindStatus').textContent=countries.join(' | ')+'. '+officialWindLabels.getLayers().length+' labels in view · 30-minute updates'+(sustained&&gusts?' · S = sustained, G = gusts':'')+'.'+(officialWindFailed?' Latest snapshot refresh failed; showing retained readings.':'');
 }
 async function loadOfficialWind(force=false){
-  if(!officialWindEnabled())return;
+  if(!officialWindNeeded())return;
   if(officialWindPromise)return officialWindPromise;
-  if(!force&&Date.now()-officialWindLoadedAt<OFFICIAL_WIND_CHECK_MS){renderOfficialWind();return;}
+  if(!force&&Date.now()-officialWindLoadedAt<OFFICIAL_WIND_CHECK_MS){renderOfficialWind();if($('windHeatmapOn')?.checked)windHeatmapLayer?.scheduleReset();return;}
   if(Date.now()<officialWindRetryAt){renderOfficialWind();return;}
   officialWindRetryAt=Date.now()+60000;
   officialWindPromise=(async()=>{
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
     try{const r=await fetch('data/official-wind.json',{cache:'no-cache',signal:controller.signal});if(!r.ok)throw new Error('HTTP '+r.status);
       officialWindData=validateOfficialWind(await r.json());officialWindLoadedAt=Date.now();officialWindFailed=false;officialWindRenderKey='';
+      if($('windHeatmapOn')?.checked)windHeatmapLayer?.scheduleReset();
     }catch(e){officialWindFailed=true;console.warn('Official station wind unavailable',e.message);}
-    finally{clearTimeout(timer);if(officialWindEnabled())renderOfficialWind();}
+    finally{clearTimeout(timer);renderOfficialWind();if($('windHeatmapOn')?.checked)windHeatmapLayer?.scheduleReset();}
   })();
   try{await officialWindPromise;}finally{officialWindPromise=null;}
 }
@@ -123,5 +125,5 @@ for(const id of ['officialWindSustained','officialWindGusts'])$(id).addEventList
   renderOfficialWind();if(officialWindEnabled())loadOfficialWind();
 });
 map.on('moveend zoomend',renderOfficialWind);
-setInterval(()=>{if(officialWindEnabled()&&!document.hidden)loadOfficialWind();},OFFICIAL_WIND_CHECK_MS);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&officialWindEnabled()){renderOfficialWind();loadOfficialWind();}});
+setInterval(()=>{if(officialWindNeeded()&&!document.hidden)loadOfficialWind();},OFFICIAL_WIND_CHECK_MS);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&officialWindNeeded()){renderOfficialWind();loadOfficialWind();}});

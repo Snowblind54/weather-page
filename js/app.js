@@ -105,8 +105,10 @@ $('windOn').addEventListener('change',()=>{
   updateAccumulationPopup();
 });
 $('windHeatmapOn').addEventListener('change',()=>{
-  if($('windHeatmapOn').checked) loadWind().catch(reportWindError);
-  else hideWindHeatmap();
+  if($('windHeatmapOn').checked){
+    loadWind().catch(reportWindError);
+    if(typeof loadOfficialWind==='function')loadOfficialWind();
+  }else hideWindHeatmap();
   updateAccumulationPopup();
 });
 $('windHeatmapOpacity').addEventListener('input',()=>{
@@ -220,7 +222,7 @@ $('refresh').onclick=async()=>{
     if(temperatureEnabled()) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);
     if(windVisualEnabled()) await loadWind().catch(reportWindError);
-    if(typeof officialWindEnabled==='function'&&officialWindEnabled())await loadOfficialWind(true);
+    if(typeof officialWindNeeded==='function'&&officialWindNeeded())await loadOfficialWind(true);
     $('mapStatus').textContent='Refresh complete.';
     $('mapStatus').className='status ok';
   }catch(e){
