@@ -1,4 +1,4 @@
-name: Update official Nordic wind
+name: Update official Northern Europe wind
 on:
   schedule:
     - cron: '14,44 * * * *'
@@ -34,6 +34,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/official-wind.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Refresh official Nordic wind observations'
+          git commit -m 'Refresh official Northern Europe wind observations'
           git pull --rebase origin main
           git push origin HEAD:main
