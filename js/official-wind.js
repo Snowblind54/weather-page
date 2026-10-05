@@ -30,6 +30,29 @@ map.createPane('officialWindPane');map.getPane('officialWindPane').style.zIndex=
 let officialWindRenderKey='';
 function officialWindEnabled(){return $('officialWindSustained').checked||$('officialWindGusts').checked;}
 function officialWindNeeded(){return officialWindEnabled()||!!$('windHeatmapOn')?.checked;}
+function windFieldVisible(){return !!($('windOn')?.checked||$('windHeatmapOn')?.checked);}
+function setOfficialWindMeasurement(mode){
+  const gust=mode==='gust';
+  $('officialWindSustained').checked=!gust;
+  $('officialWindGusts').checked=gust;
+  officialWindRenderKey='';
+}
+function syncOfficialWindToField(){
+  if(!windFieldVisible()||!officialWindEnabled())return;
+  setOfficialWindMeasurement($('windMode').value==='gust'?'gust':'sustained');
+  renderOfficialWind();
+}
+function syncWindFieldToOfficial(id){
+  if(!windFieldVisible())return;
+  const selected=$(id);
+  if(!selected.checked)return;
+  const mode=id==='officialWindGusts'?'gust':'sustained';
+  setOfficialWindMeasurement(mode);
+  if($('windMode').value!==mode){
+    $('windMode').value=mode;
+    $('windMode').dispatchEvent(new Event('change',{bubbles:true}));
+  }
+}
 function officialWindTime(){
   // Latest means the latest available station feed; historical frames must not
   // borrow later measurements just because the radar's latest frame is older.
@@ -122,7 +145,12 @@ async function loadOfficialWind(force=false){
   try{await officialWindPromise;}finally{officialWindPromise=null;}
 }
 for(const id of ['officialWindSustained','officialWindGusts'])$(id).addEventListener('change',()=>{
+  syncWindFieldToOfficial(id);
   renderOfficialWind();if(officialWindEnabled())loadOfficialWind();
+});
+$('windMode').addEventListener('change',syncOfficialWindToField);
+for(const id of ['windOn','windHeatmapOn'])$(id).addEventListener('change',()=>{
+  if($(id).checked)syncOfficialWindToField();
 });
 map.on('moveend zoomend',renderOfficialWind);
 setInterval(()=>{if(officialWindNeeded()&&!document.hidden)loadOfficialWind();},OFFICIAL_WIND_CHECK_MS);
