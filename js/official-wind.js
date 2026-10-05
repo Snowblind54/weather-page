@@ -2,6 +2,17 @@
 const OFFICIAL_WIND_CHECK_MS=5*60*1000,OFFICIAL_WIND_MAX_AGE=3*3600;
 const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL'];
 const OFFICIAL_WIND_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland'};
+const OFFICIAL_WIND_GUST_LABELS={
+  EE:'Gust max · latest feed period',
+  FI:'Gust max · 10 min',
+  SE:'Gust max · 1 hour',
+  NO:'Gust max · 1 hour',
+  IS:'Gust max · latest observation',
+  LV:'Gust max · observation period',
+  LT:'Gust max · 1 hour',
+  DK:'Max 3-sec mean · 10 min',
+  PL:'Gust max · 10 min'
+};
 const OFFICIAL_WIND_SOURCE_LINKS={
   EE:'https://www.ilmateenistus.ee/',
   FI:'https://en.ilmatieteenlaitos.fi/open-data',
@@ -54,8 +65,9 @@ function officialWindPopup(s,r){
   const source=officialWindData.sources[s.country],value=n=>n===null?'Unavailable':n.toFixed(1)+' <span>m/s</span>';
   const direction=r[3]===null?'':`<div class="wind-popup-meta">Wind from ${Math.round(r[3])}°</div>`;
   const old=officialWindTime()-r[0]>90*60;
+  const gustLabel=OFFICIAL_WIND_GUST_LABELS[s.country]||'Wind gusts';
   return `<div class="wind-popup official-wind-popup"><div class="wind-popup-heading">${htmlEscape(s.name)}</div><div class="wind-popup-meta">Official station · ${OFFICIAL_WIND_COUNTRY_NAMES[s.country]}</div>
-    <div class="wind-popup-readings"><div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${value(r[1])}</div></div><div><div class="wind-popup-label">Wind gusts</div><div class="wind-popup-speed">${value(r[2])}</div></div></div>
+    <div class="wind-popup-readings"><div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${value(r[1])}</div></div><div><div class="wind-popup-label">${htmlEscape(gustLabel)}</div><div class="wind-popup-speed">${value(r[2])}</div></div></div>
     ${direction}<div class="wind-popup-meta">${source.timeKind==='feed'?'Source feed timestamp':'Observed'}: ${htmlEscape(fmt(r[0]))}${old?' · delayed reading':''}</div>
     <div class="wind-popup-meta">${htmlEscape(source.period||'Reported station measurements.')} Updated every 30 minutes on this map.</div>
     <div class="wind-popup-meta"><a href="${OFFICIAL_WIND_SOURCE_LINKS[s.country]}" target="_blank" rel="noopener">${htmlEscape(source.name)}</a></div></div>`;
