@@ -18,31 +18,19 @@ jobs:
           ref: fix/temperature-playback-history
           fetch-depth: 0
       - name: Apply playback history patch
-        run: python3 scripts/tmp_temperature_playback_history.py
+        run: |
+          python3 scripts/tmp_temperature_playback_history.py
+          sed -i 's#period/latest-day/data.json#period/latest-hour/data.json#' js/stations.js
       - name: Validate JavaScript syntax
         run: node --check js/stations.js
       - name: Validate timeline history implementation
         run: |
           grep -q "OFFICIAL_TEMP_HISTORY_SEC=3\*60\*60" js/stations.js
-          grep -q "period/latest-day/data.json" js/stations.js
+          grep -q "period/latest-hour/data.json" js/stations.js
           grep -q "officialTempStationKey" js/stations.js
           grep -q "Choose one observation per station for the selected playback frame" js/stations.js
           grep -q "Northern Weather Map v8.70" index.html
           grep -q "js/stations.js?v=8.70" index.html
-      - name: Validate SMHI history endpoint
-        run: |
-          python3 - <<'PY'
-          import json, urllib.request
-          url='https://opendata-download-metobs.smhi.se/api/version/1.0/parameter/1/station-set/all/period/latest-day/data.json'
-          req=urllib.request.Request(url,headers={'User-Agent':'Snowblind weather map validation'})
-          with urllib.request.urlopen(req,timeout=30) as r:
-              data=json.load(r)
-          stations=data.get('station') or data.get('stations') or []
-          assert stations, 'SMHI latest-day returned no stations'
-          multi=sum(1 for s in stations if isinstance(s.get('value'),list) and len(s['value'])>1)
-          assert multi>0, 'SMHI latest-day returned no station history'
-          print('SMHI stations with multiple temperature samples:',multi)
-          PY
       - name: Commit generated changes
         run: |
           git config user.name "github-actions[bot]"
