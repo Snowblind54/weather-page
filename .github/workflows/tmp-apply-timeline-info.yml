@@ -14,7 +14,9 @@ jobs:
           ref: feature/timeline-10min-info-tooltips
           fetch-depth: 0
       - name: Apply patch
-        run: python3 scripts/tmp_apply_timeline_info.py
+        run: |
+          python3 scripts/tmp_apply_timeline_info.py
+          sed -i 's/[[:space:]]\+$//' index.html
       - name: Validate JavaScript
         run: |
           node --check js/app.js
