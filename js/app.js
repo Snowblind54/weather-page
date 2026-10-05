@@ -280,3 +280,81 @@ setInterval(()=>{
 setInterval(()=>{
   if($('windOn').checked) loadWind().catch(reportWindError);
 },5*60*1000);
+
+
+// Compact hover/focus help for every checkbox toggle. The longer explanatory
+// copy lives here instead of permanently taking space below the controls.
+const TOGGLE_HELP={
+  tempOn:'Shows temperature values across Northern Europe. Official station observations are used where available; model values fill gaps and areas without a recent station observation.',
+  heatmapOn:'Shows the terrain-aware temperature heatmap. Fresh official station observations locally correct the model field; corrections fade with distance and age, and the layer stays clipped to land and coastlines.',
+  windOn:'Shows animated 10 m wind particles across the Atlantic and Europe. The animation follows the selected timeline time and the selected sustained-wind or gust field.',
+  windHeatmapOn:'Fresh official station differences correct the nearby model field. Influence fades smoothly to zero by about 70 km and by 3 hours of observation age. Where no usable station is nearby, the heatmap remains pure model.',
+  officialWindSustained:'Shows measured sustained wind in m/s at official weather stations. Readings follow the selected timeline time; observations older than 3 hours are hidden. The shared snapshot refreshes every 10 minutes.',
+  officialWindGusts:'Shows measured wind gusts in m/s at official weather stations. Gusts are reported measurements, not model values. Readings follow the timeline and the shared snapshot refreshes every 10 minutes.',
+  cloudOn:'Shows satellite cloud imagery over the Atlantic and Europe. The imagery follows the shared weather timeline; areas outside current satellite coverage remain transparent.',
+  radarOn:'Shows official rain radar over the Baltics and Nordics. The shared 2-hour weather timeline now advances in 10-minute steps.',
+  rain1h:'Shows accumulated rainfall over the previous 1 hour.',
+  rain24h:'Shows accumulated rainfall over the previous 24 hours.',
+  rain48h:'Shows accumulated rainfall over the previous 48 hours.',
+  cycloneOn:'Shows tracked low-pressure systems over the North Atlantic and northern Europe, including their current centres and enabled track layers.',
+  cycloneIsobarsOn:'Shows pressure contours (isobars) around the cyclone systems. The contours follow the selected cyclone forecast hour.',
+  cycloneHistoryOn:'Shows the past movement of cyclone centres for up to 48 hours before the current analysis.',
+  cyclonePathsOn:'Shows the most likely projected centre path from the main GFS forecast for the next 72 hours.',
+  cycloneSpreadOn:'Shows ensemble track uncertainty from available GEFS members around the projected cyclone path.',
+  cyclonePossibleOn:'Shows individual plausible ensemble-member cyclone tracks in addition to the main projected path and uncertainty shading.',
+  warningOn:'Shows active official severe-weather warnings from the supported Northern European national weather services.',
+  snowOn:'Shows Northern Hemisphere snow cover and sea ice from the selected snow analysis date. The latest layer uses the highest available resolution.',
+  snowDepthOn:'Shows official station snow depth in centimetres for Estonia, Latvia, Lithuania, Finland, Sweden, Norway and Iceland. Click a reading for station, observation date and source. Measurements older than 7 days are hidden.',
+  snowDepthZero:'Includes stations reporting 0 cm snow depth. This also includes Norway’s official <0.5 cm zero-snow code.'
+};
+function installToggleHelp(){
+  const checkboxes=[...document.querySelectorAll('input[type="checkbox"][id]')];
+  let tooltip=document.getElementById('toggleHelpTooltip');
+  if(!tooltip){
+    tooltip=document.createElement('div');
+    tooltip.id='toggleHelpTooltip';
+    tooltip.className='toggle-help-tooltip';
+    tooltip.setAttribute('role','tooltip');
+    tooltip.hidden=true;
+    document.body.appendChild(tooltip);
+  }
+  let activeIcon=null;
+  const hide=()=>{tooltip.hidden=true;activeIcon=null;};
+  const position=icon=>{
+    const r=icon.getBoundingClientRect();
+    const pad=10;
+    const tr=tooltip.getBoundingClientRect();
+    let left=r.left;
+    left=Math.max(pad,Math.min(left,window.innerWidth-tr.width-pad));
+    let top=r.top-tr.height-8;
+    if(top<pad)top=Math.min(window.innerHeight-tr.height-pad,r.bottom+8);
+    tooltip.style.left=Math.round(left)+'px';
+    tooltip.style.top=Math.round(top)+'px';
+  };
+  const show=icon=>{
+    activeIcon=icon;
+    tooltip.textContent=icon.dataset.toggleHelp;
+    tooltip.hidden=false;
+    requestAnimationFrame(()=>{if(activeIcon===icon)position(icon);});
+  };
+  for(const input of checkboxes){
+    const help=TOGGLE_HELP[input.id];
+    const label=input.closest('label');
+    if(!help||!label||label.querySelector('.toggle-info-dot'))continue;
+    const icon=document.createElement('span');
+    icon.className='toggle-info-dot';
+    icon.textContent='i';
+    icon.tabIndex=0;
+    icon.dataset.toggleHelp=help;
+    icon.setAttribute('aria-label','Information about '+(input.getAttribute('aria-label')||input.id));
+    icon.addEventListener('mouseenter',()=>show(icon));
+    icon.addEventListener('mouseleave',hide);
+    icon.addEventListener('focus',()=>show(icon));
+    icon.addEventListener('blur',hide);
+    icon.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();});
+    label.insertBefore(icon,input);
+  }
+  window.addEventListener('resize',hide,{passive:true});
+  document.addEventListener('scroll',hide,true);
+}
+installToggleHelp();
