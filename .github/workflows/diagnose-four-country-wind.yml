@@ -1,0 +1,63 @@
+name: Diagnose four-country wind sources
+on:
+  push:
+    branches: [feature/wind-lv-lt-pl-dk]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe official APIs
+        run: |
+          python3 - <<'PY'
+          import json, urllib.parse, urllib.request
+          def get(url):
+              req=urllib.request.Request(url,headers={'User-Agent':'NorthernWeather diagnostics (github.com/Snowblind54/weather-page)'})
+              with urllib.request.urlopen(req,timeout=40) as r:
+                  raw=r.read()
+              return json.loads(raw)
+          # Lithuania
+          try:
+              stations=get('https://api.meteo.lt/v1/stations')
+              print('LT stations',len(stations), 'sample', stations[:2])
+              code=(stations[0].get('code') if stations else None)
+              if code:
+                  obs=get(f'https://api.meteo.lt/v1/stations/{code}/observations/latest')
+                  print('LT latest keys',obs.keys(),'sample',obs)
+          except Exception as e: print('LT ERROR',repr(e))
+          # Poland
+          for url in ['https://danepubliczne.imgw.pl/api/data/synop','https://danepubliczne.imgw.pl/api/data/meteo']:
+              try:
+                  data=get(url)
+                  print('PL',url,'type',type(data).__name__,'count',len(data) if hasattr(data,'__len__') else None,'sample',data[:2] if isinstance(data,list) else str(data)[:1000])
+              except Exception as e: print('PL ERROR',url,repr(e))
+          # Denmark
+          base='https://opendataapi.dmi.dk/v2/metObs/collections/observation/items'
+          for p in ['wind_speed','wind_max','wind_gust_always_past1h']:
+              try:
+                  q=urllib.parse.urlencode({'parameterId':p,'period':'latest-hour','bbox':'7,54,16,58','limit':1000})
+                  data=get(base+'?'+q)
+                  fs=data.get('features') or []
+                  print('DK',p,'count',len(fs),'samples',fs[:3])
+              except Exception as e: print('DK ERROR',p,repr(e))
+          try:
+              st=get('https://opendataapi.dmi.dk/v2/metObs/collections/station/items?status=Active&bbox=7,54,16,58&limit=1000')
+              print('DK stations',len(st.get('features') or []),'sample',(st.get('features') or [])[:2])
+          except Exception as e: print('DK stations ERROR',repr(e))
+          # Latvia CKAN package/resources and datastore samples
+          try:
+              pkg=get('https://data.gov.lv/dati/api/3/action/package_show?id=40d80be5-0c09-47c4-80f3-fad4bec19f33')['result']
+              print('LV resources',[(r.get('id'),r.get('name'),r.get('format'),r.get('datastore_active'),r.get('url')) for r in pkg.get('resources',[])])
+              for r in pkg.get('resources',[]):
+                  if r.get('datastore_active'):
+                      rid=r['id']
+                      try:
+                          q=urllib.parse.urlencode({'resource_id':rid,'limit':3,'sort':'_id desc'})
+                          sample=get('https://data.gov.lv/dati/api/3/action/datastore_search?'+q)
+                          print('LV sample',r.get('name'),sample.get('result',{}).get('fields'),sample.get('result',{}).get('records'))
+                      except Exception as e: print('LV sample ERROR',r.get('name'),repr(e))
+          except Exception as e: print('LV ERROR',repr(e))
+          PY
