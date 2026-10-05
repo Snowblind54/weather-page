@@ -22,7 +22,6 @@ jobs:
               p=Path(path); s=p.read_text()
               if old not in s: raise SystemExit(f'missing expected text in {path}: {old!r}')
               p.write_text(s.replace(old,new))
-          patch('.github/workflows/update-official-wind.yml', "- cron: '14,44 * * * *'", "- cron: '4,14,24,34,44,54 * * * *'")
           patch('scripts/update_official_wind.py', '"""30-minute shared snapshots of official Northern European station wind; never substitute models.', '"""10-minute shared snapshots of official Northern European station wind; never substitute models.')
           patch('scripts/update_official_wind.py', "period='10-minute mean wind and reported 10-minute gust maximum, sampled hourly.',", "period='10-minute mean wind and reported 10-minute gust maximum.',")
           patch('scripts/update_official_wind.py', 'end = now.replace(minute=0, second=0, microsecond=0)', 'end = now.replace(minute=(now.minute // 10) * 10, second=0, microsecond=0)')
@@ -57,13 +56,11 @@ jobs:
               assert src.get('status')=='ok', f'{c} feed failed live validation'
           PY
           mv /tmp/official-wind-before.json data/official-wind.json
-      - name: Remove temporary diagnostics and commit production files
+      - name: Commit production files
         run: |
-          rm -f .github/workflows/tmp-wind-resolution-probe.yml .github/workflows/tmp-wind-resolution-probe2.yml .github/workflows/tmp-apply-fresher-wind.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/workflows/update-official-wind.yml scripts/update_official_wind.py js/official-wind.js index.html
-          git add -u .github/workflows
+          git add scripts/update_official_wind.py js/official-wind.js index.html
           git diff --cached --check
           git commit -m 'Use fresher official wind observations'
           git push origin HEAD:feature/fresher-official-wind
