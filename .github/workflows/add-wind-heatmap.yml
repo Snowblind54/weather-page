@@ -1,0 +1,82 @@
+name: Add wind heatmap layer
+on:
+  push:
+    branches: [feature/wind-heatmap]
+    paths:
+      - .github/workflows/add-wind-heatmap.yml
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add independent wind heatmap
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # UI controls + cache versions + visible version.
+          p=Path('index.html'); s=p.read_text()
+          s=s.replace('<title>Northern Weather Map v8.60</title>','<title>Northern Weather Map v8.63</title>',1)
+          old='''      <label class="small" for="windMode">Animate</label>\n      <select id="windMode" aria-label="Wind animation type"><option value="sustained">Sustained wind</option><option value="gust">Wind gusts</option></select>\n      <label class="small" for="windDensity">Trail density</label>'''
+          new='''      <label class="small" for="windMode">Wind field</label>\n      <select id="windMode" aria-label="Wind field type"><option value="sustained">Sustained wind</option><option value="gust">Wind gusts</option></select>\n      <div class="row">\n        <label class="label"><input id="windHeatmapOn" type="checkbox"> Wind heatmap</label>\n        <span class="badge">model field</span>\n      </div>\n      <label class="small" for="windHeatmapOpacity">Heatmap opacity</label>\n      <div class="grid2">\n        <input id="windHeatmapOpacity" type="range" min="10" max="90" value="48" step="5">\n        <span id="windHeatmapOpacityVal" class="value">48%</span>\n      </div>\n      <div id="windHeatmapStatus" class="small" role="status">Wind heatmap is off.</div>\n      <label class="small" for="windDensity">Trail density</label>'''
+          if old not in s: raise SystemExit('wind controls anchor missing')
+          s=s.replace(old,new,1)
+          s=s.replace('js/wind.js?v=8.62','js/wind.js?v=8.63',1)
+          s=s.replace('js/app.js?v=8.57','js/app.js?v=8.63',1)
+          s=s.replace('js/ui.js?v=8.57','js/ui.js?v=8.63',1)
+          p.write_text(s)
+
+          # Wind data/rendering: independent static heatmap sharing the same field.
+          p=Path('js/wind.js'); s=p.read_text()
+          s=s.replace('let windLayer=null;\nlet windProbe=null;','let windLayer=null;\nlet windHeatmapLayer=null;\nlet windProbe=null;',1)
+          s=s.replace("function currentWindMode(){return $('windMode')?.value==='gust'?'gust':'sustained';}\n", "function currentWindMode(){return $('windMode')?.value==='gust'?'gust':'sustained';}\nfunction windVisualEnabled(){return !!($('windOn')?.checked||$('windHeatmapOn')?.checked);}\n",1)
+          s=s.replace("  if(!$('windOn').checked) return;\n  // The rainfall popup includes both wind readings", "  if(!windVisualEnabled()) return;\n  // The rainfall popup includes both wind readings",1)
+          old='''async function loadWind(){\n  if(!$('windOn').checked) return;\n  if(windData && Date.now()-windData.savedAt<WIND_CACHE_MS){\n    renderWind(selectedWindTime());\n    return;\n  }'''
+          new='''async function loadWind(){\n  if(!windVisualEnabled()) return;\n  if(windData && Date.now()-windData.savedAt<WIND_CACHE_MS){\n    if($('windOn').checked) renderWind(selectedWindTime());\n    if($('windHeatmapOn').checked) renderWindHeatmap(selectedWindTime());\n    return;\n  }'''
+          if old not in s: raise SystemExit('loadWind start missing')
+          s=s.replace(old,new,1)
+          s=s.replace("  if($('windOn').checked) renderWind(selectedWindTime());\n}\n\nfunction windTimeSlice", "  if($('windOn').checked) renderWind(selectedWindTime());\n  if($('windHeatmapOn').checked) renderWindHeatmap(selectedWindTime());\n}\n\nfunction windTimeSlice",1)
+
+          marker='''function hideWind(){\n  if(windLayer&&map.hasLayer(windLayer)) map.removeLayer(windLayer);'''
+          heat='''const WindHeatmapLayer=L.Layer.extend({\n  onAdd(mapInstance){\n    this._map=mapInstance;\n    if(!mapInstance.getPane('windHeatmapPane')){\n      mapInstance.createPane('windHeatmapPane');\n      mapInstance.getPane('windHeatmapPane').style.zIndex='570';\n      mapInstance.getPane('windHeatmapPane').style.pointerEvents='none';\n    }\n    this.canvas=L.DomUtil.create('canvas','wind-heatmap-canvas leaflet-zoom-hide',mapInstance.getPane('windHeatmapPane'));\n    this.canvas.setAttribute('aria-hidden','true');\n    this.ctx=this.canvas.getContext('2d');\n    mapInstance.on('moveend zoomend resize',this.scheduleReset,this);\n    this.reset();\n  },\n  onRemove(mapInstance){\n    mapInstance.off('moveend zoomend resize',this.scheduleReset,this);\n    if(this.resetRaf)cancelAnimationFrame(this.resetRaf);\n    this.canvas?.remove();this._map=null;\n  },\n  setTime(unix){\n    const mode=currentWindMode();\n    if(this.unix===unix&&this.data===windData&&this.mode===mode)return;\n    this.unix=unix;this.data=windData;this.mode=mode;\n    if(this._map)this.scheduleReset();\n  },\n  setOpacity(value){if(this.canvas)this.canvas.style.opacity=String(value);},\n  scheduleReset(){\n    if(this.resetRaf)return;\n    this.resetRaf=requestAnimationFrame(()=>{this.resetRaf=null;this.reset();});\n  },\n  reset(){\n    if(!this._map||!this.ctx||!windData)return;\n    const slice=windTimeSlice(this.unix);if(!slice)return;\n    const size=this._map.getSize(),area=size.x*size.y;\n    this.canvas.width=Math.max(1,size.x);this.canvas.height=Math.max(1,size.y);\n    this.canvas.style.width=size.x+'px';this.canvas.style.height=size.y+'px';\n    this.canvas.style.opacity=String(Number($('windHeatmapOpacity').value)/100);\n    L.DomUtil.setPosition(this.canvas,this._map.containerPointToLayerPoint([0,0]));\n    const step=area>=1500000?32:area>=900000?28:24;\n    const cols=Math.ceil(size.x/step)+1,rows=Math.ceil(size.y/step)+1;\n    const low=document.createElement('canvas');low.width=cols;low.height=rows;\n    const lowCtx=low.getContext('2d'),img=lowCtx.createImageData(cols,rows),palette=WIND_COLOUR_PALETTES[this.mode];\n    const rgb=palette.map(hex=>[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]);\n    let shown=0;\n    for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){\n      const x=Math.min(size.x,col*step),y=Math.min(size.y,row*step),ll=this._map.containerPointToLatLng([x,y]);\n      const vector=windAt(ll.lat,ll.lng,slice);\n      let speed=null;\n      if(vector) speed=this.mode==='gust'?windGustAt(ll.lat,ll.lng,slice):Math.hypot(vector[0],vector[1]);\n      if(!Number.isFinite(speed))continue;\n      const c=rgb[windColourIndex(speed)],i=(row*cols+col)*4;\n      img.data[i]=c[0];img.data[i+1]=c[1];img.data[i+2]=c[2];img.data[i+3]=230;shown++;\n    }\n    lowCtx.putImageData(img,0,0);\n    this.ctx.clearRect(0,0,size.x,size.y);\n    this.ctx.imageSmoothingEnabled=true;this.ctx.imageSmoothingQuality='high';\n    this.ctx.drawImage(low,0,0,cols,rows,0,0,size.x,size.y);\n    $('windHeatmapStatus').textContent=shown?`Model ${this.mode==='gust'?'gust':'sustained wind'} heatmap · ${fmt(this.unix)}`:'Wind heatmap unavailable in this view.';\n  }\n});\n\nfunction hideWindHeatmap(){\n  if(windHeatmapLayer&&map.hasLayer(windHeatmapLayer))map.removeLayer(windHeatmapLayer);\n  $('windHeatmapStatus').textContent='Wind heatmap is off.';\n}\nfunction renderWindHeatmap(unix){\n  if(!$('windHeatmapOn').checked)return false;\n  const slice=windTimeSlice(unix);\n  if(!slice){hideWindHeatmap();$('windHeatmapStatus').textContent=windData?'Wind heatmap is unavailable for this time.':'Loading wind heatmap…';return false;}\n  if(!windHeatmapLayer)windHeatmapLayer=new WindHeatmapLayer();\n  windHeatmapLayer.setTime(unix);\n  if(!map.hasLayer(windHeatmapLayer))windHeatmapLayer.addTo(map);\n  windHeatmapLayer.setOpacity(Number($('windHeatmapOpacity').value)/100);\n  return true;\n}\n\n'''
+          if marker not in s: raise SystemExit('hideWind marker missing')
+          s=s.replace(marker,heat+marker,1)
+          p.write_text(s)
+
+          # Events, timeline and refresh integration.
+          p=Path('js/app.js'); s=p.read_text()
+          anchor="""$('windOn').addEventListener('change',()=>{\n  if($('windOn').checked) loadWind().catch(reportWindError);\n  else hideWind();\n  updateAccumulationPopup();\n});\n"""
+          extra=anchor+"""$('windHeatmapOn').addEventListener('change',()=>{\n  if($('windHeatmapOn').checked) loadWind().catch(reportWindError);\n  else hideWindHeatmap();\n  updateAccumulationPopup();\n});\n$('windHeatmapOpacity').addEventListener('input',()=>{\n  $('windHeatmapOpacityVal').textContent=$('windHeatmapOpacity').value+'%';\n  windHeatmapLayer?.setOpacity(Number($('windHeatmapOpacity').value)/100);\n});\n"""
+          if anchor not in s: raise SystemExit('wind toggle anchor missing')
+          s=s.replace(anchor,extra,1)
+          s=s.replace("  if($('windOn').checked) renderWind(selectedWindTime());\n  updateAccumulationPopup();", "  if($('windOn').checked) renderWind(selectedWindTime());\n  if($('windHeatmapOn').checked) renderWindHeatmap(selectedWindTime());\n  updateAccumulationPopup();",1)
+          s=s.replace("    if($('windOn').checked) renderWind(frame.time);\n", "    if($('windOn').checked) renderWind(frame.time);\n    if($('windHeatmapOn').checked) renderWindHeatmap(frame.time);\n",1)
+          s=s.replace("    if($('windOn').checked) await loadWind().catch(reportWindError);\n", "    if(windVisualEnabled()) await loadWind().catch(reportWindError);\n",1)
+          p.write_text(s)
+
+          # Active nav indicator and timeline loading include the independent heatmap.
+          p=Path('js/ui.js'); s=p.read_text()
+          s=s.replace("(section==='windSection' && ['officialWindSustained','officialWindGusts'].some(id=>$(id).checked))", "(section==='windSection' && ['windHeatmapOn','officialWindSustained','officialWindGusts'].some(id=>$(id).checked))",1)
+          s=s.replace("'rain1h','rain24h','rain48h','heatmapOn','officialWindSustained'", "'rain1h','rain24h','rain48h','heatmapOn','windHeatmapOn','officialWindSustained'",1)
+          s=s.replace("($('windOn').checked && statusPending('windStatus'))", "(windVisualEnabled() && (statusPending('windStatus') || statusPending('windHeatmapStatus')))",1)
+          s=s.replace("for(const id of ['radarStatus','nordicRadarStatus','cloudStatus','tempStatus','windStatus','rainAccumStatus'])", "for(const id of ['radarStatus','nordicRadarStatus','cloudStatus','tempStatus','windStatus','windHeatmapStatus','rainAccumStatus'])",1)
+          s=s.replace("'heatmapOn','windOn','rain1h'", "'heatmapOn','windOn','windHeatmapOn','rain1h'",1)
+          p.write_text(s)
+          PY
+          node --check js/wind.js
+          node --check js/app.js
+          node --check js/ui.js
+          grep -q 'id="windHeatmapOn"' index.html
+          grep -q 'WindHeatmapLayer' js/wind.js
+          grep -q 'windHeatmapOn' js/app.js
+          grep -q 'windHeatmapOn' js/ui.js
+      - name: Commit heatmap
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html js/wind.js js/app.js js/ui.js
+          git commit -m 'Add independent wind heatmap'
+          git push origin HEAD:feature/wind-heatmap
