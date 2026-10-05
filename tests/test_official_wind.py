@@ -17,10 +17,11 @@ class OfficialWind(unittest.TestCase):
                       [(STAMP, 0, '', 360), (STAMP + 3600, '', 8, None), (STAMP + 7200, '', '', None)])
         self.assertEqual(s['rows'], [[STAMP, 0, None, 360], [STAMP + 3600, None, 8, None]])
 
-    def test_nordic_bounds_and_timestamp_formats(self):
+    def test_northern_europe_bounds_and_timestamp_formats(self):
         s = w.station('IS', 'IS1', 'Iceland', 64.1, -21.9, [('2026-10-05T07:00:00Z', 4, 9, None)])
         self.assertEqual(s['rows'][0][0], 1791183600)
         self.assertEqual(w.timestamp(STAMP * 1000), STAMP)
+        self.assertEqual(w.station('PL', 'PL1', 'Poland', 49.0, 19.0, [(STAMP, 2, 5, 180)])['country'], 'PL')
 
     def test_estonia_keeps_feed_time_and_exact_values_without_missing_stations(self):
         raw = f'<observations timestamp="{STAMP}"><station><name>Test &amp; shore</name><wmocode>EE1</wmocode><latitude>59</latitude><longitude>25</longitude><windspeed>2.1</windspeed><windspeedmax>4.7</windspeedmax><winddirection>230</winddirection></station><station><name>No wind</name><windspeed></windspeed><windspeedmax></windspeedmax></station></observations>'
@@ -73,6 +74,41 @@ class OfficialWind(unittest.TestCase):
         payload = [{'station': 1475, 'name': 'Reykjavik', 'time': '2026-10-05T07:00:00', 'f': 5.2, 'fx': 7.1, 'fg': 8.4}]
         s = w.parse_iceland(payload, metadata)[0]
         self.assertEqual(s['rows'], [[STAMP, 5.2, 8.4, None]])
+
+    def test_latvia_merges_official_wind_fields_by_station_and_time(self):
+        metadata = [{'STATION_ID': 'RIGA', 'NAME': 'Riga', 'GEOGR1': 24.1, 'GEOGR2': 56.95}]
+        payloads = {
+            'WNS10': [{'STATION_ID': 'RIGA', 'DATETIME': '2026-10-05T09:00:00', 'VALUE': 4.2}],
+            'WPGST': [{'STATION_ID': 'RIGA', 'DATETIME': '2026-10-05T09:00:00', 'VALUE': 8.8}],
+            'WNDD10': [{'STATION_ID': 'RIGA', 'DATETIME': '2026-10-05T09:00:00', 'VALUE': 240}],
+        }
+        self.assertEqual(w.parse_latvia(payloads, metadata)[0]['rows'], [[STAMP + 7200, 4.2, 8.8, 240]])
+
+    def test_lithuania_keeps_hourly_measured_wind_and_gust(self):
+        payload = {'station': {'code': 'vilniaus-ams', 'name': 'Vilnius AMS',
+                               'coordinates': {'latitude': 54.63, 'longitude': 25.1}},
+                   'observations': [{'observationTimeUtc': '2026-10-05 09:00:00', 'windSpeed': 3.1,
+                                     'windGust': 7.2, 'windDirection': 250}]}
+        self.assertEqual(w.parse_lithuania(payload)['rows'], [[STAMP + 7200, 3.1, 7.2, 250]])
+
+    def test_poland_does_not_turn_maximum_wind_into_missing_gust(self):
+        payload = [{'kod_stacji': 'PL1', 'nazwa_stacji': 'Polish station', 'lat': '52.0', 'lon': '21.0',
+                    'wiatr_srednia_predkosc': '4', 'wiatr_srednia_predkosc_data': '2026-10-05 09:00:00',
+                    'wiatr_predkosc_maksymalna': '12', 'wiatr_predkosc_maksymalna_data': '2026-10-05 09:00:00',
+                    'wiatr_poryw_10min': None, 'wiatr_poryw_10min_data': None,
+                    'wiatr_kierunek': '250', 'wiatr_kierunek_data': '2026-10-05 09:00:00'}]
+        self.assertEqual(w.parse_poland(payload)[0]['rows'], [[STAMP + 7200, 4.0, None, 250]])
+
+    def test_denmark_merges_same_time_mean_wind_and_three_second_max(self):
+        metadata = {'features': [{'geometry': {'coordinates': [12.0, 55.5]},
+                    'properties': {'owner': 'DMI', 'country': 'DNK', 'stationId': '06180', 'name': 'Danish station'}}]}
+        def feature(parameter, value):
+            return {'properties': {'parameterId': parameter, 'stationId': '06180',
+                                   'observed': '2026-10-05T09:00:00Z', 'value': value}}
+        payloads = {'wind_speed': {'features': [feature('wind_speed', 5.0)]},
+                    'wind_max': {'features': [feature('wind_max', 9.5)]},
+                    'wind_dir': {'features': [feature('wind_dir', 230)]}}
+        self.assertEqual(w.parse_denmark(payloads, metadata)[0]['rows'], [[STAMP + 7200, 5.0, 9.5, 230]])
 
     def test_retained_history_keeps_a_failed_country_and_never_invents_missing_hours(self):
         now = dt.datetime.fromtimestamp(STAMP + 3600, dt.timezone.utc)
