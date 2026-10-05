@@ -488,15 +488,96 @@ function renderTemperatureLabels(unix){
   temperatureLabels.addTo(map);
 }
 
+const TEMP_OBS_RADIUS_KM=70;
+const TEMP_OBS_FULL_WEIGHT_SEC=20*60;
+const TEMP_OBS_MAX_AGE_SEC=95*60;
+const TEMP_OBS_MAX_BIAS_C=12;
+
+function temperatureObservationDistanceKm(lat1,lon1,lat2,lon2){
+  const rad=Math.PI/180;
+  const p1=lat1*rad,p2=lat2*rad;
+  const dLat=(lat2-lat1)*rad,dLon=(lon2-lon1)*rad;
+  const a=Math.sin(dLat/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dLon/2)**2;
+  return 6371*2*Math.atan2(Math.sqrt(a),Math.sqrt(Math.max(0,1-a)));
+}
+
+function temperatureObservationAgeWeight(ageSec){
+  if(!Number.isFinite(ageSec) || ageSec<0 || ageSec>TEMP_OBS_MAX_AGE_SEC) return 0;
+  if(ageSec<=TEMP_OBS_FULL_WEIGHT_SEC) return 1;
+  return Math.max(0,1-(ageSec-TEMP_OBS_FULL_WEIGHT_SEC)/(TEMP_OBS_MAX_AGE_SEC-TEMP_OBS_FULL_WEIGHT_SEC));
+}
+
+function temperatureHeatmapCorrections(unix){
+  if(typeof officialStationsNearTime!=='function') return [];
+  const corrections=[];
+  for(const station of officialStationsNearTime(unix)){
+    if(!Number.isFinite(station?.time) || !Number.isFinite(station?.temp)) continue;
+    const model=interpolateTemp(station.lat,station.lon,unix);
+    if(!Number.isFinite(model)) continue;
+    const ageWeight=temperatureObservationAgeWeight(Math.abs(station.time-unix));
+    if(ageWeight<=0) continue;
+    corrections.push({
+      lat:station.lat,lon:station.lon,ageWeight,
+      bias:Math.max(-TEMP_OBS_MAX_BIAS_C,Math.min(TEMP_OBS_MAX_BIAS_C,station.temp-model))
+    });
+  }
+  return corrections;
+}
+
+function temperatureCorrectionIndex(corrections){
+  const index=new Map();
+  for(const correction of corrections){
+    const key=Math.floor(correction.lat)+'/'+Math.floor(correction.lon);
+    if(!index.has(key)) index.set(key,[]);
+    index.get(key).push(correction);
+  }
+  return index;
+}
+
+function temperatureNearbyCorrections(index,lat,lon){
+  const out=[];
+  const y=Math.floor(lat),x=Math.floor(lon);
+  for(let dy=-1;dy<=1;dy++){
+    for(let dx=-3;dx<=3;dx++){
+      const rows=index.get((y+dy)+'/'+(x+dx));
+      if(rows) out.push(...rows);
+    }
+  }
+  return out;
+}
+
+function temperatureAdjustedValue(model,lat,lon,corrections){
+  let sum=0,total=0;
+  for(const correction of corrections){
+    const distance=temperatureObservationDistanceKm(lat,lon,correction.lat,correction.lon);
+    if(distance>=TEMP_OBS_RADIUS_KM) continue;
+    const x=distance/TEMP_OBS_RADIUS_KM;
+    const spatial=1-(3*x*x-2*x*x*x);
+    const weight=spatial*correction.ageWeight;
+    sum+=correction.bias*weight;
+    total+=weight;
+  }
+  if(total<=0) return model;
+  const blend=Math.min(1,total);
+  return model+(sum/total)*blend;
+}
+
+function invalidateTemperatureHeatmapCache(){
+  temperatureImageCache.clear();
+  temperatureStatsCache.clear();
+}
+
 async function createTemperatureImage(unix, token){
   const cacheKey=nearestQuarterHour(unix);
 
   if(temperatureImageCache.has(cacheKey)){
     const cached=temperatureImageCache.get(cacheKey);
     const stats=temperatureStatsCache.get(cacheKey);
-    return {key:cacheKey,regions:cached,minT:stats.minT,maxT:stats.maxT};
+    return {key:cacheKey,regions:cached,minT:stats.minT,maxT:stats.maxT,correctionCount:stats.correctionCount||0};
   }
 
+  const corrections=temperatureHeatmapCorrections(cacheKey);
+  const correctionIndex=temperatureCorrectionIndex(corrections);
   const rendered=[];
   let globalMin=Infinity,globalMax=-Infinity;
   // Never display rectangular heatmap tiles over the sea if the mask fails.
@@ -522,11 +603,9 @@ async function createTemperatureImage(unix, token){
     const west=region.bounds[0][1];
     const east=region.bounds[1][1];
 
-    // Longitude bracket is identical for every row, so calculate it once.
-    const lonLookup=Array.from({length:W},(_,x)=>{
-      const lon=west+(x/(W-1))*(east-west);
-      return axisBracket(spec.longitudes,lon);
-    });
+    // Longitude coordinate and bracket are identical for every row, so calculate them once.
+    const lonValues=Array.from({length:W},(_,x)=>west+(x/(W-1))*(east-west));
+    const lonLookup=lonValues.map(lon=>axisBracket(spec.longitudes,lon));
 
     for(let y=0;y<H;y++){
       if(token!==temperatureRenderToken) return null;
@@ -535,12 +614,17 @@ async function createTemperatureImage(unix, token){
       const latB=axisBracket(spec.latitudes,lat);
 
       for(let x=0;x<W;x++){
-        const value=bilinearValue(gridValues,cols,latB,lonLookup[x]);
+        let value=bilinearValue(gridValues,cols,latB,lonLookup[x]);
         const i=(y*W+x)*4;
 
         if(!Number.isFinite(value)){
           d[i+3]=0;
           continue;
+        }
+
+        if(corrections.length){
+          const nearby=temperatureNearbyCorrections(correctionIndex,lat,lonValues[x]);
+          if(nearby.length) value=temperatureAdjustedValue(value,lat,lonValues[x],nearby);
         }
 
         globalMin=Math.min(globalMin,value);
@@ -567,7 +651,7 @@ async function createTemperatureImage(unix, token){
 
   if(token!==temperatureRenderToken) return null;
   temperatureImageCache.set(cacheKey,rendered);
-  temperatureStatsCache.set(cacheKey,{minT:globalMin,maxT:globalMax});
+  temperatureStatsCache.set(cacheKey,{minT:globalMin,maxT:globalMax,correctionCount:corrections.length});
 
   while(temperatureImageCache.size>TEMP_CACHE_LIMIT){
     const oldest=temperatureImageCache.keys().next().value;
@@ -575,7 +659,7 @@ async function createTemperatureImage(unix, token){
     temperatureStatsCache.delete(oldest);
   }
 
-  return {key:cacheKey,regions:rendered,minT:globalMin,maxT:globalMax};
+  return {key:cacheKey,regions:rendered,minT:globalMin,maxT:globalMax,correctionCount:corrections.length};
 }
 
 async function buildTemperatureOverlay(unix,{precache=false}={}){
@@ -619,8 +703,9 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   // Numeric readings stay visible even when the heatmap is switched off.
   renderTemperatureLabels(unix);
 
+  const observationNote=result.correctionCount?` + ${result.correctionCount} fresh official station corrections`:'';
   $('tempStatus').textContent=
-    `Temperature: terrain-aware hourly model + fast bilinear heatmap${$('heatmapOn')?.checked?' · coastline clipped':''}${temperatureUsingStaleCache?' · cached fallback':''} · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)}`;
+    `Temperature: terrain-aware hourly model${observationNote} + fast bilinear heatmap${$('heatmapOn')?.checked?' · coastline clipped':''}${temperatureUsingStaleCache?' · cached fallback':''} · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)}`;
   $('tempStatus').className='status ok';
   weatherFront();
 }
