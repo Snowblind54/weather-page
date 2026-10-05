@@ -17,6 +17,8 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 OUTPUT = pathlib.Path(__file__).resolve().parents[1] / 'data/official-wind.json'
+NORWAY_GUST_ELEMENT = 'max(wind_speed_of_gust PT1H)'
+ICELAND_LATEST_URL = 'https://api.vedur.is/weather/observations/aws/10min/latest?parameters=basic'
 SOURCES = {
     'EE': dict(name='Estonian Environment Agency / Keskkonnaagentuur', url='https://www.ilmateenistus.ee/',
                timeKind='feed', period='Latest reported mean wind and gust; feed updates every 10 minutes.'),
@@ -27,9 +29,9 @@ SOURCES = {
                url='https://www.smhi.se/data/meteorologi/vind', timeKind='observation',
                period='10-minute mean wind and reported hourly maximum gust from SMHI stations.'),
     'NO': dict(name='MET Norway', url='https://seklima.met.no/', timeKind='observation',
-               period='10-minute mean wind and reported maximum gust from MET Norway stations.', license='CC BY 4.0'),
+               period='10-minute mean wind and reported hourly maximum gust from MET Norway stations.', license='CC BY 4.0'),
     'IS': dict(name='Icelandic Meteorological Office (IMO)', url='https://api.vedur.is/weather/',
-               timeKind='observation', period='Hourly automatic-station mean wind and reported gust.', license='CC BY 4.0'),
+               timeKind='observation', period='10-minute automatic-station mean wind and reported gust.', license='CC BY 4.0'),
 }
 
 
@@ -199,14 +201,14 @@ def parse_norway(payload, metadata):
             if observation.get('qualityCode') not in (0, 2, 4) or observation.get('timeSeriesId', 0) != 0:
                 continue
             element = observation.get('elementId')
-            if element in ('wind_speed', 'wind_speed_of_gust') and observation.get('unit') == 'm/s':
+            if element in ('wind_speed', NORWAY_GUST_ELEMENT) and observation.get('unit') == 'm/s':
                 values.setdefault(element, observation.get('value'))
             elif element == 'wind_from_direction':
                 values.setdefault(element, observation.get('value'))
-        if number(values.get('wind_speed')) is None and number(values.get('wind_speed_of_gust')) is None:
+        if number(values.get('wind_speed')) is None and number(values.get(NORWAY_GUST_ELEMENT)) is None:
             continue
         grouped.setdefault(code, []).append((row['referenceTime'], values.get('wind_speed'),
-                                             values.get('wind_speed_of_gust'), values.get('wind_from_direction')))
+                                             values.get(NORWAY_GUST_ELEMENT), values.get('wind_from_direction')))
     result = []
     for code, rows in grouped.items():
         meta = stations[code]
@@ -262,7 +264,7 @@ def load_norway(now):
     start = (now - dt.timedelta(days=2)).date().isoformat()
     end = (now + dt.timedelta(days=1)).date().isoformat()
     metadata = {}
-    for element in ('wind_speed', 'wind_speed_of_gust'):
+    for element in ('wind_speed', NORWAY_GUST_ELEMENT):
         params = dict(sourceName='', weatherElements=element, timeResolution='hours',
                       **{'from': start, 'to': end}, includeRegions='false')
         for item in (download_json(base + 'stations?' + urllib.parse.urlencode(params)).get('data') or []):
@@ -272,7 +274,7 @@ def load_norway(now):
 
     def collect(batch):
         params = dict(sources=','.join(s['id'] for s in batch), referenceTime=start + '/' + end,
-                      elements='wind_speed,wind_speed_of_gust,wind_from_direction', timeResolution='hours')
+                      elements='wind_speed,' + NORWAY_GUST_ELEMENT + ',wind_from_direction', timeResolution='hours')
         try:
             return parse_norway(download_json(base + 'observations?' + urllib.parse.urlencode(params)), official)
         except Exception as error:
@@ -286,7 +288,7 @@ def load_norway(now):
 
 def load_iceland(now):
     metadata = download_json('https://api.vedur.is/weather/stations?active=true&station_type=sj')
-    observations = download_json('https://api.vedur.is/weather/observations/aws/hour/latest?parameters=basic')
+    observations = download_json(ICELAND_LATEST_URL)
     return parse_iceland(observations, metadata)
 
 
