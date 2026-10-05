@@ -10,49 +10,39 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect snapshot and live feeds
+      - name: Probe Norwegian gust elements
         run: |
           python3 - <<'PY'
-          import collections, datetime as dt, json, urllib.parse, urllib.request
+          import datetime as dt, json, urllib.parse, urllib.request
           def get(url):
               req=urllib.request.Request(url,headers={'User-Agent':'NorthernWeather diagnostics (github.com/Snowblind54/weather-page)'})
               with urllib.request.urlopen(req,timeout=40) as r:return json.load(r)
-          now=dt.datetime.now(dt.timezone.utc); now_s=int(now.timestamp())
-          snap=json.load(open('data/official-wind.json'))
-          for country in ('EE','FI','SE','NO','IS'):
-              rows=[s for s in snap['stations'] if s['country']==country]
-              fresh=[s for s in rows if s.get('rows') and now_s-s['rows'][-1][0] <= 3*3600]
-              gust=[s for s in fresh if s['rows'][-1][2] is not None]
-              print('SNAPSHOT',country,'stored',len(rows),'fresh',len(fresh),'fresh_gust',len(gust))
-          for code in ('1475','1350','178'):
-              hit=[s for s in snap['stations'] if s['country']=='IS' and s['code']==code]
-              print('SNAPSHOT IS code',code,hit[:1])
-          metadata=get('https://api.vedur.is/weather/stations?active=true&station_type=sj')
-          print('ICELAND metadata',len(metadata),'unique ids',len({str(s.get('station')) for s in metadata}))
-          for agg in ('hour','10min'):
-              data=get(f'https://api.vedur.is/weather/observations/aws/{agg}/latest?parameters=basic')
-              fresh=[r for r in data if r.get('time') and (now-dt.datetime.fromisoformat(r['time']).replace(tzinfo=dt.timezone.utc)).total_seconds()<=3*3600]
-              matched=[r for r in fresh if str(r.get('station')) in {str(s.get('station')) for s in metadata}]
-              print('ICELAND',agg,'total',len(data),'fresh<=3h',len(fresh),'matched metadata',len(matched),'unique matched',len({str(r.get('station')) for r in matched}),'reykjavik1475',1475 in {r.get('station') for r in matched})
+          now=dt.datetime.now(dt.timezone.utc)
           base='https://rim.k8s.met.no/api/v1/'
           start=(now-dt.timedelta(days=1)).date().isoformat(); end=(now+dt.timedelta(days=1)).date().isoformat()
-          gust_meta={}
-          for resolution in ('hours','minutes','days',''):
-              p=dict(sourceName='',weatherElements='wind_speed_of_gust',**{'from':start,'to':end},includeRegions='false')
-              if resolution:p['timeResolution']=resolution
-              data=(get(base+'stations?'+urllib.parse.urlencode(p)).get('data') or [])
-              official=[s for s in data if 'MET.NO' in s.get('stationHolders',[]) and len(s.get('geometry',{}).get('coordinates') or [])>=2]
-              print('NORWAY gust metadata resolution',resolution or 'omitted','stations',len(official))
-              if official and not gust_meta:gust_meta={s['id']:s for s in official}
-          official=list(gust_meta.values())[:40]
-          if official:
-              for resolution in ('hours','minutes'):
-                  q=dict(sources=','.join(s['id'] for s in official),referenceTime=start+'/'+end,elements='wind_speed_of_gust',timeResolution=resolution)
-                  data=get(base+'observations?'+urllib.parse.urlencode(q))
-                  gusts=[]
-                  for row in data.get('data') or []:
-                      for o in row.get('observations') or []:
-                          if o.get('elementId')=='wind_speed_of_gust':
-                              gusts.append((row.get('sourceId'),row.get('referenceTime'),o.get('value'),o.get('unit'),o.get('qualityCode'),o.get('timeSeriesId'),o.get('timeResolution'),o.get('timeOffset')))
-                  print('NORWAY observations resolution',resolution,'gust count',len(gusts),'samples',gusts[:10])
+          candidates=['wind_speed_of_gust','max(wind_speed_of_gust PT1H)','max(wind_speed_of_gust PT10M)','max(wind_speed_of_gust PT1M)','max(wind_speed PT1H)','wind_gust']
+          found=[]
+          for element in candidates:
+              for resolution in ('hours','minutes',''):
+                  p=dict(sourceName='',weatherElements=element,**{'from':start,'to':end},includeRegions='false')
+                  if resolution:p['timeResolution']=resolution
+                  try:data=(get(base+'stations?'+urllib.parse.urlencode(p)).get('data') or [])
+                  except Exception as e:
+                      print('META ERROR',element,resolution or 'omit',repr(e));continue
+                  official=[s for s in data if 'MET.NO' in s.get('stationHolders',[]) and len(s.get('geometry',{}).get('coordinates') or [])>=2]
+                  print('META',element,resolution or 'omit',len(official))
+                  if official and not found:found=(element,resolution,official[:20])
+          if found:
+              element,resolution,stations=found
+              for requested in [element,'wind_speed_of_gust','max(wind_speed_of_gust PT1H)','max(wind_speed PT1H)']:
+                  for timeres in filter(None,[resolution,'hours','minutes']):
+                      q=dict(sources=','.join(s['id'] for s in stations),referenceTime=start+'/'+end,elements=requested,timeResolution=timeres)
+                      try:data=get(base+'observations?'+urllib.parse.urlencode(q))
+                      except Exception as e:
+                          print('OBS ERROR',requested,timeres,repr(e));continue
+                      obs=[]
+                      for row in data.get('data') or []:
+                          for o in row.get('observations') or []:
+                              obs.append((row.get('sourceId'),row.get('referenceTime'),o.get('elementId'),o.get('value'),o.get('unit'),o.get('qualityCode'),o.get('timeSeriesId'),o.get('timeResolution'),o.get('timeOffset')))
+                      print('OBS',requested,timeres,'count',len(obs),'samples',obs[:8])
           PY
