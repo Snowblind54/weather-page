@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Northern Weather Map v8.73</title>
+<title>Northern Weather Map v8.74</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.57">
+<link rel="stylesheet" href="css/style.css?v=8.74">
 </head>
 <body>
 
@@ -52,7 +52,7 @@
         <input id="windHeatmapOpacity" type="range" min="10" max="90" value="48" step="5">
         <span id="windHeatmapOpacityVal" class="value">48%</span>
       </div>
-      <div id="windHeatmapStatus" class="small" role="status">Wind heatmap is off.</div><div class="small">Heatmap only: fresh official station differences correct the nearby model field. Influence fades smoothly to zero by about 70 km and by 3 hours of observation age. Where no usable station is nearby, the heatmap remains pure model.</div>
+      <div id="windHeatmapStatus" class="small" role="status">Wind heatmap is off.</div>
       <label class="small" for="windDensity">Trail density</label>
       <div class="grid2">
         <input id="windDensity" type="range" min="25" max="150" value="75" step="5">
@@ -66,7 +66,7 @@
       <div class="label">Official station readings · Estonia &amp; Finland</div>
       <div class="row"><label class="label"><input id="officialWindSustained" type="checkbox"> Show measured sustained wind</label></div>
       <div class="row"><label class="label"><input id="officialWindGusts" type="checkbox"> Show measured wind gusts</label></div>
-      <div class="small">Numbers in m/s at weather stations. Both switches can be on. S = sustained, G = gusts. Click a reading for its station, time and source. Snapshot refreshed every 10 minutes; source observation cadence varies by country. Gusts are reported measurements, not model values.</div>
+
       <div id="officialWindStatus" class="status" role="status">Official station readings are off.</div>
     </div>
   </div>
@@ -175,7 +175,7 @@
   <div class="details"><label class="small" for="snowOpacity">Snow layer opacity</label><div class="grid2"><input id="snowOpacity" type="range" min="10" max="100" value="85"><span id="snowOpacityVal" class="value">85%</span></div>
   <div class="snow-legend"><span><i class="snow-swatch"></i>Snow cover</span><span><i class="ice-swatch"></i>Sea ice</span></div>
   <div class="section snow-history-controls"><div class="row"><label class="label" for="snowHistorySlider">14-day snow history</label><span id="snowHistorySelected" class="value">Latest · 1 km</span></div><input id="snowHistorySlider" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Daily snow analysis date"><div id="snowHistoryRange" class="small">Loading daily archive…</div><div class="row wrap snow-history-buttons"><button id="snowHistoryPrev" type="button" aria-label="Previous snow analysis" disabled>← Previous</button><button id="snowHistoryPlay" type="button" aria-pressed="false" disabled>Play</button><button id="snowHistoryNext" type="button" aria-label="Next snow analysis" disabled>Next →</button><button id="snowHistoryLatest" type="button" disabled>Latest</button></div><div id="snowHistoryNote" class="small">Daily 4 km archive. Station depths are shown in Latest only.</div></div>
-  <div class="section snow-depth-controls"><div class="row"><label class="label"><input id="snowDepthOn" type="checkbox" checked> Station snow depth · cm</label><span class="badge">official observations</span></div><div class="row"><label class="label"><input id="snowDepthZero" type="checkbox" checked> Show stations reporting 0 cm</label></div><div class="small">Estonia, Latvia, Lithuania, Finland, Sweden, Norway and Iceland. Click a reading for its station, observation date and source. Dashed labels are older readings. Measurements older than 7 days are hidden. The zero toggle also includes Norway’s &lt;0.5 cm official zero code.</div><button id="snowDepthRegion" type="button">View depth stations</button><div id="snowDepthStatus" class="status" role="status" aria-live="polite">Station depths load when Snow opens.</div></div>
+  <div class="section snow-depth-controls"><div class="row"><label class="label"><input id="snowDepthOn" type="checkbox" checked> Station snow depth · cm</label><span class="badge">official observations</span></div><div class="row"><label class="label"><input id="snowDepthZero" type="checkbox" checked> Show stations reporting 0 cm</label></div><button id="snowDepthRegion" type="button">View depth stations</button><div id="snowDepthStatus" class="status" role="status" aria-live="polite">Station depths load when Snow opens.</div></div>
   <div id="snowDate" class="small">Latest daily IMS analysis</div><div class="row wrap"><button id="snowOverview" type="button">Hemisphere view</button><button id="snowRefresh" type="button">Refresh snow</button><button id="snowReturn" type="button">Return to weather</button></div><div id="snowStatus" class="status" role="status" aria-live="polite">Snow coverage is off.</div></div>
 </div>
 <div id="snowMapKey" class="snow-map-key" hidden><div class="snow-legend"><span><i class="snow-swatch"></i>Snow cover</span><span><i class="ice-swatch"></i>Sea ice</span></div><div id="snowMapStatus" role="status">Latest daily IMS analysis</div></div>
@@ -216,7 +216,7 @@
         <div class="label">Data</div>
         <div class="small">Refreshes automatically every 5 minutes.</div>
       </div>
-      
+
     </div>
     <div id="mapStatus" class="status ok">Satellite base map ready.</div>
   </div>
@@ -235,7 +235,7 @@
 <script src="js/stations.js?v=8.71"></script>
 <script src="js/cloud-pixels.js?v=8.19"></script>
 <script src="js/clouds.js?v=8.30"></script>
-<script src="js/radar.js?v=8.57"></script>
+<script src="js/radar.js?v=8.74"></script>
 <script src="js/radar-images.js?v=8.44"></script>
 <script src="js/radar-history.js?v=8.44"></script>
 <script src="js/radar-capture.js?v=8.44"></script>
@@ -249,7 +249,7 @@
 <script src="js/cyclones.js?v=8.55"></script>
 <script src="js/cyclone-details.js?v=8.54"></script>
 <script src="js/cyclone-ensemble.js?v=8.55.2"></script>
-<script src="js/app.js?v=8.65"></script>
+<script src="js/app.js?v=8.74"></script>
 <script src="js/snow.js?v=8.57"></script>
 <script src="js/snow-history.js?v=8.45"></script>
 <script src="js/snow-depth.js?v=8.46"></script>
