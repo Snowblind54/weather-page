@@ -1,4 +1,4 @@
-"""Hourly shared snapshots of official Nordic station wind; never substitute models.
+"""30-minute shared snapshots of official Northern European station wind; never substitute models.
 
 EE exposes a feed timestamp, not per-station observation timestamps. Keep that
 meaning explicit. Other providers supply actual observation times. Native values
@@ -19,6 +19,9 @@ import xml.etree.ElementTree as ET
 OUTPUT = pathlib.Path(__file__).resolve().parents[1] / 'data/official-wind.json'
 NORWAY_GUST_ELEMENT = 'max(wind_speed_of_gust PT1H)'
 ICELAND_LATEST_URL = 'https://api.vedur.is/weather/observations/aws/10min/latest?parameters=basic'
+LATVIA_DATASTORE = 'https://data.gov.lv/dati/api/3/action/datastore_search?'
+LATVIA_OBS_RESOURCE = '17460efb-ae99-4d1d-8144-1068f184b05f'
+LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
     'EE': dict(name='Estonian Environment Agency / Keskkonnaagentuur', url='https://www.ilmateenistus.ee/',
                timeKind='feed', period='Latest reported mean wind and gust; feed updates every 10 minutes.'),
@@ -32,6 +35,17 @@ SOURCES = {
                period='10-minute mean wind and reported hourly maximum gust from MET Norway stations.', license='CC BY 4.0'),
     'IS': dict(name='Icelandic Meteorological Office (IMO)', url='https://api.vedur.is/weather/',
                timeKind='observation', period='10-minute automatic-station mean wind and reported gust.', license='CC BY 4.0'),
+    'LV': dict(name='Latvian Environment, Geology and Meteorology Centre (LVĢMC)',
+               url='https://data.gov.lv/dati/lv/dataset/hidrometeorologiskie-noverojumi', timeKind='observation',
+               period='Observed mean wind, maximum gust and direction from the operational meteorological feed.',
+               license='CC0 1.0'),
+    'LT': dict(name='Lithuanian Hydrometeorological Service (LHMT)', url='https://api.meteo.lt/',
+               timeKind='observation', period='Hourly measured wind speed, maximum hourly gust and direction.'),
+    'PL': dict(name='Institute of Meteorology and Water Management (IMGW-PIB)',
+               url='https://danepubliczne.imgw.pl/', timeKind='observation',
+               period='Measured mean wind and reported 10-minute gust; missing gust reports remain unavailable.'),
+    'DK': dict(name='Danish Meteorological Institute (DMI)', url='https://www.dmi.dk/friedata/',
+               timeKind='observation', period='10-minute mean wind and highest 3-second mean wind in the latest 10 minutes.'),
 }
 
 
@@ -82,7 +96,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    if not (53 <= lat <= 72.5 and -26 <= lon <= 33):
+    if not (48.5 <= lat <= 72.5 and -26 <= lon <= 33):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
     for stamp, speed, gust, direction in rows:
@@ -216,7 +230,7 @@ def parse_norway(payload, metadata):
         if len(coords) < 2:
             continue
         lon, lat = coords[:2]
-        if not (53 <= lat <= 72.5 and -26 <= lon <= 33):
+        if not (48.5 <= lat <= 72.5 and -26 <= lon <= 33):
             continue
         result.append(station('NO', code, meta.get('shortName') or meta.get('name') or code, lat, lon, rows))
     return result
@@ -235,6 +249,90 @@ def parse_iceland(payload, metadata):
             continue
         result.append(station('IS', code, row.get('name') or meta.get('name') or 'IMO station',
                               meta['lat'], meta['lon'], [(row['time'], speed, gust, None)]))
+    return result
+
+
+def parse_latvia(payloads, metadata):
+    stations = {str(x.get('STATION_ID')): x for x in metadata if x.get('STATION_ID')}
+    grouped = {}
+    indexes = {'WNS10': 1, 'WPGST': 2, 'WNDD10': 3}
+    for abbreviation, records in payloads.items():
+        index = indexes[abbreviation]
+        for item in records:
+            code = str(item.get('STATION_ID', ''))
+            if code not in stations or not item.get('DATETIME'):
+                continue
+            stamp = timestamp(item['DATETIME'])
+            row = grouped.setdefault(code, {}).setdefault(stamp, [stamp, None, None, None])
+            row[index] = item.get('VALUE')
+    result = []
+    for code, rows in grouped.items():
+        meta = stations[code]
+        if any(number(r[1]) is not None or number(r[2]) is not None for r in rows.values()):
+            result.append(station('LV', code, meta.get('NAME') or code, meta['GEOGR2'], meta['GEOGR1'], rows.values()))
+    return result
+
+
+def parse_lithuania(payload):
+    meta = payload.get('station') or {}
+    coords = meta.get('coordinates') or {}
+    rows = [(r.get('observationTimeUtc'), r.get('windSpeed'), r.get('windGust'), r.get('windDirection'))
+            for r in payload.get('observations') or []
+            if r.get('observationTimeUtc') and
+            (number(r.get('windSpeed')) is not None or number(r.get('windGust')) is not None)]
+    if not rows:
+        return None
+    return station('LT', meta.get('code'), meta.get('name') or meta.get('code'),
+                   coords.get('latitude'), coords.get('longitude'), rows)
+
+
+def parse_poland(payload):
+    result = []
+    for item in payload if isinstance(payload, list) else []:
+        if not item.get('kod_stacji') or item.get('lat') is None or item.get('lon') is None:
+            continue
+        rows = {}
+        for value_key, time_key, index in (
+            ('wiatr_srednia_predkosc', 'wiatr_srednia_predkosc_data', 1),
+            ('wiatr_poryw_10min', 'wiatr_poryw_10min_data', 2),
+            ('wiatr_kierunek', 'wiatr_kierunek_data', 3),
+        ):
+            value, stamp = item.get(value_key), item.get(time_key)
+            if value is None or not stamp:
+                continue
+            stamp = timestamp(stamp)
+            row = rows.setdefault(stamp, [stamp, None, None, None])
+            row[index] = value
+        if any(number(r[1]) is not None or number(r[2]) is not None for r in rows.values()):
+            result.append(station('PL', item['kod_stacji'], item.get('nazwa_stacji') or item['kod_stacji'],
+                                  item['lat'], item['lon'], rows.values()))
+    return result
+
+
+def parse_denmark(payloads, metadata):
+    stations = {}
+    for feature in metadata.get('features') or []:
+        props = feature.get('properties') or {}
+        coords = (feature.get('geometry') or {}).get('coordinates') or []
+        if props.get('owner') == 'DMI' and props.get('country') == 'DNK' and len(coords) >= 2:
+            stations[str(props.get('stationId'))] = (props.get('name') or props.get('stationId'), coords[1], coords[0])
+    grouped = {}
+    indexes = {'wind_speed': 1, 'wind_max': 2, 'wind_dir': 3}
+    for parameter, payload in payloads.items():
+        index = indexes[parameter]
+        for feature in payload.get('features') or []:
+            props = feature.get('properties') or {}
+            code = str(props.get('stationId', ''))
+            if code not in stations or props.get('parameterId') != parameter or not props.get('observed'):
+                continue
+            stamp = timestamp(props['observed'])
+            row = grouped.setdefault(code, {}).setdefault(stamp, [stamp, None, None, None])
+            row[index] = props.get('value')
+    result = []
+    for code, rows in grouped.items():
+        name, lat, lon = stations[code]
+        if any(number(r[1]) is not None or number(r[2]) is not None for r in rows.values()):
+            result.append(station('DK', code, name, lat, lon, rows.values()))
     return result
 
 
@@ -259,7 +357,6 @@ def load_sweden(now):
 
 
 def load_norway(now):
-    # Public backend used by MET Norway's Seklima site; no borrowed API credentials.
     base = 'https://rim.k8s.met.no/api/v1/'
     start = (now - dt.timedelta(days=2)).date().isoformat()
     end = (now + dt.timedelta(days=1)).date().isoformat()
@@ -292,6 +389,53 @@ def load_iceland(now):
     return parse_iceland(observations, metadata)
 
 
+def load_latvia(now):
+    metadata = download_json(LATVIA_DATASTORE + urllib.parse.urlencode({
+        'resource_id': LATVIA_STATIONS_RESOURCE, 'limit': 1000
+    }))['result']['records']
+    payloads = {}
+    for abbreviation in ('WNS10', 'WPGST', 'WNDD10'):
+        params = {'resource_id': LATVIA_OBS_RESOURCE, 'limit': 5000, 'sort': 'DATETIME desc',
+                  'filters': json.dumps({'ABBREVIATION': abbreviation})}
+        payloads[abbreviation] = download_json(LATVIA_DATASTORE + urllib.parse.urlencode(params))['result']['records']
+    return parse_latvia(payloads, metadata)
+
+
+def load_lithuania(now):
+    stations = download_json('https://api.meteo.lt/v1/stations')
+
+    def collect(meta):
+        try:
+            url = 'https://api.meteo.lt/v1/stations/' + urllib.parse.quote(meta['code']) + '/observations/latest'
+            return parse_lithuania(download_json(url))
+        except Exception as error:
+            print('LT station unavailable:', meta.get('code'), str(error)[:120], flush=True)
+            return None
+
+    with futures.ThreadPoolExecutor(max_workers=8) as pool:
+        return [item for item in pool.map(collect, stations) if item is not None]
+
+
+def load_poland(now):
+    return parse_poland(download_json('https://danepubliczne.imgw.pl/api/data/meteo'))
+
+
+def load_denmark(now):
+    base = 'https://opendataapi.dmi.dk/v2/metObs/collections/'
+    metadata = download_json(base + 'station/items?' + urllib.parse.urlencode({
+        'status': 'Active', 'bbox': '7,54,16,58', 'limit': 1000
+    }))
+
+    def observation(parameter):
+        params = {'parameterId': parameter, 'period': 'latest-hour', 'bbox': '7,54,16,58', 'limit': 1000}
+        return download_json(base + 'observation/items?' + urllib.parse.urlencode(params))
+
+    parameters = ('wind_speed', 'wind_max', 'wind_dir')
+    with futures.ThreadPoolExecutor(max_workers=3) as pool:
+        values = list(pool.map(observation, parameters))
+    return parse_denmark(dict(zip(parameters, values)), metadata)
+
+
 def merge(previous, current, now):
     cutoff = int(now.timestamp()) - 24 * 3600
     limit = int(now.timestamp()) + 60
@@ -313,8 +457,9 @@ def main():
         previous = {}
     old = previous.get('stations', [])
     results, sources = [], {}
-    loaders = [('EE', load_estonia), ('FI', load_finland), ('SE', load_sweden),
-               ('NO', load_norway), ('IS', load_iceland)]
+    loaders = [('EE', load_estonia), ('FI', load_finland), ('SE', load_sweden), ('NO', load_norway),
+               ('IS', load_iceland), ('LV', load_latvia), ('LT', load_lithuania), ('PL', load_poland),
+               ('DK', load_denmark)]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):
@@ -333,7 +478,7 @@ def main():
     stations = merge(old, results, now)
     if not results:
         raise ValueError('All official wind feeds unavailable; retaining previous snapshot')
-    snapshot = dict(version=1, generatedAt=int(now.timestamp()), refreshMinutes=60, units='m/s',
+    snapshot = dict(version=1, generatedAt=int(now.timestamp()), refreshMinutes=30, units='m/s',
                     sources=sources, stations=stations)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(mode='w', dir=OUTPUT.parent, delete=False) as f:
