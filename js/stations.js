@@ -515,6 +515,7 @@ async function loadOfficialTemperatureStations(force=false){
       officialTemperatureSourceState=state;
       officialTemperatureLoadedAt=Date.now();
       saveOfficialTemperatureCache();
+      if(typeof invalidateTemperatureHeatmapCache==='function') invalidateTemperatureHeatmapCache();
       return officialTemperatureStations;
     }
 
@@ -646,7 +647,7 @@ const loadTemperaturesModelOnly=loadTemperatures;
 loadTemperatures=async function(force=false){
   const results=await Promise.allSettled([
     loadTemperaturesModelOnly(force),
-    $('tempOn').checked?loadOfficialTemperatureStations(force):Promise.resolve()
+    temperatureEnabled()?loadOfficialTemperatureStations(force):Promise.resolve()
   ]);
 
   if(results[0].status==='rejected') throw results[0].reason;
@@ -658,12 +659,13 @@ loadTemperatures=async function(force=false){
 const buildTemperatureOverlayModelOnly=buildTemperatureOverlay;
 buildTemperatureOverlay=async function(unix,options={}){
   const result=await buildTemperatureOverlayModelOnly(unix,options);
-  if(options.precache || !$('tempOn').checked) return result;
+  if(options.precache) return result;
 
   const visibleOfficial=officialStationsNearTime(unix);
   const summary=officialStationSourceSummary();
   if(visibleOfficial.length && $('tempStatus').classList.contains('ok')){
-    $('tempStatus').textContent+=` · ${visibleOfficial.length} official station readings (${summary.good.join('/')})`;
+    const label=$('tempOn').checked?'official station readings':'official stations used for heatmap';
+    $('tempStatus').textContent+=` · ${visibleOfficial.length} ${label} (${summary.good.join('/')})`;
   }else if(summary.bad.length && $('tempStatus').classList.contains('ok')){
     $('tempStatus').textContent+=` · station feeds partial`;
   }
