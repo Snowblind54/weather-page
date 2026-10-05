@@ -1,0 +1,63 @@
+name: Temporary Norway temperature rate-limit fix
+on:
+  push:
+    branches:
+      - fix/norway-temperature-rate-limit
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/norway-temperature-rate-limit
+      - name: Apply Norway temperature fallback and throttle
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/update_official_temperature.py')
+          text = path.read_text(encoding='utf-8')
+
+          old = "FUTURE_TOLERANCE_SEC = 10 * 60\nBOUNDS = (48.5, 72.5, -26.0, 33.0)"
+          new = "FUTURE_TOLERANCE_SEC = 10 * 60\nNORWAY_REFRESH_SEC = 55 * 60\nBOUNDS = (48.5, 72.5, -26.0, 33.0)"
+          if text.count(old) != 1:
+              raise SystemExit(f'constant block match count: {text.count(old)}')
+          text = text.replace(old, new, 1)
+
+          old = "    with futures.ThreadPoolExecutor(max_workers=3) as pool:\n        for grouped in pool.map(batch_load, batches):"
+          new = "    # MET Norway rate-limits bursts aggressively; keep its hourly batch requests sequential.\n    with futures.ThreadPoolExecutor(max_workers=1) as pool:\n        for grouped in pool.map(batch_load, batches):"
+          if text.count(old) != 1:
+              raise SystemExit(f'Norway worker block match count: {text.count(old)}')
+          text = text.replace(old, new, 1)
+
+          marker = "\n\ndef main():\n"
+          helpers = '''\n\ndef read_previous_snapshot():\n    if not OUTPUT.exists():\n        return {}\n    try:\n        payload = json.loads(OUTPUT.read_text(encoding="utf-8"))\n        return payload if isinstance(payload, dict) else {}\n    except (OSError, ValueError, TypeError):\n        return {}\n\n\ndef previous_country_stations(previous, country, cutoff, now):\n    out = []\n    for station in previous.get("stations") or []:\n        if station.get("country") != country:\n            continue\n        rows = []\n        for row in station.get("rows") or []:\n            if not isinstance(row, list) or len(row) < 2 or not isinstance(row[0], (int, float)):\n                continue\n            if cutoff <= row[0] <= now + FUTURE_TOLERANCE_SEC:\n                rows.append(list(row))\n        if rows:\n            item = dict(station)\n            item["rows"] = rows\n            out.append(item)\n    return out\n\n\ndef norway_refresh_due(previous, now):\n    state = (previous.get("sources") or {}).get("NO") or {}\n    touches = [state.get("lastFetch"), state.get("lastAttempt")]\n    touches = [int(value) for value in touches if isinstance(value, (int, float))]\n    return not touches or now - max(touches) >= NORWAY_REFRESH_SEC\n'''
+          if text.count(marker) != 1:
+              raise SystemExit(f'main marker match count: {text.count(marker)}')
+          text = text.replace(marker, helpers + marker, 1)
+
+          old_main = '''def main():\n    now = int(dt.datetime.now(dt.timezone.utc).timestamp())\n    cutoff = now - HISTORY_SEC\n    stations, states = [], {}\n    with futures.ThreadPoolExecutor(max_workers=len(LOADERS)) as pool:\n        jobs = {pool.submit(loader): code for code, loader in LOADERS.items()}\n        for job in futures.as_completed(jobs):\n            code = jobs[job]\n            try:\n                rows = job.result()\n                trimmed = []\n                for station_item in rows:\n                    station_item["rows"] = [r for r in station_item["rows"] if cutoff <= r[0] <= now + FUTURE_TOLERANCE_SEC]\n                    if station_item["rows"]:\n                        trimmed.append(station_item)\n                stations.extend(trimmed)\n                states[code] = {"ok": True, "count": len(trimmed)}\n            except Exception as exc:\n                print(f"{code}: {exc}")\n                states[code] = {"ok": False, "count": 0, "error": str(exc)[:180]}\n\n    stations.sort(key=lambda s: (s["country"], s["name"], s["code"]))\n'''
+          new_main = '''def main():\n    now = int(dt.datetime.now(dt.timezone.utc).timestamp())\n    cutoff = now - HISTORY_SEC\n    previous = read_previous_snapshot()\n    previous_no = previous_country_stations(previous, "NO", cutoff, now)\n    previous_no_state = (previous.get("sources") or {}).get("NO") or {}\n    stations, states = [], {}\n    loaders = dict(LOADERS)\n\n    # Norway publishes the temperature series hourly, so do not hit RIM every\n    # 10-minute snapshot run. Reuse the last official rows between refreshes.\n    if not norway_refresh_due(previous, now):\n        loaders.pop("NO", None)\n        stations.extend(previous_no)\n        state = {"ok": bool(previous_no), "count": len(previous_no), "cached": True}\n        if not previous_no:\n            state["error"] = "Waiting before next MET Norway retry"\n        for key in ("lastFetch", "lastAttempt"):\n            value = previous_no_state.get(key)\n            if isinstance(value, (int, float)):\n                state[key] = int(value)\n        states["NO"] = state\n\n    with futures.ThreadPoolExecutor(max_workers=max(1, len(loaders))) as pool:\n        jobs = {pool.submit(loader): code for code, loader in loaders.items()}\n        for job in futures.as_completed(jobs):\n            code = jobs[job]\n            try:\n                rows = job.result()\n                trimmed = []\n                for station_item in rows:\n                    station_item["rows"] = [r for r in station_item["rows"] if cutoff <= r[0] <= now + FUTURE_TOLERANCE_SEC]\n                    if station_item["rows"]:\n                        trimmed.append(station_item)\n                if code == "NO" and not trimmed:\n                    raise ValueError("No current Norwegian temperature observations")\n                stations.extend(trimmed)\n                state = {"ok": True, "count": len(trimmed)}\n                if code == "NO":\n                    state.update({"lastFetch": now, "lastAttempt": now})\n                states[code] = state\n            except Exception as exc:\n                print(f"{code}: {exc}")\n                if code == "NO":\n                    stations.extend(previous_no)\n                    state = {\n                        "ok": False, "count": len(previous_no), "error": str(exc)[:180],\n                        "cached": bool(previous_no), "lastAttempt": now,\n                    }\n                    last_fetch = previous_no_state.get("lastFetch")\n                    if isinstance(last_fetch, (int, float)):\n                        state["lastFetch"] = int(last_fetch)\n                    states[code] = state\n                else:\n                    states[code] = {"ok": False, "count": 0, "error": str(exc)[:180]}\n\n    stations.sort(key=lambda s: (s["country"], s["name"], s["code"]))\n'''
+          if text.count(old_main) != 1:
+              raise SystemExit(f'main block match count: {text.count(old_main)}')
+          text = text.replace(old_main, new_main, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Validate updater and tests
+        run: |
+          python3 -m py_compile scripts/update_official_temperature.py
+          python3 -m unittest tests/test_official_temperature.py -v
+          git diff --check
+          grep -q 'NORWAY_REFRESH_SEC = 55 \* 60' scripts/update_official_temperature.py
+          grep -q 'max_workers=1' scripts/update_official_temperature.py
+          grep -q 'stations.extend(previous_no)' scripts/update_official_temperature.py
+      - name: Commit production fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/update_official_temperature.py tests/test_official_temperature.py
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Keep Norway temperatures through rate limits'
+          git push origin HEAD:fix/norway-temperature-rate-limit
