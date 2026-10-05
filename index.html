@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Northern Weather Map v8.64</title>
+<title>Northern Weather Map v8.65</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
@@ -35,7 +35,7 @@
   </div>
 
   <div class="weather-panel weather-section" id="windSection" hidden="" role="region" aria-labelledby="windSection-title">
-    <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="windSection-title">Wind</h2><p>Sustained wind &amp; gusts</p></div><div class="panel-actions"><button class="info-button" data-info="windSection-sources" aria-controls="windSection-sources" aria-expanded="false" aria-label="Wind sources">i</button><button class="close-panel" aria-label="Close Wind menu">×</button></div></div><div id="windSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Official station numbers: Estonian Environment Agency / Keskkonnaagentuur and Finnish Meteorological Institute (FMI, CC BY 4.0). A shared snapshot is refreshed hourly and checked every 5 minutes while enabled. Estonia reports the latest mean wind and gust with a feed timestamp; FMI supplies 10-minute mean wind and gust measurements sampled at hourly observation times. Historical selections use only earlier available readings; observations older than 3 hours are hidden. Station numbers are measured, and remain separate from the model animation. Open-Meteo hourly 10 m sustained wind, gusts and model direction (CC BY 4.0). Gusts represent hourly peaks; the direction used for gust trails is modelled.</p><div class="source-links"><a href="https://www.ilmateenistus.ee/" target="_blank" rel="noopener">Keskkonnaagentuur ↗</a><a href="https://en.ilmatieteenlaitos.fi/open-data" target="_blank" rel="noopener">FMI observations ↗</a><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a></div><div class="small">Choose sustained wind or gusts. Colours blend gradually with speed, reaching purple at 25 m/s, bright violet and pink above it, and pure white at 34 m/s and higher. Click the map for both sustained wind and wind gusts in m/s. Trails cover land and sea from the eastern United States across the Atlantic and all of Europe to the Moscow area (85°W–42°E, 25–82°N), and follow the selected timeline time. Gust trails show hourly peak speeds using modeled wind direction. Hourly model wind at 10 m; animation speed is scaled for visibility.</div>
+    <div class="panel-heading"><div><div class="eyebrow">MAP LAYER</div><h2 id="windSection-title">Wind</h2><p>Sustained wind &amp; gusts</p></div><div class="panel-actions"><button class="info-button" data-info="windSection-sources" aria-controls="windSection-sources" aria-expanded="false" aria-label="Wind sources">i</button><button class="close-panel" aria-label="Close Wind menu">×</button></div></div><div id="windSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Official station numbers: Estonian Environment Agency / Keskkonnaagentuur and Finnish Meteorological Institute (FMI, CC BY 4.0). A shared snapshot is refreshed hourly and checked every 5 minutes while enabled. Estonia reports the latest mean wind and gust with a feed timestamp; FMI supplies 10-minute mean wind and gust measurements sampled at hourly observation times. Historical selections use only earlier available readings; observations older than 3 hours are hidden. Station numbers are measured. The particle animation remains model-only; the wind heatmap starts from the model field and is locally adjusted toward fresh official station observations, fading smoothly with distance and observation age. Open-Meteo hourly 10 m sustained wind, gusts and model direction (CC BY 4.0). Gusts represent hourly peaks; the direction used for gust trails is modelled.</p><div class="source-links"><a href="https://www.ilmateenistus.ee/" target="_blank" rel="noopener">Keskkonnaagentuur ↗</a><a href="https://en.ilmatieteenlaitos.fi/open-data" target="_blank" rel="noopener">FMI observations ↗</a><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a></div><div class="small">Choose sustained wind or gusts. Colours blend gradually with speed, reaching purple at 25 m/s, bright violet and pink above it, and pure white at 34 m/s and higher. Click the map for both sustained wind and wind gusts in m/s. Trails cover land and sea from the eastern United States across the Atlantic and all of Europe to the Moscow area (85°W–42°E, 25–82°N), and follow the selected timeline time. Gust trails show hourly peak speeds using modeled wind direction. Hourly model wind at 10 m; animation speed is scaled for visibility.</div>
       </div><div class="row">
       <label class="label"><input id="windOn" type="checkbox"> Wind animation · Atlantic + Europe</label>
       <span class="badge">10 m wind</span>
@@ -52,7 +52,7 @@
         <input id="windHeatmapOpacity" type="range" min="10" max="90" value="48" step="5">
         <span id="windHeatmapOpacityVal" class="value">48%</span>
       </div>
-      <div id="windHeatmapStatus" class="small" role="status">Wind heatmap is off.</div>
+      <div id="windHeatmapStatus" class="small" role="status">Wind heatmap is off.</div><div class="small">Heatmap only: fresh official station differences correct the nearby model field. Influence fades smoothly to zero by about 70 km and by 3 hours of observation age. Where no usable station is nearby, the heatmap remains pure model.</div>
       <label class="small" for="windDensity">Trail density</label>
       <div class="grid2">
         <input id="windDensity" type="range" min="25" max="150" value="75" step="5">
@@ -240,15 +240,16 @@
 <script src="js/radar-history.js?v=8.44"></script>
 <script src="js/radar-capture.js?v=8.44"></script>
 <script src="js/nordic-radar.js?v=8.49"></script>
-<script src="js/wind.js?v=8.64"></script>
-<script src="js/official-wind.js?v=8.57"></script>
+<script src="js/wind-observation-blend.js?v=8.65"></script>
+<script src="js/wind.js?v=8.65"></script>
+<script src="js/official-wind.js?v=8.65"></script>
 <script src="js/official-rainfall.js?v=8.38"></script>
 <script src="js/rainfall.js?v=8.37.1"></script>
 <script src="js/bathymetry.js?v=8.21"></script>
 <script src="js/cyclones.js?v=8.55"></script>
 <script src="js/cyclone-details.js?v=8.54"></script>
 <script src="js/cyclone-ensemble.js?v=8.55.2"></script>
-<script src="js/app.js?v=8.63"></script>
+<script src="js/app.js?v=8.65"></script>
 <script src="js/snow.js?v=8.57"></script>
 <script src="js/snow-history.js?v=8.45"></script>
 <script src="js/snow-depth.js?v=8.46"></script>
