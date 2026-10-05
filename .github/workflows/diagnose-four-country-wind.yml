@@ -10,54 +10,34 @@ jobs:
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
-      - name: Probe official APIs
+      - name: Probe wind parameter coverage
         run: |
           python3 - <<'PY'
-          import json, urllib.parse, urllib.request
+          import datetime as dt, json, urllib.parse, urllib.request
           def get(url):
               req=urllib.request.Request(url,headers={'User-Agent':'NorthernWeather diagnostics (github.com/Snowblind54/weather-page)'})
-              with urllib.request.urlopen(req,timeout=40) as r:
-                  raw=r.read()
-              return json.loads(raw)
-          # Lithuania
-          try:
-              stations=get('https://api.meteo.lt/v1/stations')
-              print('LT stations',len(stations), 'sample', stations[:2])
-              code=(stations[0].get('code') if stations else None)
-              if code:
-                  obs=get(f'https://api.meteo.lt/v1/stations/{code}/observations/latest')
-                  print('LT latest keys',obs.keys(),'sample',obs)
-          except Exception as e: print('LT ERROR',repr(e))
-          # Poland
-          for url in ['https://danepubliczne.imgw.pl/api/data/synop','https://danepubliczne.imgw.pl/api/data/meteo']:
-              try:
-                  data=get(url)
-                  print('PL',url,'type',type(data).__name__,'count',len(data) if hasattr(data,'__len__') else None,'sample',data[:2] if isinstance(data,list) else str(data)[:1000])
-              except Exception as e: print('PL ERROR',url,repr(e))
-          # Denmark
-          base='https://opendataapi.dmi.dk/v2/metObs/collections/observation/items'
-          for p in ['wind_speed','wind_max','wind_gust_always_past1h']:
-              try:
-                  q=urllib.parse.urlencode({'parameterId':p,'period':'latest-hour','bbox':'7,54,16,58','limit':1000})
-                  data=get(base+'?'+q)
-                  fs=data.get('features') or []
-                  print('DK',p,'count',len(fs),'samples',fs[:3])
-              except Exception as e: print('DK ERROR',p,repr(e))
-          try:
-              st=get('https://opendataapi.dmi.dk/v2/metObs/collections/station/items?status=Active&bbox=7,54,16,58&limit=1000')
-              print('DK stations',len(st.get('features') or []),'sample',(st.get('features') or [])[:2])
-          except Exception as e: print('DK stations ERROR',repr(e))
-          # Latvia CKAN package/resources and datastore samples
-          try:
-              pkg=get('https://data.gov.lv/dati/api/3/action/package_show?id=40d80be5-0c09-47c4-80f3-fad4bec19f33')['result']
-              print('LV resources',[(r.get('id'),r.get('name'),r.get('format'),r.get('datastore_active'),r.get('url')) for r in pkg.get('resources',[])])
-              for r in pkg.get('resources',[]):
-                  if r.get('datastore_active'):
-                      rid=r['id']
-                      try:
-                          q=urllib.parse.urlencode({'resource_id':rid,'limit':3,'sort':'_id desc'})
-                          sample=get('https://data.gov.lv/dati/api/3/action/datastore_search?'+q)
-                          print('LV sample',r.get('name'),sample.get('result',{}).get('fields'),sample.get('result',{}).get('records'))
-                      except Exception as e: print('LV sample ERROR',r.get('name'),repr(e))
-          except Exception as e: print('LV ERROR',repr(e))
+              with urllib.request.urlopen(req,timeout=40) as r:return json.load(r)
+          now=dt.datetime.now(dt.timezone.utc)
+          # Lithuania: count stations with current measured wind/gust.
+          lt=get('https://api.meteo.lt/v1/stations'); good=[]
+          for s in lt:
+              try:o=get(f"https://api.meteo.lt/v1/stations/{s['code']}/observations/latest")
+              except Exception:continue
+              rows=[r for r in o.get('observations',[]) if r.get('windSpeed') is not None or r.get('windGust') is not None]
+              if rows: good.append((s['code'],rows[-1]))
+          print('LT wind stations',len(good),'samples',good[:5])
+          # Poland: current usable wind and gust timestamps.
+          pl=get('https://danepubliczne.imgw.pl/api/data/meteo'); mean=[];gust=[]
+          for s in pl:
+              if s.get('wiatr_srednia_predkosc') is not None:mean.append((s.get('kod_stacji'),s.get('nazwa_stacji'),s.get('wiatr_srednia_predkosc'),s.get('wiatr_srednia_predkosc_data')))
+              if s.get('wiatr_poryw_10min') is not None:gust.append((s.get('kod_stacji'),s.get('nazwa_stacji'),s.get('wiatr_poryw_10min'),s.get('wiatr_poryw_10min_data')))
+          print('PL mean count',len(mean),'latest samples',mean[:10]);print('PL gust count',len(gust),'samples',gust[:20])
+          # Latvia parameter dictionary and current wind-like rows.
+          api='https://data.gov.lv/dati/api/3/action/'
+          params='38b462ac-08b9-4168-9d6e-cbaedc2e775d'; operational='17460efb-ae99-4d1d-8144-1068f184b05f'
+          q=urllib.parse.urlencode({'resource_id':params,'limit':100,'q':'wind'})
+          p=get(api+'datastore_search?'+q)['result']['records'];print('LV wind params',p)
+          for rec in p:
+              ab=rec['ABBREVIATION'];q=urllib.parse.urlencode({'resource_id':operational,'limit':50,'sort':'DATETIME desc','filters':json.dumps({'ABBREVIATION':ab})})
+              rows=get(api+'datastore_search?'+q)['result']['records'];print('LV',ab,'count returned',len(rows),'samples',rows[:8])
           PY
