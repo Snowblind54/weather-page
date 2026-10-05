@@ -1,5 +1,5 @@
 // Decoding, reprojection and colour conversion stay off the map's UI thread.
-import {radarRate,radarColour,mercatorY,latitudeAtY,polarIndex,cartesianIndex,makeRayLookup,makeRaySampling,polarInterpolation,polarReflectivity,radarProjection} from './radar-grid.mjs?v=8.34';
+import {radarRate,radarColour,mercatorY,latitudeAtY,polarIndex,cartesianIndex,makeRayLookup,makeRaySampling,polarInterpolation,polarReflectivity,radarProjection} from './radar-grid.mjs?v=8.79';
 let libraries=null,hdf=null,hdfFs=null,sequence=Promise.resolve();
 const mappings=new Map();
 function scalar(value){return Array.isArray(value)||ArrayBuffer.isView(value)?value[0]:value;}
