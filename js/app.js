@@ -352,7 +352,7 @@ function installToggleHelp(){
     icon.addEventListener('focus',()=>show(icon));
     icon.addEventListener('blur',hide);
     icon.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();});
-    input.insertAdjacentElement('afterend',icon);
+    label.appendChild(icon);
   }
   window.addEventListener('resize',hide,{passive:true});
   document.addEventListener('scroll',hide,true);
