@@ -1,0 +1,30 @@
+name: Diagnose Estonia warning refresh
+on:
+  push:
+    branches: [diagnose/estonia-warning-refresh]
+    paths:
+      - .github/workflows/diagnose-estonia-warning-refresh.yml
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run warning tests
+        run: python3 -m unittest discover -s tests -p test_estonia_warning_forecast.py -v
+      - name: Fetch live Estonia warnings
+        run: |
+          python3 scripts/update_estonia_warnings.py --output /tmp/estonia-warnings.json
+          python3 - <<'PY'
+          import json, datetime as dt
+          d=json.load(open('/tmp/estonia-warnings.json'))
+          print('fetchedAt',d['fetchedAt'])
+          print('forecastDays',d['forecastDays'])
+          print('records',len(d['records']))
+          tomorrow=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(days=1)).date().isoformat()
+          rows=[r for r in d['records'] if r['effective'][:10] <= tomorrow <= r['expires'][:10]]
+          print('tomorrow-overlap',len(rows))
+          for r in rows[:40]: print(r['regionId'],r['area'],r['event'],r['level'],r['effective'],r['expires'])
+          PY
