@@ -556,7 +556,14 @@ const WindHeatmapLayer=L.Layer.extend({
     this.canvas.style.opacity=String(Number($('windHeatmapOpacity').value)/100);
     L.DomUtil.setPosition(this.canvas,this._map.containerPointToLayerPoint([0,0]));
     const step=area>=1500000?32:area>=900000?28:24;
-    const cols=Math.ceil(size.x/step)+1,rows=Math.ceil(size.y/step)+1;
+    // Anchor samples to fixed Web-Mercator world pixels instead of the viewport.
+    // Panning now reveals the same wind field rather than resampling at new
+    // geographic points every time the screen origin changes.
+    const zoom=this._map.getZoom();
+    const topLeft=this._map.project(this._map.containerPointToLatLng([0,0]),zoom);
+    const anchorX=Math.floor(topLeft.x/step)*step,anchorY=Math.floor(topLeft.y/step)*step;
+    const startX=anchorX-topLeft.x,startY=anchorY-topLeft.y;
+    const cols=Math.ceil((size.x-startX)/step)+2,rows=Math.ceil((size.y-startY)/step)+2;
     const low=document.createElement('canvas');low.width=cols;low.height=rows;
     const lowCtx=low.getContext('2d'),img=lowCtx.createImageData(cols,rows),palette=WIND_COLOUR_PALETTES[this.mode];
     const rgb=palette.map(hex=>[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]);
@@ -564,7 +571,7 @@ const WindHeatmapLayer=L.Layer.extend({
     const correctionIndex=windHeatmapCorrectionIndex(corrections);
     let shown=0;
     for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
-      const x=Math.min(size.x,col*step),y=Math.min(size.y,row*step),ll=this._map.containerPointToLatLng([x,y]);
+      const world=L.point(anchorX+col*step,anchorY+row*step),ll=this._map.unproject(world,zoom);
       const vector=windAt(ll.lat,ll.lng,slice);
       let speed=null;
       if(vector) speed=this.mode==='gust'?windGustAt(ll.lat,ll.lng,slice):Math.hypot(vector[0],vector[1]);
@@ -577,7 +584,8 @@ const WindHeatmapLayer=L.Layer.extend({
     lowCtx.putImageData(img,0,0);
     this.ctx.clearRect(0,0,size.x,size.y);
     this.ctx.imageSmoothingEnabled=true;this.ctx.imageSmoothingQuality='high';
-    this.ctx.drawImage(low,0,0,cols,rows,0,0,size.x,size.y);
+    // Source pixel centres line up with the anchored sample coordinates.
+    this.ctx.drawImage(low,0,0,cols,rows,startX-step/2,startY-step/2,cols*step,rows*step);
     const source=corrections.length?`model + ${corrections.length} fresh official readings`:'model field';
     $('windHeatmapStatus').textContent=shown?`${this.mode==='gust'?'Gust':'Sustained wind'} heatmap · ${source} · ${fmt(this.unix)}`:'Wind heatmap unavailable in this view.';
   }
