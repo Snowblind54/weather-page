@@ -19,6 +19,7 @@ import xml.etree.ElementTree as ET
 OUTPUT = pathlib.Path(__file__).resolve().parents[1] / "data/official-temperature.json"
 HISTORY_SEC = 3 * 60 * 60
 FUTURE_TOLERANCE_SEC = 10 * 60
+NORWAY_REFRESH_SEC = 55 * 60
 BOUNDS = (48.5, 72.5, -26.0, 33.0)
 USER_AGENT = "NorthernWeather/8.71 (github.com/Snowblind54/weather-page)"
 
@@ -227,7 +228,8 @@ def parse_norway():
         return grouped
 
     combined = {}
-    with futures.ThreadPoolExecutor(max_workers=3) as pool:
+    # MET Norway rate-limits bursts aggressively; keep its hourly batch requests sequential.
+    with futures.ThreadPoolExecutor(max_workers=1) as pool:
         for grouped in pool.map(batch_load, batches):
             for code, rows in grouped.items():
                 combined.setdefault(code, []).extend(rows)
@@ -313,12 +315,66 @@ LOADERS = {
 }
 
 
+def read_previous_snapshot():
+    if not OUTPUT.exists():
+        return {}
+    try:
+        payload = json.loads(OUTPUT.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else {}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def previous_country_stations(previous, country, cutoff, now):
+    out = []
+    for station in previous.get("stations") or []:
+        if station.get("country") != country:
+            continue
+        rows = []
+        for row in station.get("rows") or []:
+            if not isinstance(row, list) or len(row) < 2 or not isinstance(row[0], (int, float)):
+                continue
+            if cutoff <= row[0] <= now + FUTURE_TOLERANCE_SEC:
+                rows.append(list(row))
+        if rows:
+            item = dict(station)
+            item["rows"] = rows
+            out.append(item)
+    return out
+
+
+def norway_refresh_due(previous, now):
+    state = (previous.get("sources") or {}).get("NO") or {}
+    touches = [state.get("lastFetch"), state.get("lastAttempt")]
+    touches = [int(value) for value in touches if isinstance(value, (int, float))]
+    return not touches or now - max(touches) >= NORWAY_REFRESH_SEC
+
+
 def main():
     now = int(dt.datetime.now(dt.timezone.utc).timestamp())
     cutoff = now - HISTORY_SEC
+    previous = read_previous_snapshot()
+    previous_no = previous_country_stations(previous, "NO", cutoff, now)
+    previous_no_state = (previous.get("sources") or {}).get("NO") or {}
     stations, states = [], {}
-    with futures.ThreadPoolExecutor(max_workers=len(LOADERS)) as pool:
-        jobs = {pool.submit(loader): code for code, loader in LOADERS.items()}
+    loaders = dict(LOADERS)
+
+    # Norway publishes the temperature series hourly, so do not hit RIM every
+    # 10-minute snapshot run. Reuse the last official rows between refreshes.
+    if not norway_refresh_due(previous, now):
+        loaders.pop("NO", None)
+        stations.extend(previous_no)
+        state = {"ok": bool(previous_no), "count": len(previous_no), "cached": True}
+        if not previous_no:
+            state["error"] = "Waiting before next MET Norway retry"
+        for key in ("lastFetch", "lastAttempt"):
+            value = previous_no_state.get(key)
+            if isinstance(value, (int, float)):
+                state[key] = int(value)
+        states["NO"] = state
+
+    with futures.ThreadPoolExecutor(max_workers=max(1, len(loaders))) as pool:
+        jobs = {pool.submit(loader): code for code, loader in loaders.items()}
         for job in futures.as_completed(jobs):
             code = jobs[job]
             try:
@@ -328,11 +384,27 @@ def main():
                     station_item["rows"] = [r for r in station_item["rows"] if cutoff <= r[0] <= now + FUTURE_TOLERANCE_SEC]
                     if station_item["rows"]:
                         trimmed.append(station_item)
+                if code == "NO" and not trimmed:
+                    raise ValueError("No current Norwegian temperature observations")
                 stations.extend(trimmed)
-                states[code] = {"ok": True, "count": len(trimmed)}
+                state = {"ok": True, "count": len(trimmed)}
+                if code == "NO":
+                    state.update({"lastFetch": now, "lastAttempt": now})
+                states[code] = state
             except Exception as exc:
                 print(f"{code}: {exc}")
-                states[code] = {"ok": False, "count": 0, "error": str(exc)[:180]}
+                if code == "NO":
+                    stations.extend(previous_no)
+                    state = {
+                        "ok": False, "count": len(previous_no), "error": str(exc)[:180],
+                        "cached": bool(previous_no), "lastAttempt": now,
+                    }
+                    last_fetch = previous_no_state.get("lastFetch")
+                    if isinstance(last_fetch, (int, float)):
+                        state["lastFetch"] = int(last_fetch)
+                    states[code] = state
+                else:
+                    states[code] = {"ok": False, "count": 0, "error": str(exc)[:180]}
 
     stations.sort(key=lambda s: (s["country"], s["name"], s["code"]))
     if not stations:
