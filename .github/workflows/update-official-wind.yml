@@ -1,4 +1,4 @@
-name: Update official Estonia and Finland wind
+name: Update official Nordic wind
 on:
   schedule:
     - cron: '14 * * * *'
@@ -8,6 +8,7 @@ on:
     paths:
       - scripts/update_official_wind.py
       - tests/test_official_wind.py
+      - js/official-wind.js
       - .github/workflows/update-official-wind.yml
 permissions:
   contents: write
@@ -17,7 +18,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,6 +34,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/official-wind.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Refresh official Estonia and Finland wind observations'
+          git commit -m 'Refresh official Nordic wind observations'
           git pull --rebase origin main
           git push origin HEAD:main
