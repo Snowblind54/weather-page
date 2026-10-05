@@ -117,3 +117,67 @@ function dmiRadarCanvasLayer(frame){
   });return new Layer();
 }
 
+// Estonia's KAIA radar is the authoritative layer over Estonia. Finland,
+// Sweden, Norway, Latvia and Lithuania all publish products whose footprints
+// overlap Estonia, and stacking those semi-transparent images can create a
+// doubled/ghost echo. While KAIA is present, cut Estonia out of the secondary
+// products. If KAIA is unavailable the cutout is removed so neighbours can
+// still provide fallback coverage.
+const ESTONIA_RADAR_PRIORITY_POLYGONS=[
+  // Mainland.
+  [[24.312863,57.793424],[24.428928,58.383413],[24.061198,58.257375],[23.42656,58.612753],[23.339795,59.18724],[24.604214,59.465854],[25.864189,59.61109],[26.949136,59.445803],[27.981114,59.475388],[28.131699,59.300825],[27.420166,58.724581],[27.716686,57.791899],[27.288185,57.474528],[26.463532,57.476389],[25.60281,57.847529],[25.164594,57.970157],[24.312863,57.793424]],
+  // Saaremaa / Muhu group.
+  [[21.73,57.92],[22.05,57.82],[22.72,57.88],[23.47,58.18],[23.62,58.55],[23.18,58.72],[22.43,58.67],[21.82,58.49],[21.73,57.92]],
+  // Hiiumaa / Vormsi group.
+  [[22.02,58.68],[22.53,58.62],[23.45,58.78],[23.58,59.05],[23.14,59.25],[22.42,59.19],[21.95,58.96],[22.02,58.68]]
+];
+const ESTONIA_RADAR_PRIORITY_BOUNDS=[[57.47,21.70],[59.62,28.14]];
+function radarBoundsOverlap(a,b){
+  return a?.length===2&&b?.length===2&&a[0][0]<b[1][0]&&a[1][0]>b[0][0]&&a[0][1]<b[1][1]&&a[1][1]>b[0][1];
+}
+function estoniaRadarPriorityMask(bounds){
+  if(!radarBoundsOverlap(bounds,ESTONIA_RADAR_PRIORITY_BOUNDS))return '';
+  const [[south,west],[north,east]]=bounds;
+  const top=radarMercatorY(north),bottom=radarMercatorY(south);
+  if(!Number.isFinite(top)||!Number.isFinite(bottom)||top===bottom||east===west)return '';
+  const holes=ESTONIA_RADAR_PRIORITY_POLYGONS.map(polygon=>{
+    const points=polygon.map(([lon,lat])=>{
+      const x=(lon-west)/(east-west)*1000;
+      const y=(top-radarMercatorY(lat))/(top-bottom)*1000;
+      return `${x.toFixed(2)} ${y.toFixed(2)}`;
+    });
+    return 'M'+points.join('L')+'Z';
+  }).join(' ');
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"><path fill="white" fill-rule="evenodd" d="M0 0H1000V1000H0Z ${holes}"/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+function secondaryRadarElement(layer){return layer?.getElement?.()||layer?._canvas||null;}
+function secondaryRadarBounds(layer){
+  const bounds=layer?.getBounds?.();
+  return bounds?[[bounds.getSouth(),bounds.getWest()],[bounds.getNorth(),bounds.getEast()]]:null;
+}
+function setEstoniaRadarPriorityMask(layer,enabled){
+  const element=secondaryRadarElement(layer);if(!element)return;
+  const mask=enabled?estoniaRadarPriorityMask(secondaryRadarBounds(layer)):'';
+  element.style.maskImage=mask;element.style.webkitMaskImage=mask;
+  element.style.maskRepeat=mask?'no-repeat':'';element.style.webkitMaskRepeat=mask?'no-repeat':'';
+  element.style.maskSize=mask?'100% 100%':'';element.style.webkitMaskSize=mask?'100% 100%':'';
+}
+function syncEstoniaRadarPriorityMasks(){
+  const enabled=!!(typeof radarLayer!=='undefined'&&radarLayer&&typeof map!=='undefined'&&map.hasLayer?.(radarLayer));
+  if(typeof directRadarLayers!=='undefined')for(const layer of directRadarLayers.values())setEstoniaRadarPriorityMask(layer,enabled);
+  if(typeof nordicRadarLayers!=='undefined')for(const layer of nordicRadarLayers.values())setEstoniaRadarPriorityMask(layer,enabled);
+}
+let estoniaRadarMaskSyncQueued=false;
+function queueEstoniaRadarPrioritySync(){
+  if(estoniaRadarMaskSyncQueued)return;
+  estoniaRadarMaskSyncQueued=true;
+  requestAnimationFrame(()=>{
+    estoniaRadarMaskSyncQueued=false;
+    try{syncEstoniaRadarPriorityMasks();}catch(error){console.warn('Estonia radar overlap mask could not update',error);}
+  });
+}
+const radarOverlayPane=typeof map!=='undefined'?map.getPane?.('overlayPane'):null;
+if(radarOverlayPane&&typeof MutationObserver!=='undefined'){
+  new MutationObserver(queueEstoniaRadarPrioritySync).observe(radarOverlayPane,{childList:true});
+}
