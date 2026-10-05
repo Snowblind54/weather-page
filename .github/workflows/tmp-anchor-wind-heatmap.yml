@@ -1,0 +1,40 @@
+name: Temporary anchor wind heatmap
+
+on:
+  push:
+    branches:
+      - fix/wind-heatmap-stable-pan
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/wind-heatmap-stable-pan
+          fetch-depth: 0
+      - name: Apply anchored heatmap patch
+        run: python3 scripts/tmp_anchor_wind_heatmap.py
+      - name: Validate JavaScript syntax
+        run: node --check js/wind.js
+      - name: Verify anchored sampling markers
+        run: |
+          grep -q "Anchor samples to fixed Web-Mercator world pixels" js/wind.js
+          grep -q "startX-step/2" js/wind.js
+          grep -q "Northern Weather Map v8.66" index.html
+          grep -q "js/wind.js?v=8.66" index.html
+      - name: Commit generated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/wind.js index.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Anchor wind heatmap sampling to map coordinates"
+            git push origin HEAD:fix/wind-heatmap-stable-pan
+          fi
