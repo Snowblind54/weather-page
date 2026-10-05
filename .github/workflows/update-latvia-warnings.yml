@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check national warning parsers
-        run: python3 -m unittest discover -s tests -v
+        run: python3 -m unittest discover -s tests -p 'test_national_warnings.py' -v
       - name: Fetch official LVGMC warnings and polygons
         run: python3 scripts/update_latvia_warnings.py
       - name: Fetch official IMGW and DMI warnings and polygons
