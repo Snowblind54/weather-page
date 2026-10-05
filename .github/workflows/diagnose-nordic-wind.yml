@@ -1,0 +1,43 @@
+name: Diagnose Nordic wind
+on:
+  push:
+    branches: [diagnose/nordic-wind]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Iceland and Norway feeds
+        run: |
+          python3 - <<'PY'
+          import datetime as dt, json, urllib.parse, urllib.request
+          def get(url):
+              req=urllib.request.Request(url,headers={'User-Agent':'NorthernWeather diagnostics (github.com/Snowblind54/weather-page)'})
+              with urllib.request.urlopen(req,timeout=40) as r:return json.load(r)
+          now=dt.datetime.now(dt.timezone.utc)
+          for agg in ('hour','10min'):
+              data=get(f'https://api.vedur.is/weather/observations/aws/{agg}/latest?parameters=basic')
+              fresh=[r for r in data if r.get('time') and (now-dt.datetime.fromisoformat(r['time']).replace(tzinfo=dt.timezone.utc)).total_seconds()<=3*3600]
+              ids={str(r.get('station')) for r in fresh}
+              print('ICELAND',agg,'total',len(data),'fresh<=3h',len(fresh),'reykjavik1475',1475 in {r.get('station') for r in fresh},'sample_ids',sorted(ids)[:20])
+          base='https://rim.k8s.met.no/api/v1/'
+          start=(now-dt.timedelta(days=1)).date().isoformat(); end=(now+dt.timedelta(days=1)).date().isoformat()
+          p=dict(sourceName='',weatherElements='wind_speed_of_gust',timeResolution='hours',**{'from':start,'to':end},includeRegions='false')
+          meta=(get(base+'stations?'+urllib.parse.urlencode(p)).get('data') or [])
+          official=[s for s in meta if 'MET.NO' in s.get('stationHolders',[]) and len(s.get('geometry',{}).get('coordinates') or [])>=2]
+          print('NORWAY gust-capable metadata stations',len(official))
+          for batch in [official[i:i+20] for i in range(0,min(len(official),100),20)]:
+              q=dict(sources=','.join(s['id'] for s in batch),referenceTime=start+'/'+end,elements='wind_speed,wind_speed_of_gust,wind_from_direction',timeResolution='hours')
+              data=get(base+'observations?'+urllib.parse.urlencode(q))
+              gusts=[]
+              for row in data.get('data') or []:
+                  for o in row.get('observations') or []:
+                      if o.get('elementId')=='wind_speed_of_gust':
+                          gusts.append((row.get('sourceId'),row.get('referenceTime'),o.get('value'),o.get('unit'),o.get('qualityCode'),o.get('timeSeriesId'),o.get('timeResolution'),o.get('timeOffset')))
+              if gusts:
+                  print('NORWAY gust samples',gusts[:20]);break
+          else: print('NORWAY no gust observations returned in first 100 stations')
+          PY
