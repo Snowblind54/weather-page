@@ -58,11 +58,15 @@ class OfficialWind(unittest.TestCase):
                      'geometry': {'coordinates': [10.0, 60.0]}}]
         payload = {'data': [{'sourceId': 'SN1:0', 'referenceTime': '2026-10-05T07:00:00Z', 'observations': [
             {'elementId': 'wind_speed', 'unit': 'm/s', 'qualityCode': 0, 'timeSeriesId': 0, 'value': 4.2},
-            {'elementId': 'wind_speed_of_gust', 'unit': 'm/s', 'qualityCode': 2, 'timeSeriesId': 0, 'value': 9.1},
+            {'elementId': w.NORWAY_GUST_ELEMENT, 'unit': 'm/s', 'qualityCode': 2, 'timeSeriesId': 0, 'value': 9.1},
             {'elementId': 'wind_from_direction', 'unit': 'degrees', 'qualityCode': 0, 'timeSeriesId': 0, 'value': 220},
         ]}]}
         s = w.parse_norway(payload, metadata)[0]
         self.assertEqual(s['rows'], [[STAMP, 4.2, 9.1, 220]])
+
+    def test_provider_element_and_current_iceland_endpoint_are_explicit(self):
+        self.assertEqual(w.NORWAY_GUST_ELEMENT, 'max(wind_speed_of_gust PT1H)')
+        self.assertIn('/10min/latest', w.ICELAND_LATEST_URL)
 
     def test_iceland_uses_f_for_wind_and_fg_for_gust(self):
         metadata = [{'station': 1475, 'name': 'Reykjavik', 'lat': 64.1, 'lon': -21.9}]
