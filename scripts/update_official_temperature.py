@@ -76,7 +76,10 @@ def stamp(value):
 
 
 def make_station(country, code, name, lat, lon, rows):
-    lat, lon = float(lat), float(lon)
+    try:
+        lat, lon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        return None
     south, north, west, east = BOUNDS
     if not (south <= lat <= north and west <= lon <= east):
         return None
@@ -131,8 +134,9 @@ def parse_lithuania():
         data = download_json(base + "/stations/" + urllib.parse.quote(str(code)) + "/observations/latest", 25)
         observations = data.get("observations") or []
         details = data.get("station") or meta
-        lat = details.get("latitude") or details.get("lat")
-        lon = details.get("longitude") or details.get("lon") or details.get("lng")
+        coords = details.get("coordinates") or {}
+        lat = details.get("latitude") or details.get("lat") or coords.get("latitude") or coords.get("lat")
+        lon = details.get("longitude") or details.get("lon") or details.get("lng") or coords.get("longitude") or coords.get("lon") or coords.get("lng")
         rows = []
         for obs in observations:
             rows.append((obs.get("observationTimeUtc") or obs.get("time") or obs.get("date"),
@@ -149,8 +153,8 @@ def parse_finland():
     params = urllib.parse.urlencode({
         "service": "WFS", "version": "2.0.0", "request": "getFeature",
         "storedquery_id": "fmi::observations::weather::simple", "bbox": "19,59,32,71.7",
-        "starttime": start.isoformat().replace("+00:00", "Z"),
-        "endtime": end.isoformat().replace("+00:00", "Z"), "timestep": "10", "parameters": "t2m",
+        "starttime": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "endtime": end.strftime("%Y-%m-%dT%H:%M:%SZ"), "timestep": "10", "parameters": "t2m",
     })
     root = ET.fromstring(download("https://opendata.fmi.fi/wfs?" + params, 40))
     grouped = {}
