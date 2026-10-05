@@ -24,6 +24,20 @@ REGIONS = {
 }
 
 
+def day_groups(bucket):
+    """Return warning groups while tolerating the site's two empty-day shapes."""
+    if bucket == []:  # PHP may encode the entire empty day as [].
+        return {}
+    if not isinstance(bucket, dict) or 'DATA' not in bucket:
+        raise ValueError('Invalid official warning calendar bucket')
+    groups = bucket['DATA']
+    if groups == []:  # Or only the DATA member may be encoded as [].
+        return {}
+    if not isinstance(groups, dict):
+        raise ValueError('Invalid official warning groups')
+    return groups
+
+
 def parse_forecast(page):
     match = re.search(r'_var\["warningsData"\]\s*=\s*', page)
     if not match:
@@ -34,9 +48,7 @@ def parse_forecast(page):
     records = {}
     for day, bucket in forecast.items():
         datetime.strptime(day, '%Y-%m-%d')
-        groups = bucket['DATA']
-        if groups == []:  # PHP can encode an empty calendar bucket as [].
-            groups = {}
+        groups = day_groups(bucket)
         for group in groups.values():
             for row in group['ROWS']:
                 if row['status'] != 'PUBLIC' or int(row['warning_level']) == 0:

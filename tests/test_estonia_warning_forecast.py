@@ -32,6 +32,7 @@ class EstoniaForecastTests(unittest.TestCase):
         self.assertEqual(len(records), 44)
 
     def test_empty_valid_forecast_and_nonpublic_rows(self):
+        self.assertEqual(module.parse_forecast('_var["warningsData"] = {"2026-10-04":[]};')[1], [])
         self.assertEqual(module.parse_forecast('_var["warningsData"] = {"2026-10-04":{"DATA":{}}};')[1], [])
         self.assertEqual(module.parse_forecast('_var["warningsData"] = {"2026-10-04":{"DATA":[]}};')[1], [])
         data = json.JSONDecoder().raw_decode(PAGE[re.search(r'_var\["warningsData"\]\s*=\s*', PAGE).end():])[0]
@@ -45,6 +46,9 @@ class EstoniaForecastTests(unittest.TestCase):
         for page in ('<html>Unavailable</html>', '_var["warningsData"] = {};', '_var["warningsData"] = null;'):
             with self.assertRaises(ValueError):
                 module.parse_forecast(page)
+        for bad in ('{"2026-10-04":[1]}', '{"2026-10-04":{}}', '{"2026-10-04":{"DATA":"bad"}}'):
+            with self.assertRaises(ValueError):
+                module.parse_forecast('_var["warningsData"] = ' + bad)
         with self.assertRaises(ValueError):
             module.parse_forecast(PAGE.replace('37,39,56,68,74', '12345'))
 
