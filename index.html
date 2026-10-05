@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Northern Weather Map v8.77</title>
+<title>Northern Weather Map v8.78</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
@@ -93,7 +93,9 @@
       <span class="badge">Baltics · Nordics · official</span>
     </div>
     <div class="details">
-      <div class="legend"></div>
+      <div class="small">Radar rain rate · mm/h</div>
+      <div class="legend" aria-label="Radar rain-rate colour scale in millimetres per hour"></div>
+      <div class="rain-legend-values"><span>0.1</span><span>0.3</span><span>0.5</span><span>1</span><span>2</span><span>4</span><span>8</span><span>16</span><span>50+ mm/h</span></div>
       <div id="nordicRadarStatus" class="status" role="status">Nordic radar is off.</div>
       <div id="radarStatus" class="status">Rain radar layer is off. Official frame sources still load for the timeline.</div>
     </div>
