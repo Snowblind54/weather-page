@@ -23,6 +23,14 @@ class MarineZonesTest(unittest.TestCase):
         self.assertTrue(self.zones['peipsi järv'].covers(Point(27.35, 58.6)))
         self.assertTrue(self.zones['soome lahe lääneosa'].covers(Point(24.7, 59.7)))
 
+    def test_gulf_of_finland_zones_stay_compact(self):
+        west = self.zones['soome lahe lääneosa']
+        east = self.zones['soome lahe idaosa']
+        self.assertLessEqual(west.bounds[3], 59.74)
+        self.assertLessEqual(east.bounds[3], 59.77)
+        self.assertFalse(west.covers(Point(24.7, 59.9)))
+        self.assertFalse(east.covers(Point(27.0, 59.9)))
+
     def test_mainland_and_islands_are_not_covered(self):
         # Tallinn, Pärnu, Saaremaa, Hiiumaa, Muhu, Vormsi, Ruhnu, Helsinki,
         # Haapsalu and the western shore of Lake Peipsi.
