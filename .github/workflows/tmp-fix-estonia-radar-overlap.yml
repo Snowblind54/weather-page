@@ -1,7 +1,7 @@
 name: Temporary Estonia radar overlap fix
 on:
   push:
-    branches: [fix/norway-temperature-rate-limit]
+    branches: [fix/estonia-radar-overlap]
   workflow_dispatch:
 permissions:
   contents: write
