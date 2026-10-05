@@ -1,13 +1,17 @@
 // Measured station labels load independently of the modeled particle animation.
 const OFFICIAL_WIND_CHECK_MS=5*60*1000,OFFICIAL_WIND_MAX_AGE=3*3600;
-const OFFICIAL_WIND_COUNTRIES=['EE','FI','SE','NO','IS'];
-const OFFICIAL_WIND_COUNTRY_NAMES={EE:'Estonia',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland'};
+const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL'];
+const OFFICIAL_WIND_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland'};
 const OFFICIAL_WIND_SOURCE_LINKS={
   EE:'https://www.ilmateenistus.ee/',
   FI:'https://en.ilmatieteenlaitos.fi/open-data',
   SE:'https://www.smhi.se/data/meteorologi/vind',
   NO:'https://seklima.met.no/',
-  IS:'https://api.vedur.is/weather/'
+  IS:'https://api.vedur.is/weather/',
+  LV:'https://data.gov.lv/dati/lv/dataset/hidrometeorologiskie-noverojumi',
+  LT:'https://api.meteo.lt/',
+  PL:'https://danepubliczne.imgw.pl/',
+  DK:'https://www.dmi.dk/friedata/'
 };
 let officialWindData=null,officialWindPromise=null,officialWindLoadedAt=0,officialWindRetryAt=0,officialWindFailed=false;
 const officialWindLabels=L.layerGroup();
@@ -22,10 +26,10 @@ function officialWindTime(){
 }
 function validateOfficialWind(data){
   const now=Date.now()/1000;
-  if(data?.version!==1||data.units!=='m/s'||data.refreshMinutes!==60||!Number.isInteger(data.generatedAt)||data.generatedAt>now+300||!Array.isArray(data.stations)||data.stations.length>1500)throw new Error('Invalid official wind snapshot');
+  if(data?.version!==1||data.units!=='m/s'||data.refreshMinutes!==30||!Number.isInteger(data.generatedAt)||data.generatedAt>now+300||!Array.isArray(data.stations)||data.stations.length>2500)throw new Error('Invalid official wind snapshot');
   const ids=new Set();
   for(const s of data.stations){
-    if(!OFFICIAL_WIND_COUNTRIES.includes(s.country)||!data.sources?.[s.country]||typeof s.code!=='string'||!s.code||typeof s.name!=='string'||!Number.isFinite(s.lat)||s.lat<53||s.lat>72.5||!Number.isFinite(s.lon)||s.lon<-26||s.lon>33||!Array.isArray(s.rows)||s.rows.length>100)throw new Error('Invalid official wind station');
+    if(!OFFICIAL_WIND_COUNTRIES.includes(s.country)||!data.sources?.[s.country]||typeof s.code!=='string'||!s.code||typeof s.name!=='string'||!Number.isFinite(s.lat)||s.lat<48.5||s.lat>72.5||!Number.isFinite(s.lon)||s.lon<-26||s.lon>33||!Array.isArray(s.rows)||s.rows.length>100)throw new Error('Invalid official wind station');
     const id=s.country+'/'+s.code;if(ids.has(id))throw new Error('Duplicate official wind station');ids.add(id);
     s.rows.forEach((r,i)=>{
       if(!Array.isArray(r)||r.length!==4||!Number.isInteger(r[0])||r[0]>data.generatedAt+60||(i&&r[0]<=s.rows[i-1][0])||
@@ -53,7 +57,7 @@ function officialWindPopup(s,r){
   return `<div class="wind-popup official-wind-popup"><div class="wind-popup-heading">${htmlEscape(s.name)}</div><div class="wind-popup-meta">Official station · ${OFFICIAL_WIND_COUNTRY_NAMES[s.country]}</div>
     <div class="wind-popup-readings"><div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${value(r[1])}</div></div><div><div class="wind-popup-label">Wind gusts</div><div class="wind-popup-speed">${value(r[2])}</div></div></div>
     ${direction}<div class="wind-popup-meta">${source.timeKind==='feed'?'Source feed timestamp':'Observed'}: ${htmlEscape(fmt(r[0]))}${old?' · delayed reading':''}</div>
-    <div class="wind-popup-meta">${htmlEscape(source.period||'Reported station measurements.')} Updated hourly on this map.</div>
+    <div class="wind-popup-meta">${htmlEscape(source.period||'Reported station measurements.')} Updated every 30 minutes on this map.</div>
     <div class="wind-popup-meta"><a href="${OFFICIAL_WIND_SOURCE_LINKS[s.country]}" target="_blank" rel="noopener">${htmlEscape(source.name)}</a></div></div>`;
 }
 function renderOfficialWind(){
@@ -86,7 +90,7 @@ function renderOfficialWind(){
     if(!source)return OFFICIAL_WIND_COUNTRY_NAMES[c]+': awaiting first refresh';
     return OFFICIAL_WIND_COUNTRY_NAMES[c]+': '+rows.length+' stations'+(latest?' · '+fmt(latest):' · no readings at this time')+(source.status==='unavailable'?' · source refresh failed':'');
   });
-  $('officialWindStatus').textContent=countries.join(' | ')+'. '+officialWindLabels.getLayers().length+' labels in view · hourly updates'+(sustained&&gusts?' · S = sustained, G = gusts':'')+'.'+(officialWindFailed?' Latest snapshot refresh failed; showing retained readings.':'');
+  $('officialWindStatus').textContent=countries.join(' | ')+'. '+officialWindLabels.getLayers().length+' labels in view · 30-minute updates'+(sustained&&gusts?' · S = sustained, G = gusts':'')+'.'+(officialWindFailed?' Latest snapshot refresh failed; showing retained readings.':'');
 }
 async function loadOfficialWind(force=false){
   if(!officialWindEnabled())return;
