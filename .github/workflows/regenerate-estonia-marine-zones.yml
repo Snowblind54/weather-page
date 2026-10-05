@@ -1,0 +1,29 @@
+name: Regenerate Estonia marine warning zones
+on:
+  push:
+    branches: [fix/estonia-gulf-warning-shapes]
+    paths:
+      - scripts/build_estonia_marine_zones.py
+      - tests/test_estonia_marine_zones.py
+      - .github/workflows/regenerate-estonia-marine-zones.yml
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -r scripts/requirements-warning-geometry.txt
+      - name: Rebuild geometry
+        run: python3 scripts/build_estonia_marine_zones.py
+      - name: Test geometry
+        run: python3 -m unittest tests/test_estonia_marine_zones.py -v
+      - name: Save rebuilt geometry
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/estonia-marine-warning-zones.geojson
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Rebuild compact Estonia marine warning zones'
+          git push origin HEAD:fix/estonia-gulf-warning-shapes
