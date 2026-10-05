@@ -1,7 +1,7 @@
 name: Update official Nordic wind
 on:
   schedule:
-    - cron: '14 * * * *'
+    - cron: '14,44 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
