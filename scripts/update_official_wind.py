@@ -214,6 +214,8 @@ def parse_norway(payload, metadata):
         if len(coords) < 2:
             continue
         lon, lat = coords[:2]
+        if not (53 <= lat <= 72.5 and -26 <= lon <= 33):
+            continue
         result.append(station('NO', code, meta.get('shortName') or meta.get('name') or code, lat, lon, rows))
     return result
 
