@@ -1,4 +1,4 @@
-"""30-minute shared snapshots of official Northern European station wind; never substitute models.
+"""10-minute shared snapshots of official Northern European station wind; never substitute models.
 
 EE exposes a feed timestamp, not per-station observation timestamps. Keep that
 meaning explicit. Other providers supply actual observation times. Native values
@@ -26,7 +26,7 @@ SOURCES = {
     'EE': dict(name='Estonian Environment Agency / Keskkonnaagentuur', url='https://www.ilmateenistus.ee/',
                timeKind='feed', period='Latest reported mean wind and gust; feed updates every 10 minutes.'),
     'FI': dict(name='Finnish Meteorological Institute (FMI)', url='https://en.ilmatieteenlaitos.fi/open-data',
-               timeKind='observation', period='10-minute mean wind and reported 10-minute gust maximum, sampled hourly.',
+               timeKind='observation', period='10-minute mean wind and reported 10-minute gust maximum.',
                license='CC BY 4.0'),
     'SE': dict(name='Swedish Meteorological and Hydrological Institute (SMHI)',
                url='https://www.smhi.se/data/meteorologi/vind', timeKind='observation',
@@ -341,10 +341,10 @@ def load_estonia(now):
 
 
 def load_finland(now):
-    end = now.replace(minute=0, second=0, microsecond=0)
+    end = now.replace(minute=(now.minute // 10) * 10, second=0, microsecond=0)
     params = dict(service='WFS', version='2.0.0', request='getFeature',
                   storedquery_id='fmi::observations::weather::multipointcoverage', bbox='19,59,32,71.7',
-                  starttime=(end - dt.timedelta(hours=3)).isoformat(), endtime=end.isoformat(), timestep=60,
+                  starttime=(end - dt.timedelta(hours=3)).isoformat(), endtime=end.isoformat(), timestep=10,
                   parameters='ws_10min,wg_10min,wd_10min')
     return parse_finland(download('https://opendata.fmi.fi/wfs?' + urllib.parse.urlencode(params)))
 
@@ -478,7 +478,7 @@ def main():
     stations = merge(old, results, now)
     if not results:
         raise ValueError('All official wind feeds unavailable; retaining previous snapshot')
-    snapshot = dict(version=1, generatedAt=int(now.timestamp()), refreshMinutes=30, units='m/s',
+    snapshot = dict(version=1, generatedAt=int(now.timestamp()), refreshMinutes=10, units='m/s',
                     sources=sources, stations=stations)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(mode='w', dir=OUTPUT.parent, delete=False) as f:
