@@ -104,9 +104,19 @@ $('windOn').addEventListener('change',()=>{
   else hideWind();
   updateAccumulationPopup();
 });
+$('windHeatmapOn').addEventListener('change',()=>{
+  if($('windHeatmapOn').checked) loadWind().catch(reportWindError);
+  else hideWindHeatmap();
+  updateAccumulationPopup();
+});
+$('windHeatmapOpacity').addEventListener('input',()=>{
+  $('windHeatmapOpacityVal').textContent=$('windHeatmapOpacity').value+'%';
+  windHeatmapLayer?.setOpacity(Number($('windHeatmapOpacity').value)/100);
+});
 $('windMode').addEventListener('change',()=>{
   showWindLegend();
   if($('windOn').checked) renderWind(selectedWindTime());
+  if($('windHeatmapOn').checked) renderWindHeatmap(selectedWindTime());
   updateAccumulationPopup();
 });
 $('windDensity').addEventListener('input',()=>{
@@ -169,6 +179,7 @@ $('timeline').addEventListener('input',()=>{
     // until dragging pauses. Every preview invalidates older pending renders.
     if($('cloudOn').checked)drawCloud(frame,{cachedOnly:true,scrub:true}).catch(console.error);
     if($('windOn').checked) renderWind(frame.time);
+    if($('windHeatmapOn').checked) renderWindHeatmap(frame.time);
     if(typeof renderOfficialWind==='function')renderOfficialWind();
     if(activeAccumulationHours()) queueRainfallRender(90);
   }
@@ -208,7 +219,7 @@ $('refresh').onclick=async()=>{
     await loadOfficialRadarList();
     if(temperatureEnabled()) await loadTemperatures(true);
     if($('warningOn').checked) await loadWarnings(true);
-    if($('windOn').checked) await loadWind().catch(reportWindError);
+    if(windVisualEnabled()) await loadWind().catch(reportWindError);
     if(typeof officialWindEnabled==='function'&&officialWindEnabled())await loadOfficialWind(true);
     $('mapStatus').textContent='Refresh complete.';
     $('mapStatus').className='status ok';
