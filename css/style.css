@@ -341,3 +341,26 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 .official-wind-label{display:block;width:max-content;margin:auto;padding:3px 5px;border:1px solid #a9d9ed80;border-radius:6px;background:#102332ed;box-shadow:0 1px 5px #0007;white-space:nowrap;font:700 11px/17px ui-sans-serif,system-ui,sans-serif}
 .official-wind-label small,.official-wind-separator{font-size:9px;font-weight:500;color:#c6d9e5}
 .official-wind-delayed{border-style:dashed;border-color:#ffd084}
+
+
+/* Per-toggle information help. Kept fixed so panel overflow never clips it. */
+.toggle-info-dot{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:17px;height:17px;box-sizing:border-box;margin-right:7px;
+  border:1px solid rgba(205,225,245,.55);border-radius:50%;
+  color:#dceeff;background:rgba(22,38,53,.78);
+  font-size:11px;font-weight:800;font-style:normal;line-height:1;
+  cursor:help;vertical-align:middle;flex:0 0 auto;
+}
+.toggle-info-dot:hover,.toggle-info-dot:focus{
+  color:#fff;border-color:rgba(232,245,255,.95);background:rgba(45,72,95,.96);outline:none;
+}
+.toggle-help-tooltip{
+  position:fixed;z-index:100000;box-sizing:border-box;
+  width:max-content;max-width:min(330px,calc(100vw - 20px));
+  padding:9px 11px;border:1px solid rgba(180,205,226,.28);border-radius:8px;
+  background:rgba(16,24,32,.97);color:#edf6ff;
+  box-shadow:0 8px 24px rgba(0,0,0,.38);
+  font-size:12px;line-height:1.45;pointer-events:none;
+}
+.toggle-help-tooltip[hidden]{display:none!important;}

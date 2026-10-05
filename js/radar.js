@@ -1,10 +1,10 @@
-// Keep every radar observation; the cloud view selects only 10-minute slots.
-let radarTimelineFrames=[],cloudTimelineMode=false;
-function updateWeatherTimeline(tenMinutes=cloudTimelineMode){
-  cloudTimelineMode=tenMinutes;
+// Keep every radar observation internally, but the shared 2-hour weather
+// timeline always exposes 10-minute steps for every layer.
+let radarTimelineFrames=[];
+function updateWeatherTimeline(){
   if(!radarTimelineFrames.length)return;
   const selected=frames[Number($('timeline').value)]?.time;
-  const next=tenMinutes?radarTimelineFrames.filter(f=>Math.floor(f.time/60)%10===0):radarTimelineFrames;
+  const next=radarTimelineFrames.filter(f=>Math.floor(f.time/60)%10===0);
   if(!next.length)return;
   frames=next;
   $('timeline').max=frames.length-1;
@@ -283,7 +283,7 @@ async function loadKaiaRadarList(){
   $('timeline').value=frames.length-1;
   updateWeatherTimeline();
 
-  $('radarStatus').textContent=`Radar: ${frames.length} official 5-minute Estonian frames found.`;
+  $('radarStatus').textContent=`Radar: ${frames.length} official Estonian frames · 10-minute timeline.`;
   $('radarStatus').className='status ok';
   await applyFrame();
   if($('cloudOn').checked) scheduleCloudPrecache();
@@ -294,9 +294,9 @@ async function loadOfficialRadarList(){
   try{return await loadKaiaRadarList();}
   catch(error){
     console.warn('KAIA timeline unavailable; keeping other national radars operational',error);
-    const end=Math.floor(Date.now()/1000/300)*300-300;
-    radarTimelineFrames=Array.from({length:25},(_,i)=>({id:'clock-'+(end-(24-i)*300),time:end-(24-i)*300,url:null}));
-    frames=radarTimelineFrames;$('timeline').min=0;$('timeline').max=24;$('timeline').value=24;updateWeatherTimeline();
+    const end=Math.floor(Date.now()/1000/600)*600-600;
+    radarTimelineFrames=Array.from({length:13},(_,i)=>({id:'clock-'+(end-(12-i)*600),time:end-(12-i)*600,url:null}));
+    frames=radarTimelineFrames;$('timeline').min=0;$('timeline').max=12;$('timeline').value=12;updateWeatherTimeline();
     $('radarStatus').textContent='EE radar unavailable · other national radar feeds remain independent.';
     $('radarStatus').className='status warn';await applyFrame();
   }
