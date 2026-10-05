@@ -55,11 +55,11 @@ document.addEventListener('pointerdown',event=>{
 window.addEventListener('resize',positionWeatherPanel);
 function updateCategoryIndicators(){
   for(const [section,toggle] of weatherCategories){
-    const active=$(toggle).checked || (section==='tempSection' && $('heatmapOn').checked) || (section==='radarSection' && ['rain1h','rain24h','rain48h'].some(id=>$(id).checked));
+    const active=$(toggle).checked || (section==='windSection' && ['officialWindSustained','officialWindGusts'].some(id=>$(id).checked)) || (section==='tempSection' && $('heatmapOn').checked) || (section==='radarSection' && ['rain1h','rain24h','rain48h'].some(id=>$(id).checked));
     $('nav-'+section).classList.toggle('layer-active',active);
   }
 }
-for(const id of [...weatherCategories.map(c=>c[1]),'rain1h','rain24h','rain48h','heatmapOn']){
+for(const id of [...weatherCategories.map(c=>c[1]),'rain1h','rain24h','rain48h','heatmapOn','officialWindSustained','officialWindGusts']){
   $(id).addEventListener('change',updateCategoryIndicators);
 }
 updateCategoryIndicators();

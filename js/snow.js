@@ -39,7 +39,7 @@ snowLayer.refreshKey=0;
 let snowMode=false,snowPreviousView=null,snowMetadataGeneration=0,snowRefreshTimer=null;
 let snowSourceLabel='Latest daily analysis · source date pending';
 let snowTilesFailed=0,snowTilesLoaded=0;
-const snowWeatherToggles=['tempOn','heatmapOn','windOn','cloudOn','radarOn','rain1h','rain24h','rain48h','cycloneOn','warningOn'];
+const snowWeatherToggles=['tempOn','heatmapOn','windOn','officialWindSustained','officialWindGusts','cloudOn','radarOn','rain1h','rain24h','rain48h','cycloneOn','warningOn'];
 function snowStatus(text,kind=''){
   $('snowStatus').textContent=text;
   $('snowStatus').className='status'+(kind?' '+kind:'');
