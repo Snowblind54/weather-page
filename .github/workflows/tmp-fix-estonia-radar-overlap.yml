@@ -1,0 +1,149 @@
+name: Temporary Estonia radar overlap fix
+on:
+  push:
+    branches:
+      - fix/estonia-radar-overlap
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/estonia-radar-overlap
+      - name: Apply Estonia radar priority mask
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path=Path('js/radar-images.js')
+          text=path.read_text(encoding='utf-8')
+          marker="function radarLatitudeAtY(value){return (2*Math.atan(Math.exp(value))-Math.PI/2)*180/Math.PI;}\n"
+          insert=r'''function radarLatitudeAtY(value){return (2*Math.atan(Math.exp(value))-Math.PI/2)*180/Math.PI;}
+
+const ESTONIA_RADAR_PRIORITY_POLYGON=[
+  [24.312863,57.793424],[24.428928,58.383413],[24.061198,58.257375],
+  [23.42656,58.612753],[23.339795,59.18724],[24.604214,59.465854],
+  [25.864189,59.61109],[26.949136,59.445803],[27.981114,59.475388],
+  [28.131699,59.300825],[27.420166,58.724581],[27.716686,57.791899],
+  [27.288185,57.474528],[26.463532,57.476389],[25.60281,57.847529],
+  [25.164594,57.970157],[24.312863,57.793424]
+];
+const ESTONIA_RADAR_PRIORITY_BOUNDS=[[57.4745,23.3397],[59.6112,28.1318]];
+function radarBoundsOverlap(a,b){
+  return a?.length===2&&b?.length===2&&a[0][0]<b[1][0]&&a[1][0]>b[0][0]&&a[0][1]<b[1][1]&&a[1][1]>b[0][1];
+}
+function estoniaRadarPriorityMask(bounds){
+  if(!radarBoundsOverlap(bounds,ESTONIA_RADAR_PRIORITY_BOUNDS))return '';
+  const [[south,west],[north,east]]=bounds;
+  const top=radarMercatorY(north),bottom=radarMercatorY(south);
+  if(!Number.isFinite(top)||!Number.isFinite(bottom)||top===bottom||east===west)return '';
+  const points=ESTONIA_RADAR_PRIORITY_POLYGON.map(([lon,lat])=>{
+    const x=(lon-west)/(east-west)*1000;
+    const y=(top-radarMercatorY(lat))/(top-bottom)*1000;
+    return `${x.toFixed(2)} ${y.toFixed(2)}`;
+  });
+  const hole='M'+points.join('L')+'Z';
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"><path fill="white" fill-rule="evenodd" d="M0 0H1000V1000H0Z ${hole}"/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+function secondaryRadarElement(layer){return layer?.getElement?.()||layer?._canvas||null;}
+function setEstoniaRadarPriorityMask(layer,bounds,enabled){
+  const element=secondaryRadarElement(layer);if(!element)return;
+  const mask=enabled?estoniaRadarPriorityMask(bounds):'';
+  element.style.maskImage=mask;element.style.webkitMaskImage=mask;
+  element.style.maskRepeat=mask?'no-repeat':'';element.style.webkitMaskRepeat=mask?'no-repeat':'';
+  element.style.maskSize=mask?'100% 100%':'';element.style.webkitMaskSize=mask?'100% 100%':'';
+}
+function syncEstoniaRadarPriorityMasks(){
+  const enabled=!!(typeof radarLayer!=='undefined'&&radarLayer&&typeof map!=='undefined'&&map.hasLayer?.(radarLayer));
+  if(typeof directRadarLayers!=='undefined')for(const layer of directRadarLayers.values())setEstoniaRadarPriorityMask(layer,layer.radarBounds,enabled);
+  if(typeof nordicRadarLayers!=='undefined')for(const layer of nordicRadarLayers.values())setEstoniaRadarPriorityMask(layer,layer.radarBounds,enabled);
+}
+'''
+          if text.count(marker)!=1: raise SystemExit('radar-images marker mismatch')
+          text=text.replace(marker,insert,1)
+          path.write_text(text,encoding='utf-8')
+
+          path=Path('js/radar-history.js')
+          text=path.read_text(encoding='utf-8')
+          old="const layer=L.imageOverlay(frame.dataUrl,frame.bounds,{opacity:source.opacity,interactive:false});layer.radarUrl=frame.dataUrl;"
+          new="const layer=L.imageOverlay(frame.dataUrl,frame.bounds,{opacity:source.opacity,interactive:false});layer.radarUrl=frame.dataUrl;layer.radarBounds=frame.bounds;"
+          if text.count(old)!=1: raise SystemExit('radar-history layer marker mismatch')
+          text=text.replace(old,new,1)
+          old="directRadarLayers.set(source.id,layer);\n      }\n      labels[index]="
+          new="directRadarLayers.set(source.id,layer);syncEstoniaRadarPriorityMasks();\n      }\n      labels[index]="
+          if text.count(old)!=1: raise SystemExit('radar-history sync marker mismatch')
+          text=text.replace(old,new,1)
+          path.write_text(text,encoding='utf-8')
+
+          path=Path('js/nordic-radar.js')
+          text=path.read_text(encoding='utf-8')
+          old="const layer=(frame.canvas?dmiRadarCanvasLayer(frame):L.imageOverlay(frame.image,frame.bounds,{opacity:.84,interactive:false})).addTo(map);layer.radarUrl=frame.url;"
+          new="const layer=(frame.canvas?dmiRadarCanvasLayer(frame):L.imageOverlay(frame.image,frame.bounds,{opacity:.84,interactive:false})).addTo(map);layer.radarUrl=frame.url;layer.radarBounds=frame.bounds;"
+          if text.count(old)!=1: raise SystemExit('nordic layer marker mismatch')
+          text=text.replace(old,new,1)
+          old="nordicRadarLayers.set(id,layer);if(previous)map.removeLayer(previous);"
+          new="nordicRadarLayers.set(id,layer);if(previous)map.removeLayer(previous);syncEstoniaRadarPriorityMasks();"
+          if text.count(old)!=1: raise SystemExit('nordic sync marker mismatch')
+          text=text.replace(old,new,1)
+          path.write_text(text,encoding='utf-8')
+
+          path=Path('js/radar.js')
+          text=path.read_text(encoding='utf-8')
+          old="map.removeLayer(radarLayer);\n      radarLayer=null;\n    }\n    return;"
+          new="map.removeLayer(radarLayer);\n      radarLayer=null;\n      if(typeof syncEstoniaRadarPriorityMasks==='function')syncEstoniaRadarPriorityMasks();\n    }\n    return;"
+          if text.count(old)!=1: raise SystemExit('radar removal marker mismatch')
+          text=text.replace(old,new,1)
+          old="radarLayer=nextLayer;\n\n    // Radar opacity"
+          new="radarLayer=nextLayer;\n    if(typeof syncEstoniaRadarPriorityMasks==='function')syncEstoniaRadarPriorityMasks();\n\n    // Radar opacity"
+          if text.count(old)!=1: raise SystemExit('radar add marker mismatch')
+          text=text.replace(old,new,1)
+          path.write_text(text,encoding='utf-8')
+
+          path=Path('tests/radar-direct.test.cjs')
+          text=path.read_text(encoding='utf-8')
+          test=r'''
+
+test('secondary national radar layers receive an Estonia cutout only where their bounds overlap Estonia',()=>{
+ const c=harness();c.bounds=[[54.59,19.82],[59.09,28.07]];
+ const mask=vm.runInContext('estoniaRadarPriorityMask(bounds)',c);assert.match(mask,/data:image\/svg\+xml/);assert.match(mask,/M0%200H1000V1000H0Z/);
+ c.bounds=[[61,-29],[69,-10]];assert.equal(vm.runInContext('estoniaRadarPriorityMask(bounds)',c),'');
+ const style={};c.layer={getElement:()=>({style})};c.bounds=[[53,4],[71,31]];
+ vm.runInContext('setEstoniaRadarPriorityMask(layer,bounds,true)',c);assert.match(style.maskImage,/data:image\/svg\+xml/);assert.equal(style.maskSize,'100% 100%');
+ vm.runInContext('setEstoniaRadarPriorityMask(layer,bounds,false)',c);assert.equal(style.maskImage,'');assert.equal(style.maskSize,'');
+});
+'''
+          if "secondary national radar layers receive an Estonia cutout" in text: raise SystemExit('test already exists')
+          path.write_text(text+test,encoding='utf-8')
+
+          path=Path('index.html')
+          text=path.read_text(encoding='utf-8')
+          text=text.replace('Northern Weather Map v8.77','Northern Weather Map v8.78',1)
+          replacements={
+            'js/radar.js?v=8.74':'js/radar.js?v=8.78',
+            'js/radar-images.js?v=8.44':'js/radar-images.js?v=8.78',
+            'js/radar-history.js?v=8.44':'js/radar-history.js?v=8.78',
+            'js/nordic-radar.js?v=8.49':'js/nordic-radar.js?v=8.78'
+          }
+          for old,new in replacements.items():
+            if old not in text: raise SystemExit('index marker missing: '+old)
+            text=text.replace(old,new,1)
+          path.write_text(text,encoding='utf-8')
+          PY
+      - name: Validate radar overlap fix
+        run: |
+          node --test tests/radar-direct.test.cjs tests/nordic-radar.test.cjs
+          git diff --check
+          grep -q 'ESTONIA_RADAR_PRIORITY_POLYGON' js/radar-images.js
+          grep -q 'syncEstoniaRadarPriorityMasks' js/radar.js
+          grep -q 'radarBounds=frame.bounds' js/radar-history.js
+          grep -q 'radarBounds=frame.bounds' js/nordic-radar.js
+      - name: Commit production fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add js/radar-images.js js/radar-history.js js/nordic-radar.js js/radar.js tests/radar-direct.test.cjs index.html
+          git commit -m 'Prevent duplicate radar echoes over Estonia'
+          git push origin HEAD:fix/estonia-radar-overlap
