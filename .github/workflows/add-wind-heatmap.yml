@@ -1,3 +1,4 @@
+# trigger
 name: Add wind heatmap layer
 on:
   push:
@@ -17,7 +18,6 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          # UI controls + cache versions + visible version.
           p=Path('index.html'); s=p.read_text()
           s=s.replace('<title>Northern Weather Map v8.60</title>','<title>Northern Weather Map v8.63</title>',1)
           old='''      <label class="small" for="windMode">Animate</label>\n      <select id="windMode" aria-label="Wind animation type"><option value="sustained">Sustained wind</option><option value="gust">Wind gusts</option></select>\n      <label class="small" for="windDensity">Trail density</label>'''
@@ -29,7 +29,6 @@ jobs:
           s=s.replace('js/ui.js?v=8.57','js/ui.js?v=8.63',1)
           p.write_text(s)
 
-          # Wind data/rendering: independent static heatmap sharing the same field.
           p=Path('js/wind.js'); s=p.read_text()
           s=s.replace('let windLayer=null;\nlet windProbe=null;','let windLayer=null;\nlet windHeatmapLayer=null;\nlet windProbe=null;',1)
           s=s.replace("function currentWindMode(){return $('windMode')?.value==='gust'?'gust':'sustained';}\n", "function currentWindMode(){return $('windMode')?.value==='gust'?'gust':'sustained';}\nfunction windVisualEnabled(){return !!($('windOn')?.checked||$('windHeatmapOn')?.checked);}\n",1)
@@ -46,7 +45,6 @@ jobs:
           s=s.replace(marker,heat+marker,1)
           p.write_text(s)
 
-          # Events, timeline and refresh integration.
           p=Path('js/app.js'); s=p.read_text()
           anchor="""$('windOn').addEventListener('change',()=>{\n  if($('windOn').checked) loadWind().catch(reportWindError);\n  else hideWind();\n  updateAccumulationPopup();\n});\n"""
           extra=anchor+"""$('windHeatmapOn').addEventListener('change',()=>{\n  if($('windHeatmapOn').checked) loadWind().catch(reportWindError);\n  else hideWindHeatmap();\n  updateAccumulationPopup();\n});\n$('windHeatmapOpacity').addEventListener('input',()=>{\n  $('windHeatmapOpacityVal').textContent=$('windHeatmapOpacity').value+'%';\n  windHeatmapLayer?.setOpacity(Number($('windHeatmapOpacity').value)/100);\n});\n"""
@@ -57,7 +55,6 @@ jobs:
           s=s.replace("    if($('windOn').checked) await loadWind().catch(reportWindError);\n", "    if(windVisualEnabled()) await loadWind().catch(reportWindError);\n",1)
           p.write_text(s)
 
-          # Active nav indicator and timeline loading include the independent heatmap.
           p=Path('js/ui.js'); s=p.read_text()
           s=s.replace("(section==='windSection' && ['officialWindSustained','officialWindGusts'].some(id=>$(id).checked))", "(section==='windSection' && ['windHeatmapOn','officialWindSustained','officialWindGusts'].some(id=>$(id).checked))",1)
           s=s.replace("'rain1h','rain24h','rain48h','heatmapOn','officialWindSustained'", "'rain1h','rain24h','rain48h','heatmapOn','windHeatmapOn','officialWindSustained'",1)
