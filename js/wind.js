@@ -337,7 +337,11 @@ const WindCanvasLayer=L.Layer.extend({
     if(!this._map||!this.ctx||document.hidden) return;
     const size=this._map.getSize();
     this.width=size.x;this.height=size.y;
-    const dpr=Math.min(window.devicePixelRatio||1,1.25);
+    // Large desktop canvases cost far more to fade and redraw than phone canvases.
+    // Render the animation at CSS-pixel resolution once the viewport is large;
+    // smaller screens can keep a modest DPR boost without a meaningful cost.
+    const area=size.x*size.y;
+    const dpr=area>=900000?1:Math.min(window.devicePixelRatio||1,1.25);
     const pixelWidth=Math.round(size.x*dpr),pixelHeight=Math.round(size.y*dpr);
     if(this.canvas.width!==pixelWidth) this.canvas.width=pixelWidth;
     if(this.canvas.height!==pixelHeight) this.canvas.height=pixelHeight;
@@ -379,7 +383,12 @@ const WindCanvasLayer=L.Layer.extend({
       return;
     }
     const density=Number($('windDensity').value)/100;
-    const count=Math.min(1600,Math.round(seeds.length*this.step*this.step/900*density));
+    // Particle cost also scales with viewport area. Phones keep the previous
+    // density, while large desktop views use a tighter ceiling so 1080p/1440p
+    // screens can hold 30 fps instead of spending the frame budget on >1600 trails.
+    const particleTarget=Math.round(seeds.length*this.step*this.step/900*density);
+    const particleCap=area>=900000?Math.min(1050,Math.round(area/1700)):1200;
+    const count=Math.max(80,Math.min(particleCap,particleTarget));
     this.particles=Array.from({length:count},()=>this.seed(true));
     this.colours=WIND_COLOUR_PALETTES[this.mode];
     this.segments=this.colours.map(()=>[]);
