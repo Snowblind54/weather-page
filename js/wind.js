@@ -483,6 +483,39 @@ const WindCanvasLayer=L.Layer.extend({
   }
 });
 
+function windHeatmapCorrections(unix,slice,mode){
+  const blend=globalThis.WindObservationBlend;
+  if(!blend||typeof officialWindData==='undefined'||!officialWindData||typeof officialWindReading!=='function')return [];
+  const target=Math.min(unix,Date.now()/1000),corrections=[];
+  for(const station of officialWindData.stations){
+    const reading=officialWindReading(station,unix);if(!reading)continue;
+    const observed=mode==='gust'?reading[2]:reading[1];if(!Number.isFinite(observed))continue;
+    const vector=windAt(station.lat,station.lon,slice);
+    const model=mode==='gust'?windGustAt(station.lat,station.lon,slice):(vector?Math.hypot(vector[0],vector[1]):null);
+    const correction=blend.makeCorrection(station.lat,station.lon,observed,model,Math.max(0,target-reading[0]));
+    if(correction)corrections.push(correction);
+  }
+  return corrections;
+}
+function windHeatmapCorrectionIndex(corrections){
+  const cell=2,bins=new Map();
+  for(const correction of corrections){
+    const lon=((correction.lon+180)%360+360)%360-180;
+    const key=Math.floor(correction.lat/cell)+','+Math.floor(lon/cell);
+    if(!bins.has(key))bins.set(key,[]);bins.get(key).push(correction);
+  }
+  return {cell,bins,count:corrections.length};
+}
+function windHeatmapNearbyCorrections(index,lat,lon){
+  if(!index?.count)return [];
+  lon=((lon+180)%360+360)%360-180;
+  const cy=Math.floor(lat/index.cell),cx=Math.floor(lon/index.cell),out=[];
+  for(let dy=-1;dy<=1;dy++)for(let dx=-2;dx<=2;dx++){
+    const rows=index.bins.get((cy+dy)+','+(cx+dx));if(rows)out.push(...rows);
+  }
+  return out;
+}
+
 const WindHeatmapLayer=L.Layer.extend({
   onAdd(mapInstance){
     this._map=mapInstance;
@@ -504,8 +537,9 @@ const WindHeatmapLayer=L.Layer.extend({
   },
   setTime(unix){
     const mode=currentWindMode();
-    if(this.unix===unix&&this.data===windData&&this.mode===mode)return;
-    this.unix=unix;this.data=windData;this.mode=mode;
+    const observations=typeof officialWindData!=='undefined'&&officialWindData?officialWindData.generatedAt:0;
+    if(this.unix===unix&&this.data===windData&&this.mode===mode&&this.observations===observations)return;
+    this.unix=unix;this.data=windData;this.mode=mode;this.observations=observations;
     if(this._map)this.scheduleReset();
   },
   setOpacity(value){if(this.canvas)this.canvas.style.opacity=String(value);},
@@ -526,6 +560,8 @@ const WindHeatmapLayer=L.Layer.extend({
     const low=document.createElement('canvas');low.width=cols;low.height=rows;
     const lowCtx=low.getContext('2d'),img=lowCtx.createImageData(cols,rows),palette=WIND_COLOUR_PALETTES[this.mode];
     const rgb=palette.map(hex=>[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]);
+    const corrections=windHeatmapCorrections(this.unix,slice,this.mode);
+    const correctionIndex=windHeatmapCorrectionIndex(corrections);
     let shown=0;
     for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
       const x=Math.min(size.x,col*step),y=Math.min(size.y,row*step),ll=this._map.containerPointToLatLng([x,y]);
@@ -533,6 +569,8 @@ const WindHeatmapLayer=L.Layer.extend({
       let speed=null;
       if(vector) speed=this.mode==='gust'?windGustAt(ll.lat,ll.lng,slice):Math.hypot(vector[0],vector[1]);
       if(!Number.isFinite(speed))continue;
+      const nearby=windHeatmapNearbyCorrections(correctionIndex,ll.lat,ll.lng);
+      if(nearby.length&&globalThis.WindObservationBlend) speed=globalThis.WindObservationBlend.adjustSpeed(speed,ll.lat,ll.lng,nearby);
       const c=rgb[windColourIndex(speed)],i=(row*cols+col)*4;
       img.data[i]=c[0];img.data[i+1]=c[1];img.data[i+2]=c[2];img.data[i+3]=230;shown++;
     }
@@ -540,7 +578,8 @@ const WindHeatmapLayer=L.Layer.extend({
     this.ctx.clearRect(0,0,size.x,size.y);
     this.ctx.imageSmoothingEnabled=true;this.ctx.imageSmoothingQuality='high';
     this.ctx.drawImage(low,0,0,cols,rows,0,0,size.x,size.y);
-    $('windHeatmapStatus').textContent=shown?`Model ${this.mode==='gust'?'gust':'sustained wind'} heatmap · ${fmt(this.unix)}`:'Wind heatmap unavailable in this view.';
+    const source=corrections.length?`model + ${corrections.length} fresh official readings`:'model field';
+    $('windHeatmapStatus').textContent=shown?`${this.mode==='gust'?'Gust':'Sustained wind'} heatmap · ${source} · ${fmt(this.unix)}`:'Wind heatmap unavailable in this view.';
   }
 });
 
