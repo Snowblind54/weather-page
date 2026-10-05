@@ -584,8 +584,13 @@ const WindHeatmapLayer=L.Layer.extend({
     lowCtx.putImageData(img,0,0);
     this.ctx.clearRect(0,0,size.x,size.y);
     this.ctx.imageSmoothingEnabled=true;this.ctx.imageSmoothingQuality='high';
+    // Keep all wind/model/official-station values unchanged and soften only
+    // the final displayed colour raster. This is a tiny visual blur, not data smoothing.
+    this.ctx.save();
+    this.ctx.filter='blur(1.25px)';
     // Source pixel centres line up with the anchored sample coordinates.
     this.ctx.drawImage(low,0,0,cols,rows,startX-step/2,startY-step/2,cols*step,rows*step);
+    this.ctx.restore();
     const source=corrections.length?`model + ${corrections.length} fresh official readings`:'model field';
     $('windHeatmapStatus').textContent=shown?`${this.mode==='gust'?'Gust':'Sustained wind'} heatmap · ${source} · ${fmt(this.unix)}`:'Wind heatmap unavailable in this view.';
   }
