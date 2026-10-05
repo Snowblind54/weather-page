@@ -1,10 +1,11 @@
 // Official national weather-station temperature observations.
-// Loaded only when the temperature layer is enabled. The heatmap remains the
-// terrain-aware model field; recent station history is retained so numeric
-// labels and heatmap corrections follow the selected playback frame.
+// Loaded from one shared GitHub snapshot when the temperature layer is enabled.
+// The snapshot retains recent official history so labels and heatmap corrections
+// follow the selected playback frame without every visitor hitting national APIs.
 
 const OFFICIAL_TEMP_REFRESH_MS=10*60*1000;
-const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsV813';
+const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsV814';
+const OFFICIAL_TEMP_SNAPSHOT_URL='data/official-temperature.json';
 const OFFICIAL_TEMP_CACHE_MAX_AGE=45*60*1000;
 const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;
 const OFFICIAL_TEMP_HISTORY_SEC=3*60*60;
@@ -484,46 +485,41 @@ async function loadOfficialTemperatureStations(force=false){
   if(!force && officialTemperatureStations.length && Date.now()-officialTemperatureLoadedAt<OFFICIAL_TEMP_REFRESH_MS){
     return officialTemperatureStations;
   }
-  // Refresh joins an already fresh in-flight load rather than starting another
-  // entire country's requests. Completed loads retain the same refresh rules.
   if(officialTemperatureLoadPromise) return officialTemperatureLoadPromise;
 
   officialTemperatureLoadPromise=(async()=>{
-    const settled=await Promise.allSettled(OFFICIAL_TEMP_LOADERS.map(([,loader])=>loader()));
-    const records=[];
-    const state={};
+    try{
+      const cacheBust=Math.floor(Date.now()/OFFICIAL_TEMP_REFRESH_MS);
+      const response=await fetch(OFFICIAL_TEMP_SNAPSHOT_URL+'?v='+cacheBust,{cache:'no-store'});
+      if(!response.ok) throw new Error('temperature snapshot HTTP '+response.status);
+      const snapshot=await response.json();
+      if(snapshot?.version!==1 || !Array.isArray(snapshot?.stations)) throw new Error('invalid temperature snapshot');
 
-    settled.forEach((result,index)=>{
-      const code=OFFICIAL_TEMP_LOADERS[index][0];
-      if(result.status==='fulfilled'){
-        const rows=result.value||[];
-        records.push(...rows);
-        state[code]={ok:true,count:rows.length};
-      }else{
-        console.warn(code+' official temperature feed unavailable',result.reason);
-        state[code]={ok:false,count:0,error:String(result.reason?.message||result.reason||'unavailable')};
+      const records=[];
+      for(const station of snapshot.stations){
+        for(const row of (station.rows||[])){
+          const record=officialTempRecord({
+            country:station.country,code:station.code,name:station.name,
+            lat:station.lat,lon:station.lon,time:row?.[0],temp:row?.[1],source:station.source
+          });
+          if(record) records.push(record);
+        }
       }
-    });
+      if(!records.length) throw new Error('temperature snapshot has no observations');
 
-    if(records.length){
-      const nowSec=Math.floor(Date.now()/1000);
-      const cutoff=nowSec-OFFICIAL_TEMP_HISTORY_SEC;
-      const recentRecords=records.filter(record=>
-        !Number.isFinite(record.time) ||
-        (record.time>=cutoff && record.time<=nowSec+OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC)
-      );
-      officialTemperatureStations=officialTempDedup(recentRecords);
-      officialTemperatureSourceState=state;
+      officialTemperatureStations=officialTempDedup(records);
+      officialTemperatureSourceState=snapshot.sources||{};
       officialTemperatureLoadedAt=Date.now();
       saveOfficialTemperatureCache();
       if(typeof invalidateTemperatureHeatmapCache==='function') invalidateTemperatureHeatmapCache();
       return officialTemperatureStations;
+    }catch(error){
+      console.warn('Official temperature snapshot unavailable',error);
+      if(restoreOfficialTemperatureCache()) return officialTemperatureStations;
+      officialTemperatureSourceState={};
+      officialTemperatureLoadedAt=Date.now();
+      return [];
     }
-
-    if(restoreOfficialTemperatureCache()) return officialTemperatureStations;
-    officialTemperatureSourceState=state;
-    officialTemperatureLoadedAt=Date.now();
-    return [];
   })();
 
   try{
