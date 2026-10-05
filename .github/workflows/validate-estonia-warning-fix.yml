@@ -1,0 +1,36 @@
+name: Validate Estonia warning parser fix
+on:
+  push:
+    branches: [fix/estonia-warning-empty-day]
+    paths:
+      - .github/workflows/validate-estonia-warning-fix.yml
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run warning tests
+        run: python3 -m unittest discover -s tests -p test_estonia_warning_forecast.py -v
+      - name: Fetch live official warnings
+        run: |
+          python3 scripts/update_estonia_warnings.py --output /tmp/estonia-warnings.json
+          python3 - <<'PY'
+          import json, datetime as dt
+          d=json.load(open('/tmp/estonia-warnings.json'))
+          print('fetchedAt',d['fetchedAt'])
+          print('forecastDays',d['forecastDays'])
+          print('records',len(d['records']))
+          tomorrow=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(days=1)).date()
+          mainland=[]
+          for r in d['records']:
+              start=dt.datetime.fromisoformat(r['effective']).date()
+              end=dt.datetime.fromisoformat(r['expires']).date()
+              if r['regionId'].isdigit() and int(r['regionId']) < 90000 and start <= tomorrow <= end:
+                  mainland.append(r)
+          print('tomorrow-mainland',len(mainland))
+          for r in mainland: print(r['regionId'],r['area'],r['event'],r['level'],r['effective'],r['expires'])
+          assert mainland, 'Expected at least one mainland warning overlapping tomorrow'
+          PY
