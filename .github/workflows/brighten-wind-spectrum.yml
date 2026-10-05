@@ -18,39 +18,23 @@ jobs:
           from pathlib import Path
           p=Path('js/wind.js')
           s=p.read_text()
-          old="""const WIND_COLOUR_STOPS=[
-  {speed:0,color:'#8fdcff'}, {speed:3,color:'#45dfac'},
-  {speed:6,color:'#f5e653'}, {speed:10,color:'#ffad42'},
-  {speed:15,color:'#ff585d'}, {speed:25,color:'#bd75ff'}
-];
-const WIND_GUST_COLOUR_STOPS=[...WIND_COLOUR_STOPS,{speed:33,color:'#ff52c8'}];"""
-          new="""const WIND_COLOUR_STOPS=[
-  {speed:0,color:'#8fdcff'}, {speed:3,color:'#45dfac'},
-  {speed:6,color:'#f5e653'}, {speed:10,color:'#ffad42'},
-  {speed:15,color:'#ff585d'}, {speed:25,color:'#bd75ff'},
-  // Extreme winds brighten rapidly beyond purple and reach pure white at 34 m/s.
-  {speed:28,color:'#dc7dff'}, {speed:31,color:'#ff72e6'},
-  {speed:33,color:'#ffd4f6'}, {speed:34,color:'#ffffff'}
-];
-const WIND_GUST_COLOUR_STOPS=WIND_COLOUR_STOPS;"""
+          old="const WIND_COLOUR_STOPS=[\n  {speed:0,color:'#8fdcff'}, {speed:3,color:'#45dfac'},\n  {speed:6,color:'#f5e653'}, {speed:10,color:'#ffad42'},\n  {speed:15,color:'#ff585d'}, {speed:25,color:'#bd75ff'}\n];\nconst WIND_GUST_COLOUR_STOPS=[...WIND_COLOUR_STOPS,{speed:33,color:'#ff52c8'}];"
+          new="const WIND_COLOUR_STOPS=[\n  {speed:0,color:'#8fdcff'}, {speed:3,color:'#45dfac'},\n  {speed:6,color:'#f5e653'}, {speed:10,color:'#ffad42'},\n  {speed:15,color:'#ff585d'}, {speed:25,color:'#bd75ff'},\n  // Extreme winds brighten rapidly beyond purple and reach pure white at 34 m/s.\n  {speed:28,color:'#dc7dff'}, {speed:31,color:'#ff72e6'},\n  {speed:33,color:'#ffd4f6'}, {speed:34,color:'#ffffff'}\n];\nconst WIND_GUST_COLOUR_STOPS=WIND_COLOUR_STOPS;"
           if old not in s: raise SystemExit('colour stop block not found')
           s=s.replace(old,new,1)
           old2="const mode=currentWindMode(),gust=mode==='gust',max=gust?33:25;"
-          new2="const mode=currentWindMode(),gust=mode==='gust',max=34;"
           if old2 not in s: raise SystemExit('legend max block not found')
-          s=s.replace(old2,new2,1)
+          s=s.replace(old2,"const mode=currentWindMode(),gust=mode==='gust',max=34;",1)
           old3="const ticks=gust?[0,5,10,15,25,33]:[0,5,10,15,20,25];"
-          new3="const ticks=[0,5,10,15,20,25,30,34];"
           if old3 not in s: raise SystemExit('legend ticks block not found')
-          s=s.replace(old3,new3,1)
+          s=s.replace(old3,"const ticks=[0,5,10,15,20,25,30,34];",1)
           p.write_text(s)
 
           i=Path('index.html')
           h=i.read_text()
           h=h.replace('<title>Northern Weather Map v8.63</title>','<title>Northern Weather Map v8.64</title>',1)
           h=h.replace('js/wind.js?v=8.63','js/wind.js?v=8.64',1)
-          h=h.replace('Colours blend gradually with speed, reaching purple at 25 m/s and pink at 33 m/s for gusts.',
-                      'Colours blend gradually with speed, reaching purple at 25 m/s, bright violet and pink above it, and pure white at 34 m/s and higher.',1)
+          h=h.replace('Colours blend gradually with speed, reaching purple at 25 m/s and pink at 33 m/s for gusts.','Colours blend gradually with speed, reaching purple at 25 m/s, bright violet and pink above it, and pure white at 34 m/s and higher.',1)
           i.write_text(h)
           PY
           node --check js/wind.js
