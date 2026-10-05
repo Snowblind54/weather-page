@@ -19,9 +19,12 @@ let windPopup=null;
 const WIND_COLOUR_STOPS=[
   {speed:0,color:'#8fdcff'}, {speed:3,color:'#45dfac'},
   {speed:6,color:'#f5e653'}, {speed:10,color:'#ffad42'},
-  {speed:15,color:'#ff585d'}, {speed:25,color:'#bd75ff'}
+  {speed:15,color:'#ff585d'}, {speed:25,color:'#bd75ff'},
+  // Extreme winds brighten rapidly beyond purple and reach pure white at 34 m/s.
+  {speed:28,color:'#dc7dff'}, {speed:31,color:'#ff72e6'},
+  {speed:33,color:'#ffd4f6'}, {speed:34,color:'#ffffff'}
 ];
-const WIND_GUST_COLOUR_STOPS=[...WIND_COLOUR_STOPS,{speed:33,color:'#ff52c8'}];
+const WIND_GUST_COLOUR_STOPS=WIND_COLOUR_STOPS;
 const WIND_COLOUR_STEP=.5,WIND_COLOUR_MAX=50;
 function currentWindMode(){return $('windMode')?.value==='gust'?'gust':'sustained';}
 function windVisualEnabled(){return !!($('windOn')?.checked||$('windHeatmapOn')?.checked);}
@@ -41,11 +44,11 @@ const WIND_COLOUR_PALETTES=Object.fromEntries(['sustained','gust'].map(mode=>[
 ]));
 function showWindLegend(){
   const legend=$('windLegend');if(!legend)return;
-  const mode=currentWindMode(),gust=mode==='gust',max=gust?33:25;
+  const mode=currentWindMode(),gust=mode==='gust',max=34;
   const stops=gust?WIND_GUST_COLOUR_STOPS:WIND_COLOUR_STOPS;
   $('windLegendLabel').textContent=(gust?'Wind gust speed':'Sustained wind speed')+' · m/s';
   const gradient=stops.map(s=>s.color+' '+s.speed/max*100+'%').join(',');
-  const ticks=gust?[0,5,10,15,25,33]:[0,5,10,15,20,25];
+  const ticks=[0,5,10,15,20,25,30,34];
   legend.innerHTML='<div class="wind-gradient" style="background:linear-gradient(90deg,'+gradient+')"></div><div class="wind-gradient-ticks">'+ticks.map(speed=>'<span style="left:'+speed/max*100+'%">'+speed+(speed===max?'+':'')+'</span>').join('')+'</div>';
 }
 showWindLegend();
