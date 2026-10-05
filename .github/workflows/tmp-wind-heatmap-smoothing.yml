@@ -1,0 +1,49 @@
+name: Temporary wind heatmap smoothing patch
+on:
+  push:
+    branches:
+      - fix/wind-heatmap-visual-smoothing
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/wind-heatmap-visual-smoothing
+      - name: Apply visual smoothing patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          wind = Path('js/wind.js')
+          text = wind.read_text(encoding='utf-8')
+          old = """    this.ctx.clearRect(0,0,size.x,size.y);\n    this.ctx.imageSmoothingEnabled=true;this.ctx.imageSmoothingQuality='high';\n    // Source pixel centres line up with the anchored sample coordinates.\n    this.ctx.drawImage(low,0,0,cols,rows,startX-step/2,startY-step/2,cols*step,rows*step);\n"""
+          new = """    this.ctx.clearRect(0,0,size.x,size.y);\n    this.ctx.imageSmoothingEnabled=true;this.ctx.imageSmoothingQuality='high';\n    // Keep all wind/model/official-station values unchanged and soften only\n    // the final displayed colour raster. This is a tiny visual blur, not data smoothing.\n    this.ctx.save();\n    this.ctx.filter='blur(1.25px)';\n    // Source pixel centres line up with the anchored sample coordinates.\n    this.ctx.drawImage(low,0,0,cols,rows,startX-step/2,startY-step/2,cols*step,rows*step);\n    this.ctx.restore();\n"""
+          if text.count(old) != 1:
+              raise SystemExit(f'wind render block match count: {text.count(old)}')
+          wind.write_text(text.replace(old,new,1),encoding='utf-8')
+
+          index = Path('index.html')
+          html = index.read_text(encoding='utf-8')
+          if 'js/wind.js?v=8.66' not in html:
+              raise SystemExit('expected wind cache version not found')
+          html = html.replace('js/wind.js?v=8.66','js/wind.js?v=8.77',1)
+          html = html.replace('<title>Northern Weather Map v8.76</title>','<title>Northern Weather Map v8.77</title>',1)
+          index.write_text(html,encoding='utf-8')
+          PY
+      - name: Validate JavaScript and diff
+        run: |
+          node --check js/wind.js
+          git diff --check
+          grep -q "this.ctx.filter='blur(1.25px)'" js/wind.js
+          grep -q 'js/wind.js?v=8.77' index.html
+      - name: Commit production files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add js/wind.js index.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Smooth final wind heatmap colours'
+          git push origin HEAD:fix/wind-heatmap-visual-smoothing
