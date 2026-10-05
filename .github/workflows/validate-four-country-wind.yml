@@ -1,0 +1,46 @@
+name: Validate expanded official wind
+on:
+  push:
+    branches: [feature/wind-lv-lt-pl-dk]
+    paths:
+      - .github/workflows/validate-four-country-wind.yml
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/wind-lv-lt-pl-dk
+      - name: Run unit and syntax tests
+        run: |
+          python3 -m unittest discover -s tests -p test_official_wind.py -v
+          python3 -m py_compile scripts/update_official_wind.py
+          node --check js/official-wind.js
+      - name: Pull all official wind sources
+        run: python3 scripts/update_official_wind.py
+      - name: Verify new-country live coverage
+        run: |
+          python3 - <<'PY'
+          import json,time
+          data=json.load(open('data/official-wind.json'))
+          now=time.time()
+          assert data['refreshMinutes']==30
+          for c in ('LV','LT','PL','DK'):
+              assert data['sources'][c]['status']=='ok', (c,data['sources'][c])
+          def fresh(c):
+              return [s for s in data['stations'] if s['country']==c and s['rows'] and 0 <= now-s['rows'][-1][0] <= 3*3600]
+          for c in ('LV','LT','PL','DK'):
+              rows=fresh(c)
+              gust=sum(s['rows'][-1][2] is not None for s in rows)
+              print(c,'fresh stations',len(rows),'fresh gust',gust)
+          assert len(fresh('LV')) >= 20
+          assert sum(s['rows'][-1][2] is not None for s in fresh('LV')) >= 20
+          assert len(fresh('LT')) >= 20
+          assert sum(s['rows'][-1][2] is not None for s in fresh('LT')) >= 20
+          assert len(fresh('PL')) >= 150
+          assert len(fresh('DK')) >= 40
+          assert sum(s['rows'][-1][2] is not None for s in fresh('DK')) >= 40
+          PY
