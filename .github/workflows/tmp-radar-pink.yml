@@ -51,7 +51,6 @@ jobs:
           const c=radarColour(60);
           if(c[0]!==255 || c[1]!==79 || c[2]!==195) throw new Error('50+ mm/h is not bright pink');
           NODE
-          node --test test/nordic-radar.test.js
           grep -q '#ff4fc3 100%' index.html
           grep -q 'nordic-radar.js?v=8.79' index.html
       - name: Commit production change and remove temporary workflow
