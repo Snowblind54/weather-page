@@ -172,7 +172,19 @@
 
   const baseRenderTemperatureLabels=renderTemperatureLabels;
   renderTemperatureLabels=function(unix){
-    if(!windChillMode())return baseRenderTemperatureLabels(unix);
+    if(!windChillMode()){
+      // Air-temperature numbers should mean one thing: official measured
+      // station observations. stations.js also adds non-interactive model
+      // labels as filler; remove those synchronously so they cannot flash in
+      // first and then disappear when the official snapshot finishes loading.
+      baseRenderTemperatureLabels(unix);
+      const modelLabels=[];
+      temperatureLabels.eachLayer(layer=>{
+        if(layer?.options?.interactive===false)modelLabels.push(layer);
+      });
+      for(const layer of modelLabels)temperatureLabels.removeLayer(layer);
+      return;
+    }
     if(map.hasLayer(temperatureLabels))map.removeLayer(temperatureLabels);temperatureLabels.clearLayers();
     if(!$('tempOn').checked)return;
     const bounds=map.getBounds(),occupied=[];
