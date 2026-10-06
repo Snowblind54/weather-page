@@ -1,0 +1,35 @@
+name: Update shared model wind
+
+on:
+  schedule:
+    - cron: '12 */2 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/update_model_wind.py
+      - scripts/publish_generated_data.sh
+      - .github/workflows/update-model-wind.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shared-model-wind
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch shared Open-Meteo wind grid
+        run: python3 scripts/update_model_wind.py
+      - name: Publish shared wind snapshot
+        run: bash scripts/publish_generated_data.sh 'Refresh shared wind model snapshot' data/model-wind.json
