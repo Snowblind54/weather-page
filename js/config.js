@@ -73,9 +73,15 @@ sharedWindSourceScript.src='js/model-wind-source.js?v=1';
 sharedWindSourceScript.async=true;
 document.head.appendChild(sharedWindSourceScript);
 
-// Wind chill and Space Weather depend on weather modules that are defined by
-// the synchronous scripts below config.js, so install them after page load.
+// Wind chill, the Nordic satellite compatibility fix and Space Weather depend
+// on modules that are defined by the synchronous scripts below config.js, so
+// install them after page load.
 window.addEventListener('load',()=>{
+  const cloudNordicScript=document.createElement('script');
+  cloudNordicScript.src='js/cloud-nordic-coverage.js?v=1';
+  cloudNordicScript.onload=()=>window.installNordicCloudCoverage?.();
+  document.body.appendChild(cloudNordicScript);
+
   const windChillScript=document.createElement('script');
   windChillScript.src='js/wind-chill.js?v=3';
   document.body.appendChild(windChillScript);
