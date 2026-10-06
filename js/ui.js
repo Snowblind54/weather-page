@@ -1,7 +1,8 @@
 // Navigation opens controls independently of whether their map layers are enabled.
 const weatherCategories=[
   ['tempSection','tempOn'],['windSection','windOn'],['cloudSection','cloudOn'],
-  ['radarSection','radarOn'],['snowSection','snowOn'],['cycloneSection','cycloneOn'],['warningSection','warningOn']
+  ['radarSection','radarOn'],['snowSection','snowOn'],['cycloneSection','cycloneOn'],
+  ['warningSection','warningOn'],['spaceWeatherSection','auroraOn']
 ];
 let openedWeatherPanel=null;
 function closeWeatherPanel(returnFocus=false,refreshRain=true){
@@ -53,11 +54,15 @@ document.addEventListener('pointerdown',event=>{
 window.addEventListener('resize',positionWeatherPanel);
 function updateCategoryIndicators(){
   for(const [section,toggle] of weatherCategories){
-    const active=$(toggle).checked || (section==='windSection' && ['windHeatmapOn','officialWindSustained','officialWindGusts'].some(id=>$(id).checked)) || (section==='tempSection' && $('heatmapOn').checked) || (section==='radarSection' && ['rain1h','rain24h','rain48h'].some(id=>$(id).checked));
+    const active=$(toggle).checked ||
+      (section==='windSection' && ['windHeatmapOn','officialWindSustained','officialWindGusts'].some(id=>$(id).checked)) ||
+      (section==='tempSection' && $('heatmapOn').checked) ||
+      (section==='radarSection' && ['rain1h','rain24h','rain48h'].some(id=>$(id).checked)) ||
+      (section==='spaceWeatherSection' && $('auroraViewingOn').checked);
     $('nav-'+section).classList.toggle('layer-active',active);
   }
 }
-for(const id of [...weatherCategories.map(c=>c[1]),'rain1h','rain24h','rain48h','heatmapOn','windHeatmapOn','officialWindSustained','officialWindGusts']){
+for(const id of [...weatherCategories.map(c=>c[1]),'rain1h','rain24h','rain48h','heatmapOn','windHeatmapOn','officialWindSustained','officialWindGusts','auroraViewingOn']){
   $(id).addEventListener('change',updateCategoryIndicators);
 }
 updateCategoryIndicators();
@@ -82,7 +87,7 @@ function updateTimelineLoading(){
   const statusPending=id=>{const el=$(id);return !el.classList.contains('bad') && pending(el.textContent);};
   const radarPending=(!frames.length && !$('radarStatus').classList.contains('bad')) ||
     (statusPending('nordicRadarStatus') && $('radarOn').checked) ||
-    (statusPending('radarStatus') && ($('radarOn').checked || /requesting.*frame list/i.test($('radarStatus').textContent))); 
+    (statusPending('radarStatus') && ($('radarOn').checked || /requesting.*frame list/i.test($('radarStatus').textContent)));
   const cloudsPending=$('cloudOn').checked && statusPending('cloudStatus');
   const modelPending=(temperatureEnabled() && statusPending('tempStatus')) ||
     (windVisualEnabled() && (statusPending('windStatus') || statusPending('windHeatmapStatus'))) ||
@@ -101,5 +106,3 @@ for(const id of ['radarOn','cloudOn','tempOn','heatmapOn','windOn','windHeatmapO
   $(id).addEventListener('change',updateTimelineLoading);
 }
 updateTimelineLoading();
-
-

@@ -1,0 +1,35 @@
+name: Update shared space weather
+
+on:
+  schedule:
+    - cron: '1,11,21,31,41,51 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/update_space_weather.py
+      - scripts/publish_generated_data.sh
+      - .github/workflows/update-space-weather.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shared-space-weather
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch NOAA SWPC aurora and solar wind
+        run: python3 scripts/update_space_weather.py
+      - name: Publish shared space-weather snapshot
+        run: bash scripts/publish_generated_data.sh 'Refresh shared space weather snapshot' data/space-weather.json
