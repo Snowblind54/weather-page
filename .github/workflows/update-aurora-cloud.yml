@@ -1,0 +1,37 @@
+name: Update ECMWF aurora cloud field
+
+on:
+  schedule:
+    - cron: '37 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/update_aurora_cloud.py
+      - scripts/publish_generated_data.sh
+      - .github/workflows/update-aurora-cloud.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shared-aurora-cloud
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install ECMWF GRIB tools
+        run: python3 -m pip install --disable-pip-version-check ecmwf-opendata eccodes
+      - name: Fetch ECMWF IFS total cloud cover
+        run: python3 scripts/update_aurora_cloud.py
+      - name: Publish ECMWF aurora cloud field
+        run: bash scripts/publish_generated_data.sh 'Refresh ECMWF aurora cloud field' data/aurora-cloud.json
