@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-06T13:50:06.191555+00:00",
+  "fetchedAt": "2026-10-06T14:22:23.463619+00:00",
   "forecastDays": [
     "2026-10-06",
     "2026-10-07",
@@ -187,48 +187,9 @@
       "event": "Wind",
       "level": 1,
       "effective": "2026-10-06T06:00:00+00:00",
-      "expires": "2026-10-06T14:00:00+00:00",
+      "expires": "2026-10-06T15:00:00+00:00",
       "description": "Southwest, west wind 12, in gusts to 16 m/s. Wave height 0.8-1.5 m.",
       "descriptionEstonian": "Edela- ja läänetuul 12, puhanguti 16 m/s. Laine kõrgus 0,8-1,5 m.",
-      "preAlert": false
-    },
-    {
-      "id": "5236",
-      "regionId": "37",
-      "country": "Estonia",
-      "area": "Harju maakond",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-06T10:00:00+00:00",
-      "expires": "2026-10-06T14:00:00+00:00",
-      "description": "On coast west wind in gusts 17 m/s.",
-      "descriptionEstonian": "Rannikul läänetuul puhanguti 17 m/s.",
-      "preAlert": false
-    },
-    {
-      "id": "5236",
-      "regionId": "56",
-      "country": "Estonia",
-      "area": "Lääne maakond",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-06T10:00:00+00:00",
-      "expires": "2026-10-06T14:00:00+00:00",
-      "description": "On coast west wind in gusts 17 m/s.",
-      "descriptionEstonian": "Rannikul läänetuul puhanguti 17 m/s.",
-      "preAlert": false
-    },
-    {
-      "id": "5236",
-      "regionId": "74",
-      "country": "Estonia",
-      "area": "Saare maakond",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-06T10:00:00+00:00",
-      "expires": "2026-10-06T14:00:00+00:00",
-      "description": "On coast west wind in gusts 17 m/s.",
-      "descriptionEstonian": "Rannikul läänetuul puhanguti 17 m/s.",
       "preAlert": false
     },
     {
@@ -253,8 +214,8 @@
       "level": 1,
       "effective": "2026-10-06T12:00:00+00:00",
       "expires": "2026-10-07T00:00:00+00:00",
-      "description": "West, northwest 13, in gusts to 18 m/s. Wave height 2-4 m.",
-      "descriptionEstonian": "Lääne- ja loodetuul 13, puhanguti kuni 18 m/s. Laine kõrgus 2-4 m.",
+      "description": "West, northwest 12, in gusts to 17 m/s. Wave height 2-4 m.",
+      "descriptionEstonian": "Lääne- ja loodetuul 12 puhanguti kuni 17 m/s. Laine kõrgus 2-4 m.",
       "preAlert": false
     },
     {
@@ -264,7 +225,7 @@
       "area": "Peipsi järv",
       "event": "Wind",
       "level": 1,
-      "effective": "2026-10-06T14:00:00+00:00",
+      "effective": "2026-10-06T15:00:00+00:00",
       "expires": "2026-10-07T01:00:00+00:00",
       "description": "Southwest, west wind 10, in gusts to 13 m/s. Wave height 0.6-1.2 m.",
       "descriptionEstonian": "Edela- ja läänetuul 10, puhanguti 13 m/s. Laine kõrgus 0,6-1,2 m.",
