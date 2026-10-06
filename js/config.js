@@ -41,13 +41,13 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
     </div>
     <div id="spaceWeatherSection-sources" class="source-card" hidden>
       <h3>Sources &amp; attribution</h3>
-      <p>NOAA Space Weather Prediction Center (SWPC): OVATION short-term aurora forecast, observed planetary Kp and real-time solar-wind measurements. Viewing conditions are a Northern Weather derived layer combining the NOAA aurora forecast with astronomical darkness and the existing satellite-cloud extraction used by the Clouds section.</p>
+      <p>NOAA Space Weather Prediction Center (SWPC): OVATION short-term aurora forecast, observed planetary Kp and real-time solar-wind measurements. Viewing conditions are a Northern Weather derived layer combining the NOAA aurora forecast with astronomical darkness.</p>
       <div class="source-links"><a href="https://www.spaceweather.gov/products/aurora-30-minute-forecast" target="_blank" rel="noopener">NOAA Aurora ↗</a><a href="https://www.spaceweather.gov/products/solar-wind" target="_blank" rel="noopener">NOAA Solar Wind ↗</a></div>
-      <div class="small">OVATION is a forecast, not an observation of visible aurora. Actual visibility also depends on cloud, darkness, local light pollution and horizon conditions. The shared NOAA snapshot is collected server-side so visitors do not query SWPC directly.</div>
+      <div class="small">OVATION is a forecast, not an observation of visible aurora. The viewing layer accounts for daylight and twilight only; it does not currently account for cloud, local light pollution or horizon conditions. The shared NOAA snapshot is collected server-side so visitors do not query SWPC directly.</div>
     </div>
     <div class="row"><label class="label"><input id="auroraOn" type="checkbox"> Aurora forecast</label><span class="badge">NOAA OVATION</span></div>
-    <div class="row"><label class="label"><input id="auroraViewingOn" type="checkbox"> Aurora viewing conditions</label><span class="badge">aurora + dark + clouds</span></div>
-    <div class="small space-weather-help">Viewing conditions dim the aurora where twilight/daylight or satellite-detected cloud would make it harder to see.</div>
+    <div class="row"><label class="label"><input id="auroraViewingOn" type="checkbox"> Aurora viewing conditions</label><span class="badge">aurora + darkness</span></div>
+    <div class="small space-weather-help">Viewing conditions dim the aurora in daylight and twilight. Satellite cloud imagery is not used in this layer.</div>
     <label class="small" for="auroraOpacity">Layer opacity</label>
     <div class="grid2"><input id="auroraOpacity" type="range" min="20" max="90" value="68" step="2"><span id="auroraOpacityVal" class="value">68%</span></div>
     <div class="space-aurora-legend" aria-label="Aurora forecast intensity"><span>Low</span><i></i><span>High</span></div>
@@ -81,6 +81,6 @@ window.addEventListener('load',()=>{
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');
-  spaceWeatherScript.src='js/space-weather-v3.js?v=3';
+  spaceWeatherScript.src='js/space-weather-v4.js?v=4';
   document.body.appendChild(spaceWeatherScript);
 });
