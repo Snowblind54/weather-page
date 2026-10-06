@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-06T06:54:13.543288+00:00",
+  "fetchedAt": "2026-10-06T07:21:53.708660+00:00",
   "forecastDays": [
     "2026-10-06",
     "2026-10-07",
@@ -319,19 +319,6 @@
       "expires": "2026-10-07T00:00:00+00:00",
       "description": "Southwest, west  in gusts to 16 m/s.",
       "descriptionEstonian": "Edela- ja läänetuul puhanguti 16 m/s.",
-      "preAlert": true
-    },
-    {
-      "id": "5153",
-      "regionId": "99997",
-      "country": "Estonia",
-      "area": "Läänemere põhjaosa",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-06T12:00:00+00:00",
-      "expires": "2026-10-06T22:00:00+00:00",
-      "description": "Southwest, west 12, in gusts to 17 m/s. ",
-      "descriptionEstonian": "Edela- ja läänetuul 12, puhanguti kuni 17 m/s. ",
       "preAlert": true
     },
     {
