@@ -1,4 +1,4 @@
-// Space Weather v4 — NOAA SWPC aurora forecast + darkness-only viewing conditions.
+// Space Weather v5 — NOAA SWPC aurora forecast + darkness-only viewing conditions.
 // Cloud/satellite imagery is deliberately not sampled here. Viewing conditions
 // are derived only from OVATION aurora intensity and astronomical darkness.
 (function(){
@@ -17,6 +17,7 @@
   let renderGeneration=0;
 
   if(typeof map==='undefined' || typeof L==='undefined')return;
+  window.__spaceWeatherRendererVersion='5';
 
   if(!map.getPane('spaceWeatherPane')){
     map.createPane('spaceWeatherPane');
@@ -55,9 +56,11 @@
       if(!response.ok)throw new Error(`Space-weather snapshot HTTP ${response.status}`);
       const snapshot=await response.json();
       if(!validSnapshot(snapshot))throw new Error('Space-weather snapshot is invalid');
-      data=snapshot;loadedAt=Date.now();
+      data=snapshot;
+      loadedAt=Date.now();
       updateDashboard();
-      auroraLayer?.redraw();viewingLayer?.redraw();
+      auroraLayer?.redraw();
+      viewingLayer?.redraw();
       return data;
     })().finally(()=>{loadPromise=null;});
     return loadPromise;
@@ -129,7 +132,8 @@
 
   function paint(canvas,coords,mode){
     const sampleSize=Math.ceil(256/SAMPLE_STEP);
-    const low=document.createElement('canvas');low.width=low.height=sampleSize;
+    const low=document.createElement('canvas');
+    low.width=low.height=sampleSize;
     const lowCtx=low.getContext('2d');
     const image=lowCtx.createImageData(sampleSize,sampleSize);
     const pixels=image.data;
@@ -153,29 +157,45 @@
       const alpha=mode==='viewing'?auroraAlpha(value)*Math.pow(factor,0.78):auroraAlpha(value);
       if(alpha<=0)continue;
       const i=(sy*sampleSize+sx)*4;
-      pixels[i]=r;pixels[i+1]=g;pixels[i+2]=b;pixels[i+3]=Math.round(alpha*255);
+      pixels[i]=r;
+      pixels[i+1]=g;
+      pixels[i+2]=b;
+      pixels[i+3]=Math.round(alpha*255);
     }
 
     lowCtx.putImageData(image,0,0);
     const ctx=canvas.getContext('2d');
-    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-    ctx.clearRect(0,0,256,256);ctx.drawImage(low,0,0,256,256);
+    ctx.imageSmoothingEnabled=true;
+    ctx.imageSmoothingQuality='high';
+    ctx.clearRect(0,0,256,256);
+    ctx.drawImage(low,0,0,256,256);
   }
 
   const AuroraTiles=L.GridLayer.extend({
-    initialize(options={}){L.GridLayer.prototype.initialize.call(this,options);this.mode=options.mode||'aurora';},
-    createTile(coords,done){
-      const canvas=document.createElement('canvas');canvas.width=canvas.height=256;
+    initialize(options={}){
+      L.GridLayer.prototype.initialize.call(this,options);
+      this.mode=options.mode||'aurora';
+    },
+    // This renderer is synchronous. Do not call Leaflet's async `done` callback
+    // here: doing so before GridLayer has registered the tile makes it disappear.
+    createTile(coords){
+      const canvas=document.createElement('canvas');
+      canvas.width=canvas.height=256;
       canvas.className='space-weather-tile';
-      try{if(data)paint(canvas,coords,this.mode);done(null,canvas);}catch(e){done(null,canvas);}
+      if(data){
+        try{paint(canvas,coords,this.mode);}
+        catch(error){console.warn('Space Weather tile render failed',error);}
+      }
       return canvas;
     }
   });
 
   function layerOptions(mode){
-    return {tileSize:256,minZoom:2,maxNativeZoom:6,maxZoom:18,noWrap:false,keepBuffer:1,
+    return {
+      tileSize:256,minZoom:2,maxNativeZoom:6,maxZoom:18,noWrap:false,keepBuffer:1,
       updateWhenIdle:true,pane:'spaceWeatherPane',opacity:Number($('auroraOpacity')?.value||68)/100,
-      mode,attribution:'Aurora forecast © NOAA SWPC OVATION'};
+      mode,attribution:'Aurora forecast © NOAA SWPC OVATION'
+    };
   }
 
   function removeLayer(layer){if(layer && map.hasLayer(layer))map.removeLayer(layer);}
@@ -199,38 +219,57 @@
       setStatus('Loading NOAA space weather…');
       await fetchSpaceWeather();
       if(generation!==renderGeneration)return;
-      if(auroraOn&&$('auroraOn')?.checked&&!auroraLayer){auroraLayer=new AuroraTiles(layerOptions('aurora'));auroraLayer.addTo(map);}
-      if(viewingOn&&$('auroraViewingOn')?.checked&&!viewingLayer){viewingLayer=new AuroraTiles(layerOptions('viewing'));viewingLayer.addTo(map);}
-      auroraLayer?.bringToFront?.();viewingLayer?.bringToFront?.();
+      if(auroraOn&&$('auroraOn')?.checked&&!auroraLayer){
+        auroraLayer=new AuroraTiles(layerOptions('aurora'));
+        auroraLayer.addTo(map);
+      }
+      if(viewingOn&&$('auroraViewingOn')?.checked&&!viewingLayer){
+        viewingLayer=new AuroraTiles(layerOptions('viewing'));
+        viewingLayer.addTo(map);
+      }
+      auroraLayer?.bringToFront?.();
+      viewingLayer?.bringToFront?.();
       setStatus((viewingOn?
         'Viewing conditions combine NOAA OVATION aurora forecast with astronomical darkness only.':
         'NOAA OVATION aurora forecast is displayed for the forecast time shown below.')+activityDescription(),'ok');
-    }catch(error){if(generation===renderGeneration)setStatus('Space weather could not load: '+error.message,'bad');}
+    }catch(error){
+      if(generation===renderGeneration)setStatus('Space weather could not load: '+error.message,'bad');
+    }
   }
 
   function setStatus(text,kind=''){
-    const el=$('spaceWeatherStatus');if(!el)return;
-    el.textContent=text;el.className='status'+(kind?' '+kind:'');
+    const el=$('spaceWeatherStatus');
+    if(!el)return;
+    el.textContent=text;
+    el.className='status'+(kind?' '+kind:'');
   }
 
   function kpLabel(value){
     if(!Number.isFinite(value))return '—';
-    if(value>=9)return 'G5 · Extreme';if(value>=8)return 'G4 · Severe';
-    if(value>=7)return 'G3 · Strong';if(value>=6)return 'G2 · Moderate';
-    if(value>=5)return 'G1 · Minor storm';if(value>=4)return 'Active';
+    if(value>=9)return 'G5 · Extreme';
+    if(value>=8)return 'G4 · Severe';
+    if(value>=7)return 'G3 · Strong';
+    if(value>=6)return 'G2 · Moderate';
+    if(value>=5)return 'G1 · Minor storm';
+    if(value>=4)return 'Active';
     return 'Quiet / unsettled';
   }
 
   function bzLabel(value){
     if(!Number.isFinite(value))return '—';
-    if(value<=-10)return 'Strongly southward';if(value<=-5)return 'Southward · favorable';
-    if(value<0)return 'Slightly southward';if(value>=5)return 'Northward · less favorable';
+    if(value<=-10)return 'Strongly southward';
+    if(value<=-5)return 'Southward · favorable';
+    if(value<0)return 'Slightly southward';
+    if(value>=5)return 'Northward · less favorable';
     return 'Near neutral';
   }
 
   function updateDashboard(){
     if(!data)return;
-    const kp=Number(data.kp?.value),speed=Number(data.solarWind?.speed),bz=Number(data.solarWind?.bz),bt=Number(data.solarWind?.bt);
+    const kp=Number(data.kp?.value);
+    const speed=Number(data.solarWind?.speed);
+    const bz=Number(data.solarWind?.bz);
+    const bt=Number(data.solarWind?.bt);
     if($('spaceKpValue'))$('spaceKpValue').textContent=Number.isFinite(kp)?kp.toFixed(1):'—';
     if($('spaceKpMeta'))$('spaceKpMeta').textContent=kpLabel(kp);
     if($('spaceWindValue'))$('spaceWindValue').textContent=Number.isFinite(speed)?Math.round(speed)+' km/s':'—';
@@ -243,11 +282,19 @@
   function bindControls(){
     const aurora=$('auroraOn'),viewing=$('auroraViewingOn'),opacity=$('auroraOpacity');
     if(!aurora||!viewing||!opacity)return;
-    aurora.addEventListener('change',()=>{if(aurora.checked)viewing.checked=false;renderLayers();});
-    viewing.addEventListener('change',()=>{if(viewing.checked)aurora.checked=false;renderLayers();});
+    aurora.addEventListener('change',()=>{
+      if(aurora.checked)viewing.checked=false;
+      renderLayers();
+    });
+    viewing.addEventListener('change',()=>{
+      if(viewing.checked)aurora.checked=false;
+      renderLayers();
+    });
     opacity.addEventListener('input',()=>{
       $('auroraOpacityVal').textContent=opacity.value+'%';
-      const value=Number(opacity.value)/100;auroraLayer?.setOpacity(value);viewingLayer?.setOpacity(value);
+      const value=Number(opacity.value)/100;
+      auroraLayer?.setOpacity(value);
+      viewingLayer?.setOpacity(value);
     });
     $('spaceWeatherRefresh')?.addEventListener('click',async()=>{
       loadedAt=0;
@@ -258,5 +305,9 @@
 
   bindControls();
   fetchSpaceWeather().catch(error=>setStatus('Space weather snapshot is not available yet: '+error.message,'warn'));
-  setInterval(()=>{if($('auroraOn')?.checked||$('auroraViewingOn')?.checked||!document.hidden)fetchSpaceWeather(true).catch(()=>{});},REFRESH_MS);
+  setInterval(()=>{
+    if($('auroraOn')?.checked||$('auroraViewingOn')?.checked||!document.hidden){
+      fetchSpaceWeather(true).catch(()=>{});
+    }
+  },REFRESH_MS);
 })();
