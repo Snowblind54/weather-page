@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - scripts/update_rainfall.py
+      - scripts/publish_generated_data.sh
       - tests/test_rainfall.py
       - .github/workflows/update-rainfall.yml
 permissions:
@@ -25,11 +26,4 @@ jobs:
       - name: Fetch official hourly precipitation and retain histories
         run: python3 scripts/update_rainfall.py
       - name: Save official precipitation snapshot
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/official-rainfall.json
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Refresh official rainfall observations'
-          git pull --rebase origin main
-          git push origin HEAD:main
+        run: bash scripts/publish_generated_data.sh 'Refresh official rainfall observations' data/official-rainfall.json

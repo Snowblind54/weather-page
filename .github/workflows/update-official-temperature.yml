@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - scripts/update_official_temperature.py
+      - scripts/publish_generated_data.sh
       - js/stations.js
       - .github/workflows/update-official-temperature.yml
 permissions:
@@ -40,11 +41,4 @@ jobs:
           PY
       - name: Save official temperature snapshot
         if: ${{ !cancelled() }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/official-temperature.json
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Refresh official Northern Europe temperature observations'
-          git pull --rebase origin main
-          git push origin HEAD:main
+        run: bash scripts/publish_generated_data.sh 'Refresh official Northern Europe temperature observations' data/official-temperature.json
