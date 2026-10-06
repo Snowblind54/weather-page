@@ -20,6 +20,6 @@ document.head.appendChild(sharedWindSourceScript);
 // install it after the page's synchronous weather scripts have finished.
 window.addEventListener('load',()=>{
   const windChillScript=document.createElement('script');
-  windChillScript.src='js/wind-chill.js?v=1';
+  windChillScript.src='js/wind-chill.js?v=2';
   document.body.appendChild(windChillScript);
 });
