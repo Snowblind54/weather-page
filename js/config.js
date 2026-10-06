@@ -41,13 +41,13 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
     </div>
     <div id="spaceWeatherSection-sources" class="source-card" hidden>
       <h3>Sources &amp; attribution</h3>
-      <p>NOAA Space Weather Prediction Center (SWPC): OVATION short-term aurora forecast, observed planetary Kp and real-time solar-wind measurements. Viewing conditions are a Northern Weather derived layer combining the NOAA aurora forecast with astronomical darkness.</p>
-      <div class="source-links"><a href="https://www.spaceweather.gov/products/aurora-30-minute-forecast" target="_blank" rel="noopener">NOAA Aurora ↗</a><a href="https://www.spaceweather.gov/products/solar-wind" target="_blank" rel="noopener">NOAA Solar Wind ↗</a></div>
-      <div class="small">OVATION is a forecast, not an observation of visible aurora. The viewing layer accounts for daylight and twilight only; it does not currently account for cloud, local light pollution or horizon conditions. The shared NOAA snapshot is collected server-side so visitors do not query SWPC directly.</div>
+      <p>NOAA Space Weather Prediction Center (SWPC): OVATION short-term aurora forecast, observed planetary Kp and real-time solar-wind measurements. ECMWF IFS Open Data supplies total cloud cover on a 0.25° global grid. Viewing conditions are a Northern Weather derived layer combining NOAA OVATION, astronomical darkness and ECMWF total cloud cover.</p>
+      <div class="source-links"><a href="https://www.spaceweather.gov/products/aurora-30-minute-forecast" target="_blank" rel="noopener">NOAA Aurora ↗</a><a href="https://www.spaceweather.gov/products/solar-wind" target="_blank" rel="noopener">NOAA Solar Wind ↗</a><a href="https://www.ecmwf.int/en/forecasts/datasets/open-data" target="_blank" rel="noopener">ECMWF Open Data ↗</a></div>
+      <div class="small">OVATION is a forecast, not an observation of visible aurora. The viewing layer reduces visibility for daylight/twilight and modelled cloud cover. Cloud cover of 0–20% has little effect, 20–50% gradually reduces visibility, 50–80% strongly reduces it, and 80–100% leaves only a small viewing contribution. Local light pollution, terrain, haze and horizon obstructions are not modelled. The viewing percentage is a derived estimate, not a calibrated sighting guarantee.</div>
     </div>
     <div class="row"><label class="label"><input id="auroraOn" type="checkbox"> Aurora forecast</label><span class="badge">NOAA OVATION</span></div>
-    <div class="row"><label class="label"><input id="auroraViewingOn" type="checkbox"> Aurora viewing conditions</label><span class="badge">aurora + darkness</span></div>
-    <div class="small space-weather-help">Viewing conditions dim the aurora in daylight and twilight. Satellite cloud imagery is not used in this layer.</div>
+    <div class="row"><label class="label"><input id="auroraViewingOn" type="checkbox"> Aurora viewing conditions</label><span class="badge">aurora + dark + ECMWF cloud</span></div>
+    <div class="small space-weather-help">Viewing conditions combine NOAA OVATION with astronomical darkness and ECMWF IFS total cloud cover. Click the map while either aurora layer is on to see the local viewing estimate.</div>
     <label class="small" for="auroraOpacity">Layer opacity</label>
     <div class="grid2"><input id="auroraOpacity" type="range" min="20" max="90" value="68" step="2"><span id="auroraOpacityVal" class="value">68%</span></div>
     <div class="space-aurora-legend" aria-label="Aurora forecast intensity"><span>Low</span><i></i><span>High</span></div>
@@ -81,6 +81,6 @@ window.addEventListener('load',()=>{
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');
-  spaceWeatherScript.src='js/space-weather-v4.js?v=5';
+  spaceWeatherScript.src='js/space-weather-v4.js?v=6';
   document.body.appendChild(spaceWeatherScript);
 });
