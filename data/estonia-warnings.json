@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-06T18:22:53.197134+00:00",
+  "fetchedAt": "2026-10-06T18:52:19.950844+00:00",
   "forecastDays": [
     "2026-10-06",
     "2026-10-07",
@@ -34,19 +34,6 @@
       "expires": "2026-10-06T21:00:00+00:00",
       "description": "Southwest, west wind in gusts to 16, on coasts to 20 m/s. ",
       "descriptionEstonian": "Edela- ja läänetuul puhanguti 16, rannikul kuni 20 m/s. ",
-      "preAlert": false
-    },
-    {
-      "id": "5106",
-      "regionId": "99998",
-      "country": "Estonia",
-      "area": "Väinameri",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-06T16:00:00+00:00",
-      "expires": "2026-10-07T03:00:00+00:00",
-      "description": "Southwest, west in gusts to 15 m/s. Wave height 0.7-1.2 m. ",
-      "descriptionEstonian": "Edela- ja läänetuul puhanguti kuni 15 m/s. Laine kõrgus 0,7-1.2 m. ",
       "preAlert": false
     },
     {
@@ -84,8 +71,8 @@
       "level": 1,
       "effective": "2026-10-06T17:00:00+00:00",
       "expires": "2026-10-07T06:00:00+00:00",
-      "description": "West, northwest 12, in gusts to 17 m/s. Wave height 1.5-3 m.",
-      "descriptionEstonian": "Lääne- ja loodetuul 12, puhanguti kuni 17 m/s. Laine kõrgus 1,5-3 m.",
+      "description": "West, northwest in gusts to 15 m/s. Wave height 1-2.5 m.",
+      "descriptionEstonian": "Lääne- ja loodetuul puhanguti kuni 15 m/s. Laine kõrgus 1-2.5 m.",
       "preAlert": false
     },
     {
@@ -97,8 +84,8 @@
       "level": 1,
       "effective": "2026-10-06T17:00:00+00:00",
       "expires": "2026-10-07T03:00:00+00:00",
-      "description": "West, northwest 12, in gusts to 17 m/s. Wave height 2-4 m.",
-      "descriptionEstonian": "Lääne- ja loodetuul 12 puhanguti kuni 17 m/s. Laine kõrgus 2-4 m.",
+      "description": "West, northwest in gusts to 15 m/s. Wave height 1-2.5 m.",
+      "descriptionEstonian": "Lääne- ja loodetuul puhanguti kuni 15 m/s. Laine kõrgus 1-2,5 m.",
       "preAlert": false
     },
     {
@@ -110,8 +97,8 @@
       "level": 1,
       "effective": "2026-10-06T17:00:00+00:00",
       "expires": "2026-10-07T03:00:00+00:00",
-      "description": "Mainly west 12, in gusts 17 m/s. Wave height 1-2 m.",
-      "descriptionEstonian": "Valdavalt läänetuul 12, puhanguti 17 m/s. Laine kõrgus 1-2 m.",
+      "description": "Mainly west in gusts 15 m/s. Wave height 1-2 m.",
+      "descriptionEstonian": "Valdavalt läänetuul puhanguti 15 m/s. Laine kõrgus 1-2 m.",
       "preAlert": false
     },
     {
