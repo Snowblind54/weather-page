@@ -1,4 +1,4 @@
-// Wind chill / feels-like mode for the Temperature section.
+// Wind-chill mode for the Temperature section.
 // Official labels use measured air temperature + measured sustained wind from
 // nearby official stations. The heatmap starts from the model field and is
 // locally corrected toward those paired official observations.
@@ -9,6 +9,7 @@
 
   const WIND_CHILL_PAIR_RADIUS_KM=25;
   const WIND_CHILL_PAIR_TIME_SEC=45*60;
+  const WIND_CHILL_EXACT_STATION_TIME_SEC=75*60;
   const WIND_CHILL_MAX_AGE_SEC=95*60;
   const WIND_CHILL_MODEL_URL='data/model-wind.json';
   let windChillModelPromise=null;
@@ -17,7 +18,7 @@
 
   // Environment Canada / WMO-style wind chill index. The published equation
   // is intended for T <= 10 C and wind > 4.8 km/h; outside that domain the
-  // displayed feels-like value simply remains the measured/model air temp.
+  // displayed wind-chill value simply remains the measured/model air temp.
   function windChillC(tempC,windMs){
     if(!Number.isFinite(tempC)||!Number.isFinite(windMs))return NaN;
     const windKmh=Math.max(0,windMs)*3.6;
@@ -38,13 +39,15 @@
       if(windStation.country!==tempStation.country)continue;
       const reading=officialWindReading(windStation,unix);
       if(!reading||!Number.isFinite(reading[1]))continue;
+
+      const exactStation=!!(tempStation.code&&windStation.code&&String(tempStation.code)===String(windStation.code));
       const tempTime=Number(tempStation.time),windTime=Number(reading[0]);
-      if(Number.isFinite(tempTime)&&Math.abs(tempTime-windTime)>WIND_CHILL_PAIR_TIME_SEC)continue;
+      const maxTimeDifference=exactStation?WIND_CHILL_EXACT_STATION_TIME_SEC:WIND_CHILL_PAIR_TIME_SEC;
+      if(Number.isFinite(tempTime)&&Math.abs(tempTime-windTime)>maxTimeDifference)continue;
       if(unix-windTime>WIND_CHILL_MAX_AGE_SEC)continue;
-      let d=distanceKm(tempStation,windStation);
-      // Exact station identifiers beat small coordinate discrepancies.
-      if(tempStation.code&&windStation.code&&String(tempStation.code)===String(windStation.code))d=0;
-      if(d<=WIND_CHILL_PAIR_RADIUS_KM&&d<bestDistance){bestDistance=d;best={station:windStation,reading,distance:d};}
+
+      let d=exactStation?0:distanceKm(tempStation,windStation);
+      if(d<=WIND_CHILL_PAIR_RADIUS_KM&&d<bestDistance){bestDistance=d;best={station:windStation,reading,distance:d,exactStation};}
     }
     return best;
   }
@@ -57,7 +60,7 @@
       if(!pair)continue;
       const chill=windChillC(tempStation.temp,pair.reading[1]);
       if(!Number.isFinite(chill))continue;
-      out.push({...tempStation,windChill:chill,windSpeed:pair.reading[1],windTime:pair.reading[0],windStation:pair.station,windDistanceKm:pair.distance});
+      out.push({...tempStation,windChill:chill,windSpeed:pair.reading[1],windTime:pair.reading[0],windStation:pair.station,windDistanceKm:pair.distance,windExactStation:pair.exactStation});
     }
     return out;
   }
@@ -172,14 +175,16 @@
     if(!windChillMode())return baseRenderTemperatureLabels(unix);
     if(map.hasLayer(temperatureLabels))map.removeLayer(temperatureLabels);temperatureLabels.clearLayers();
     if(!$('tempOn').checked)return;
-    const bounds=map.getBounds(),occupied=[],gapX=58,gapY=28;
+    const bounds=map.getBounds(),occupied=[];
+    const zoom=map.getZoom(),gapX=zoom>=9?46:zoom>=7?52:58,gapY=zoom>=9?23:28;
     const pairs=officialWindChillStations(unix).filter(s=>bounds.contains([s.lat,s.lon])).sort((a,b)=>a.windChill-b.windChill);
     for(const station of pairs){
       const p=map.latLngToContainerPoint([station.lat,station.lon]);
       if(occupied.some(q=>Math.abs(q.x-p.x)<gapX&&Math.abs(q.y-p.y)<gapY))continue;occupied.push(p);
       const marker=L.marker([station.lat,station.lon],{interactive:true,keyboard:true,title:`${station.name} · official wind chill`,icon:L.divIcon({className:'',html:`<div class="temp-label temp-label-observed"><span class="temp-observed-dot">●</span>${Math.round(station.windChill)}°C</div>`,iconSize:[58,22],iconAnchor:[29,11]})});
       const tempTime=Number.isFinite(station.time)?fmt(station.time):'unavailable',windTime=fmt(station.windTime);
-      marker.bindPopup(`<div class="temp-station-popup"><b>${htmlEscape(station.name)}</b><div style="font-size:24px;font-weight:800;margin:5px 0">Feels like ${station.windChill.toFixed(1)}°C</div><div>Official measured air temperature: ${station.temp.toFixed(1)}°C</div><div>Official measured sustained wind: ${station.windSpeed.toFixed(1)} m/s</div><div class="wind-popup-meta">Temperature observed ${htmlEscape(tempTime)}<br>Wind observed ${htmlEscape(windTime)}</div><div class="wind-popup-meta">Wind chill calculated from paired official observations. Wind station: ${htmlEscape(station.windStation.name)}</div></div>`,{maxWidth:310,className:'wind-popup-container',autoPan:false});
+      const pairing=station.windExactStation?'Same official station':`Wind station ${station.windDistanceKm.toFixed(0)} km away`;
+      marker.bindPopup(`<div class="temp-station-popup"><b>${htmlEscape(station.name)}</b><div style="font-size:24px;font-weight:800;margin:5px 0">Wind chill ${station.windChill.toFixed(1)}°C</div><div>Official measured air temperature: ${station.temp.toFixed(1)}°C</div><div>Official measured sustained wind: ${station.windSpeed.toFixed(1)} m/s</div><div class="wind-popup-meta">Temperature observed ${htmlEscape(tempTime)}<br>Wind observed ${htmlEscape(windTime)}</div><div class="wind-popup-meta">Wind chill calculated from paired official observations. ${htmlEscape(pairing)} · ${htmlEscape(station.windStation.name)}</div></div>`,{maxWidth:310,className:'wind-popup-container',autoPan:false});
       marker.addTo(temperatureLabels);
     }
     temperatureLabels.addTo(map);
@@ -192,7 +197,7 @@
     if(!windChillMode()||options.precache)return result;
     const pairs=officialWindChillStations(unix);
     if($('tempStatus').classList.contains('ok')){
-      $('tempStatus').textContent=`Feels like / wind chill: model background + ${pairs.length} paired official temperature/wind observations${$('heatmapOn')?.checked?' · coastline clipped':''} · ${fmt(unix)}`;
+      $('tempStatus').textContent=`Wind chill: model background + ${pairs.length} paired official temperature/wind observations${$('heatmapOn')?.checked?' · coastline clipped':''} · ${fmt(unix)}`;
     }
     return result;
   };
@@ -206,12 +211,25 @@
     }
   };
 
+  // stations.js predates Latvia temperature observations. Include Latvia in
+  // the compact source summary as soon as the new shared snapshot provides it.
+  const baseOfficialStationSourceSummary=typeof officialStationSourceSummary==='function'?officialStationSourceSummary:null;
+  if(baseOfficialStationSourceSummary){
+    officialStationSourceSummary=function(){
+      const summary=baseOfficialStationSourceSummary();
+      const lv=officialTemperatureSourceState?.LV;
+      if(lv?.ok&&lv.count&&!summary.good.includes('LV'))summary.good.push('LV');
+      else if(lv&&!lv.ok&&!summary.bad.includes('LV'))summary.bad.push('LV');
+      return summary;
+    };
+  }
+
   // Add one compact selector to the existing Temperature controls.
   if(!$('tempMode')){
     const details=$('tempSection')?.querySelector('.details');
     if(details){
       const wrap=document.createElement('div');
-      wrap.innerHTML='<label class="small" for="tempMode">Temperature field</label><select id="tempMode" aria-label="Temperature field"><option value="temperature">Air temperature</option><option value="windchill">Feels like / wind chill</option></select>';
+      wrap.innerHTML='<label class="small" for="tempMode">Temperature field</label><select id="tempMode" aria-label="Temperature field"><option value="temperature">Air temperature</option><option value="windchill">Wind chill</option></select>';
       details.insertBefore(wrap,details.firstChild);
       $('tempMode').addEventListener('change',async()=>{
         invalidateTemperatureHeatmapCache();temperatureRenderToken++;
