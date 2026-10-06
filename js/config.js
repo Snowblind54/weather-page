@@ -15,3 +15,11 @@ const sharedWindSourceScript=document.createElement('script');
 sharedWindSourceScript.src='js/model-wind-source.js?v=1';
 sharedWindSourceScript.async=true;
 document.head.appendChild(sharedWindSourceScript);
+
+// Wind chill depends on the temperature, station and official-wind modules, so
+// install it after the page's synchronous weather scripts have finished.
+window.addEventListener('load',()=>{
+  const windChillScript=document.createElement('script');
+  windChillScript.src='js/wind-chill.js?v=1';
+  document.body.appendChild(windChillScript);
+});
