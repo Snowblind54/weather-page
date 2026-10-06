@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - scripts/update_official_temperature.py
+      - scripts/update_official_temperature_all.py
       - scripts/publish_generated_data.sh
       - js/stations.js
       - .github/workflows/update-official-temperature.yml
@@ -24,7 +25,7 @@ jobs:
         with:
           ref: main
       - name: Fetch official temperature observations
-        run: python3 scripts/update_official_temperature.py
+        run: python3 scripts/update_official_temperature_all.py
       - name: Validate snapshot
         run: |
           python3 - <<'PY'
@@ -34,6 +35,7 @@ jobs:
           assert p['refreshMinutes']==10
           assert p['historyHours']==3
           assert p['stations']
+          assert 'LV' in p['sources'], 'Latvia source missing from temperature snapshot'
           for s in p['stations']:
               assert s['rows']
               assert -70 < s['rows'][-1][1] < 55
