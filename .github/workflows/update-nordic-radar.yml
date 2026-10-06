@@ -8,6 +8,7 @@ on:
     paths:
       - scripts/update_nordic_radar.py
       - scripts/requirements-radar.txt
+      - scripts/publish_generated_data.sh
       - .github/workflows/update-nordic-radar.yml
 permissions:
   contents: write
@@ -32,11 +33,4 @@ jobs:
       - name: Refresh transparent official radar frames
         run: python3 scripts/update_nordic_radar.py
       - name: Save radar archive
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/nordic-radar-cache.json data/radar-cache
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Refresh official Denmark and Iceland radar frames'
-          git pull --rebase origin main
-          git push origin HEAD:main
+        run: bash scripts/publish_generated_data.sh 'Refresh official Denmark and Iceland radar frames' data/nordic-radar-cache.json data/radar-cache

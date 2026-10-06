@@ -9,6 +9,7 @@ on:
     paths:
       - scripts/update_latvia_warnings.py
       - scripts/update_national_warnings.py
+      - scripts/publish_generated_data.sh
       - tests/test_national_warnings.py
       - .github/workflows/update-latvia-warnings.yml
 
@@ -34,11 +35,4 @@ jobs:
         run: python3 scripts/update_national_warnings.py
       - name: Save updated warning snapshots
         if: ${{ !cancelled() }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/latvia-warnings.json data/national-warnings.json
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Refresh official Latvia, Poland and Denmark warnings'
-          git pull --rebase origin main
-          git push origin HEAD:main
+        run: bash scripts/publish_generated_data.sh 'Refresh official Latvia, Poland and Denmark warnings' data/latvia-warnings.json data/national-warnings.json
