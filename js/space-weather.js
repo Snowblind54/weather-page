@@ -6,13 +6,15 @@
 
   const SNAPSHOT_URL='data/space-weather.json';
   const REFRESH_MS=5*60*1000;
-  const TILE_STEP=4;
+  const SAMPLE_STEP=4;
+  const AURORA_FLOOR=3;
   let spaceWeatherData=null;
   let spaceWeatherLoadedAt=0;
   let spaceWeatherLoadPromise=null;
   let auroraLayer=null;
   let viewingLayer=null;
   let viewingCloudTime=null;
+  let renderGeneration=0;
 
   if(typeof map==='undefined' || typeof L==='undefined')return;
 
@@ -79,8 +81,6 @@
   }
 
   function solarElevation(unix,lat,lon){
-    // NOAA-style compact solar-position approximation; accurate enough for
-    // separating daylight, twilight and astronomical darkness on a map layer.
     const date=new Date(unix*1000);
     const start=Date.UTC(date.getUTCFullYear(),0,1);
     const day=(date.getTime()-start)/86400000+1;
@@ -106,14 +106,14 @@
 
   function auroraColor(value){
     const stops=[
-      [0,[30,220,120]],
+      [3,[30,220,120]],
       [15,[70,255,105]],
       [35,[210,255,70]],
       [60,[255,196,55]],
       [80,[255,90,80]],
       [100,[255,210,240]]
     ];
-    const v=Math.max(0,Math.min(100,value));
+    const v=Math.max(AURORA_FLOOR,Math.min(100,value));
     for(let i=1;i<stops.length;i++){
       if(v<=stops[i][0]){
         const [a,ca]=stops[i-1],[b,cb]=stops[i];
@@ -122,6 +122,12 @@
       }
     }
     return stops.at(-1)[1];
+  }
+
+  function auroraAlpha(value){
+    if(value<=AURORA_FLOOR)return 0;
+    const normalized=(value-AURORA_FLOOR)/(100-AURORA_FLOOR);
+    return Math.min(0.88,0.08+Math.sqrt(Math.max(0,normalized))*0.78);
   }
 
   function forecastUnix(){
@@ -149,8 +155,6 @@
     const iy=Math.max(0,Math.min(255,Math.round(y)));
     const i=(iy*256+ix)*4;
     const alpha=pixels[i+3]/255;
-    // Satellite extraction is transparent in clear sky and increasingly opaque
-    // over cloud. Keep a little residual visibility under thin/translucent cloud.
     return Math.max(0.06,1-alpha*0.94);
   }
 
@@ -162,35 +166,56 @@
     }catch(e){return null;}
   }
 
+  function paintSmoothAurora(canvas,coords,mode,cloud){
+    const sampleSize=Math.ceil(256/SAMPLE_STEP);
+    const low=document.createElement('canvas');
+    low.width=low.height=sampleSize;
+    const lowCtx=low.getContext('2d');
+    const image=lowCtx.createImageData(sampleSize,sampleSize);
+    const pixels=image.data;
+    const unix=forecastUnix();
+
+    for(let sy=0;sy<sampleSize;sy++){
+      for(let sx=0;sx<sampleSize;sx++){
+        const x=Math.min(255,sx*SAMPLE_STEP+SAMPLE_STEP/2);
+        const y=Math.min(255,sy*SAMPLE_STEP+SAMPLE_STEP/2);
+        const ll=tileLatLon(coords,x,y);
+        const value=gridValue(ll.lat,ll.lng);
+        if(value<=AURORA_FLOOR)continue;
+
+        let factor=1;
+        let score=value;
+        if(mode==='viewing'){
+          factor=darknessFactor(unix,ll.lat,ll.lng)*cloudClearFactor(cloud,x,y);
+          score=value*factor;
+          if(factor<0.04 || score<=2.5)continue;
+        }
+
+        const [r,g,b]=auroraColor(mode==='viewing'?score:value);
+        const alpha=mode==='viewing'?auroraAlpha(value)*Math.pow(factor,0.78):auroraAlpha(value);
+        if(alpha<=0)continue;
+        const i=(sy*sampleSize+sx)*4;
+        pixels[i]=r;pixels[i+1]=g;pixels[i+2]=b;pixels[i+3]=Math.round(alpha*255);
+      }
+    }
+
+    lowCtx.putImageData(image,0,0);
+    const ctx=canvas.getContext('2d');
+    ctx.imageSmoothingEnabled=true;
+    ctx.imageSmoothingQuality='high';
+    ctx.clearRect(0,0,256,256);
+    ctx.drawImage(low,0,0,256,256);
+  }
+
   const AuroraTiles=L.GridLayer.extend({
     initialize(options={}){L.GridLayer.prototype.initialize.call(this,options);this.mode=options.mode||'aurora';},
     createTile(coords,done){
       const canvas=document.createElement('canvas');canvas.width=canvas.height=256;
       canvas.className='space-weather-tile';
-      const ctx=canvas.getContext('2d');
       const render=async()=>{
         if(!spaceWeatherData){done(null,canvas);return;}
         const cloud=this.mode==='viewing'?cloudPixels(await getViewingCloudTile(coords)):null;
-        const unix=forecastUnix();
-        for(let y=0;y<256;y+=TILE_STEP){
-          for(let x=0;x<256;x+=TILE_STEP){
-            const ll=tileLatLon(coords,x+TILE_STEP/2,y+TILE_STEP/2);
-            let value=gridValue(ll.lat,ll.lng);
-            if(value<0.6)continue;
-            let factor=1;
-            if(this.mode==='viewing'){
-              factor=darknessFactor(unix,ll.lat,ll.lng)*cloudClearFactor(cloud,x,y);
-              if(factor<0.035)continue;
-            }
-            const score=value*factor;
-            if(score<0.45)continue;
-            const [r,g,b]=auroraColor(this.mode==='viewing'?score:value);
-            const base=Math.min(0.82,0.10+Math.sqrt(Math.min(100,value)/100)*0.72);
-            const alpha=this.mode==='viewing'?base*Math.pow(factor,0.72):base;
-            ctx.fillStyle=`rgba(${r},${g},${b},${alpha.toFixed(3)})`;
-            ctx.fillRect(x,y,TILE_STEP+1,TILE_STEP+1);
-          }
-        }
+        paintSmoothAurora(canvas,coords,this.mode,cloud);
         done(null,canvas);
       };
       render().catch(()=>done(null,canvas));
@@ -206,30 +231,53 @@
 
   function removeLayer(ref){if(ref && map.hasLayer(ref))map.removeLayer(ref);}
 
+  function activityDescription(){
+    const max=Number(spaceWeatherData?.aurora?.max);
+    if(!Number.isFinite(max))return '';
+    if(max<=AURORA_FLOOR)return ' NOAA currently shows very little auroral activity.';
+    return ` NOAA grid maximum: ${Math.round(max)}%.`;
+  }
+
   async function renderLayers(){
+    const generation=++renderGeneration;
     const auroraOn=$('auroraOn')?.checked;
     const viewingOn=$('auroraViewingOn')?.checked;
+
     if(!auroraOn){removeLayer(auroraLayer);auroraLayer=null;}
     if(!viewingOn){removeLayer(viewingLayer);viewingLayer=null;}
     if(!auroraOn && !viewingOn){
       setStatus('Space weather layers are off.');
       return;
     }
+
     try{
       setStatus('Loading NOAA space weather…');
       await fetchSpaceWeather();
+      if(generation!==renderGeneration)return;
+
       if(viewingOn && typeof cloudEnsureMetadata==='function'){
         setStatus('Loading satellite cloud guidance for aurora viewing…');
         viewingCloudTime=frames?.at?.(-1)?.time || Math.floor(Date.now()/1000);
         await cloudEnsureMetadata().catch(()=>{});
+        if(generation!==renderGeneration)return;
       }
-      if(auroraOn && !auroraLayer){auroraLayer=new AuroraTiles(layerOptions('aurora'));auroraLayer.addTo(map);}
-      if(viewingOn && !viewingLayer){viewingLayer=new AuroraTiles(layerOptions('viewing'));viewingLayer.addTo(map);}
-      setStatus(viewingOn?
+
+      if(auroraOn && $('auroraOn')?.checked && !auroraLayer){
+        auroraLayer=new AuroraTiles(layerOptions('aurora'));
+        auroraLayer.addTo(map);
+      }
+      if(viewingOn && $('auroraViewingOn')?.checked && !viewingLayer){
+        viewingLayer=new AuroraTiles(layerOptions('viewing'));
+        viewingLayer.addTo(map);
+      }
+
+      auroraLayer?.bringToFront?.();
+      viewingLayer?.bringToFront?.();
+      setStatus((viewingOn?
         'Viewing conditions combine NOAA aurora forecast, astronomical darkness and satellite cloud transparency.':
-        'NOAA OVATION aurora forecast is displayed for the forecast time shown below.','ok');
+        'NOAA OVATION aurora forecast is displayed for the forecast time shown below.')+activityDescription(),'ok');
     }catch(error){
-      setStatus('Space weather could not load: '+error.message,'bad');
+      if(generation===renderGeneration)setStatus('Space weather could not load: '+error.message,'bad');
     }
   }
 
@@ -276,12 +324,13 @@
   function bindControls(){
     const aurora=$('auroraOn'),viewing=$('auroraViewingOn'),opacity=$('auroraOpacity');
     if(!aurora || !viewing || !opacity)return;
+
     aurora.addEventListener('change',()=>{
-      if(aurora.checked && viewing.checked){viewing.checked=false;viewing.dispatchEvent(new Event('change',{bubbles:true}));}
+      if(aurora.checked)viewing.checked=false;
       renderLayers();
     });
     viewing.addEventListener('change',()=>{
-      if(viewing.checked && aurora.checked){aurora.checked=false;aurora.dispatchEvent(new Event('change',{bubbles:true}));}
+      if(viewing.checked)aurora.checked=false;
       renderLayers();
     });
     opacity.addEventListener('input',()=>{
@@ -291,10 +340,15 @@
     });
     $('spaceWeatherRefresh')?.addEventListener('click',async()=>{
       spaceWeatherLoadedAt=0;
-      try{await fetchSpaceWeather(true);setStatus('Space weather refreshed.','ok');}
-      catch(e){setStatus('Space weather refresh failed: '+e.message,'bad');}
+      try{
+        await fetchSpaceWeather(true);
+        if($('auroraOn')?.checked || $('auroraViewingOn')?.checked)await renderLayers();
+        else setStatus('Space weather refreshed.','ok');
+      }catch(e){setStatus('Space weather refresh failed: '+e.message,'bad');}
     });
-    map.on('moveend zoomend',()=>{if(viewingLayer && map.hasLayer(viewingLayer))viewingLayer.redraw();});
+    map.on('moveend zoomend',()=>{
+      if(viewingLayer && map.hasLayer(viewingLayer))viewingLayer.redraw();
+    });
   }
 
   bindControls();
