@@ -1,5 +1,5 @@
 // Keep cloud extraction away from map interaction and animation on the main thread.
-importScripts('cloud-pixels.js?v=8.19','cloud-nordic-coverage.js?v=1');
+importScripts('cloud-pixels.js?v=8.19','cloud-nordic-coverage.js?v=2');
 installNordicCloudCoverage();
 self.onmessage=({data})=>{
   try{
