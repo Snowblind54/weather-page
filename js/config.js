@@ -81,6 +81,6 @@ window.addEventListener('load',()=>{
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');
-  spaceWeatherScript.src='js/space-weather.js?v=1';
+  spaceWeatherScript.src='js/space-weather.js?v=2';
   document.body.appendChild(spaceWeatherScript);
 });
