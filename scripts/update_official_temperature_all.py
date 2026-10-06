@@ -12,7 +12,7 @@ import urllib.parse
 import update_official_temperature as core
 
 LATVIA_DATASTORE = "https://data.gov.lv/dati/api/3/action/datastore_search?"
-LATVIA_STATIONS_RESOURCE = "c32e88fe-e3c2-46b1-ae5d-ac3b35c2c2c7"
+LATVIA_STATIONS_RESOURCE = "c32c7afd-0d05-44fd-8b24-1de85b4bf11d"
 LATVIA_OBS_RESOURCE = "17460efb-ae99-4d1d-8144-1068f184b05f"
 LATVIA_TEMP_PARAMETER = "TDRY"
 
