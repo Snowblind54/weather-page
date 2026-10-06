@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-06T01:46:25.530164+00:00",
+  "fetchedAt": "2026-10-06T02:00:50.882936+00:00",
   "forecastDays": [
     "2026-10-06",
     "2026-10-07",
@@ -9,71 +9,6 @@
     "2026-10-09"
   ],
   "records": [
-    {
-      "id": "5175",
-      "regionId": "99993",
-      "country": "Estonia",
-      "area": "Peipsi järv",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-05T14:00:00+00:00",
-      "expires": "2026-10-05T22:00:00+00:00",
-      "description": "Southwest 8, in gusts 12 m/s. Wave height 0.6-1.2 m.",
-      "descriptionEstonian": "Edelatuul 8, puhanguti 12 m/s. Laine kõrgus 0,6-1,2 m.",
-      "preAlert": false
-    },
-    {
-      "id": "5095",
-      "regionId": "99996",
-      "country": "Estonia",
-      "area": "Soome lahe lääneosa",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-05T14:00:00+00:00",
-      "expires": "2026-10-05T22:00:00+00:00",
-      "description": "Southwest 15, in gusts 20 m/s. Wave height 1.5-3 m. ",
-      "descriptionEstonian": "Edelatuul 15, puhanguti 20 m/s. Laine kõrgus 1,5-3 m. ",
-      "preAlert": false
-    },
-    {
-      "id": "5091",
-      "regionId": "99997",
-      "country": "Estonia",
-      "area": "Läänemere põhjaosa",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-05T14:00:00+00:00",
-      "expires": "2026-10-05T22:00:00+00:00",
-      "description": "Southwest 15, in gusts 20 m/s. Wave height 2-3.5 m. ",
-      "descriptionEstonian": "Edelatuul 15, puhanguti 20 m/s. Laine kõrgus 2-3,5 m.",
-      "preAlert": false
-    },
-    {
-      "id": "5107",
-      "regionId": "99995",
-      "country": "Estonia",
-      "area": "Soome lahe idaosa",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-05T16:00:00+00:00",
-      "expires": "2026-10-05T22:00:00+00:00",
-      "description": "Southwest in gusts to 16 m/s. Wave height 1-2.5 m.",
-      "descriptionEstonian": "Edelatuul puhanguti 16 m/s. Laine kõrgus 1-2,5 m.",
-      "preAlert": false
-    },
-    {
-      "id": "5106",
-      "regionId": "99998",
-      "country": "Estonia",
-      "area": "Väinameri",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-05T20:00:00+00:00",
-      "expires": "2026-10-06T00:00:00+00:00",
-      "description": "Southwest 13, in gusts 18 m/s. Wave height 1-1.5 m. ",
-      "descriptionEstonian": "Edelatuul 13, puhanguti 18 m/s. Laine kõrgus 1-1.5 m. ",
-      "preAlert": false
-    },
     {
       "id": "5093",
       "regionId": "99999",
