@@ -2,17 +2,11 @@
   "version": 1,
   "resolutionKm": 4,
   "maxZoom": 5,
-  "windowStart": "2026-09-22",
-  "windowEnd": "2026-10-05",
+  "windowStart": "2026-09-23",
+  "windowEnd": "2026-10-06",
   "source": "NOAA / USNIC IMS, archived by NSIDC",
   "sourceUrl": "https://nsidc.org/data/g02156/versions/1",
   "frames": [
-    {
-      "date": "2026-09-22",
-      "url": "data/snow-history/2026-09-22-a7ebe2972aac.json.gz",
-      "bytes": 302345,
-      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026265_00UTC_4km_v1.3.asc.gz"
-    },
     {
       "date": "2026-09-23",
       "url": "data/snow-history/2026-09-23-d6010acd52cc.json.gz",
@@ -92,5 +86,7 @@
       "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026278_00UTC_4km_v1.3.asc.gz"
     }
   ],
-  "missingDates": []
+  "missingDates": [
+    "2026-10-06"
+  ]
 }
