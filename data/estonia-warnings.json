@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-06T10:49:50.241259+00:00",
+  "fetchedAt": "2026-10-06T11:20:13.031905+00:00",
   "forecastDays": [
     "2026-10-06",
     "2026-10-07",
@@ -11,19 +11,6 @@
   ],
   "records": [
     {
-      "id": "5093",
-      "regionId": "99999",
-      "country": "Estonia",
-      "area": "Liivi lahe põhjaosa",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-05T20:00:00+00:00",
-      "expires": "2026-10-06T11:00:00+00:00",
-      "description": "Southwest, west 15, in gusts to 20 m/s. Wave height 1-2.5 m. ",
-      "descriptionEstonian": "Edela- ja läänetuul 15, puhanguti kuni 20 m/s. Laine kõrgus 1-2,5 m. ",
-      "preAlert": false
-    },
-    {
       "id": "5183",
       "regionId": "37",
       "country": "Estonia",
@@ -31,7 +18,7 @@
       "event": "Wind",
       "level": 1,
       "effective": "2026-10-05T21:00:00+00:00",
-      "expires": "2026-10-06T11:00:00+00:00",
+      "expires": "2026-10-06T12:00:00+00:00",
       "description": "Southwest, west in gusts to 16, on coast 20 m/s.",
       "descriptionEstonian": "Edela- ja läänetuul puhanguti kuni 16, rannikul 20 m/s.",
       "preAlert": false
@@ -44,7 +31,7 @@
       "event": "Wind",
       "level": 1,
       "effective": "2026-10-05T21:00:00+00:00",
-      "expires": "2026-10-06T11:00:00+00:00",
+      "expires": "2026-10-06T12:00:00+00:00",
       "description": "Southwest, west in gusts to 16, on coast 20 m/s.",
       "descriptionEstonian": "Edela- ja läänetuul puhanguti kuni 16, rannikul 20 m/s.",
       "preAlert": false
@@ -57,7 +44,7 @@
       "event": "Wind",
       "level": 1,
       "effective": "2026-10-05T21:00:00+00:00",
-      "expires": "2026-10-06T11:00:00+00:00",
+      "expires": "2026-10-06T12:00:00+00:00",
       "description": "Southwest, west in gusts to 16, on coast 20 m/s.",
       "descriptionEstonian": "Edela- ja läänetuul puhanguti kuni 16, rannikul 20 m/s.",
       "preAlert": false
@@ -70,7 +57,7 @@
       "event": "Wind",
       "level": 1,
       "effective": "2026-10-05T21:00:00+00:00",
-      "expires": "2026-10-06T11:00:00+00:00",
+      "expires": "2026-10-06T12:00:00+00:00",
       "description": "Southwest, west in gusts to 16, on coast 20 m/s.",
       "descriptionEstonian": "Edela- ja läänetuul puhanguti kuni 16, rannikul 20 m/s.",
       "preAlert": false
@@ -83,7 +70,7 @@
       "event": "Wind",
       "level": 1,
       "effective": "2026-10-05T21:00:00+00:00",
-      "expires": "2026-10-06T11:00:00+00:00",
+      "expires": "2026-10-06T12:00:00+00:00",
       "description": "Southwest, west in gusts to 16, on coast 20 m/s.",
       "descriptionEstonian": "Edela- ja läänetuul puhanguti kuni 16, rannikul 20 m/s.",
       "preAlert": false
@@ -96,9 +83,9 @@
       "event": "Wind",
       "level": 1,
       "effective": "2026-10-05T22:00:00+00:00",
-      "expires": "2026-10-06T16:00:00+00:00",
-      "description": "Southwest, west 15, in gusts to 22 m/s. Wave height 2-4 m.",
-      "descriptionEstonian": "Edela- ja läänetuul 15, puhanguti kuni 22 m/s. Laine kõrgus 2-4 m.",
+      "expires": "2026-10-06T17:00:00+00:00",
+      "description": "Southwest, west 15, in gusts 20 m/s. Wave height 2-3,5 m.",
+      "descriptionEstonian": "Edela- ja läänetuul 15, puhanguti 20 m/s. Laine kõrgus 2-3,5 m.",
       "preAlert": false
     },
     {
@@ -336,17 +323,17 @@
       "preAlert": false
     },
     {
-      "id": "5182",
+      "id": "5107",
       "regionId": "99995",
       "country": "Estonia",
       "area": "Soome lahe idaosa",
       "event": "Wind",
       "level": 1,
-      "effective": "2026-10-06T16:00:00+00:00",
+      "effective": "2026-10-06T17:00:00+00:00",
       "expires": "2026-10-07T14:00:00+00:00",
-      "description": "Southwest, west 13, in gusts to 18 m/s.",
-      "descriptionEstonian": "Edela- ja läänetuul 13, puhanguti kuni 18 m/s.",
-      "preAlert": true
+      "description": "Southwest, west 13, in gusts to 18 m/s. Wave height 2-3 m.",
+      "descriptionEstonian": "Edela- ja läänetuul 13, puhanguti kuni 18 m/s. Laine kõrgus 2-3 m.",
+      "preAlert": false
     },
     {
       "id": "5221",
