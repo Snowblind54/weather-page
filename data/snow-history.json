@@ -84,9 +84,13 @@
       "url": "data/snow-history/2026-10-06-4364d6262acb.json.gz",
       "bytes": 413334,
       "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026279_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-10-07",
+      "url": "data/snow-history/2026-10-07-1009a362f9c0.json.gz",
+      "bytes": 427182,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026280_00UTC_4km_v1.3.asc.gz"
     }
   ],
-  "missingDates": [
-    "2026-10-07"
-  ]
+  "missingDates": []
 }
