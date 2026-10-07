@@ -30,9 +30,9 @@ class IcelandForecastTests(unittest.TestCase):
     def test_grib_rounding_decrease_is_zero_within_both_error_bounds(self):
         a={k:np.array([[0.]]) for k in ['2t','10u','10v','tp','tcc']}
         a['tp_packing_error']=2**-18
-        b={**a,'tp':np.array([[-1.1e-5]]),'tp_packing_error':2**-17,'10fg':np.array([[5.]])}
+        b={**a,'tp':np.array([[-1.52587890625e-5]]),'tp_packing_error':2**-17,'10fg':np.array([[5.]])}
         self.assertEqual(m.hourly_fields(a,b,.5)['rain'][0,0],0)
-        b['tp']=np.array([[-2e-5]])
+        b['tp']=np.array([[-3e-5]])
         with self.assertRaises(ValueError):m.hourly_fields(a,b,.5)
 
     def test_render_keeps_mercator_north_at_top_and_rain_transparent(self):
