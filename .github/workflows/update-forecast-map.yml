@@ -1,4 +1,4 @@
-name: Update MET Nordic forecast map availability
+name: Cache MET Nordic forecast maps
 
 on:
   schedule:
@@ -20,7 +20,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,7 +28,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Discover current MET Nordic forecast grids
+      - name: Install image encoder
+        run: python3 -m pip install Pillow==11.3.0
+      - name: Save shared MET Nordic forecast images
         run: python3 scripts/update_forecast_map.py
-      - name: Publish forecast map availability
-        run: bash scripts/publish_generated_data.sh 'Refresh MET Nordic forecast map availability' data/forecast-map.json
+      - name: Publish shared forecast maps
+        run: bash scripts/publish_generated_data.sh 'Refresh shared MET Nordic forecast maps' data/forecast-map.json data/forecast-cache
