@@ -66,7 +66,7 @@ def decode(raw, run, step):
         grid = np.full((len(lat),len(lon)),np.nan)
         grid[np.searchsorted(lat,lats[mask]),np.searchsorted(lon,lons[mask])] = values[mask]
         if not np.isfinite(grid).all(): raise ValueError('Incomplete Iceland grid')
-        return lat,lon,grid,ec.codes_get(g,'units'),int(ec.codes_get(g,'startStep')),int(ec.codes_get(g,'endStep'))
+        return lat,lon,grid,ec.codes_get(g,'units'),int(ec.codes_get(g,'startStep')),int(ec.codes_get(g,'endStep')),float(ec.codes_get(g,'packingError'))
     finally: ec.codes_release(g)
 
 def read_step(run, step, rows=None):
@@ -76,11 +76,15 @@ def read_step(run, step, rows=None):
         offset,length = int(row['_offset']),int(row['_length'])
         if not 0 < length < 8*1024*1024: raise ValueError('Unexpected GRIB size')
         raw = request(url(run,step,'grib2'),offset,length)
-        lat,lon,grid,unit,start,end = decode(raw,run,step)
+        lat,lon,grid,unit,start,end,packing_error = decode(raw,run,step)
         expected = {'2t':{'K'},'10u':{'m s**-1'},'10v':{'m s**-1'},'tp':{'m'},
                     'tcc':{'(0 - 1)','1'},'10fg':{'m s**-1'}}[name]
         if unit not in expected: raise ValueError(f'Unexpected {name} units: {unit}')
         if name=='tp' and (start!=0 or end!=step): raise ValueError('Rain is not accumulation since run start')
+        if name=='tp':
+            if not math.isfinite(packing_error) or not 0<=packing_error<=.0001:
+                raise ValueError('Unexpected precipitation packing error')
+            result['tp_packing_error']=packing_error
         if name=='10fg':
             if end!=step or not 0<=start<end: raise ValueError('Invalid native gust interval')
             result['gust_start']=start
@@ -97,7 +101,10 @@ def read_step(run, step, rows=None):
 def hourly_fields(lower, upper, fraction):
     mix = lambda name: lower[name]*(1-fraction)+upper[name]*fraction
     delta = upper['tp']-lower['tp']
-    if delta.min() < -1e-5: raise ValueError('Precipitation accumulation decreased')
+    # Each independently packed accumulation has its own quantization error.
+    # Permit only decreases explained by their combined GRIB error bounds.
+    tolerance=lower.get('tp_packing_error',0)+upper.get('tp_packing_error',0)+1e-10
+    if delta.min() < -tolerance: raise ValueError('Precipitation accumulation decreased beyond GRIB packing error')
     return {'temperature':mix('2t'), 'wind':np.hypot(mix('10u'),mix('10v')),
             'clouds':np.clip(mix('tcc'),0,1), 'rain':np.maximum(0,delta)*1000/3,
             'gusts':upper['10fg']}
