@@ -364,3 +364,8 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
   font-size:12px;line-height:1.45;pointer-events:none;
 }
 .toggle-help-tooltip[hidden]{display:none!important;}
+
+/* Keep the freshness and settings controls together in the header. */
+.topbar-tools{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:auto}
+@media(min-width:1101px){.topbar-tools{justify-self:end;margin-left:0}}
+@media(max-width:760px){.topbar-tools{order:1}}
