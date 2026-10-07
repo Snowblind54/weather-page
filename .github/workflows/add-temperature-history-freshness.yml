@@ -37,5 +37,7 @@ jobs:
           assert any(s.get('country')=='EE' and s.get('rows') for s in p['stations'])
           print('stations',len(p['stations']),'Estonia',p['sources']['EE'])
           PY
+      - name: Discard validation snapshot
+        run: git checkout -- data/official-temperature.json
       - name: Publish feature code
         run: bash scripts/publish_generated_data.sh 'Add temperature history and data freshness dashboard' scripts/update_official_temperature.py js/stations.js js/clouds.js js/config.js index.html
