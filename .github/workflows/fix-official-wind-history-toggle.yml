@@ -1,0 +1,72 @@
+name: Repair official wind history toggle
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-official-wind-history-toggle.yml
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Replace fragile popup handler
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('js/official-wind.js')
+          t=p.read_text(encoding='utf-8')
+          start=t.index('function bindOfficialWindHistory(')
+          end=t.index('function officialWindPopup(', start)
+          replacement="""function handleOfficialWindHistoryClick(event){
+  const button=event.target.closest?.('.official-wind-history-toggle');
+  if(!button)return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation?.();
+  const panel=button.parentElement?.querySelector('.official-wind-history');
+  if(!panel||!officialWindData)return;
+  const country=button.dataset.windCountry,code=button.dataset.windCode;
+  const station=officialWindData.stations.find(s=>s.country===country&&s.code===code);
+  if(!station)return;
+  const endUnix=Number(button.dataset.windTime)||officialWindTime();
+  const open=button.getAttribute('aria-expanded')==='true';
+  button.setAttribute('aria-expanded',String(!open));
+  button.textContent=open?'Show 24 h history':'Hide history';
+  panel.hidden=open;
+  if(!open&&!panel.dataset.rendered){
+    panel.innerHTML=officialWindHistoryGraph(station,endUnix);
+    panel.dataset.rendered='1';
+  }
+  requestAnimationFrame(()=>map._popup?.update());
+}
+document.addEventListener('click',handleOfficialWindHistoryClick,true);
+
+"""
+          t=t[:start]+replacement+t[end:]
+          old='<button type="button" class="official-wind-history-toggle" aria-expanded="false"'
+          new='<button type="button" class="official-wind-history-toggle" data-wind-country="${htmlEscape(s.country)}" data-wind-code="${htmlEscape(s.code)}" data-wind-time="${r[0]}" aria-expanded="false"'
+          assert old in t
+          t=t.replace(old,new,1)
+          old="      marker.on('popupopen',e=>bindOfficialWindHistory(e.popup,s,r));marker.addTo(officialWindLabels);"
+          new="      marker.on('popupopen',e=>{const root=e.popup.getElement();if(root){L.DomEvent.disableClickPropagation(root);L.DomEvent.disableScrollPropagation(root);}});marker.addTo(officialWindLabels);"
+          assert old in t
+          t=t.replace(old,new,1)
+          p.write_text(t,encoding='utf-8')
+
+          p=Path('index.html')
+          t=p.read_text(encoding='utf-8')
+          assert 'js/official-wind.js?v=8.75' in t
+          p.write_text(t.replace('js/official-wind.js?v=8.75','js/official-wind.js?v=8.76',1),encoding='utf-8')
+          PY
+      - name: Validate
+        run: |
+          node --check js/official-wind.js
+          grep -q 'handleOfficialWindHistoryClick' js/official-wind.js
+          grep -q 'data-wind-country' js/official-wind.js
+          grep -q 'official-wind.js?v=8.76' index.html
+      - name: Publish
+        run: bash scripts/publish_generated_data.sh 'Make official wind history toggle reliable' js/official-wind.js index.html
