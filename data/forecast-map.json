@@ -1,6 +1,6 @@
 {
   "source": "MET Norway \u00b7 MET Nordic (MEPS post-processed)",
-  "generated_at": "2026-10-07T22:00:04.216278+00:00",
+  "generated_at": "2026-10-07T22:08:13.187713+00:00",
   "reference_time": "2026-10-07T21:00:00+00:00",
   "endpoint": "https://thredds.met.no/thredds/wms/metpplatest/met_forecast_1_0km_nordic_20261007T21Z.nc",
   "time_dimension": "2026-10-07T21:00:00.000Z/2026-10-10T07:00:00.000Z/PT1H",
