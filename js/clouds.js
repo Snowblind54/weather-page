@@ -431,6 +431,8 @@ async function drawCloud(frame,options={}){
   entries.forEach(([tile,result])=>{tile._cloudImage=result.canvas;tile.dataset.cloudTime=String(frame.time);tile.dataset.cloudResolution=String(result.canvas.width);tile.dataset.cloudProcessor=result.processor;});
   layer.displayTime=frame.time;layer.hasCompleteFrame=!failed&&!partial;
   layer.observationLabel=cloudTimeDescription(successful);
+  const freshnessTimes=successful.flatMap(tile=>tile.times.flatMap(source=>[source.day,source.night].filter(Number.isFinite)));
+  window.__cloudFreshnessTime=freshnessTimes.length?Math.max(...freshnessTimes):null;
   weatherFront();
   cloudStatus(layer.observationLabel?(failed||partial?'Partial cloud coverage · ':'')+layer.observationLabel:
     'Outside satellite coverage. No cloud imagery is available here.',failed||partial?'warn':'ok');

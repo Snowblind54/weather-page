@@ -9,7 +9,7 @@ const OFFICIAL_TEMP_SNAPSHOT_URL='data/official-temperature.json';
 const OFFICIAL_TEMP_CACHE_MAX_AGE=45*60*1000;
 const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;
 const OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY=Object.freeze({NO:3*60*60});
-const OFFICIAL_TEMP_HISTORY_SEC=3*60*60;
+const OFFICIAL_TEMP_HISTORY_SEC=24*60*60;
 const OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC=10*60;
 
 let officialTemperatureStations=[];
@@ -510,6 +510,7 @@ async function loadOfficialTemperatureStations(force=false){
 
       officialTemperatureStations=officialTempDedup(records);
       officialTemperatureSourceState=snapshot.sources||{};
+      window.__officialTemperatureGeneratedAt=snapshot.generatedAt;
       officialTemperatureLoadedAt=Date.now();
       saveOfficialTemperatureCache();
       if(typeof invalidateTemperatureHeatmapCache==='function') invalidateTemperatureHeatmapCache();
@@ -646,7 +647,7 @@ renderTemperatureLabels=function(unix){
         iconAnchor:[27,11]
       })
     });
-    marker.bindPopup(officialTemperaturePopup(station),{maxWidth:280,className:'wind-popup-container',autoPan:false});
+    marker.bindPopup(officialTemperaturePopup(station),{maxWidth:340,className:'wind-popup-container',autoPan:false});
     marker.addTo(temperatureLabels);
   }
 

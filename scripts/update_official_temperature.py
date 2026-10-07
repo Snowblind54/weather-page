@@ -17,7 +17,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 OUTPUT = pathlib.Path(__file__).resolve().parents[1] / "data/official-temperature.json"
-HISTORY_SEC = 3 * 60 * 60
+HISTORY_SEC = 24 * 60 * 60
 FUTURE_TOLERANCE_SEC = 10 * 60
 NORWAY_REFRESH_SEC = 55 * 60
 BOUNDS = (48.5, 72.5, -26.0, 33.0)
@@ -459,7 +459,7 @@ def main():
         "version": 1,
         "generatedAt": now,
         "refreshMinutes": 10,
-        "historyHours": 3,
+        "historyHours": HISTORY_SEC // 3600,
         "unit": "°C",
         "sources": states,
         "stations": stations,

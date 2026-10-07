@@ -157,4 +157,12 @@ window.addEventListener('load',()=>{
     document.body.appendChild(dashboardScript);
   };
   document.body.appendChild(spaceWeatherScript);
+
+  const temperatureHistoryScript=document.createElement('script');
+  temperatureHistoryScript.src='js/temperature-history.js?v=1';
+  document.body.appendChild(temperatureHistoryScript);
+
+  const freshnessScript=document.createElement('script');
+  freshnessScript.src='js/data-freshness.js?v=1';
+  document.body.appendChild(freshnessScript);
 });
