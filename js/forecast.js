@@ -86,7 +86,7 @@
     for(const day of MetForecastData.days(all,zone)){
       const card=text('div','', 'forecast-day'),top=text('div','', 'forecast-day-top');
       top.append(text('strong',new Date(day.time).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',timeZone:zone})),text('span',num(day.low)+'° to '+num(day.high)+'°'));
-      card.append(top,text('p','Rain/snow '+(day.rainHours?(day.partial?'≥ ':'')+num(day.rain)+' mm':'unavailable')+' · wind up to '+num(day.wind)+' m/s · gusts up to '+(day.gust===null?'unavailable':num(day.gust)+' m/s')));
+      card.append(top,text('p','Rain/snow '+(day.rainHours?(day.partial?'≥ ':'')+num(day.rain)+' mm':'unavailable')+' · wind up to '+num(day.wind)+' m/s · '+(day.gust===null?'gusts unavailable':'gusts up to '+num(day.gust)+' m/s')));
       $('forecastDays').append(card);
     }
     const issued=Date.parse(data.properties?.meta?.updated_at);
