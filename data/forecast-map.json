@@ -1,0 +1,24 @@
+{
+  "source": "MET Norway \u00b7 MET Nordic (MEPS post-processed)",
+  "generated_at": "2026-10-07T22:00:04.216278+00:00",
+  "reference_time": "2026-10-07T21:00:00+00:00",
+  "endpoint": "https://thredds.met.no/thredds/wms/metpplatest/met_forecast_1_0km_nordic_20261007T21Z.nc",
+  "time_dimension": "2026-10-07T21:00:00.000Z/2026-10-10T07:00:00.000Z/PT1H",
+  "bounds": [
+    -11.761220870506365,
+    52.302512941424425,
+    41.76428349932906,
+    73.85916684125398
+  ],
+  "layers": {
+    "temperature": "air_temperature_2m",
+    "rain": "precipitation_amount",
+    "wind": "wind_speed_10m",
+    "gusts": "wind_speed_of_gust",
+    "clouds": "cloud_area_fraction"
+  },
+  "grid_spacing_km": 1,
+  "precipitation_period": "one hour ending at source timestamp",
+  "licence": "CC BY 4.0",
+  "documentation": "https://github.com/metno/NWPdocs/wiki/MET-Nordic-dataset"
+}

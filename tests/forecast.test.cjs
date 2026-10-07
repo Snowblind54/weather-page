@@ -40,7 +40,7 @@ function harness(){
     replaceChildren(...nodes){this.children=nodes;}setAttribute(k,v){this[k]=v;}addEventListener(k,f){this.events[k]=f;}focus(){}
   }
   const nav=new Element(),body=new Element();body.appendChild=e=>{body.append(e);ids[e.id]=e;};
-  const listeners={};const map={getCenter:()=>({lat:59.437,lng:24.7536}),on:(k,f)=>listeners[k]=f,removeLayer(){},closePopup(){}};
+  const listeners={};const map={createPane(){},getPane:()=>({style:{}}),getCenter:()=>({lat:59.437,lng:24.7536}),on:(k,f)=>listeners[k]=f,removeLayer(){},closePopup(){}};
   const c={document:{body,hidden:false,querySelector:()=>nav,createElement:()=>new Element(),addEventListener(){}},window:{addEventListener(){}},$:id=>ids[id],map,
     L:{DomEvent:{disableClickPropagation(){},disableScrollPropagation(){}},divIcon:x=>x,marker:()=>({addTo(){return this;}})},
     MetForecastData:{...forecast,rows:d=>forecast.rows(d,now)},Intl,Date:class extends Date{static now(){return now;}},AbortController,URLSearchParams,

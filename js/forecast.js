@@ -7,6 +7,7 @@
   button.dataset.panel='forecastSection';button.setAttribute('aria-controls','forecastSection');button.setAttribute('aria-expanded','false');
   button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v15H4zM8 3v4m8-4v4M4 10h16M8 14h3m-3 3h6"/></svg><span>Forecast</span>';
   nav.prepend(button);
+  map.createPane('forecastPoint');map.getPane('forecastPoint').style.zIndex='650';
   const panel=document.createElement('div');
   panel.id='forecastSection';panel.className='weather-panel weather-section';panel.hidden=true;
   panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','forecastSection-title');
@@ -55,7 +56,7 @@
   function metric(label,value,note){
     const card=text('div','', 'forecast-metric');card.append(text('small',label),text('strong',value));if(note)card.append(text('small',note));return card;
   }
-  function renderSelected(){
+  function renderSelected(syncMap=true){
     const index=Number($('forecastTimeline').value),row=forecastRows[index];if(!row)return;
     selectedTime=row.time;
     $('forecastSelectedTime').textContent=date(row.time);$('forecastSelectedTime').dateTime=new Date(row.time).toISOString();
@@ -69,6 +70,7 @@
     selected.append(metrics);
     if(row.min!==null&&row.max!==null)selected.append(text('p','Temperature uncertainty (10th–90th percentile): '+num(row.min)+' to '+num(row.max)+' °C.','forecast-note'));
     for(const tr of $('forecastHours').children)tr.setAttribute('aria-current',String(Number(tr.dataset.index)===index));
+    if(syncMap!==false)window.NorthernForecastMap?.setTime(row.time);
   }
   function render(data){
     payload=data;
@@ -121,12 +123,12 @@
     }finally{clearTimeout(timer);if(controller===abort)controller=null;}
   }
   function choose(latlng){
-    requestId++;controller?.abort();controller=null;payload=null;selectedTime=null;refreshAfter=0;
+    requestId++;controller?.abort();controller=null;payload=null;refreshAfter=0;
     const longitude=((latlng.lng+180)%360+360)%360-180;
     point={lat:Math.max(-90,Math.min(90,latlng.lat)).toFixed(3),lon:longitude.toFixed(3)};
     $('forecastLocation').textContent=point.lat+'°, '+point.lon+'°';$('forecastContent').hidden=true;$('forecastIssued').textContent='Forecast update time will appear here.';
     if(marker)map.removeLayer(marker);
-    marker=L.marker([Number(point.lat),Number(point.lon)],{interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
+    marker=L.marker([Number(point.lat),Number(point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
     clearTimeout(choose.timer);choose.timer=setTimeout(loadForecast,350);
   }
   $('forecastCenter').addEventListener('click',()=>choose(map.getCenter()));
@@ -155,10 +157,16 @@
     else{
       if(typeof stop==='function')stop();
       if(!point)choose(map.getCenter());
-      else{if(!marker)marker=L.marker([Number(point.lat),Number(point.lon)],{interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);loadForecast();}
+      else{if(!marker)marker=L.marker([Number(point.lat),Number(point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);loadForecast();}
     }
   }).observe(panel,{attributes:true,attributeFilter:['hidden']});
   setInterval(()=>{if(!document.hidden&&!panel.hidden&&Date.now()>=refreshAfter)loadForecast();},60000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!panel.hidden)loadForecast();});
   window.addEventListener('online',()=>{if(!panel.hidden)loadForecast();});
+  document.addEventListener('forecast-map-time',event=>{
+    const wanted=event.detail.time;if(!Number.isFinite(wanted))return;selectedTime=wanted;
+    if(!forecastRows.length)return;
+    const i=forecastRows.reduce((best,row,index)=>Math.abs(row.time-wanted)<Math.abs(forecastRows[best].time-wanted)?index:best,0);
+    $('forecastTimeline').value=String(i);renderSelected(false);selectedTime=wanted;
+  });
 })();
