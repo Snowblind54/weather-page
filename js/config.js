@@ -132,7 +132,7 @@ window.addEventListener('load',()=>{
     window.installNordicCloudCoverage?.();
 
     const cloudEumetScript=document.createElement('script');
-    cloudEumetScript.src='js/cloud-eumet-cleanup.js?v=1';
+    cloudEumetScript.src='js/cloud-eumet-cleanup.js?v=3';
     cloudEumetScript.onload=()=>{
       window.installEumetCleanClouds?.();
 
