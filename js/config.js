@@ -16,7 +16,7 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
   if(!nav)return;
 
   const style=document.createElement('link');
-  style.rel='stylesheet';style.href='css/space-weather.css?v=3';
+  style.rel='stylesheet';style.href='css/space-weather.css?v=4';
   document.head.appendChild(style);
 
   const button=document.createElement('button');
@@ -153,7 +153,7 @@ window.addEventListener('load',()=>{
   spaceWeatherScript.src='js/space-weather-v4.js?v=7';
   spaceWeatherScript.onload=()=>{
     const dashboardScript=document.createElement('script');
-    dashboardScript.src='js/space-weather-dashboard.js?v=2';
+    dashboardScript.src='js/space-weather-dashboard.js?v=3';
     document.body.appendChild(dashboardScript);
   };
   document.body.appendChild(spaceWeatherScript);
