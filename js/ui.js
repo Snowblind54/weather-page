@@ -52,6 +52,8 @@ for(const button of document.querySelectorAll('[data-info]')){
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeWeatherPanel(true);});
 document.addEventListener('pointerdown',event=>{
   if(!event.target.closest('.topbar,.weather-panel')){
+    // A Forecast map click selects a place while its results panel stays open.
+    if(openedWeatherPanel==='forecastSection' && event.target.closest('#map'))return;
     // Keep a gauge under the pointer until its click has opened the popup.
     const gauge=event.target.closest('.leaflet-marker-icon')?.querySelector('.rain-station-label');
     closeWeatherPanel(false,!gauge);
