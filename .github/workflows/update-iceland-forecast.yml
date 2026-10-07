@@ -1,0 +1,36 @@
+name: Cache ECMWF Iceland forecast maps
+
+on:
+  schedule:
+    - cron: '19,49 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/update_iceland_forecast.py
+      - .github/workflows/update-iceland-forecast.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forecast-iceland-cache
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install GRIB decoder and image renderer
+        run: python3 -m pip install numpy==2.3.5 scipy==1.17.0 eccodes==2.46.0 Pillow==11.3.0
+      - name: Generate shared Iceland forecast maps
+        run: python3 scripts/update_iceland_forecast.py
+      - name: Publish complete Iceland cache
+        run: bash scripts/publish_generated_data.sh 'Refresh ECMWF Iceland forecast maps' data/forecast-iceland.json data/forecast-iceland-cache
