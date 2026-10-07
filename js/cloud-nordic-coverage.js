@@ -10,11 +10,16 @@
         const weights=baseWeights(lat,lon);
         weights.metop=0;
 
+        // In the worker there is no cloudProducts registry, while in the page
+        // the source is installed asynchronously. Do not advertise Metop to the
+        // page loader until its product definition exists.
+        const metopReady=typeof cloudProducts==='undefined' || !!cloudProducts.metop;
+
         // Metop-C is used only where geostationary viewing becomes shallow.
         // Fade in gradually across northern Scandinavia / Nordic seas so there
         // is no visible latitude seam. Keep the normal Meteosat source beneath
         // the blend for continuity when both observations contain data.
-        if(lat>=64 && lat<=82 && lon>=-32 && lon<=42){
+        if(metopReady && lat>=64 && lat<=82 && lon>=-32 && lon<=42){
           const north=smoothstep(64.5,69,lat);
           const west=smoothstep(-32,-24,lon);
           const east=1-smoothstep(36,42,lon);
