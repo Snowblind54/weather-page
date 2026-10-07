@@ -25,10 +25,9 @@ jobs:
           grep -q 'js/config.js?v=8.89' index.html
           grep -q 'js/stations.js?v=8.74' index.html
           grep -q 'js/clouds.js?v=8.34' index.html
-      - name: Refresh official temperature history
-        run: python3 scripts/update_official_temperature_all.py
-      - name: Validate temperature snapshot
+      - name: Validate 24-hour temperature build
         run: |
+          python3 scripts/update_official_temperature_all.py
           python3 - <<'PY'
           import json
           p=json.load(open('data/official-temperature.json',encoding='utf-8'))
@@ -38,5 +37,5 @@ jobs:
           assert any(s.get('country')=='EE' and s.get('rows') for s in p['stations'])
           print('stations',len(p['stations']),'Estonia',p['sources']['EE'])
           PY
-      - name: Publish
-        run: bash scripts/publish_generated_data.sh 'Add temperature history and data freshness dashboard' scripts/update_official_temperature.py .github/workflows/update-official-temperature.yml js/stations.js js/clouds.js js/config.js index.html data/official-temperature.json
+      - name: Publish feature code
+        run: bash scripts/publish_generated_data.sh 'Add temperature history and data freshness dashboard' scripts/update_official_temperature.py js/stations.js js/clouds.js js/config.js index.html
