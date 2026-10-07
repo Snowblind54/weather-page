@@ -101,7 +101,7 @@ document.head.appendChild(sharedWindSourceScript);
 // page load.
 window.addEventListener('load',()=>{
   const cloudNordicScript=document.createElement('script');
-  cloudNordicScript.src='js/cloud-nordic-coverage.js?v=2';
+  cloudNordicScript.src='js/cloud-nordic-coverage.js?v=3';
   cloudNordicScript.onload=()=>{
     window.installNordicCloudCoverage?.();
     const cloudArcticScript=document.createElement('script');
