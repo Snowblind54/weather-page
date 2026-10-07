@@ -126,23 +126,30 @@ function officialWindHistoryGraph(s,endUnix){
     </svg>
   </div>`;
 }
-function bindOfficialWindHistory(popup,s,r){
-  const root=popup.getElement();if(!root)return;
-  L.DomEvent.disableClickPropagation(root);
-  L.DomEvent.disableScrollPropagation(root);
-  const button=root.querySelector('.official-wind-history-toggle'),panel=root.querySelector('.official-wind-history');
-  if(!button||!panel||button.dataset.bound)return;button.dataset.bound='1';
-  button.addEventListener('click',event=>{
-    event.preventDefault();
-    event.stopPropagation();
-    L.DomEvent.stopPropagation(event);
-    const open=button.getAttribute('aria-expanded')==='true';
-    button.setAttribute('aria-expanded',String(!open));button.textContent=open?'Show 24 h history':'Hide history';
-    panel.hidden=open;
-    if(!open&&!panel.dataset.rendered){panel.innerHTML=officialWindHistoryGraph(s,r[0]);panel.dataset.rendered='1';}
-    popup.update();
-  });
+function handleOfficialWindHistoryClick(event){
+  const button=event.target.closest?.('.official-wind-history-toggle');
+  if(!button)return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation?.();
+  const panel=button.parentElement?.querySelector('.official-wind-history');
+  if(!panel||!officialWindData)return;
+  const country=button.dataset.windCountry,code=button.dataset.windCode;
+  const station=officialWindData.stations.find(s=>s.country===country&&s.code===code);
+  if(!station)return;
+  const endUnix=Number(button.dataset.windTime)||officialWindTime();
+  const open=button.getAttribute('aria-expanded')==='true';
+  button.setAttribute('aria-expanded',String(!open));
+  button.textContent=open?'Show 24 h history':'Hide history';
+  panel.hidden=open;
+  if(!open&&!panel.dataset.rendered){
+    panel.innerHTML=officialWindHistoryGraph(station,endUnix);
+    panel.dataset.rendered='1';
+  }
+  requestAnimationFrame(()=>map._popup?.update());
 }
+document.addEventListener('click',handleOfficialWindHistoryClick,true);
+
 function officialWindPopup(s,r){
   const source=officialWindData.sources[s.country],value=n=>n===null?'Unavailable':n.toFixed(1)+' <span>m/s</span>';
   const direction=r[3]===null?'':`<div class="wind-popup-meta">Wind from ${Math.round(r[3])}°</div>`;
@@ -152,7 +159,7 @@ function officialWindPopup(s,r){
     <div class="wind-popup-readings"><div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${value(r[1])}</div></div><div><div class="wind-popup-label">${htmlEscape(gustLabel)}</div><div class="wind-popup-speed">${value(r[2])}</div></div></div>
     ${direction}<div class="wind-popup-meta">${source.timeKind==='feed'?'Source feed timestamp':'Observed'}: ${htmlEscape(fmt(r[0]))}${old?' · delayed reading':''}</div>
     <div class="wind-popup-meta">${htmlEscape(source.period||'Reported station measurements.')} Updated every 10 minutes on this map.</div>
-    <button type="button" class="official-wind-history-toggle" aria-expanded="false" style="margin:9px 0 2px;width:100%;padding:7px 10px;border:1px solid rgba(126,220,255,.24);border-radius:9px;background:rgba(80,160,190,.10);color:#dff7ff;font:inherit;font-weight:650;cursor:pointer">Show 24 h history</button>
+    <button type="button" class="official-wind-history-toggle" data-wind-country="${htmlEscape(s.country)}" data-wind-code="${htmlEscape(s.code)}" data-wind-time="${r[0]}" aria-expanded="false" style="margin:9px 0 2px;width:100%;padding:7px 10px;border:1px solid rgba(126,220,255,.24);border-radius:9px;background:rgba(80,160,190,.10);color:#dff7ff;font:inherit;font-weight:650;cursor:pointer">Show 24 h history</button>
     <div class="official-wind-history" hidden></div>
     <div class="wind-popup-meta" style="margin-top:7px"><a href="${OFFICIAL_WIND_SOURCE_LINKS[s.country]}" target="_blank" rel="noopener">${htmlEscape(source.name)}</a></div></div>`;
 }
@@ -178,7 +185,7 @@ function renderOfficialWind(){
       const title=s.name+' · '+(sustained&&r[1]!==null?'Sustained '+r[1].toFixed(1)+' m/s · ':'')+(gusts&&r[2]!==null?'Gust '+r[2].toFixed(1)+' m/s · ':'')+fmt(r[0])+(old?' · delayed':'');
       const marker=L.marker([s.lat,s.lon],{pane:'officialWindPane',title,keyboard:true,icon:L.divIcon({className:'official-wind-marker',iconSize:[width,24],iconAnchor:[width/2,12],popupAnchor:[0,-12],html:`<span class="official-wind-label${old?' official-wind-delayed':''}">${parts.join(' <span class="official-wind-separator">/</span> ')} <small>m/s</small>${old?' ◷':''}</span>`})})
         .bindPopup(officialWindPopup(s,r),{className:'official-wind-popup-container',maxWidth:360,autoPan:false,keepInView:false});
-      marker.on('popupopen',e=>bindOfficialWindHistory(e.popup,s,r));marker.addTo(officialWindLabels);
+      marker.on('popupopen',e=>{const root=e.popup.getElement();if(root){L.DomEvent.disableClickPropagation(root);L.DomEvent.disableScrollPropagation(root);}});marker.addTo(officialWindLabels);
     }
     if(!map.hasLayer(officialWindLabels))officialWindLabels.addTo(map);officialWindRenderKey=key;
   }
