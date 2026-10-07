@@ -1,0 +1,42 @@
+name: Show official wind history directly
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/show-official-wind-history-directly.yml
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Make history always visible
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('js/official-wind.js')
+          t = p.read_text(encoding='utf-8')
+          old = '''    <button type="button" class="official-wind-history-toggle" data-wind-country="${htmlEscape(s.country)}" data-wind-code="${htmlEscape(s.code)}" data-wind-time="${r[0]}" aria-expanded="false" style="margin:9px 0 2px;width:100%;padding:7px 10px;border:1px solid rgba(126,220,255,.24);border-radius:9px;background:rgba(80,160,190,.10);color:#dff7ff;font:inherit;font-weight:650;cursor:pointer">Show 24 h history</button>
+    <div class="official-wind-history" hidden></div>'''
+          new = '''    ${officialWindHistoryGraph(s,r[0])}'''
+          assert old in t, 'history button block not found'
+          t = t.replace(old, new, 1)
+          p.write_text(t, encoding='utf-8')
+
+          p = Path('index.html')
+          t = p.read_text(encoding='utf-8')
+          assert 'js/official-wind.js?v=8.76' in t, 'cache tag not found'
+          p.write_text(t.replace('js/official-wind.js?v=8.76','js/official-wind.js?v=8.77',1),encoding='utf-8')
+          PY
+      - name: Validate
+        run: |
+          node --check js/official-wind.js
+          grep -q '\${officialWindHistoryGraph(s,r\[0\])}' js/official-wind.js
+          ! grep -q 'Show 24 h history' js/official-wind.js
+          grep -q 'official-wind.js?v=8.77' index.html
+      - name: Publish
+        run: bash scripts/publish_generated_data.sh 'Show official wind history directly in popup' js/official-wind.js index.html
