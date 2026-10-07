@@ -95,8 +95,10 @@
       status(visibleTime!==null?'Loading forecast maps… Previous images valid '+date(visibleTime)+'.':'Loading forecast map images…');
       const imgs=await Promise.all(urls.map(image));if(id!==generation||!active())return;
       const next=imgs.map((img,index)=>{
-        const region=regions[index];img.dataset.forecastTime=new Date(selectedTime).toISOString();img.dataset.forecastLayer=kind;img.dataset.forecastRegion=region.region;
-        return L.imageOverlay(img,[[region.bounds[1],region.bounds[0]],[region.bounds[3],region.bounds[2]]],{pane:'forecastModel',opacity:Number($('forecastMapOpacity').value)/100,interactive:false,attribution:region.region==='Iceland'?'Forecast © <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data" target="_blank" rel="noopener">ECMWF</a> · CC BY 4.0 · hourly interpolation':'Forecast © <a href="https://api.met.no/" target="_blank" rel="noopener">MET Norway</a> · CC BY 4.0'}).addTo(map);
+        // Keep cached image elements independent of Leaflet's DOM ownership.
+        // Removing an old overlay must not detach an image reused by a new one.
+        const display=img.cloneNode(false),region=regions[index];display.dataset.forecastTime=new Date(selectedTime).toISOString();display.dataset.forecastLayer=kind;display.dataset.forecastRegion=region.region;
+        return L.imageOverlay(display,[[region.bounds[1],region.bounds[0]],[region.bounds[3],region.bounds[2]]],{pane:'forecastModel',opacity:Number($('forecastMapOpacity').value)/100,interactive:false,attribution:region.region==='Iceland'?'Forecast © <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data" target="_blank" rel="noopener">ECMWF</a> · CC BY 4.0 · hourly interpolation':'Forecast © <a href="https://api.met.no/" target="_blank" rel="noopener">MET Norway</a> · CC BY 4.0'}).addTo(map);
       });
       overlay?.forEach(layer=>map.removeLayer(layer));overlay=next;visibleRegions=regions;visibleTime=selectedTime;visibleUrl=key;legend(kind);
       status('Forecast map ready · '+D.layers[kind].label+' · '+date(visibleTime));
