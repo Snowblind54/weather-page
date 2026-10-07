@@ -53,23 +53,33 @@
           const lum=.2126*day[index]+.7152*day[index+1]+.0722*day[index+2];
           const visual=visualCloudScore(day[index],day[index+1],day[index+2]);
 
-          // IR10.5 contains no photographic land/sea colour. Cold cloud tops are
-          // brighter in the EUMETView rendering, so use IR as the primary gate.
+          // Finland, Sweden and northern Norway are viewed at a much shallower
+          // angle by Meteosat and often contain warmer low/stratiform cloud.
+          // Gradually increase sensitivity north of 58 N without weakening the
+          // anti-haze filter over central/southern Europe or creating a hard seam.
+          const north=smoothstep(58,64,lat);
+
+          // IR10.5 contains no photographic land/sea colour. Keep it as the
+          // primary gate, but allow somewhat warmer cloud tops in the north.
           const ir=source.night;
           const irLum=ir?(.2126*ir[index]+.7152*ir[index+1]+.0722*ir[index+2]):0;
-          const coldCloud=smoothstep(78,178,irLum);
-          const visibleCloud=smoothstep(.45,.88,visual);
+          const coldCloud=smoothstep(78-18*north,178-22*north,irLum);
+          const visibleCloud=smoothstep(.45-.12*north,.88-.08*north,visual);
 
-          // Thick/mid/high clouds need IR support, which removes the widespread
-          // pale GeoColour surface/haze that caused the milky European veil.
-          dayAlpha=(coldCloud**1.20)*(.34+.66*visibleCloud)*.92;
+          // Thick/mid/high clouds still need IR support, so pale GeoColour
+          // surface/haze cannot recreate the former milky European veil.
+          dayAlpha=(coldCloud**(1.20-.18*north))*(.34+.66*visibleCloud)*(.92+.04*north);
 
-          // Retain only exceptionally obvious bright low cloud when it is too
-          // warm to stand out strongly in IR. This branch is intentionally strict.
-          const obviousLowCloud=smoothstep(.78,.97,visual)*smoothstep(160,235,lum)*.38;
+          // Keep obvious warm low cloud too. This branch gets only a modest
+          // northern boost and still requires a bright, neutral visible signal.
+          const obviousLowCloud=smoothstep(.78-.08*north,.97-.04*north,visual)*
+            smoothstep(160-15*north,235-10*north,lum)*(.38+.10*north);
           dayAlpha=Math.max(dayAlpha,obviousLowCloud);
           dayAlpha*=day[index+3]/255;
-          if(dayAlpha<.06)dayAlpha=0;
+
+          // Lower the final cutoff gradually in the north so thin cloud is not
+          // discarded, while southern Europe retains the strict cleanup.
+          if(dayAlpha<.06-.025*north)dayAlpha=0;
 
           dayTone=Math.max(150,Math.min(255,156+99*smoothstep(55,235,lum)));
         }
