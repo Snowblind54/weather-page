@@ -4,12 +4,17 @@
 .space-aurora-legend i{display:block;height:8px;border-radius:999px;background:linear-gradient(90deg,rgba(30,220,120,.45),#46ff69,#d2ff46,#ffc437,#ff5a50,#ffd2f0);box-shadow:0 0 12px rgba(90,255,150,.18)}
 .space-dashboard-section{margin-top:12px}
 .space-dashboard{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.space-metric{min-width:0;padding:10px 11px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(10,18,28,.42)}
+.space-metric{position:relative;min-width:0;padding:10px 11px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(10,18,28,.42)}
 .space-metric.wide{grid-column:1/-1}
 .space-metric span,.space-metric small{display:block}
-.space-metric span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted,#aeb9c9)}
+.space-metric-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.space-metric-heading span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted,#aeb9c9)}
+.space-metric-info{display:grid;place-items:center;width:19px;height:19px;min-width:19px;padding:0;border:1px solid rgba(145,225,255,.34);border-radius:50%;background:rgba(75,150,190,.13);color:#bfeeff;font:700 11px/1 system-ui,sans-serif;cursor:pointer}
+.space-metric-info:hover,.space-metric-info[aria-expanded="true"]{background:rgba(82,190,225,.22);border-color:rgba(160,235,255,.65);color:#fff}
 .space-metric strong{display:block;margin:3px 0 2px;font-size:21px;line-height:1.1;font-weight:650;color:var(--text,#f4f7fb)}
 .space-metric small{font-size:10px;line-height:1.35;color:var(--muted,#aeb9c9)}
+.space-metric-help{margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);font-size:10.5px;line-height:1.45;color:#c9d7e5}
+.space-metric-help[hidden]{display:none}
 .space-forecast-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.08);font-size:11px}
 .space-forecast-row span{color:var(--muted,#aeb9c9)}
 .space-forecast-row strong{font-weight:650;color:var(--text,#f4f7fb)}
