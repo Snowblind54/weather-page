@@ -2,6 +2,25 @@
 // GeoColour contains the real Earth surface, so do not use its broad brightness
 // directly as cloud opacity. Pair it with the matching FCI IR10.5 image instead.
 (function(root){
+  function localVisibleSmoothness(day,p){
+    if(!day?.length)return .5;
+    const side=Math.round(Math.sqrt(day.length/4));
+    if(side<8 || side*side*4!==day.length)return .5;
+    const x=p%side,y=Math.floor(p/side),r=Math.max(2,Math.round(side/64));
+    let min=255,max=0,sum=0,count=0;
+    for(const dy of [-r,0,r])for(const dx of [-r,0,r]){
+      if(dx===0&&dy===0)continue;
+      const xx=Math.max(0,Math.min(side-1,x+dx));
+      const yy=Math.max(0,Math.min(side-1,y+dy));
+      const i=(yy*side+xx)*4;
+      const lum=.2126*day[i]+.7152*day[i+1]+.0722*day[i+2];
+      min=Math.min(min,lum);max=Math.max(max,lum);sum+=lum;count++;
+    }
+    if(!count)return .5;
+    const spread=max-min;
+    return 1-smoothstep(10,52,spread);
+  }
+
   function installEumetCleanClouds(){
     let changed=false;
 
@@ -50,8 +69,10 @@
 
         if(source.day && mix>.001){
           const day=source.day;
-          const lum=.2126*day[index]+.7152*day[index+1]+.0722*day[index+2];
-          const visual=visualCloudScore(day[index],day[index+1],day[index+2]);
+          const red=day[index],green=day[index+1],blue=day[index+2];
+          const lum=.2126*red+.7152*green+.0722*blue;
+          const visual=visualCloudScore(red,green,blue);
+          const chroma=Math.max(red,green,blue)-Math.min(red,green,blue);
 
           // Finland, Sweden and northern Norway are viewed at a much shallower
           // angle by Meteosat and often contain warmer low/stratiform cloud.
@@ -70,16 +91,35 @@
           // surface/haze cannot recreate the former milky European veil.
           dayAlpha=(coldCloud**(1.20-.18*north))*(.34+.66*visibleCloud)*(.92+.04*north);
 
-          // Keep obvious warm low cloud too. This branch gets only a modest
-          // northern boost and still requires a bright, neutral visible signal.
+          // Keep very obvious warm low cloud too.
           const obviousLowCloud=smoothstep(.78-.08*north,.97-.04*north,visual)*
             smoothstep(160-15*north,235-10*north,lum)*(.38+.10*north);
           dayAlpha=Math.max(dayAlpha,obviousLowCloud);
+
+          // Recover broad warm stratus/low-cloud sheets that the strict IR gate
+          // tends to erase over the Baltics, Finland and Scandinavia. Sat24-like
+          // scenes often contain these clouds even though their tops are only a
+          // little colder than the surface. Use a feathered northern-Europe mask,
+          // neutral visible colour, weak IR support and local smoothness so land
+          // texture does not turn into a milky overlay.
+          const northEurope=smoothstep(52,56,lat)*(1-smoothstep(69,72,lat))*
+            smoothstep(2,8,lon)*(1-smoothstep(36,42,lon));
+          if(northEurope>.001 && ir){
+            const neutral=1-smoothstep(18,72,chroma);
+            const sheetVisible=smoothstep(.30,.76,visual);
+            const warmIr=smoothstep(42-6*north,118-10*north,irLum);
+            const smooth=localVisibleSmoothness(day,p);
+            const lowCloudSheet=northEurope*sheetVisible*neutral*
+              (.55+.45*smooth)*(.22+.78*warmIr)*(.56+.08*north);
+            dayAlpha=Math.max(dayAlpha,lowCloudSheet);
+          }
+
           dayAlpha*=day[index+3]/255;
 
-          // Lower the final cutoff gradually in the north so thin cloud is not
-          // discarded, while southern Europe retains the strict cleanup.
-          if(dayAlpha<.06-.025*north)dayAlpha=0;
+          // Thin northern-European low cloud is allowed a lower opacity floor;
+          // elsewhere the stricter anti-haze cutoff remains unchanged.
+          const cutoff=(.06-.025*north)*(1-.35*northEurope);
+          if(dayAlpha<cutoff)dayAlpha=0;
 
           dayTone=Math.max(150,Math.min(255,156+99*smoothstep(55,235,lum)));
         }
