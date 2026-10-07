@@ -9,13 +9,6 @@ assert '"historyHours": 3,' in t
 t=t.replace('"historyHours": 3,','"historyHours": HISTORY_SEC // 3600,',1)
 p.write_text(t,encoding="utf-8")
 
-# Keep workflow validation aligned with 24-hour retention.
-p=Path(".github/workflows/update-official-temperature.yml")
-t=p.read_text(encoding="utf-8")
-assert "assert p['historyHours']==3" in t
-t=t.replace("assert p['historyHours']==3","assert p['historyHours']==24",1)
-p.write_text(t,encoding="utf-8")
-
 # Temperature renderer: expose snapshot freshness, keep 24h history, fit the chart.
 p=Path("js/stations.js")
 t=p.read_text(encoding="utf-8")
@@ -71,7 +64,7 @@ for old,new in [
 old_copy="Click an official reading for station name, exact measured temperature, observation time, station ID, coordinates and source."
 if old_copy in t:
     t=t.replace(old_copy,"Click an official reading for station details and its measured temperature history graph (up to 24 hours as retained observations accumulate).",1)
-old_lv="Latvia currently keeps model-based temperatures where an official observation feed is unavailable."
+old_lv="Latvia currently keeps model-based temperatures where an official observation feed is not available."
 if old_lv in t:
     t=t.replace(old_lv,"Latvia is included through official LVGMC dry-bulb temperature observations.",1)
 p.write_text(t,encoding="utf-8")
