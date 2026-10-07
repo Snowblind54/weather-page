@@ -101,9 +101,10 @@ def read_step(run, step, rows=None):
 def hourly_fields(lower, upper, fraction):
     mix = lambda name: lower[name]*(1-fraction)+upper[name]*fraction
     delta = upper['tp']-lower['tp']
-    # Each independently packed accumulation has its own quantization error.
-    # Permit only decreases explained by their combined GRIB error bounds.
-    tolerance=lower.get('tp_packing_error',0)+upper.get('tp_packing_error',0)+1e-10
+    # CCSDS may truncate to a full quantum; ecCodes packingError is half a
+    # quantum. Independently packed totals can therefore differ by the sum
+    # of their full quanta even when physical accumulation did not decrease.
+    tolerance=2*(lower.get('tp_packing_error',0)+upper.get('tp_packing_error',0))+1e-10
     if delta.min() < -tolerance: raise ValueError('Precipitation accumulation decreased beyond GRIB packing error')
     return {'temperature':mix('2t'), 'wind':np.hypot(mix('10u'),mix('10v')),
             'clouds':np.clip(mix('tcc'),0,1), 'rain':np.maximum(0,delta)*1000/3,
