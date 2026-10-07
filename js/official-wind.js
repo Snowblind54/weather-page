@@ -128,9 +128,14 @@ function officialWindHistoryGraph(s,endUnix){
 }
 function bindOfficialWindHistory(popup,s,r){
   const root=popup.getElement();if(!root)return;
+  L.DomEvent.disableClickPropagation(root);
+  L.DomEvent.disableScrollPropagation(root);
   const button=root.querySelector('.official-wind-history-toggle'),panel=root.querySelector('.official-wind-history');
   if(!button||!panel||button.dataset.bound)return;button.dataset.bound='1';
-  button.addEventListener('click',()=>{
+  button.addEventListener('click',event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    L.DomEvent.stopPropagation(event);
     const open=button.getAttribute('aria-expanded')==='true';
     button.setAttribute('aria-expanded',String(!open));button.textContent=open?'Show 24 h history':'Hide history';
     panel.hidden=open;
