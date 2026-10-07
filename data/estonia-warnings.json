@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-07T09:22:13.860976+00:00",
+  "fetchedAt": "2026-10-07T09:50:57.169953+00:00",
   "forecastDays": [
     "2026-10-07",
     "2026-10-08",
@@ -31,8 +31,8 @@
       "level": 1,
       "effective": "2026-10-07T02:00:00+00:00",
       "expires": "2026-10-07T14:00:00+00:00",
-      "description": "Southwest, west 12, in gusts to 16 m/s. Wave height 1-2.5 m.",
-      "descriptionEstonian": "Edela- ja läänetuul 12, puhanguti kuni 16 m/s. Laine kõrgus 1-2,5 m.",
+      "description": "West 12, in gusts to 16 m/s. Wave height 1-2.5 m.",
+      "descriptionEstonian": "Läänetuul 12, puhanguti kuni 16 m/s. Laine kõrgus 1-2,5 m.",
       "preAlert": false
     },
     {
@@ -205,16 +205,16 @@
       "preAlert": false
     },
     {
-      "id": "5225",
-      "regionId": "99997",
+      "id": "5258",
+      "regionId": "99993",
       "country": "Estonia",
-      "area": "Läänemere põhjaosa",
+      "area": "Peipsi järv",
       "event": "Wind",
       "level": 1,
-      "effective": "2026-10-08T15:00:00+00:00",
-      "expires": "2026-10-08T22:00:00+00:00",
-      "description": "Southeast, south in gusts 16 m/s.",
-      "descriptionEstonian": "Kagu- ja lõunatuul puhanguti 16 m/s.",
+      "effective": "2026-10-08T17:00:00+00:00",
+      "expires": "2026-10-09T11:00:00+00:00",
+      "description": "Southeast, south 9, in gusts 13 m/s.",
+      "descriptionEstonian": "Kagu- ja lõunatuul 9, puhanguti 13 m/s.",
       "preAlert": true
     },
     {
@@ -224,10 +224,10 @@
       "area": "Läänemere põhjaosa",
       "event": "Wind",
       "level": 1,
-      "effective": "2026-10-08T22:00:00+00:00",
-      "expires": "2026-10-09T10:00:00+00:00",
-      "description": "South, southwest 13, in gusts 18 m/s.",
-      "descriptionEstonian": "Lõuna- ja edelatuul 13, puhanguti 18 m/s.",
+      "effective": "2026-10-09T00:00:00+00:00",
+      "expires": "2026-10-09T11:00:00+00:00",
+      "description": "South, southwest 14, in gusts 19 m/s.",
+      "descriptionEstonian": "Lõuna- ja edelatuul 14, puhanguti 19 m/s.",
       "preAlert": true
     },
     {
@@ -296,16 +296,16 @@
       "preAlert": true
     },
     {
-      "id": "5224",
-      "regionId": "99999",
+      "id": "5258",
+      "regionId": "99993",
       "country": "Estonia",
-      "area": "Liivi lahe põhjaosa",
+      "area": "Peipsi järv",
       "event": "Wind",
-      "level": 2,
+      "level": 1,
       "effective": "2026-10-09T11:00:00+00:00",
-      "expires": "2026-10-10T00:00:00+00:00",
-      "description": "Northwest, west 15-20, in gusts 27-29 m/s.",
-      "descriptionEstonian": "Edela- ja läänetuul 15-20, puhanguti 27-29 m/s.",
+      "expires": "2026-10-09T21:00:00+00:00",
+      "description": "South, southwest 9, in gusts 13 m/s.",
+      "descriptionEstonian": "Lõuna- ja edelatuul 9, puhanguti 13 m/s.",
       "preAlert": true
     },
     {
@@ -315,10 +315,23 @@
       "area": "Läänemere põhjaosa",
       "event": "Wind",
       "level": 2,
-      "effective": "2026-10-09T12:00:00+00:00",
-      "expires": "2026-10-10T03:00:00+00:00",
+      "effective": "2026-10-09T11:00:00+00:00",
+      "expires": "2026-10-09T19:00:00+00:00",
       "description": "West, northwest 15-20, in gusts 27-30 m/s.",
-      "descriptionEstonian": "Lääne- ja loodetuul 15-20, puhanguti 27-30 m/s.",
+      "descriptionEstonian": "Loode- ja läänetuul 15-20, puhanguti 27-30 m/s.",
+      "preAlert": true
+    },
+    {
+      "id": "5224",
+      "regionId": "99999",
+      "country": "Estonia",
+      "area": "Liivi lahe põhjaosa",
+      "event": "Wind",
+      "level": 2,
+      "effective": "2026-10-09T11:00:00+00:00",
+      "expires": "2026-10-09T21:00:00+00:00",
+      "description": "Northwest, west 15-20, in gusts 27-29 m/s.",
+      "descriptionEstonian": "Edela- ja läänetuul 15-20, puhanguti 27-29 m/s.",
       "preAlert": true
     },
     {
@@ -348,6 +361,45 @@
       "preAlert": true
     },
     {
+      "id": "5225",
+      "regionId": "99997",
+      "country": "Estonia",
+      "area": "Läänemere põhjaosa",
+      "event": "Wind",
+      "level": 1,
+      "effective": "2026-10-09T19:00:00+00:00",
+      "expires": "2026-10-10T02:00:00+00:00",
+      "description": "Northwest 15, in gusts to 22 m/s.",
+      "descriptionEstonian": "Loodetuul 15, puhanguti kuni 22 m/s.",
+      "preAlert": true
+    },
+    {
+      "id": "5258",
+      "regionId": "99993",
+      "country": "Estonia",
+      "area": "Peipsi järv",
+      "event": "Wind",
+      "level": 2,
+      "effective": "2026-10-09T21:00:00+00:00",
+      "expires": "2026-10-10T08:00:00+00:00",
+      "description": "West 13, in gusts to 18 m/s.",
+      "descriptionEstonian": "Läänetuul 13, puhanguti kuni 18 m/s.",
+      "preAlert": true
+    },
+    {
+      "id": "5224",
+      "regionId": "99999",
+      "country": "Estonia",
+      "area": "Liivi lahe põhjaosa",
+      "event": "Wind",
+      "level": 1,
+      "effective": "2026-10-09T21:00:00+00:00",
+      "expires": "2026-10-10T05:00:00+00:00",
+      "description": "West, northwest 15, in gusts to 22 m/s.",
+      "descriptionEstonian": "Lääne- ja loodetuul 15, puhanguti kuni 22 m/s.",
+      "preAlert": true
+    },
+    {
       "id": "5182",
       "regionId": "99995",
       "country": "Estonia",
@@ -361,29 +413,16 @@
       "preAlert": true
     },
     {
-      "id": "5224",
-      "regionId": "99999",
+      "id": "5258",
+      "regionId": "99993",
       "country": "Estonia",
-      "area": "Liivi lahe põhjaosa",
+      "area": "Peipsi järv",
       "event": "Wind",
       "level": 1,
-      "effective": "2026-10-10T00:00:00+00:00",
-      "expires": "2026-10-10T05:00:00+00:00",
-      "description": "West, northwest 15, in gusts to 22 m/s.",
-      "descriptionEstonian": "Lääne- ja loodetuul 15, puhanguti kuni 22 m/s.",
-      "preAlert": true
-    },
-    {
-      "id": "5225",
-      "regionId": "99997",
-      "country": "Estonia",
-      "area": "Läänemere põhjaosa",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-10T06:00:00+00:00",
-      "expires": "2026-10-10T15:00:00+00:00",
-      "description": "In southern waters southwest, west 13, in gusts to 18 m/s.",
-      "descriptionEstonian": "Lõunavetes edela- ja läänetuul 13, puhanguti kuni 18 m/s.",
+      "effective": "2026-10-10T08:00:00+00:00",
+      "expires": "2026-10-10T12:00:00+00:00",
+      "description": "West, southwest 8, in gusts 12 m/s.",
+      "descriptionEstonian": "Lääne- ja edelatuul 8, puhanguti 12 m/s.",
       "preAlert": true
     },
     {
