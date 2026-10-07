@@ -33,7 +33,7 @@ jobs:
           p=json.load(open('data/official-temperature.json',encoding='utf-8'))
           assert p['version']==1
           assert p['refreshMinutes']==10
-          assert p['historyHours']==3
+          assert p['historyHours']==24
           assert p['stations']
           assert 'LV' in p['sources'], 'Latvia source missing from temperature snapshot'
           for s in p['stations']:
