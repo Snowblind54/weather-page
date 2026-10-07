@@ -11,4 +11,32 @@ jobs:
         with:
           fetch-depth: 0
       - name: Apply integration changes
-        run: echo 'CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aAoKIyBFeHRlbmQgb2ZmaWNpYWwgdGVtcGVyYXR1cmUgcmV0ZW50aW9uIHRvIDI0IGhvdXJzLgpwPVBhdGgoInNjcmlwdHMvdXBkYXRlX29mZmljaWFsX3RlbXBlcmF0dXJlLnB5IikKdD1wLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQphc3NlcnQgIkhJU1RPUllfU0VDID0gMyAqIDYwICogNjAiIGluIHQKdD10LnJlcGxhY2UoIkhJU1RPUllfU0VDID0gMyAqIDYwICogNjAiLCJISVNUT1JZX1NFQyA9IDI0ICogNjAgKiA2MCIsMSkKYXNzZXJ0ICciaGlzdG9yeUhvdXJzIjogMywnIGluIHQKdD10LnJlcGxhY2UoJyJoaXN0b3J5SG91cnMiOiAzLCcsJyJoaXN0b3J5SG91cnMiOiBISVNUT1JZX1NFQyAvLyAzNjAwLCcsMSkKcC53cml0ZV90ZXh0KHQsZW5jb2Rpbmc9InV0Zi04IikKCiMgS2VlcCB3b3JrZmxvdyB2YWxpZGF0aW9uIGFsaWduZWQgd2l0aCAyNC1ob3VyIHJldGVudGlvbi4KcD1QYXRoKCIuZ2l0aHViL3dvcmtmbG93cy91cGRhdGUtb2ZmaWNpYWwtdGVtcGVyYXR1cmUueW1sIikKdD1wLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQphc3NlcnQgImFzc2VydCBwWydoaXN0b3J5SG91cnMnXT09MyIgaW4gdAp0PXQucmVwbGFjZSgiYXNzZXJ0IHBbJ2hpc3RvcnlIb3VycyddPT0zIiwiYXNzZXJ0IHBbJ2hpc3RvcnlIb3VycyddPT0yNCIsMSkKcC53cml0ZV90ZXh0KHQsZW5jb2Rpbmc9InV0Zi04IikKCiMgVGVtcGVyYXR1cmUgcmVuZGVyZXI6IGV4cG9zZSBzbmFwc2hvdCBmcmVzaG5lc3MsIGtlZXAgMjRoIGhpc3RvcnksIGZpdCB0aGUgY2hhcnQuCnA9UGF0aCgianMvc3RhdGlvbnMuanMiKQp0PXAucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCmFzc2VydCAiY29uc3QgT0ZGSUNJQUxfVEVNUF9ISVNUT1JZX1NFQz0zKjYwKjYwOyIgaW4gdAp0PXQucmVwbGFjZSgiY29uc3QgT0ZGSUNJQUxfVEVNUF9ISVNUT1JZX1NFQz0zKjYwKjYwOyIsImNvbnN0IE9GRklDSUFMX1RFTVBfSElTVE9SWV9TRUM9MjQqNjAqNjA7IiwxKQphc3NlcnQgIm9mZmljaWFsVGVtcGVyYXR1cmVTb3VyY2VTdGF0ZT1zbmFwc2hvdC5zb3VyY2VzfHx7fTsiIGluIHQKdD10LnJlcGxhY2UoIm9mZmljaWFsVGVtcGVyYXR1cmVTb3VyY2VTdGF0ZT1zbmFwc2hvdC5zb3VyY2VzfHx7fTsiLAogICAgICAgICAgICAib2ZmaWNpYWxUZW1wZXJhdHVyZVNvdXJjZVN0YXRlPXNuYXBzaG90LnNvdXJjZXN8fHt9O1xcbiAgICAgIHdpbmRvdy5fX29mZmljaWFsVGVtcGVyYXR1cmVHZW5lcmF0ZWRBdD1zbmFwc2hvdC5nZW5lcmF0ZWRBdDsiLDEpCmFzc2VydCAibWF4V2lkdGg6MjgwLGNsYXNzTmFtZTon d2luZC1wb3B1cC1jb250YWluZXInIi5yZXBsYWNlKCcgJywnJykgIGluIHQucmVwbGFjZSgnICcsJycpIGlmIEZhbHNlIGVsc2UgVHJ1ZQ==' | base64 -d > /tmp/patch.py
+        run: python3 scripts/install_temperature_history_freshness.py
+      - name: Validate code
+        run: |
+          python3 -m py_compile scripts/update_official_temperature.py scripts/update_official_temperature_all.py
+          node --check js/stations.js
+          node --check js/clouds.js
+          node --check js/config.js
+          node --check js/temperature-history.js
+          node --check js/data-freshness.js
+          grep -q 'js/temperature-history.js?v=1' js/config.js
+          grep -q 'js/data-freshness.js?v=1' js/config.js
+          grep -q 'js/config.js?v=8.89' index.html
+          grep -q 'js/stations.js?v=8.74' index.html
+          grep -q 'js/clouds.js?v=8.34' index.html
+      - name: Refresh official temperature history
+        run: python3 scripts/update_official_temperature_all.py
+      - name: Validate temperature snapshot
+        run: |
+          python3 - <<'PY'
+          import json
+          p=json.load(open('data/official-temperature.json',encoding='utf-8'))
+          assert p['version']==1
+          assert p['historyHours']==24
+          assert p['sources'].get('EE',{}).get('count',0)>0
+          assert any(s.get('country')=='EE' and s.get('rows') for s in p['stations'])
+          print('stations',len(p['stations']),'Estonia',p['sources']['EE'])
+          PY
+      - name: Publish
+        run: bash scripts/publish_generated_data.sh 'Add temperature history and data freshness dashboard' scripts/update_official_temperature.py .github/workflows/update-official-temperature.yml js/stations.js js/clouds.js js/config.js index.html data/official-temperature.json
