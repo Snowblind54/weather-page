@@ -548,7 +548,13 @@ function officialStationsNearTime(unix){
 
     const age=unix-station.time;
     const maxOffset=OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[station.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET;
-    if(age>maxOffset || age<-OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC) continue;
+    // The weather timeline is anchored to radar observations, whose newest
+    // frame can trail station feeds. On the Latest frame, prefer the freshest
+    // real station reading rather than hiding it merely because it is newer
+    // than the radar image. Historical frames keep the strict 10-minute rule.
+    const latestSelection=!!latestFrame && unix===latestFrame.time;
+    const futureTolerance=latestSelection?maxOffset:OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC;
+    if(age>maxOffset || age<-futureTolerance) continue;
 
     const key=officialTempStationKey(station);
     const current=selected.get(key);

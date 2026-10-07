@@ -343,6 +343,42 @@ def previous_country_stations(previous, country, cutoff, now):
     return out
 
 
+def merge_country_history(previous, country, fresh, cutoff, now):
+    # Merge fresh official rows with the retained rolling history for a country.
+    merged = {}
+
+    def key(station):
+        code = str(station.get("code") or "")
+        if code:
+            return code
+        return f'{station.get("lat")}:{station.get("lon")}'
+
+    for station in previous_country_stations(previous, country, cutoff, now) + list(fresh):
+        station_key = key(station)
+        current = merged.get(station_key)
+        if current is None:
+            current = dict(station)
+            current["rows"] = []
+            merged[station_key] = current
+        else:
+            # Prefer the newest metadata while preserving accumulated rows.
+            rows = current["rows"]
+            current.update({k: v for k, v in station.items() if k != "rows"})
+            current["rows"] = rows
+
+        by_time = {int(row[0]): list(row) for row in current["rows"]
+                   if isinstance(row, list) and len(row) >= 2}
+        for row in station.get("rows") or []:
+            if not isinstance(row, list) or len(row) < 2:
+                continue
+            timestamp = int(row[0])
+            if cutoff <= timestamp <= now + FUTURE_TOLERANCE_SEC:
+                by_time[timestamp] = list(row)
+        current["rows"] = [by_time[x] for x in sorted(by_time)]
+
+    return [station for station in merged.values() if station["rows"]]
+
+
 def norway_refresh_due(previous, now):
     state = (previous.get("sources") or {}).get("NO") or {}
     touches = [state.get("lastFetch"), state.get("lastAttempt")]
@@ -386,6 +422,10 @@ def main():
                         trimmed.append(station_item)
                 if code == "NO" and not trimmed:
                     raise ValueError("No current Norwegian temperature observations")
+                # Some providers (especially Estonia) expose only their current
+                # observation. Merge it with prior official snapshots so the
+                # two-hour map timeline still has real measured station history.
+                trimmed = merge_country_history(previous, code, trimmed, cutoff, now)
                 stations.extend(trimmed)
                 state = {"ok": True, "count": len(trimmed)}
                 if code == "NO":
@@ -404,7 +444,12 @@ def main():
                         state["lastFetch"] = int(last_fetch)
                     states[code] = state
                 else:
-                    states[code] = {"ok": False, "count": 0, "error": str(exc)[:180]}
+                    cached = previous_country_stations(previous, code, cutoff, now)
+                    stations.extend(cached)
+                    states[code] = {
+                        "ok": False, "count": len(cached), "error": str(exc)[:180],
+                        "cached": bool(cached),
+                    }
 
     stations.sort(key=lambda s: (s["country"], s["name"], s["code"]))
     if not stations:
