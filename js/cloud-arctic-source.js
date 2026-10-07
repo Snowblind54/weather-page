@@ -9,9 +9,30 @@
       endpoint:CLOUD_EUMET,
       day:'eps:m03_ir108',
       night:'eps:m03_ir108',
-      cadence:600,
+      cadence:1,
       northernWeather:true
     };
+
+    // Polar-orbit timestamps are not a fixed 10-minute cadence. Always use an
+    // actual advertised observation instead of rounding to a fabricated time.
+    if(typeof cloudAvailableTime==='function' && !cloudAvailableTime._metopExact){
+      const baseAvailableTime=cloudAvailableTime;
+      const exactAvailableTime=function(product,name,requested){
+        if(!product?.northernWeather)return baseAvailableTime(product,name,requested);
+        const dimension=product.times?.[name];
+        if(dimension?.length){
+          let selected=null;
+          for(const t of dimension)if(t<=requested && (selected===null||t>selected))selected=t;
+          if(selected===null)throw new Error('No polar satellite observation at this time');
+          return selected;
+        }
+        const latest=product.latest?.[name];
+        if(Number.isFinite(latest) && latest<=requested)return latest;
+        throw new Error('Polar satellite observation timestamps unavailable');
+      };
+      exactAvailableTime._metopExact=true;
+      cloudAvailableTime=exactAvailableTime;
+    }
 
     const baseLoadSource=cloudLoadSource;
     cloudLoadSource=async function(id,coords,time){
