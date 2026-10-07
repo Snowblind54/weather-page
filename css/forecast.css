@@ -29,6 +29,8 @@
 .forecast-day p{margin:0;font-size:11px;line-height:1.7;color:var(--muted)}
 .forecast-note{font-size:11px;color:var(--muted);line-height:1.6;margin:10px 0}
 .forecast-marker{border:2px solid #a5f0df;background:#173e44;border-radius:50%;box-shadow:0 0 0 5px #80dccc24}
+/* Make room for the ninth category while keeping the right-hand tools together. */
+@media(min-width:1101px){.topbar{grid-template-columns:200px minmax(0,1fr) 110px}.category-nav{gap:4px}}
 @media(max-width:760px){
   body #forecastSection{bottom:calc(12px + env(safe-area-inset-bottom));max-height:calc(100dvh - 155px - env(safe-area-inset-top));width:calc(100vw - 16px)}
   .forecast-actions button,.forecast-tabs button{min-height:44px}
