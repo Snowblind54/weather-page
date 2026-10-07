@@ -36,7 +36,9 @@
     const name=time===undefined?kind+'-legend.webp':kind+'-'+new Date(time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z.webp';
     const path=time===undefined?manifest.legends?.[kind]:manifest.images?.[kind]?.[new Date(time).toISOString()];
     const cycle=new Date(manifest.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z';
-    if(typeof path!=='string'||!path.startsWith('data/forecast-cache/'+cycle+'/')||path.split('/').length!==4||path.split('/').at(-1)!==name)throw Error('Invalid shared forecast image');
+    const assetRoot=manifest.asset_root||'forecast-cache';
+    if(!['forecast-cache','forecast-iceland-cache'].includes(assetRoot))throw Error('Invalid forecast asset root');
+    if(typeof path!=='string'||!path.startsWith('data/'+assetRoot+'/'+cycle+'/')||path.split('/').length!==4||path.split('/').at(-1)!==name)throw Error('Invalid shared forecast image');
     return path;
   }
   function cachedTimes(manifest,now=Date.now()){
@@ -46,6 +48,11 @@
       try{assetUrl(manifest,kind,t);return true;}catch{return false;}
     }));
   }
-  const api={layers,expandTimes,runs,reference,availableTimes,params,assetUrl,cachedTimes};
+  function visibleRegions(regions,bounds,kind,time){
+    return regions.filter(region=>!(bounds.getEast()<region.bounds[0]||bounds.getWest()>region.bounds[2]||bounds.getNorth()<region.bounds[1]||bounds.getSouth()>region.bounds[3])).filter(region=>{
+      try{assetUrl(region,kind,time);return true;}catch{return false;}
+    });
+  }
+  const api={layers,expandTimes,runs,reference,availableTimes,params,assetUrl,cachedTimes,visibleRegions};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ForecastMapData=api;
 })(typeof window==='undefined'?{}:window);
