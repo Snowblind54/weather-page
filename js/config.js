@@ -155,7 +155,7 @@ window.addEventListener('load',()=>{
   spaceWeatherScript.src='js/space-weather-v4.js?v=6';
   spaceWeatherScript.onload=()=>{
     const dashboardScript=document.createElement('script');
-    dashboardScript.src='js/space-weather-dashboard.js?v=1';
+    dashboardScript.src='js/space-weather-dashboard.js?v=2';
     document.body.appendChild(dashboardScript);
   };
   document.body.appendChild(spaceWeatherScript);
