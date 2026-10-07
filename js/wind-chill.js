@@ -11,6 +11,7 @@
   const WIND_CHILL_PAIR_TIME_SEC=45*60;
   const WIND_CHILL_EXACT_STATION_TIME_SEC=75*60;
   const WIND_CHILL_MAX_AGE_SEC=95*60;
+  const WIND_CHILL_MODEL_EDGE_TOLERANCE_SEC=90*60;
   const WIND_CHILL_MODEL_URL='data/model-wind.json';
   let windChillModelPromise=null;
 
@@ -57,10 +58,22 @@
     const out=[];
     for(const tempStation of officialStationsNearTime(unix)){
       const pair=officialWindForTemperatureStation(tempStation,unix);
-      if(!pair)continue;
-      const chill=windChillC(tempStation.temp,pair.reading[1]);
+      if(pair){
+        const chill=windChillC(tempStation.temp,pair.reading[1]);
+        if(!Number.isFinite(chill))continue;
+        out.push({...tempStation,windChill:chill,windSpeed:pair.reading[1],windTime:pair.reading[0],windStation:pair.station,windDistanceKm:pair.distance,windExactStation:pair.exactStation,windSource:'official'});
+        continue;
+      }
+
+      // Do not blank the wind-chill field just because two national station
+      // networks do not share a station/time. The air temperature remains an
+      // official observation; only the missing sustained wind falls back to
+      // the same shared 10 m model field used by the map background.
+      const modelSpeed=modelWindSpeedAt(tempStation.lat,tempStation.lon,unix);
+      if(!Number.isFinite(modelSpeed))continue;
+      const chill=windChillC(tempStation.temp,modelSpeed);
       if(!Number.isFinite(chill))continue;
-      out.push({...tempStation,windChill:chill,windSpeed:pair.reading[1],windTime:pair.reading[0],windStation:pair.station,windDistanceKm:pair.distance,windExactStation:pair.exactStation});
+      out.push({...tempStation,windChill:chill,windSpeed:modelSpeed,windTime:unix,windStation:null,windDistanceKm:null,windExactStation:false,windSource:'model'});
     }
     return out;
   }
@@ -91,12 +104,26 @@
   async function ensureWindChillInputs(force=false){
     const tasks=[ensureModelWind(force)];
     if(typeof loadOfficialWind==='function')tasks.push(loadOfficialWind(force));
-    await Promise.allSettled(tasks);
+    const results=await Promise.allSettled(tasks);
+    // Model wind is mandatory for the continuous field. Official wind is an
+    // enhancement for labels and may fail without disabling wind chill.
+    if(results[0]?.status==='rejected')throw results[0].reason;
+    return results;
+  }
+
+  function modelWindSlice(unix){
+    if(!windData?.times?.length)return null;
+    let slice=windTimeSlice(unix);
+    if(slice)return slice;
+    const first=windData.times[0],last=windData.times.at(-1);
+    const edge=unix<first?first:(unix>last?last:null);
+    if(edge===null||Math.abs(unix-edge)>WIND_CHILL_MODEL_EDGE_TOLERANCE_SEC)return null;
+    return windTimeSlice(edge);
   }
 
   function modelWindSpeedAt(lat,lon,unix){
     if(!windData)return NaN;
-    const slice=windTimeSlice(unix),vector=windAt(lat,lon,slice);
+    const vector=windAt(lat,lon,modelWindSlice(unix));
     return vector?Math.hypot(vector[0],vector[1]):NaN;
   }
 
@@ -194,9 +221,17 @@
       const p=map.latLngToContainerPoint([station.lat,station.lon]);
       if(occupied.some(q=>Math.abs(q.x-p.x)<gapX&&Math.abs(q.y-p.y)<gapY))continue;occupied.push(p);
       const marker=L.marker([station.lat,station.lon],{interactive:true,keyboard:true,title:`${station.name} · official wind chill`,icon:L.divIcon({className:'',html:`<div class="temp-label temp-label-observed"><span class="temp-observed-dot">●</span>${Math.round(station.windChill)}°C</div>`,iconSize:[58,22],iconAnchor:[29,11]})});
-      const tempTime=Number.isFinite(station.time)?fmt(station.time):'unavailable',windTime=fmt(station.windTime);
-      const pairing=station.windExactStation?'Same official station':`Wind station ${station.windDistanceKm.toFixed(0)} km away`;
-      marker.bindPopup(`<div class="temp-station-popup"><b>${htmlEscape(station.name)}</b><div style="font-size:24px;font-weight:800;margin:5px 0">Wind chill ${station.windChill.toFixed(1)}°C</div><div>Official measured air temperature: ${station.temp.toFixed(1)}°C</div><div>Official measured sustained wind: ${station.windSpeed.toFixed(1)} m/s</div><div class="wind-popup-meta">Temperature observed ${htmlEscape(tempTime)}<br>Wind observed ${htmlEscape(windTime)}</div><div class="wind-popup-meta">Wind chill calculated from paired official observations. ${htmlEscape(pairing)} · ${htmlEscape(station.windStation.name)}</div></div>`,{maxWidth:310,className:'wind-popup-container',autoPan:false});
+      const tempTime=Number.isFinite(station.time)?fmt(station.time):'unavailable';
+      const officialWind=station.windSource==='official'&&station.windStation;
+      const windTime=officialWind?fmt(station.windTime):fmt(unix);
+      const pairing=officialWind
+        ? (station.windExactStation?'Same official station':`Wind station ${station.windDistanceKm.toFixed(0)} km away`)
+        : 'Model wind at temperature station';
+      const windLabel=officialWind?'Official measured sustained wind':'Model 10 m sustained wind';
+      const sourceLine=officialWind
+        ? `Wind chill calculated from paired official observations. ${htmlEscape(pairing)} · ${htmlEscape(station.windStation.name)}`
+        : 'Wind chill calculated from official measured air temperature plus the shared 10 m model wind field.';
+      marker.bindPopup(`<div class="temp-station-popup"><b>${htmlEscape(station.name)}</b><div style="font-size:24px;font-weight:800;margin:5px 0">Wind chill ${station.windChill.toFixed(1)}°C</div><div>Official measured air temperature: ${station.temp.toFixed(1)}°C</div><div>${windLabel}: ${station.windSpeed.toFixed(1)} m/s</div><div class="wind-popup-meta">Temperature observed ${htmlEscape(tempTime)}<br>Wind time ${htmlEscape(windTime)}</div><div class="wind-popup-meta">${sourceLine}</div></div>`,{maxWidth:310,className:'wind-popup-container',autoPan:false});
       marker.addTo(temperatureLabels);
     }
     temperatureLabels.addTo(map);
@@ -245,9 +280,31 @@
       details.insertBefore(wrap,details.firstChild);
       $('tempMode').addEventListener('change',async()=>{
         invalidateTemperatureHeatmapCache();temperatureRenderToken++;
-        if(windChillMode())await ensureWindChillInputs(false);
+        if(temperatureDebounceTimer)clearTimeout(temperatureDebounceTimer);
+        if(temperaturePrecacheTimer)clearTimeout(temperaturePrecacheTimer);
+        if(temperatureLayer){map.removeLayer(temperatureLayer);temperatureLayer=null;}
+        if(map.hasLayer(temperatureLabels))map.removeLayer(temperatureLabels);
+        temperatureLabels.clearLayers();
+
         const frame=frames[Number($('timeline').value)]||frames.at(-1);
-        if(frame&&temperatureEnabled())queueTemperatureRender(frame.time,0);
+        if(!temperatureEnabled()||!frame)return;
+
+        $('tempStatus').textContent=windChillMode()
+          ? 'Wind chill: loading temperature and wind data…'
+          : 'Air temperature: updating…';
+        $('tempStatus').className='status';
+
+        try{
+          await ensureTemperatureData(false);
+          if(windChillMode())await ensureWindChillInputs(false);
+          queueTemperatureRender(frame.time,0);
+        }catch(error){
+          console.error(error);
+          $('tempStatus').textContent=windChillMode()
+            ? 'Wind chill could not load: '+error.message
+            : 'Temperature could not load: '+error.message;
+          $('tempStatus').className='status bad';
+        }
       });
     }
   }
