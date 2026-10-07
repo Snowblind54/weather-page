@@ -101,13 +101,21 @@ document.head.appendChild(sharedWindSourceScript);
 // page load.
 window.addEventListener('load',()=>{
   const cloudNordicScript=document.createElement('script');
-  cloudNordicScript.src='js/cloud-nordic-coverage.js?v=3';
+  cloudNordicScript.src='js/cloud-nordic-coverage.js?v=4';
   cloudNordicScript.onload=()=>{
     window.installNordicCloudCoverage?.();
-    const cloudArcticScript=document.createElement('script');
-    cloudArcticScript.src='js/cloud-arctic-source.js?v=1';
-    cloudArcticScript.onload=()=>window.installArcticCloudSource?.();
-    document.body.appendChild(cloudArcticScript);
+
+    const cloudEumetScript=document.createElement('script');
+    cloudEumetScript.src='js/cloud-eumet-cleanup.js?v=1';
+    cloudEumetScript.onload=()=>{
+      window.installEumetCleanClouds?.();
+
+      const cloudArcticScript=document.createElement('script');
+      cloudArcticScript.src='js/cloud-arctic-source.js?v=1';
+      cloudArcticScript.onload=()=>window.installArcticCloudSource?.();
+      document.body.appendChild(cloudArcticScript);
+    };
+    document.body.appendChild(cloudEumetScript);
   };
   document.body.appendChild(cloudNordicScript);
 
