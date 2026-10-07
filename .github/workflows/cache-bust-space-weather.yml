@@ -1,0 +1,33 @@
+name: One-time Space Weather cache bust
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cache-bust-space-weather.yml
+
+permissions:
+  contents: write
+
+jobs:
+  bust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Bump config asset version
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          old = 'js/config.js?v=8.82'
+          new = 'js/config.js?v=8.83'
+          if old not in text:
+              raise SystemExit('Expected config asset version was not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Publish cache bust
+        run: bash scripts/publish_generated_data.sh 'Bust Space Weather UI cache' index.html
