@@ -15,17 +15,16 @@
         // page loader until its product definition exists.
         const metopReady=typeof cloudProducts==='undefined' || !!cloudProducts.metop;
 
-        // Metop-C is used only where geostationary viewing becomes shallow.
-        // Fade in gradually across northern Scandinavia / Nordic seas so there
-        // is no visible latitude seam. Keep the normal Meteosat source beneath
-        // the blend for continuity when both observations contain data.
+        // Use a true complementary handoff at high latitude: as Metop-C fades
+        // in, Meteosat fades out by exactly the same fraction. This avoids a
+        // washed double-source overlap and also avoids a low-opacity gap.
         if(metopReady && lat>=64 && lat<=82 && lon>=-32 && lon<=42){
           const north=smoothstep(64.5,69,lat);
           const west=smoothstep(-32,-24,lon);
           const east=1-smoothstep(36,42,lon);
           const polar=Math.max(0,Math.min(1,north*west*east));
           weights.metop=polar;
-          if(Number.isFinite(weights.eumet))weights.eumet*=1-0.82*polar;
+          if(Number.isFinite(weights.eumet))weights.eumet*=1-polar;
         }
         return weights;
       }
