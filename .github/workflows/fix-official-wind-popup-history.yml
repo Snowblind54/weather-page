@@ -1,9 +1,5 @@
 name: Fix official wind popup history
-on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/fix-official-wind-popup-history.yml
+on: [push]
 permissions:
   contents: write
 jobs:
@@ -13,60 +9,31 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Stop popup click propagation
+      - name: Patch popup interaction
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          p = Path('js/official-wind.js')
+          t = p.read_text(encoding='utf-8')
+          a = "const root=popup.getElement();if(!root)return;"
+          b = "const root=popup.getElement();if(!root)return;\n  L.DomEvent.disableClickPropagation(root);\n  L.DomEvent.disableScrollPropagation(root);"
+          assert a in t
+          t = t.replace(a, b, 1)
+          a = "button.addEventListener('click',()=>{"
+          b = "button.addEventListener('click',event=>{\n    event.preventDefault();\n    event.stopPropagation();\n    L.DomEvent.stopPropagation(event);"
+          assert a in t
+          t = t.replace(a, b, 1)
+          p.write_text(t, encoding='utf-8')
 
-          p=Path('js/official-wind.js')
-          t=p.read_text(encoding='utf-8')
-          old="""function bindOfficialWindHistory(popup,s,r){
-  const root=popup.getElement();if(!root)return;
-  const button=root.querySelector('.official-wind-history-toggle'),panel=root.querySelector('.official-wind-history');
-  if(!button||!panel||button.dataset.bound)return;button.dataset.bound='1';
-  button.addEventListener('click',()=>{
-    const open=button.getAttribute('aria-expanded')==='true';
-    button.setAttribute('aria-expanded',String(!open));button.textContent=open?'Show 24 h history':'Hide history';
-    panel.hidden=open;
-    if(!open&&!panel.dataset.rendered){panel.innerHTML=officialWindHistoryGraph(s,r[0]);panel.dataset.rendered='1';}
-    popup.update();
-  });
-}
-"""
-          new="""function bindOfficialWindHistory(popup,s,r){
-  const root=popup.getElement();if(!root)return;
-  // Keep taps/clicks inside the station popup from reaching the Leaflet map.
-  // On mobile a bubbled click otherwise closes the popup before history opens.
-  L.DomEvent.disableClickPropagation(root);
-  L.DomEvent.disableScrollPropagation(root);
-  const button=root.querySelector('.official-wind-history-toggle'),panel=root.querySelector('.official-wind-history');
-  if(!button||!panel||button.dataset.bound)return;button.dataset.bound='1';
-  button.addEventListener('click',event=>{
-    event.preventDefault();
-    event.stopPropagation();
-    L.DomEvent.stopPropagation(event);
-    const open=button.getAttribute('aria-expanded')==='true';
-    button.setAttribute('aria-expanded',String(!open));button.textContent=open?'Show 24 h history':'Hide history';
-    panel.hidden=open;
-    if(!open&&!panel.dataset.rendered){panel.innerHTML=officialWindHistoryGraph(s,r[0]);panel.dataset.rendered='1';}
-    popup.update();
-  });
-}
-"""
-          assert old in t, 'history binding block not found'
-          p.write_text(t.replace(old,new,1),encoding='utf-8')
-
-          p=Path('index.html')
-          t=p.read_text(encoding='utf-8')
-          old='<script src="js/official-wind.js?v=8.74"></script>'
-          new='<script src="js/official-wind.js?v=8.75"></script>'
-          assert old in t, 'official wind cache tag not found'
-          p.write_text(t.replace(old,new,1),encoding='utf-8')
+          p = Path('index.html')
+          t = p.read_text(encoding='utf-8')
+          assert 'js/official-wind.js?v=8.74' in t
+          p.write_text(t.replace('js/official-wind.js?v=8.74','js/official-wind.js?v=8.75',1), encoding='utf-8')
           PY
-      - name: Validate popup history fix
+      - name: Validate
         run: |
           node --check js/official-wind.js
           grep -q 'L.DomEvent.disableClickPropagation(root)' js/official-wind.js
           grep -q 'official-wind.js?v=8.75' index.html
-      - name: Publish fix
+      - name: Publish
         run: bash scripts/publish_generated_data.sh 'Keep official wind history popup open' js/official-wind.js index.html
