@@ -105,7 +105,7 @@
     try{
       // Simple CORS GET: browser Origin identifies the site. No custom headers
       // or cache-busting queries; browser HTTP caching handles revalidation.
-      const response=await fetch(url,{signal:abort.signal,credentials:'omit',referrerPolicy:'strict-origin-when-cross-origin'});
+      const response=await fetch(url,{signal:abort.signal,credentials:'omit',referrerPolicy:'no-referrer-when-downgrade'});
       if(!response.ok)throw new Error('MET Norway returned '+response.status);
       const data=await response.json();MetForecastData.rows(data);
       if(id!==requestId||panel.hidden)return;
