@@ -1,0 +1,31 @@
+name: One-time Space Weather history deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cache-bust-space-history.yml
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify Space Weather code
+        run: |
+          node --check js/space-weather-dashboard.js
+          node --check js/config.js
+          python3 -m py_compile scripts/update_space_weather.py
+          grep -q "space-weather.css?v=4" js/config.js
+          grep -q "space-weather-dashboard.js?v=3" js/config.js
+      - name: Bust config cache
+        run: |
+          python3 -c "from pathlib import Path; p=Path('index.html'); t=p.read_text(encoding='utf-8'); old='js/config.js?v=8.86'; new='js/config.js?v=8.87'; assert old in t, 'config cache version not found'; p.write_text(t.replace(old,new,1),encoding='utf-8')"
+      - name: Publish cache bump
+        run: bash scripts/publish_generated_data.sh 'Load Space Weather history charts' index.html
