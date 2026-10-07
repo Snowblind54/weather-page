@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-07T11:48:44.117306+00:00",
+  "fetchedAt": "2026-10-07T12:28:05.853604+00:00",
   "forecastDays": [
     "2026-10-07",
     "2026-10-08",
@@ -9,19 +9,6 @@
     "2026-10-10"
   ],
   "records": [
-    {
-      "id": "5175",
-      "regionId": "99993",
-      "country": "Estonia",
-      "area": "Peipsi järv",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-07T02:00:00+00:00",
-      "expires": "2026-10-07T12:00:00+00:00",
-      "description": "Southwest, west wind 8, in gusts to 12 m/s. Wave height 0.6-1.2 m.",
-      "descriptionEstonian": "Edela- ja läänetuul 8, puhanguti 12 m/s. Laine kõrgus 0,6-1,2 m.",
-      "preAlert": false
-    },
     {
       "id": "5107",
       "regionId": "99995",
