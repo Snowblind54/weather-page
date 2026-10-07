@@ -5,12 +5,17 @@ const weatherCategories=[
   ['warningSection','warningOn'],['spaceWeatherSection','auroraOn']
 ];
 let openedWeatherPanel=null;
+function syncTimelineForPanel(){
+  const dock=document.querySelector('.timeline-dock');
+  if(dock)dock.hidden=openedWeatherPanel==='spaceWeatherSection';
+}
 function closeWeatherPanel(returnFocus=false,refreshRain=true){
   if(!openedWeatherPanel)return;
   const id=openedWeatherPanel;
   $(id).hidden=true;
   $('nav-'+id).setAttribute('aria-expanded','false');
   openedWeatherPanel=null;
+  syncTimelineForPanel();
   if(refreshRain&&activeAccumulationHours())requestAnimationFrame(renderOfficialRainLabels);
   if(returnFocus)$('nav-'+id).focus();
 }
@@ -29,6 +34,7 @@ function openWeatherPanel(id){
   openedWeatherPanel=id;
   $(id).hidden=false;
   $('nav-'+id).setAttribute('aria-expanded','true');
+  syncTimelineForPanel();
   positionWeatherPanel();
 }
 for(const button of document.querySelectorAll('[data-panel]')){
@@ -105,4 +111,5 @@ for(const id of ['radarStatus','nordicRadarStatus','cloudStatus','tempStatus','w
 for(const id of ['radarOn','cloudOn','tempOn','heatmapOn','windOn','windHeatmapOn','rain1h','rain24h','rain48h']){
   $(id).addEventListener('change',updateTimelineLoading);
 }
+syncTimelineForPanel();
 updateTimelineLoading();
