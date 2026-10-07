@@ -67,21 +67,45 @@ def as_float(value):
         return None
 
 
+def timestamp_key(value) -> float:
+    if not value:
+        return float("-inf")
+    try:
+        text = str(value).strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        parsed = datetime.fromisoformat(text)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.timestamp()
+    except (TypeError, ValueError):
+        return float("-inf")
+
+
 def latest_record(rows, required_key: str | None = None):
+    """Return the newest usable NOAA record regardless of feed sort order."""
     if not isinstance(rows, list):
         return None
-    for row in reversed(rows):
+
+    usable = []
+    fallback = []
+    for row in rows:
         if not isinstance(row, dict):
             continue
         if required_key and as_float(row.get(required_key)) is None:
             continue
-        if row.get("active") is False:
-            continue
-        return row
-    for row in reversed(rows):
-        if isinstance(row, dict) and (not required_key or as_float(row.get(required_key)) is not None):
-            return row
-    return None
+        fallback.append(row)
+        if row.get("active") is not False:
+            usable.append(row)
+
+    candidates = usable or fallback
+    if not candidates:
+        return None
+
+    # NOAA RTSW JSON is commonly newest-first, but do not rely on ordering.
+    # Select by the record timestamp so an API ordering change cannot silently
+    # turn a real-time metric into a day-old value again.
+    return max(candidates, key=lambda row: timestamp_key(row.get("time_tag")))
 
 
 def parse_observed_kp(payload):
@@ -97,9 +121,17 @@ def parse_observed_kp(payload):
                     records.append(dict(zip(header, row)))
     if not records:
         return {"value": None, "time": None}
-    row = records[-1]
-    value = as_float(row.get("Kp", row.get("kp", row.get("kp_index"))))
-    return {"value": round(value, 2) if value is not None else None, "time": row.get("time_tag")}
+
+    usable = []
+    for row in records:
+        value = as_float(row.get("Kp", row.get("kp", row.get("kp_index"))))
+        if value is not None:
+            usable.append((timestamp_key(row.get("time_tag")), row, value))
+    if not usable:
+        return {"value": None, "time": None}
+
+    _, row, value = max(usable, key=lambda item: item[0])
+    return {"value": round(value, 2), "time": row.get("time_tag")}
 
 
 def power_time(value: str) -> str | None:
