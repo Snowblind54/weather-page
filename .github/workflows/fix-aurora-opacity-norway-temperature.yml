@@ -30,87 +30,17 @@ jobs:
                   raise SystemExit(f'Expected text not found in {path}: {old[:100]!r}')
               p.write_text(text.replace(old, new, 1), encoding='utf-8')
 
-          # Northern Lights layers are intentionally always fully opaque.
-          replace_once(
-              'js/space-weather-v4.js',
-              "updateWhenIdle:true,pane:'spaceWeatherPane',opacity:Number($('auroraOpacity')?.value||68)/100,",
-              "updateWhenIdle:true,pane:'spaceWeatherPane',opacity:1,"
-          )
-          replace_once(
-              'js/space-weather-v4.js',
-              """  function bindControls(){
-    const aurora=$('auroraOn'),viewing=$('auroraViewingOn'),opacity=$('auroraOpacity');
-    if(!aurora||!viewing||!opacity)return;
-""",
-              """  function bindControls(){
-    const aurora=$('auroraOn'),viewing=$('auroraViewingOn');
-    if(!aurora||!viewing)return;
-"""
-          )
-          replace_once(
-              'js/space-weather-v4.js',
-              """    opacity.addEventListener('input',()=>{
-      $('auroraOpacityVal').textContent=opacity.value+'%';
-      const value=Number(opacity.value)/100;
-      auroraLayer?.setOpacity(value);
-      viewingLayer?.setOpacity(value);
-    });
-""",
-              ""
-          )
+          replace_once('js/space-weather-v4.js', "updateWhenIdle:true,pane:'spaceWeatherPane',opacity:Number($('auroraOpacity')?.value||68)/100,", "updateWhenIdle:true,pane:'spaceWeatherPane',opacity:1,")
+          replace_once('js/space-weather-v4.js', "  function bindControls(){\n    const aurora=$('auroraOn'),viewing=$('auroraViewingOn'),opacity=$('auroraOpacity');\n    if(!aurora||!viewing||!opacity)return;\n", "  function bindControls(){\n    const aurora=$('auroraOn'),viewing=$('auroraViewingOn');\n    if(!aurora||!viewing)return;\n")
+          replace_once('js/space-weather-v4.js', "    opacity.addEventListener('input',()=>{\n      $('auroraOpacityVal').textContent=opacity.value+'%';\n      const value=Number(opacity.value)/100;\n      auroraLayer?.setOpacity(value);\n      viewingLayer?.setOpacity(value);\n    });\n", "")
 
-          # Remove the opacity UI entirely.
-          replace_once(
-              'js/config.js',
-              """      <label class=\"small\" for=\"auroraOpacity\">Layer opacity</label>
-      <div class=\"grid2\"><input id=\"auroraOpacity\" type=\"range\" min=\"20\" max=\"90\" value=\"68\" step=\"2\"><span id=\"auroraOpacityVal\" class=\"value\">68%</span></div>
-""",
-              ""
-          )
+          replace_once('js/config.js', "      <label class=\"small\" for=\"auroraOpacity\">Layer opacity</label>\n      <div class=\"grid2\"><input id=\"auroraOpacity\" type=\"range\" min=\"20\" max=\"90\" value=\"68\" step=\"2\"><span id=\"auroraOpacityVal\" class=\"value\">68%</span></div>\n", "")
           replace_once('js/config.js', "spaceWeatherScript.src='js/space-weather-v4.js?v=6';", "spaceWeatherScript.src='js/space-weather-v4.js?v=7';")
 
-          # Norway's official hourly observations can be published more than
-          # 95 minutes after their observation time. Keep the normal limit for
-          # every other provider, but allow Norway up to three hours.
-          replace_once(
-              'js/stations.js',
-              "const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;\n",
-              "const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;\nconst OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY=Object.freeze({NO:3*60*60});\n"
-          )
-          replace_once(
-              'js/stations.js',
-              """    const age=unix-station.time;
-    if(age>OFFICIAL_TEMP_LABEL_MAX_OFFSET || age<-OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC) continue;
+          replace_once('js/stations.js', "const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;\n", "const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;\nconst OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY=Object.freeze({NO:3*60*60});\n")
+          replace_once('js/stations.js', "    const age=unix-station.time;\n    if(age>OFFICIAL_TEMP_LABEL_MAX_OFFSET || age<-OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC) continue;\n\n    const key=officialTempStationKey(station);\n    const current=selected.get(key);\n    const score=age>=0 ? age : OFFICIAL_TEMP_LABEL_MAX_OFFSET+Math.abs(age);\n", "    const age=unix-station.time;\n    const maxOffset=OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[station.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET;\n    if(age>maxOffset || age<-OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC) continue;\n\n    const key=officialTempStationKey(station);\n    const current=selected.get(key);\n    const score=age>=0 ? age : maxOffset+Math.abs(age);\n")
+          replace_once('js/stations.js', "    const currentAge=unix-current.time;\n    const currentScore=Number.isFinite(current._playbackScore)\n      ? current._playbackScore\n      : (currentAge>=0?currentAge:OFFICIAL_TEMP_LABEL_MAX_OFFSET+Math.abs(currentAge));\n", "    const currentAge=unix-current.time;\n    const currentMaxOffset=OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[current.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET;\n    const currentScore=Number.isFinite(current._playbackScore)\n      ? current._playbackScore\n      : (currentAge>=0?currentAge:currentMaxOffset+Math.abs(currentAge));\n")
 
-    const key=officialTempStationKey(station);
-    const current=selected.get(key);
-    const score=age>=0 ? age : OFFICIAL_TEMP_LABEL_MAX_OFFSET+Math.abs(age);
-""",
-              """    const age=unix-station.time;
-    const maxOffset=OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[station.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET;
-    if(age>maxOffset || age<-OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC) continue;
-
-    const key=officialTempStationKey(station);
-    const current=selected.get(key);
-    const score=age>=0 ? age : maxOffset+Math.abs(age);
-"""
-          )
-          replace_once(
-              'js/stations.js',
-              """    const currentAge=unix-current.time;
-    const currentScore=Number.isFinite(current._playbackScore)
-      ? current._playbackScore
-      : (currentAge>=0?currentAge:OFFICIAL_TEMP_LABEL_MAX_OFFSET+Math.abs(currentAge));
-""",
-              """    const currentAge=unix-current.time;
-    const currentMaxOffset=OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[current.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET;
-    const currentScore=Number.isFinite(current._playbackScore)
-      ? current._playbackScore
-      : (currentAge>=0?currentAge:currentMaxOffset+Math.abs(currentAge));
-"""
-          )
-
-          # Force browsers to fetch the changed files.
           replace_once('index.html', 'js/config.js?v=8.84', 'js/config.js?v=8.85')
           replace_once('index.html', 'js/stations.js?v=8.71', 'js/stations.js?v=8.72')
           PY
