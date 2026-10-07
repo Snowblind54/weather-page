@@ -1,0 +1,33 @@
+name: Deploy official wind history graph
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/bump-official-wind-history.yml
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Bump official wind cache version
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          t=p.read_text(encoding='utf-8')
+          old='<script src="js/official-wind.js?v=8.73"></script>'
+          new='<script src="js/official-wind.js?v=8.74"></script>'
+          assert old in t
+          p.write_text(t.replace(old,new,1),encoding='utf-8')
+          PY
+      - name: Validate official wind history code
+        run: |
+          node --check js/official-wind.js
+          grep -q 'Show 24 h history' js/official-wind.js
+          grep -q 'js/official-wind.js?v=8.74' index.html
+      - name: Publish cache bump
+        run: bash scripts/publish_generated_data.sh 'Show measured wind history in station popups' index.html
