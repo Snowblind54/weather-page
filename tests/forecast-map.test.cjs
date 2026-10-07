@@ -27,8 +27,11 @@ test('timeline only exposes complete shared frames and does not discard the fina
   assert.equal(D.cachedTimes(manifest,now).at(-1),Date.parse('2026-10-10T06:00:00Z'));
   const missing=structuredClone(manifest);delete missing.images.clouds[new Date(first).toISOString()];assert(!D.cachedTimes(missing,now).includes(first));
 });
+const iceManifest=structuredClone(manifest);iceManifest.asset_root='forecast-iceland-cache';iceManifest.bounds=[-28,61,-12,69];iceManifest.periods={};
+for(const kind of Object.keys(D.layers)){iceManifest.legends[kind]=iceManifest.legends[kind].replace('forecast-cache','forecast-iceland-cache');for(const time of iceManifest.cached_times)iceManifest.images[kind][time]=iceManifest.images[kind][time].replace('forecast-cache','forecast-iceland-cache');}
+for(const time of iceManifest.cached_times)iceManifest.periods[time]={start:time,end:new Date(Date.parse(time)+3*3600000).toISOString(),interpolated:false};
 const flush=()=>new Promise(r=>setImmediate(r));
-function harness(){
+function harness({iceland=false,wide=false}={}){
   const ids={},classes=new Set(),images=[],overlays=[],timers=new Map(),listeners={};let tid=0,observer;
   class Element{
     constructor(){this.children=[];this.options=[];this.value='0';this.events={};this.hidden=false;this.dataset={};this.classList={toggle:(name,on)=>on?classes.add(name):classes.delete(name)};}
@@ -39,10 +42,10 @@ function harness(){
   const body=new Element(),c={document:{body,hidden:false,createElement:()=>new Element(),addEventListener:(k,f)=>listeners[k]=f,dispatchEvent:e=>listeners[e.type]?.(e)},window:{},$:id=>ids[id],
     ForecastMapData:{...D,cachedTimes:meta=>D.cachedTimes(meta,now)},Date:class extends Date{static now(){return now;}},URLSearchParams,AbortController,CustomEvent:class{constructor(type,o){this.type=type;this.detail=o.detail;}},console:{warn(){}},
     setTimeout:(f,n)=>{const id=++tid;timers.set(id,{f,n});return id;},clearTimeout:id=>timers.delete(id),setInterval(){},
-    MutationObserver:class{constructor(f){observer=f;}observe(){}},fetch:async()=>({ok:true,json:async()=>manifest}),
+    MutationObserver:class{constructor(f){observer=f;}observe(){}},fetch:async url=>({ok:true,json:async()=>url.includes('forecast-iceland')&&iceland?iceManifest:manifest}),
     Image:class{constructor(){images.push(this);this.dataset={};}set src(v){this.url=v;}},
     L:{DomEvent:{disableClickPropagation(){},disableScrollPropagation(){}},latLng:(lat,lng)=>({lat,lng}),CRS:{EPSG3857:{project:p=>({x:p.lng*100000,y:p.lat*100000})}},imageOverlay:(img,bounds,options)=>{const l={img,bounds,options,active:false,setOpacity(){},addTo(){this.active=true;overlays.push(this);return this;}};return l;}},
-    map:{createPane(){},getPane:()=>({style:{}}),getBounds:()=>({getEast:()=>30,getWest:()=>10,getNorth:()=>62,getSouth:()=>52}),getSize:()=>({x:800,y:600}),removeLayer:l=>l.active=false,on(){}}};
+    map:{createPane(){},getPane:()=>({style:{}}),getBounds:()=>({getEast:()=>30,getWest:()=>wide?-30:10,getNorth:()=>wide?74:62,getSouth:()=>52}),getSize:()=>({x:800,y:600}),removeLayer:l=>l.active=false,on(){}}};
   vm.createContext(c);vm.runInContext(fs.readFileSync(__dirname+'/../js/forecast-map.js','utf8'),c);
   const run=async()=>{for(const[id,t]of [...timers])if(t.n<1000){timers.delete(id);t.f();}await flush();};
   return {c,ids,classes,images,overlays,run,open:()=>{ids.forecastSection.hidden=false;observer();},close:()=>{ids.forecastSection.hidden=true;observer();},time:t=>c.window.NorthernForecastMap.setTime(t),loaded:async i=>{images[i].onload();await flush();}};
@@ -61,4 +64,13 @@ test('loaded map and legend only request shared website assets',async()=>{
   const h=harness();h.open();await h.run();await h.loaded(0);
   assert.match(h.images[0].url,/^data\/forecast-cache\//);assert.match(h.ids.forecastMapColorbar.src,/^data\/forecast-cache\//);
   assert.deepEqual(JSON.parse(JSON.stringify(h.overlays[0].bounds)),[[52,-11],[74,42]]);
+});
+
+test('Iceland uses the same hour and colour layer alongside the Nordic maps',async()=>{
+  const h=harness({iceland:true,wide:true});h.open();await h.run();assert.equal(h.images.length,2);await h.loaded(0);await h.loaded(1);
+  const maps=h.overlays.filter(l=>l.active);assert.equal(maps.length,2);assert.equal(maps[0].img.dataset.forecastTime,maps[1].img.dataset.forecastTime);assert.equal(maps[1].img.dataset.forecastRegion,'Iceland');assert.match(maps[1].img.url,/forecast-iceland-cache/);
+  h.time(first+3600000);await h.run();assert.equal(h.images.length,4);await h.loaded(3);assert.equal(h.overlays.filter(l=>l.active)[0].img.dataset.forecastTime,'2026-10-07T21:00:00.000Z');await h.loaded(2);assert(h.overlays.filter(l=>l.active).every(l=>l.img.dataset.forecastTime==='2026-10-07T22:00:00.000Z'));
+});
+test('visible-region selection does not download Iceland frames when outside the viewport',()=>{
+  const bounds={getEast:()=>30,getWest:()=>20,getNorth:()=>65,getSouth:()=>55};assert.equal(D.visibleRegions([manifest,iceManifest],bounds,'wind',first).length,1);
 });
