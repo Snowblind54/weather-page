@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-07T12:28:05.853604+00:00",
+  "fetchedAt": "2026-10-07T12:56:54.692586+00:00",
   "forecastDays": [
     "2026-10-07",
     "2026-10-08",
@@ -17,7 +17,7 @@
       "event": "Wind",
       "level": 1,
       "effective": "2026-10-07T02:00:00+00:00",
-      "expires": "2026-10-07T14:00:00+00:00",
+      "expires": "2026-10-07T16:00:00+00:00",
       "description": "West 12, in gusts to 16 m/s. Wave height 1-2.5 m.",
       "descriptionEstonian": "Läänetuul 12, puhanguti kuni 16 m/s. Laine kõrgus 1-2,5 m.",
       "preAlert": false
