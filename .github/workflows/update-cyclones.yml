@@ -7,12 +7,14 @@ on:
     branches: [main]
     paths:
       - scripts/update_cyclones.py
+      - scripts/update_fronts.py
       - scripts/cyclone_names.py
       - scripts/requirements-cyclones.txt
       - scripts/update_cyclone_ensemble.py
       - scripts/publish_generated_data.sh
       - tests/test_cyclone_ensemble.py
       - tests/test_cyclones.py
+      - tests/test_cyclone_fronts.py
       - .github/workflows/update-cyclones.yml
 permissions:
   contents: write
@@ -22,7 +24,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 22
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,9 +40,12 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_cyclone*.py' -v
       - name: Fetch GFS fields, detect centres and project tracks
         run: python scripts/update_cyclones.py
+      - name: Derive cold and warm fronts from the same GFS cycle
+        continue-on-error: true
+        run: python scripts/update_fronts.py
       - name: Match GEFS ensemble tracks and estimate descriptive spread
         continue-on-error: true
         run: python scripts/update_cyclone_ensemble.py
       - name: Save cyclone snapshot
         if: ${{ !cancelled() }}
-        run: bash scripts/publish_generated_data.sh 'Refresh North Atlantic and Europe cyclone tracks' data/cyclones.json data/cyclone-ensemble.json
+        run: bash scripts/publish_generated_data.sh 'Refresh North Atlantic and Europe cyclone tracks' data/cyclones.json data/fronts.json data/cyclone-ensemble.json
