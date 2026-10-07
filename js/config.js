@@ -16,7 +16,7 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
   if(!nav)return;
 
   const style=document.createElement('link');
-  style.rel='stylesheet';style.href='css/space-weather.css?v=1';
+  style.rel='stylesheet';style.href='css/space-weather.css?v=2';
   document.head.appendChild(style);
 
   const button=document.createElement('button');
@@ -55,13 +55,36 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
     <div class="section space-dashboard-section">
       <div class="row"><div><div class="label">Current space weather</div><div class="small">Official NOAA SWPC data</div></div><button id="spaceWeatherRefresh" type="button" title="Refresh space weather">↻</button></div>
       <div class="space-dashboard">
-        <div class="space-metric"><span>Kp</span><strong id="spaceKpValue">—</strong><small id="spaceKpMeta">Loading…</small></div>
-        <div class="space-metric"><span>Solar wind</span><strong id="spaceWindValue">—</strong><small>Speed at L1</small></div>
-        <div class="space-metric wide"><span>IMF Bz</span><strong id="spaceBzValue">—</strong><small id="spaceBzMeta">Loading…</small></div>
+        <div class="space-metric">
+          <div class="space-metric-heading"><span>Kp</span><button class="space-metric-info" type="button" data-space-help="spaceHelpKp" aria-controls="spaceHelpKp" aria-expanded="false" aria-label="Why Kp matters">i</button></div>
+          <strong id="spaceKpValue">—</strong><small id="spaceKpMeta">Loading…</small>
+          <div id="spaceHelpKp" class="space-metric-help" hidden>Kp measures global geomagnetic disturbance. Higher Kp usually means the auroral oval expands farther south and aurora can become stronger.</div>
+        </div>
+        <div class="space-metric">
+          <div class="space-metric-heading"><span>Solar wind</span><button class="space-metric-info" type="button" data-space-help="spaceHelpWind" aria-controls="spaceHelpWind" aria-expanded="false" aria-label="Why solar wind speed matters">i</button></div>
+          <strong id="spaceWindValue">—</strong><small>Speed at L1</small>
+          <div id="spaceHelpWind" class="space-metric-help" hidden>Fast solar wind delivers energy to Earth more quickly. High speed alone is not enough, but it can intensify aurora when the magnetic field is favorably oriented.</div>
+        </div>
+        <div class="space-metric wide">
+          <div class="space-metric-heading"><span>IMF Bz</span><button class="space-metric-info" type="button" data-space-help="spaceHelpBz" aria-controls="spaceHelpBz" aria-expanded="false" aria-label="Why IMF Bz matters">i</button></div>
+          <strong id="spaceBzValue">—</strong><small id="spaceBzMeta">Loading…</small>
+          <div id="spaceHelpBz" class="space-metric-help" hidden>Bz is the north-south direction of the solar-wind magnetic field. Negative (southward) Bz couples more efficiently with Earth's field and is one of the strongest signs that aurora may intensify.</div>
+        </div>
       </div>
       <div class="space-forecast-row"><span>OVATION forecast</span><strong id="spaceForecastTime">—</strong></div>
       <div id="spaceObservationTime" class="small">OVATION input —</div>
     </div>`;
+  panel.addEventListener('click',event=>{
+    const info=event.target.closest('.space-metric-info');
+    if(!info)return;
+    const help=panel.querySelector('#'+info.dataset.spaceHelp);
+    if(!help)return;
+    const opening=help.hidden;
+    for(const item of panel.querySelectorAll('.space-metric-help'))item.hidden=true;
+    for(const button of panel.querySelectorAll('.space-metric-info'))button.setAttribute('aria-expanded','false');
+    help.hidden=!opening;
+    info.setAttribute('aria-expanded',String(opening));
+  });
   document.body.appendChild(panel);
 })();
 
@@ -73,13 +96,19 @@ sharedWindSourceScript.src='js/model-wind-source.js?v=1';
 sharedWindSourceScript.async=true;
 document.head.appendChild(sharedWindSourceScript);
 
-// Wind chill, the Nordic satellite compatibility fix and Space Weather depend
-// on modules that are defined by the synchronous scripts below config.js, so
-// install them after page load.
+// Wind chill, satellite compatibility and Space Weather depend on modules that
+// are defined by the synchronous scripts below config.js, so install them after
+// page load.
 window.addEventListener('load',()=>{
   const cloudNordicScript=document.createElement('script');
-  cloudNordicScript.src='js/cloud-nordic-coverage.js?v=1';
-  cloudNordicScript.onload=()=>window.installNordicCloudCoverage?.();
+  cloudNordicScript.src='js/cloud-nordic-coverage.js?v=2';
+  cloudNordicScript.onload=()=>{
+    window.installNordicCloudCoverage?.();
+    const cloudArcticScript=document.createElement('script');
+    cloudArcticScript.src='js/cloud-arctic-source.js?v=1';
+    cloudArcticScript.onload=()=>window.installArcticCloudSource?.();
+    document.body.appendChild(cloudArcticScript);
+  };
   document.body.appendChild(cloudNordicScript);
 
   const windChillScript=document.createElement('script');
