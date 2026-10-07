@@ -150,10 +150,10 @@ window.addEventListener('load',()=>{
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');
-  spaceWeatherScript.src='js/space-weather-v4.js?v=7';
+  spaceWeatherScript.src='js/space-weather-v4.js?v=8';
   spaceWeatherScript.onload=()=>{
     const dashboardScript=document.createElement('script');
-    dashboardScript.src='js/space-weather-dashboard.js?v=3';
+    dashboardScript.src='js/space-weather-dashboard.js?v=4';
     document.body.appendChild(dashboardScript);
   };
   document.body.appendChild(spaceWeatherScript);

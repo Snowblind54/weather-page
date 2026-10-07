@@ -133,7 +133,7 @@ async function cloudEnsureMetadata(force=false){
     if(product.metadataPromise)return product.metadataPromise;
     product.metadataPromise=(async()=>{
       try{
-        const url=product.endpoint+'?'+new URLSearchParams({service:'WMS',request:'GetCapabilities',version:'1.3.0'});
+        const url=product.endpoint+'?'+new URLSearchParams({service:'WMS',request:'GetCapabilities',version:'1.3.0',...(force?{freshness:Math.floor(Date.now()/120000)}:{})});
         const xml=await cloudFetch(url);
         const doc=new DOMParser().parseFromString(xml,'text/xml');
         const latest={},times={};
