@@ -303,7 +303,7 @@
   function layerOptions(mode){
     return {
       tileSize:256,minZoom:2,maxNativeZoom:6,maxZoom:18,noWrap:false,keepBuffer:1,
-      updateWhenIdle:true,pane:'spaceWeatherPane',opacity:Number($('auroraOpacity')?.value||68)/100,
+      updateWhenIdle:true,pane:'spaceWeatherPane',opacity:1,
       mode,attribution:mode==='viewing'?'Aurora © NOAA SWPC · cloud © ECMWF':'Aurora forecast © NOAA SWPC OVATION'
     };
   }
@@ -430,8 +430,8 @@
   }
 
   function bindControls(){
-    const aurora=$('auroraOn'),viewing=$('auroraViewingOn'),opacity=$('auroraOpacity');
-    if(!aurora||!viewing||!opacity)return;
+    const aurora=$('auroraOn'),viewing=$('auroraViewingOn');
+    if(!aurora||!viewing)return;
     aurora.addEventListener('change',()=>{
       if(aurora.checked)viewing.checked=false;
       renderLayers();
@@ -439,12 +439,6 @@
     viewing.addEventListener('change',()=>{
       if(viewing.checked)aurora.checked=false;
       renderLayers();
-    });
-    opacity.addEventListener('input',()=>{
-      $('auroraOpacityVal').textContent=opacity.value+'%';
-      const value=Number(opacity.value)/100;
-      auroraLayer?.setOpacity(value);
-      viewingLayer?.setOpacity(value);
     });
     $('spaceWeatherRefresh')?.addEventListener('click',async()=>{
       loadedAt=0;

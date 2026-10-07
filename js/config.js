@@ -51,8 +51,6 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
       <div class="row"><label class="label"><input id="auroraOn" type="checkbox"> Aurora forecast</label><span class="badge">NOAA OVATION</span></div>
       <div class="row"><label class="label"><input id="auroraViewingOn" type="checkbox"> Aurora viewing conditions</label><span class="badge">aurora + dark + ECMWF cloud</span></div>
       <div class="small space-weather-help">Viewing conditions combine NOAA OVATION with astronomical darkness and ECMWF IFS total cloud cover. Click the map while either aurora layer is on to see the local viewing estimate.</div>
-      <label class="small" for="auroraOpacity">Layer opacity</label>
-      <div class="grid2"><input id="auroraOpacity" type="range" min="20" max="90" value="68" step="2"><span id="auroraOpacityVal" class="value">68%</span></div>
       <div class="space-aurora-legend" aria-label="Aurora forecast intensity"><span>Low</span><i></i><span>High</span></div>
       <div id="spaceWeatherStatus" class="status" role="status">Space weather layers are off.</div>
     </div>
@@ -152,7 +150,7 @@ window.addEventListener('load',()=>{
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');
-  spaceWeatherScript.src='js/space-weather-v4.js?v=6';
+  spaceWeatherScript.src='js/space-weather-v4.js?v=7';
   spaceWeatherScript.onload=()=>{
     const dashboardScript=document.createElement('script');
     dashboardScript.src='js/space-weather-dashboard.js?v=2';

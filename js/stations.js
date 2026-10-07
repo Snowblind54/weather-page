@@ -8,6 +8,7 @@ const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsV814';
 const OFFICIAL_TEMP_SNAPSHOT_URL='data/official-temperature.json';
 const OFFICIAL_TEMP_CACHE_MAX_AGE=45*60*1000;
 const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;
+const OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY=Object.freeze({NO:3*60*60});
 const OFFICIAL_TEMP_HISTORY_SEC=3*60*60;
 const OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC=10*60;
 
@@ -546,19 +547,21 @@ function officialStationsNearTime(unix){
     }
 
     const age=unix-station.time;
-    if(age>OFFICIAL_TEMP_LABEL_MAX_OFFSET || age<-OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC) continue;
+    const maxOffset=OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[station.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET;
+    if(age>maxOffset || age<-OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC) continue;
 
     const key=officialTempStationKey(station);
     const current=selected.get(key);
-    const score=age>=0 ? age : OFFICIAL_TEMP_LABEL_MAX_OFFSET+Math.abs(age);
+    const score=age>=0 ? age : maxOffset+Math.abs(age);
     if(!current){
       selected.set(key,{...station,_playbackScore:score});
       continue;
     }
     const currentAge=unix-current.time;
+    const currentMaxOffset=OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[current.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET;
     const currentScore=Number.isFinite(current._playbackScore)
       ? current._playbackScore
-      : (currentAge>=0?currentAge:OFFICIAL_TEMP_LABEL_MAX_OFFSET+Math.abs(currentAge));
+      : (currentAge>=0?currentAge:currentMaxOffset+Math.abs(currentAge));
     if(score<currentScore) selected.set(key,{...station,_playbackScore:score});
   }
 
