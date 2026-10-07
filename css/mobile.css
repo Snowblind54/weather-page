@@ -1,0 +1,64 @@
+/* Phone layout only; this stylesheet is linked with a mobile media query. */
+@media(max-width:760px){
+  .topbar{left:8px;right:8px;top:max(8px,env(safe-area-inset-top));padding:8px;gap:6px;border-radius:15px}
+  .brand{min-width:0;padding:0;gap:7px}
+  .brand h1{font-size:13px;white-space:nowrap}
+  .brand .subtitle{font-size:9px}
+  .brand-mark{width:30px;height:30px;flex-shrink:0}
+  .topbar-tools{gap:4px}
+  .topbar-tools .utility-button{width:44px;height:44px;padding:10px}
+  .category-nav{gap:3px;scroll-padding-inline:8px;overscroll-behavior-x:contain;touch-action:pan-x}
+  .category-tab{min-height:44px;padding:10px 12px;font-size:12px}
+  body .weather-panel,body .freshness-panel{
+    position:fixed;top:auto!important;left:auto!important;right:8px!important;
+    bottom:calc(190px + env(safe-area-inset-bottom));
+    width:calc(100vw - 16px);max-width:none;
+    max-height:min(54dvh,calc(100dvh - 330px - env(safe-area-inset-bottom)));
+    padding:16px;border-radius:18px;z-index:2050;
+    overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch
+  }
+  body .weather-panel .panel-heading,body .freshness-panel .panel-heading{
+    position:sticky;top:-16px;z-index:3;background:#101e29;
+    padding:12px 0;margin-bottom:12px;gap:10px
+  }
+  .panel-heading h2{font-size:22px}
+  .panel-actions button,.freshness-panel .close-panel{min-width:44px;height:44px}
+  .weather-panel .row{flex-wrap:wrap;gap:6px}
+  .weather-panel .label{font-size:13px}
+  .weather-panel label:has(input[type=checkbox]){min-height:44px}
+  .weather-panel input[type=checkbox]{width:20px;height:20px}
+  .weather-panel select{min-height:44px;font-size:16px}
+  .weather-panel input[type=range]{min-height:32px;touch-action:pan-x}
+  .weather-panel button:not(.info-button):not(.close-panel){min-height:40px}
+  .weather-panel .small,.weather-panel .status{font-size:12px}
+  .timeline-dock{
+    left:8px;right:8px;width:auto;bottom:max(8px,env(safe-area-inset-bottom));
+    padding:8px 12px;border-radius:15px
+  }
+  .timeline-heading{display:grid;grid-template-columns:minmax(0,1fr) 64px 40px;gap:4px 8px}
+  .timeline-dot{display:none}
+  .timeline-heading .label{grid-column:1;grid-row:1;font-size:12px}
+  .timeline-heading #play{grid-column:2;grid-row:1;min-width:0;min-height:40px;margin:0;padding:6px}
+  .timeline-heading #refresh{grid-column:3;grid-row:1;width:40px;height:40px;margin:0}
+  .timeline-loading{grid-column:1/-1;grid-row:2;font-size:11px}
+  .timeline-dock input[type=range]{height:30px;margin:0;touch-action:pan-x}
+  .timeline-current{font-size:11px;line-height:1.4;margin-top:4px}
+  .timeline-ticks{font-size:10px;margin-top:0}
+  .timeline-jumps{margin-top:2px}
+  .timeline-jumps button{min-height:32px;font-size:11px;padding:4px 0}
+  .basemap-switch{left:8px;right:auto;top:calc(128px + env(safe-area-inset-top));bottom:auto;padding:3px;border-radius:12px}
+  .basemap-switch button{min-height:40px;padding:8px 10px;font-size:11px}
+  .snow-map-key{left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));max-width:none}
+  .leaflet-popup-content{max-width:calc(100vw - 48px);max-height:48dvh;overflow:auto;margin:12px}
+  .leaflet-container a.leaflet-popup-close-button{width:36px;height:36px;font-size:24px;line-height:36px}
+  body .freshness-panel .freshness-body{padding:0}
+  .freshness-refresh{min-height:44px}
+}
+@media(max-width:760px) and (max-height:500px) and (orientation:landscape){
+  .brand .subtitle{display:none}
+  .topbar{padding:4px 8px;gap:2px}
+  .category-tab{min-height:36px;padding:6px 12px}
+  body .weather-panel,body .freshness-panel{bottom:8px;width:55vw;max-height:calc(100dvh - 116px)}
+  .timeline-dock{right:auto;width:calc(45vw - 24px);min-width:0}
+  .basemap-switch{top:108px}
+}
