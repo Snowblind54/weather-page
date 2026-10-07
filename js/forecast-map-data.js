@@ -31,11 +31,21 @@
     const l=layers[kind];if(!l||!Number.isFinite(time))throw new Error('Invalid forecast map selection');
     return {layers:l.name,styles:'raster/'+l.palette,time:new Date(time+(l.offset||0)).toISOString(),colorscalerange:l.range.join(','),numcolorbands:64,logscale:false,belowmincolor:kind==='rain'?'transparent':'extend',abovemaxcolor:'extend',nodatacolor:'transparent'};
   }
-  function mapUrl(endpoint,kind,time,bbox,width,height){
-    if(!Array.isArray(bbox)||bbox.length!==4||!bbox.every(Number.isFinite)||bbox[0]>=bbox[2]||bbox[1]>=bbox[3])throw new Error('Invalid map bounds');
-    return endpoint+'?'+new URLSearchParams({service:'WMS',version:'1.1.1',request:'GetMap',format:'image/png',transparent:true,srs:'EPSG:3857',bbox:bbox.join(','),width:Math.round(Math.max(1,Math.min(1280,width))),height:Math.round(Math.max(1,Math.min(960,height))),...params(kind,time)});
+  function assetUrl(manifest,kind,time){
+    if(!layers[kind]||manifest.delivery!=='static-regional-images')throw Error('Shared forecast images unavailable');
+    const name=time===undefined?kind+'-legend.webp':kind+'-'+new Date(time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z.webp';
+    const path=time===undefined?manifest.legends?.[kind]:manifest.images?.[kind]?.[new Date(time).toISOString()];
+    const cycle=new Date(manifest.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z';
+    if(typeof path!=='string'||!path.startsWith('data/forecast-cache/'+cycle+'/')||path.split('/').length!==4||path.split('/').at(-1)!==name)throw Error('Invalid shared forecast image');
+    return path;
   }
-  function legendUrl(endpoint,kind){const l=layers[kind];return endpoint+'?'+new URLSearchParams({service:'WMS',version:'1.1.1',request:'GetLegendGraphic',layer:l.name,palette:l.palette,colorscalerange:l.range.join(','),numcolorbands:64,logscale:false,colorbaronly:true,vertical:false,width:256,height:18});}
-  const api={layers,expandTimes,runs,reference,availableTimes,params,mapUrl,legendUrl};
+  function cachedTimes(manifest,now=Date.now()){
+    const raw=expandTimes((manifest.cached_times||[]).join(','));
+    const start=Math.floor(now/HOUR)*HOUR;
+    return raw.filter(t=>t>=start&&Object.keys(manifest.layers||{}).every(kind=>{
+      try{assetUrl(manifest,kind,t);return true;}catch{return false;}
+    }));
+  }
+  const api={layers,expandTimes,runs,reference,availableTimes,params,assetUrl,cachedTimes};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ForecastMapData=api;
 })(typeof window==='undefined'?{}:window);

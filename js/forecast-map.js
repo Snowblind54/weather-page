@@ -1,9 +1,9 @@
-// One viewport-sized WMS image per selected time; no off-screen tile downloads.
+// Shared regional images from GitHub Pages; no browser requests to MET WMS.
 (function(){
   const panel=$('forecastSection');if(!panel)return;
   const D=ForecastMapData;
   const controls=document.createElement('div');controls.className='forecast-map-controls';
-  controls.innerHTML=`<label class="label" for="forecastMapLayer">Forecast map layer</label><select id="forecastMapLayer"><option value="temperature">Temperature</option><option value="rain">Rain / snow (next hour)</option><option value="wind">Sustained wind</option><option value="gusts">Wind gusts</option><option value="clouds">Cloud cover</option><option value="off">Location forecast only</option></select><div class="forecast-map-opacity"><label for="forecastMapOpacity">Map opacity</label><output id="forecastMapOpacityValue">55%</output></div><input id="forecastMapOpacity" type="range" min="10" max="90" step="5" value="55" aria-label="Forecast map opacity"><div id="forecastMapLegend" hidden><div id="forecastMapLegendTitle" class="label"></div><img id="forecastMapColorbar" alt="Forecast colour scale" width="256" height="18"><div id="forecastMapLegendTicks"></div><div id="forecastMapVisibleTime" class="forecast-note"></div></div><div id="forecastMapStatus" class="status" role="status" aria-live="polite">Open Forecast to load the Nordic forecast map.</div><p class="forecast-note">MET Nordic · MEPS forecasts downscaled to a 1 km grid. Covers the Nordics and parts of the Baltics; Iceland is outside this grid. Map forecasts extend about 58–64 hours from the model cycle. Other weather overlays return when you close Forecast or choose location forecast only.</p>`;
+  controls.innerHTML=`<label class="label" for="forecastMapLayer">Forecast map layer</label><select id="forecastMapLayer"><option value="temperature">Temperature</option><option value="rain">Rain / snow (next hour)</option><option value="wind">Sustained wind</option><option value="gusts">Wind gusts</option><option value="clouds">Cloud cover</option><option value="off">Location forecast only</option></select><div class="forecast-map-opacity"><label for="forecastMapOpacity">Map opacity</label><output id="forecastMapOpacityValue">55%</output></div><input id="forecastMapOpacity" type="range" min="10" max="90" step="5" value="55" aria-label="Forecast map opacity"><div id="forecastMapLegend" hidden><div id="forecastMapLegendTitle" class="label"></div><img id="forecastMapColorbar" alt="Forecast colour scale" width="256" height="18"><div id="forecastMapLegendTicks"></div><div id="forecastMapVisibleTime" class="forecast-note"></div></div><div id="forecastMapStatus" class="status" role="status" aria-live="polite">Open Forecast to load the Nordic forecast map.</div><p class="forecast-note">MET Nordic · shared forecast maps refreshed every six hours. Covers the Nordics and parts of the Baltics; Iceland is outside this grid. Hourly forecasts extend about 58–64 hours from the cycle. Regional images are less detailed when zoomed in. Other weather overlays return when you close Forecast or choose location forecast only.</p>`;
   $('forecastLocation').before(controls);
   const dock=document.createElement('div');dock.className='forecast-map-dock';dock.hidden=true;
   dock.setAttribute('aria-label','Forecast map timeline');
@@ -26,16 +26,16 @@
         const response=await fetch('data/forecast-map.json?v='+Math.floor(Date.now()/900000),{signal:abort.signal,cache:'no-cache'});
         if(!response.ok)throw Error('Forecast map index unavailable');
         const next=await response.json();
-        if(!/^https:\/\/thredds\.met\.no\/thredds\/wms\/metpplatest\/met_forecast_1_0km_nordic_\d{8}T\d{2}Z\.nc$/.test(next.endpoint)||!Array.isArray(next.bounds)||next.bounds.length!==4||!next.bounds.every(Number.isFinite))throw Error('Invalid map index');
-        const raw=D.expandTimes(next.time_dimension),times=D.availableTimes(raw);
+        if(next.delivery!=='static-regional-images'||!Array.isArray(next.bounds)||next.bounds.length!==4||!next.bounds.every(Number.isFinite))throw Error('Invalid map index');
+        const times=D.cachedTimes(next);
         if(!times.length||!Number.isFinite(Date.parse(next.reference_time)))throw Error('No current forecast grid available');
-        for(const [kind,l] of Object.entries(D.layers))if(next.layers?.[kind]&&next.layers[kind]!==l.name)throw Error('Unexpected forecast variable');
+        for(const [kind,l] of Object.entries(D.layers))if(next.layers?.[kind]){if(next.layers[kind]!==l.name)throw Error('Unexpected forecast variable');D.assetUrl(next,kind);}
         const followCurrent=meta&&selectedTime===meta.times[0];
         meta={...next,times};metaChecked=Date.now();
         if(followCurrent&&selectedTime!==times[0]){selectedTime=times[0];document.dispatchEvent(new CustomEvent('forecast-map-time',{detail:{time:selectedTime}}));}
         return meta;
       }finally{clearTimeout(timer);}
-    })().catch(error=>{metaChecked=Date.now()-13*60000;if(meta&&D.availableTimes(D.expandTimes(meta.time_dimension)).length){console.warn(error);return meta;}throw error;}).finally(()=>{metaPromise=null;});
+    })().catch(error=>{metaChecked=Date.now()-13*60000;if(meta&&D.cachedTimes(meta).length){console.warn(error);return meta;}throw error;}).finally(()=>{metaPromise=null;});
     return metaPromise;
   }
   function updateTimeline(){
@@ -46,8 +46,8 @@
     $('forecastMapTime').textContent=date(selectedTime);$('forecastMapTime').dateTime=new Date(selectedTime).toISOString();
     $('forecastMapStart').textContent=date(meta.times[0]);$('forecastMapEnd').textContent=date(meta.times.at(-1));
     $('forecastMapPrevious').disabled=index===0;$('forecastMapNext').disabled=index===meta.times.length-1;
-    const older=Date.now()-Date.parse(meta.reference_time)>3*3600000;
-    $('forecastMapCycle').textContent='MET Nordic cycle '+date(Date.parse(meta.reference_time))+(older?' · older cycle':'')+' · hourly forecast';
+    const older=Date.now()-Date.parse(meta.reference_time)>9*3600000;
+    $('forecastMapCycle').textContent='MET Nordic cycle '+date(Date.parse(meta.reference_time))+(older?' · older cycle':'')+' · shared images · refreshed every 6 hours';
     for(const option of $('forecastMapLayer').options)option.disabled=option.value!=='off'&&!meta.layers[option.value];
   }
   function image(url){
@@ -62,7 +62,7 @@
   }
   function legend(kind){
     const l=D.layers[kind];$('forecastMapLegendTitle').textContent=l.label+' · '+l.unit;
-    $('forecastMapColorbar').src=D.legendUrl(meta.endpoint,kind);
+    $('forecastMapColorbar').src=D.assetUrl(meta,kind);
     $('forecastMapLegendTicks').replaceChildren(...l.ticks.map(value=>{const e=document.createElement('span');e.textContent=value;return e;}));
     $('forecastMapVisibleTime').textContent=kind==='rain'?'Map total for '+date(visibleTime)+' – '+date(visibleTime+3600000)+' (liquid-water equivalent).':'Map valid '+date(visibleTime);
     $('forecastMapLegend').hidden=false;
@@ -77,14 +77,12 @@
       if(!meta.layers[kind])throw Error('This forecast map variable is unavailable');
       const bounds=map.getBounds();
       if(bounds.getEast()<meta.bounds[0]||bounds.getWest()>meta.bounds[2]||bounds.getNorth()<meta.bounds[1]||bounds.getSouth()>meta.bounds[3]){clearOverlay();status('This view is outside the Nordic forecast grid. Location forecasts remain available.');return;}
-      const south=Math.max(-85.05112878,bounds.getSouth()),north=Math.min(85.05112878,bounds.getNorth());
-      const sw=L.CRS.EPSG3857.project(L.latLng(south,bounds.getWest())),ne=L.CRS.EPSG3857.project(L.latLng(north,bounds.getEast()));
-      const size=map.getSize(),url=D.mapUrl(meta.endpoint,kind,selectedTime,[sw.x,sw.y,ne.x,ne.y],size.x,size.y);
+      const url=D.assetUrl(meta,kind,selectedTime);
       if(overlay&&visibleUrl===url){overlay.setOpacity(Number($('forecastMapOpacity').value)/100);legend(kind);status('Forecast map ready · cached image.');return;}
       status(visibleTime!==null?'Loading forecast map… Previous image valid '+date(visibleTime)+'.':'Loading forecast map image…');
       const img=await image(url);if(id!==generation||!active())return;
       img.dataset.forecastTime=new Date(selectedTime).toISOString();img.dataset.forecastLayer=kind;
-      const next=L.imageOverlay(img,[[south,bounds.getWest()],[north,bounds.getEast()]],{pane:'forecastModel',opacity:Number($('forecastMapOpacity').value)/100,interactive:false,attribution:'Forecast © <a href="https://api.met.no/" target="_blank" rel="noopener">MET Norway</a> · CC BY 4.0'}).addTo(map);
+      const next=L.imageOverlay(img,[[meta.bounds[1],meta.bounds[0]],[meta.bounds[3],meta.bounds[2]]],{pane:'forecastModel',opacity:Number($('forecastMapOpacity').value)/100,interactive:false,attribution:'Forecast © <a href="https://api.met.no/" target="_blank" rel="noopener">MET Norway</a> · CC BY 4.0'}).addTo(map);
       if(overlay)map.removeLayer(overlay);overlay=next;visibleTime=selectedTime;visibleUrl=url;legend(kind);
       status('Forecast map ready · '+D.layers[kind].label+' · '+date(visibleTime));
     }catch(error){if(id===generation&&active()){clearOverlay();status('Forecast map unavailable. Location forecasts still work; retry using Check for updates.',true);console.warn(error);}}

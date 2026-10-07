@@ -1,7 +1,10 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');const D=require('../js/forecast-map-data.js');
 const now=Date.parse('2026-10-07T21:30:00Z'),first=Date.parse('2026-10-07T21:00:00Z');
-const manifest={endpoint:'https://thredds.met.no/thredds/wms/metpplatest/met_forecast_1_0km_nordic_20261007T21Z.nc',reference_time:'2026-10-07T21:00:00Z',bounds:[-11,52,42,74],time_dimension:'2026-10-07T21:00:00Z/2026-10-10T07:00:00Z/PT1H',layers:Object.fromEntries(Object.entries(D.layers).map(([key,l])=>[key,l.name]))};
+const manifest={delivery:'static-regional-images',endpoint:'https://thredds.met.no/thredds/wms/metpplatest/met_forecast_1_0km_nordic_20261007T21Z.nc',reference_time:'2026-10-07T21:00:00Z',bounds:[-11,52,42,74],time_dimension:'2026-10-07T21:00:00Z/2026-10-10T07:00:00Z/PT1H',layers:Object.fromEntries(Object.entries(D.layers).map(([key,l])=>[key,l.name]))};
+manifest.cached_times=D.expandTimes(manifest.time_dimension).slice(0,-1).map(t=>new Date(t).toISOString());
+manifest.images={};manifest.legends={};
+for(const kind of Object.keys(D.layers)){manifest.images[kind]={};manifest.legends[kind]='data/forecast-cache/20261007T21Z/'+kind+'-legend.webp';for(const t of manifest.cached_times)manifest.images[kind][t]='data/forecast-cache/20261007T21Z/'+kind+'-'+t.replace(/[-:]/g,'').slice(0,11)+'Z.webp';}
 test('source hourly intervals are expanded exactly and corrupt dimensions are rejected',()=>{
   assert.equal(D.expandTimes(manifest.time_dimension).length,59);assert.deepEqual(D.expandTimes('bad/bad/PT0H'),[]);assert.deepEqual(D.expandTimes('2026-10-07T21:00:00Z,2026-10-07T21:00:00Z'),[first]);
 });
@@ -15,8 +18,14 @@ test('a next-hour rain selection requests the source ending hour, unlike tempera
 test('all layers share available times that leave room for the next-hour rain period',()=>{
   const times=D.availableTimes(D.expandTimes(manifest.time_dimension),now);assert.equal(times.at(-1),Date.parse('2026-10-10T06:00:00Z'));assert(!times.includes(Date.parse('2026-10-10T07:00:00Z')));
 });
-test('requests use Web Mercator bounds, bounded viewport dimensions and actual Kelvin scales',()=>{
-  const url=new URL(D.mapUrl(manifest.endpoint,'temperature',first,[1,2,3,4],5000,5000));assert.equal(url.searchParams.get('srs'),'EPSG:3857');assert.equal(url.searchParams.get('width'),'1280');assert.equal(url.searchParams.get('height'),'960');assert.equal(url.searchParams.get('colorscalerange'),'253.15,303.15');assert.equal(new URL(D.legendUrl(manifest.endpoint,'temperature')).searchParams.get('palette'),'metnoredblue');assert.throws(()=>D.mapUrl('', 'rain',first,[4,2,1,3],800,600));
+test('shared image URLs stay on the website and reject external images',()=>{
+  assert.equal(D.assetUrl(manifest,'wind',first),'data/forecast-cache/20261007T21Z/wind-20261007T21Z.webp');
+  assert.equal(D.assetUrl(manifest,'rain'),'data/forecast-cache/20261007T21Z/rain-legend.webp');
+  const bad=structuredClone(manifest);bad.images.wind[new Date(first).toISOString()]='https://thredds.met.no/image.png';assert.throws(()=>D.assetUrl(bad,'wind',first));
+});
+test('timeline only exposes complete shared frames and does not discard the final cached hour',()=>{
+  assert.equal(D.cachedTimes(manifest,now).at(-1),Date.parse('2026-10-10T06:00:00Z'));
+  const missing=structuredClone(manifest);delete missing.images.clouds[new Date(first).toISOString()];assert(!D.cachedTimes(missing,now).includes(first));
 });
 const flush=()=>new Promise(r=>setImmediate(r));
 function harness(){
@@ -28,7 +37,7 @@ function harness(){
   }
   for(const id of ['forecastSection','forecastLocation','nav-forecastSection','forecastRetry'])ids[id]=new Element();ids.forecastSection.hidden=true;
   const body=new Element(),c={document:{body,hidden:false,createElement:()=>new Element(),addEventListener:(k,f)=>listeners[k]=f,dispatchEvent:e=>listeners[e.type]?.(e)},window:{},$:id=>ids[id],
-    ForecastMapData:{...D,availableTimes:raw=>D.availableTimes(raw,now)},Date:class extends Date{static now(){return now;}},URLSearchParams,AbortController,CustomEvent:class{constructor(type,o){this.type=type;this.detail=o.detail;}},console:{warn(){}},
+    ForecastMapData:{...D,cachedTimes:meta=>D.cachedTimes(meta,now)},Date:class extends Date{static now(){return now;}},URLSearchParams,AbortController,CustomEvent:class{constructor(type,o){this.type=type;this.detail=o.detail;}},console:{warn(){}},
     setTimeout:(f,n)=>{const id=++tid;timers.set(id,{f,n});return id;},clearTimeout:id=>timers.delete(id),setInterval(){},
     MutationObserver:class{constructor(f){observer=f;}observe(){}},fetch:async()=>({ok:true,json:async()=>manifest}),
     Image:class{constructor(){images.push(this);this.dataset={};}set src(v){this.url=v;}},
@@ -46,4 +55,10 @@ test('recent loaded frames are reused without creating another image request',as
 });
 test('closing Forecast prevents late maps from appearing and restores the normal view',async()=>{
   const h=harness();h.open();await h.run();h.close();await h.loaded(0);assert.equal(h.overlays.filter(l=>l.active).length,0);assert(!h.classes.has('forecast-model-view'));assert(h.ids.forecastMapLegend.hidden);
+});
+
+test('loaded map and legend only request shared website assets',async()=>{
+  const h=harness();h.open();await h.run();await h.loaded(0);
+  assert.match(h.images[0].url,/^data\/forecast-cache\//);assert.match(h.ids.forecastMapColorbar.src,/^data\/forecast-cache\//);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.overlays[0].bounds)),[[52,-11],[74,42]]);
 });
