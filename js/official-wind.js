@@ -159,8 +159,7 @@ function officialWindPopup(s,r){
     <div class="wind-popup-readings"><div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${value(r[1])}</div></div><div><div class="wind-popup-label">${htmlEscape(gustLabel)}</div><div class="wind-popup-speed">${value(r[2])}</div></div></div>
     ${direction}<div class="wind-popup-meta">${source.timeKind==='feed'?'Source feed timestamp':'Observed'}: ${htmlEscape(fmt(r[0]))}${old?' · delayed reading':''}</div>
     <div class="wind-popup-meta">${htmlEscape(source.period||'Reported station measurements.')} Updated every 10 minutes on this map.</div>
-    <button type="button" class="official-wind-history-toggle" data-wind-country="${htmlEscape(s.country)}" data-wind-code="${htmlEscape(s.code)}" data-wind-time="${r[0]}" aria-expanded="false" style="margin:9px 0 2px;width:100%;padding:7px 10px;border:1px solid rgba(126,220,255,.24);border-radius:9px;background:rgba(80,160,190,.10);color:#dff7ff;font:inherit;font-weight:650;cursor:pointer">Show 24 h history</button>
-    <div class="official-wind-history" hidden></div>
+    ${officialWindHistoryGraph(s,r[0])}
     <div class="wind-popup-meta" style="margin-top:7px"><a href="${OFFICIAL_WIND_SOURCE_LINKS[s.country]}" target="_blank" rel="noopener">${htmlEscape(source.name)}</a></div></div>`;
 }
 function renderOfficialWind(){
