@@ -1,0 +1,9 @@
+.cyclone-front-controls{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)}
+.cyclone-front-key{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:7px 0 5px;color:var(--muted,#aeb9c9);font-size:10px}
+.cyclone-front-key span{display:inline-flex;align-items:center;gap:6px}
+.cyclone-front-swatch{display:inline-block;width:24px;height:0;border-top:3px solid;border-radius:999px}
+.cyclone-front-swatch.cold{border-color:#51a9ff}.cyclone-front-swatch.warm{border-color:#ff6875}
+.front-symbol-marker{background:transparent!important;border:0!important;pointer-events:none!important}
+.front-symbol{display:block;width:18px;height:18px;transform-origin:50% 50%;filter:drop-shadow(0 1px 2px rgba(0,0,0,.65));pointer-events:none}
+.front-symbol svg{display:block;width:18px;height:18px}
+.front-symbol.cold{color:#51a9ff}.front-symbol.warm{color:#ff6875}
