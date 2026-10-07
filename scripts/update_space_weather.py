@@ -82,6 +82,10 @@ def timestamp_key(value) -> float:
         return float("-inf")
 
 
+def iso_utc(timestamp: float) -> str:
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
 def latest_record(rows, required_key: str | None = None):
     """Return the newest usable NOAA record regardless of feed sort order."""
     if not isinstance(rows, list):
@@ -102,14 +106,34 @@ def latest_record(rows, required_key: str | None = None):
     if not candidates:
         return None
 
-    # NOAA RTSW JSON is commonly newest-first, but do not rely on ordering.
-    # Select by the record timestamp so an API ordering change cannot silently
-    # turn a real-time metric into a day-old value again.
     return max(candidates, key=lambda row: timestamp_key(row.get("time_tag")))
 
 
-def parse_observed_kp(payload):
-    """Support both NOAA's current object format and its older header-row format."""
+def compact_numeric_history(rows, key: str, hours: int, bucket_seconds: int, digits: int):
+    """Downsample a real-time NOAA feed while preserving the newest point in each bucket."""
+    if not isinstance(rows, list):
+        return []
+    now = time.time()
+    cutoff = now - hours * 3600
+    buckets = {}
+    for row in rows:
+        if not isinstance(row, dict) or row.get("active") is False:
+            continue
+        value = as_float(row.get(key))
+        timestamp = timestamp_key(row.get("time_tag"))
+        if value is None or not math.isfinite(timestamp) or timestamp < cutoff or timestamp > now + 300:
+            continue
+        bucket = int(timestamp // bucket_seconds)
+        previous = buckets.get(bucket)
+        if previous is None or timestamp > previous[0]:
+            buckets[bucket] = (timestamp, value)
+    return [
+        [iso_utc(timestamp), round(value, digits)]
+        for timestamp, value in sorted(buckets.values(), key=lambda item: item[0])
+    ]
+
+
+def kp_records(payload):
     records = []
     if isinstance(payload, list) and payload:
         if isinstance(payload[0], dict):
@@ -119,19 +143,36 @@ def parse_observed_kp(payload):
             for row in payload[1:]:
                 if isinstance(row, list):
                     records.append(dict(zip(header, row)))
+    return records
+
+
+def parse_observed_kp(payload):
+    """Support both NOAA's current object format and its older header-row format."""
+    records = kp_records(payload)
     if not records:
-        return {"value": None, "time": None}
+        return {"value": None, "time": None, "history": []}
 
     usable = []
     for row in records:
         value = as_float(row.get("Kp", row.get("kp", row.get("kp_index"))))
-        if value is not None:
-            usable.append((timestamp_key(row.get("time_tag")), row, value))
+        timestamp = timestamp_key(row.get("time_tag"))
+        if value is not None and math.isfinite(timestamp):
+            usable.append((timestamp, row, value))
     if not usable:
-        return {"value": None, "time": None}
+        return {"value": None, "time": None, "history": []}
 
-    _, row, value = max(usable, key=lambda item: item[0])
-    return {"value": round(value, 2), "time": row.get("time_tag")}
+    latest_timestamp, latest_row, latest_value = max(usable, key=lambda item: item[0])
+    cutoff = time.time() - 72 * 3600
+    history = [
+        [iso_utc(timestamp), round(value, 2)]
+        for timestamp, _, value in sorted(usable, key=lambda item: item[0])
+        if timestamp >= cutoff
+    ]
+    return {
+        "value": round(latest_value, 2),
+        "time": latest_row.get("time_tag") or iso_utc(latest_timestamp),
+        "history": history,
+    }
 
 
 def power_time(value: str) -> str | None:
@@ -143,8 +184,9 @@ def power_time(value: str) -> str | None:
 
 
 def parse_hemi_power(text: str):
-    """Parse the newest NOAA OVATION northern/southern hemispheric power row."""
-    for line in reversed(text.splitlines()):
+    """Parse NOAA OVATION northern/southern hemispheric power plus recent history."""
+    rows = []
+    for line in text.splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
@@ -155,16 +197,29 @@ def parse_hemi_power(text: str):
         south = as_float(parts[3])
         observation = power_time(parts[0])
         forecast = power_time(parts[1])
-        if north is None or observation is None or forecast is None:
+        timestamp = timestamp_key(observation)
+        if north is None or observation is None or forecast is None or not math.isfinite(timestamp):
             continue
-        return {
-            "north": round(north, 1),
-            "south": round(south, 1) if south is not None else None,
-            "observationTime": observation,
-            "forecastTime": forecast,
-            "unit": "GW",
-        }
-    raise RuntimeError("NOAA hemispheric power file contained no usable rows")
+        rows.append((timestamp, north, south, observation, forecast))
+
+    if not rows:
+        raise RuntimeError("NOAA hemispheric power file contained no usable rows")
+
+    latest = max(rows, key=lambda item: item[0])
+    cutoff = time.time() - 24 * 3600
+    history = [
+        [observation, round(north, 1)]
+        for timestamp, north, _, observation, _ in sorted(rows, key=lambda item: item[0])
+        if timestamp >= cutoff
+    ]
+    return {
+        "north": round(latest[1], 1),
+        "south": round(latest[2], 1) if latest[2] is not None else None,
+        "observationTime": latest[3],
+        "forecastTime": latest[4],
+        "unit": "GW",
+        "history": history,
+    }
 
 
 def previous_power():
@@ -229,9 +284,6 @@ def main():
     try:
         hemispheric_power = parse_hemi_power(fetch_text(URLS["power"]))
     except RuntimeError as exc:
-        # Do not take down the entire Space Weather snapshot if this auxiliary
-        # product is briefly unavailable. Preserve the previous value so the UI
-        # can mark it stale rather than silently replacing it with fresh-looking data.
         hemispheric_power = previous_power()
         print(f"Warning: hemispheric power unavailable: {exc}")
 
@@ -256,6 +308,8 @@ def main():
             "bz": round(bz, 2) if bz is not None else None,
             "bt": round(bt, 2) if bt is not None else None,
             "magTime": mag.get("time_tag") if mag else None,
+            "speedHistory": compact_numeric_history(wind_raw, "proton_speed", 24, 5 * 60, 1),
+            "bzHistory": compact_numeric_history(mag_raw, "bz_gsm", 24, 5 * 60, 2),
             "source": (wind or mag or {}).get("source"),
         },
     }
@@ -268,11 +322,11 @@ def main():
     power = data.get("hemisphericPower") or {}
     print(
         "Space weather snapshot: "
-        f"Kp={data['kp']['value']} "
-        f"wind={data['solarWind']['speed']} km/s "
-        f"Bz={data['solarWind']['bz']} nT "
+        f"Kp={data['kp']['value']} ({len(data['kp'].get('history', []))} history) "
+        f"wind={data['solarWind']['speed']} km/s ({len(data['solarWind']['speedHistory'])} history) "
+        f"Bz={data['solarWind']['bz']} nT ({len(data['solarWind']['bzHistory'])} history) "
         f"aurora max={data['aurora']['max']}% "
-        f"north power={power.get('north')} GW"
+        f"north power={power.get('north')} GW ({len(power.get('history', []))} history)"
     )
     print(f"Wrote {OUTPUT} ({OUTPUT.stat().st_size / 1024:.1f} KiB)")
 
