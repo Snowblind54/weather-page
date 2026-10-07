@@ -1,0 +1,72 @@
+name: Fix official wind popup history
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-official-wind-popup-history.yml
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Stop popup click propagation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('js/official-wind.js')
+          t=p.read_text(encoding='utf-8')
+          old="""function bindOfficialWindHistory(popup,s,r){
+  const root=popup.getElement();if(!root)return;
+  const button=root.querySelector('.official-wind-history-toggle'),panel=root.querySelector('.official-wind-history');
+  if(!button||!panel||button.dataset.bound)return;button.dataset.bound='1';
+  button.addEventListener('click',()=>{
+    const open=button.getAttribute('aria-expanded')==='true';
+    button.setAttribute('aria-expanded',String(!open));button.textContent=open?'Show 24 h history':'Hide history';
+    panel.hidden=open;
+    if(!open&&!panel.dataset.rendered){panel.innerHTML=officialWindHistoryGraph(s,r[0]);panel.dataset.rendered='1';}
+    popup.update();
+  });
+}
+"""
+          new="""function bindOfficialWindHistory(popup,s,r){
+  const root=popup.getElement();if(!root)return;
+  // Keep taps/clicks inside the station popup from reaching the Leaflet map.
+  // On mobile a bubbled click otherwise closes the popup before history opens.
+  L.DomEvent.disableClickPropagation(root);
+  L.DomEvent.disableScrollPropagation(root);
+  const button=root.querySelector('.official-wind-history-toggle'),panel=root.querySelector('.official-wind-history');
+  if(!button||!panel||button.dataset.bound)return;button.dataset.bound='1';
+  button.addEventListener('click',event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    L.DomEvent.stopPropagation(event);
+    const open=button.getAttribute('aria-expanded')==='true';
+    button.setAttribute('aria-expanded',String(!open));button.textContent=open?'Show 24 h history':'Hide history';
+    panel.hidden=open;
+    if(!open&&!panel.dataset.rendered){panel.innerHTML=officialWindHistoryGraph(s,r[0]);panel.dataset.rendered='1';}
+    popup.update();
+  });
+}
+"""
+          assert old in t, 'history binding block not found'
+          p.write_text(t.replace(old,new,1),encoding='utf-8')
+
+          p=Path('index.html')
+          t=p.read_text(encoding='utf-8')
+          old='<script src="js/official-wind.js?v=8.74"></script>'
+          new='<script src="js/official-wind.js?v=8.75"></script>'
+          assert old in t, 'official wind cache tag not found'
+          p.write_text(t.replace(old,new,1),encoding='utf-8')
+          PY
+      - name: Validate popup history fix
+        run: |
+          node --check js/official-wind.js
+          grep -q 'L.DomEvent.disableClickPropagation(root)' js/official-wind.js
+          grep -q 'official-wind.js?v=8.75' index.html
+      - name: Publish fix
+        run: bash scripts/publish_generated_data.sh 'Keep official wind history popup open' js/official-wind.js index.html
