@@ -10,11 +10,11 @@
   const SPACE_REFRESH_MS=5*60*1000;
   const CLOUD_REFRESH_MS=30*60*1000;
   const STALE={
-    power:20*60,
-    ovation:20*60,
+    power:30*60,
     wind:15*60,
     bz:15*60,
-    kp:4*60*60,
+    kp:7*60*60,
+    ovationForecastGrace:20*60,
     cloud:9*60*60
   };
 
@@ -39,28 +39,33 @@
     return new Intl.DateTimeFormat(undefined,{hour:'2-digit',minute:'2-digit',hour12:false,timeZoneName:'short'}).format(new Date(unix*1000));
   }
 
-  function ageInfo(value,staleAfter){
+  function ageText(value){
     const unix=unixTime(value);
-    if(!unix)return {text:'Update time unavailable',stale:true};
+    if(!unix)return null;
     const seconds=Math.max(0,Date.now()/1000-unix);
-    let age;
-    if(seconds<90)age='just now';
-    else if(seconds<3600)age=Math.floor(seconds/60)+' min ago';
-    else if(seconds<86400){
+    if(seconds<90)return 'just now';
+    if(seconds<3600)return Math.floor(seconds/60)+' min ago';
+    if(seconds<86400){
       const hours=seconds/3600;
-      age=(hours<10?hours.toFixed(1):Math.floor(hours))+' h ago';
-    }else age=Math.floor(seconds/86400)+' d ago';
-    const stale=seconds>staleAfter;
-    return {text:(stale?'Stale · updated ':'Updated ')+age,stale};
+      return (hours<10?hours.toFixed(1):Math.floor(hours))+' h ago';
+    }
+    return Math.floor(seconds/86400)+' d ago';
   }
 
-  function setAge(id,value,staleAfter){
+  function isStale(value,staleAfter){
+    const unix=unixTime(value);
+    if(!unix)return true;
+    return Date.now()/1000-unix>staleAfter;
+  }
+
+  function setAge(id,value,staleAfter,staleReference=value,referenceGrace=staleAfter){
     const el=$(id);if(!el)return;
-    const age=ageInfo(value,staleAfter);
-    el.textContent=age.text;
-    el.classList.toggle('stale',age.stale);
+    const age=ageText(value);
+    const stale=isStale(staleReference,referenceGrace);
+    el.textContent=age?(stale?'Stale · updated ':'Updated ')+age:'Update time unavailable';
+    el.classList.toggle('stale',stale);
     const metric=el.closest('.space-metric');
-    if(metric)metric.classList.toggle('stale',age.stale);
+    if(metric)metric.classList.toggle('stale',stale);
   }
 
   function powerLabel(value){
@@ -86,7 +91,16 @@
     setAge('spaceKpAge',spaceData.kp?.time,STALE.kp);
     setAge('spaceWindAge',spaceData.solarWind?.speedTime,STALE.wind);
     setAge('spaceBzAge',spaceData.solarWind?.magTime,STALE.bz);
-    setAge('spaceOvationAge',spaceData.aurora?.observationTime,STALE.ovation);
+    // OVATION's input observation can legitimately be tens of minutes old while
+    // its forecast is still current. Show the input age, but only flag stale
+    // after the forecast valid time itself has expired beyond a grace period.
+    setAge(
+      'spaceOvationAge',
+      spaceData.aurora?.observationTime,
+      STALE.ovationForecastGrace,
+      spaceData.aurora?.forecastTime,
+      STALE.ovationForecastGrace
+    );
   }
 
   function updateCloudDashboard(){
