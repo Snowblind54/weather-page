@@ -7,7 +7,7 @@
 
   const SNAPSHOT_URL='data/space-weather.json';
   const CLOUD_URL='data/aurora-cloud.json';
-  const SPACE_REFRESH_MS=5*60*1000;
+  const SPACE_REFRESH_MS=2*60*1000;
   const CLOUD_REFRESH_MS=30*60*1000;
   const STALE={
     power:30*60,
@@ -273,7 +273,9 @@
   }
 
   function toggleHistory(metric){
-    ensureHistoryDrawers();
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshVisible(true);});
+
+  ensureHistoryDrawers();
     const card=document.querySelector(`.space-metric[data-history-metric="${metric}"]`);
     const drawer=drawerForMetric(metric);if(!card||!drawer)return;
     const opening=openHistoryMetric!==metric||drawer.hidden;

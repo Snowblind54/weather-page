@@ -268,20 +268,6 @@ if('requestIdleCallback' in window){
 }else{
   setTimeout(startTemperaturePrefetch,6000);
 }
-setInterval(()=>{if(!playing && Number($('timeline').value)===Number($('timeline').max))loadOfficialRadarList().catch(()=>{});},5*60*1000);
-setInterval(()=>{
-  if(temperatureEnabled()) loadTemperatures(false).catch(()=>{});
-},10*60*1000);
-
-setInterval(()=>{
-  if($('warningOn').checked) loadWarnings(true).catch(()=>{});
-},15*60*1000);
-
-setInterval(()=>{
-  if($('windOn').checked) loadWind().catch(reportWindError);
-},5*60*1000);
-
-
 // Compact hover/focus help for every checkbox toggle. The longer explanatory
 // copy lives here instead of permanently taking space below the controls.
 const TOGGLE_HELP={

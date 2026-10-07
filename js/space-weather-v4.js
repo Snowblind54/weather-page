@@ -4,7 +4,7 @@
 
   const SNAPSHOT_URL='data/space-weather.json';
   const CLOUD_URL='data/aurora-cloud.json';
-  const REFRESH_MS=5*60*1000;
+  const REFRESH_MS=2*60*1000;
   const CLOUD_REFRESH_MS=30*60*1000;
   const SAMPLE_STEP=4;
   const AURORA_FLOOR=3;
@@ -458,14 +458,17 @@
   fetchSpaceWeather().catch(error=>setStatus('Space weather snapshot is not available yet: '+error.message,'warn'));
 
   setInterval(()=>{
-    if($('auroraOn')?.checked||$('auroraViewingOn')?.checked||!document.hidden){
+    if(!document.hidden){
       fetchSpaceWeather(true).catch(()=>{});
     }
   },REFRESH_MS);
 
   setInterval(()=>{
-    if($('auroraViewingOn')?.checked||!document.hidden){
+    if(!document.hidden){
       fetchCloud(true).catch(()=>{});
     }
   },CLOUD_REFRESH_MS);
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden){fetchSpaceWeather(true).catch(()=>{});if($('auroraViewingOn')?.checked)fetchCloud().catch(()=>{});}
+  });
 })();

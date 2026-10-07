@@ -1,3 +1,18 @@
+function replaceWeatherFrames(next,options={}){
+  if(options.automatic && playing)return false;
+  const selected=frames[Number($('timeline').value)]?.time;
+  const latest=!frames.length || Number($('timeline').value)===Number($('timeline').max);
+  radarTimelineFrames=next;frames=next;
+  $('timeline').min=0;$('timeline').max=frames.length-1;$('timeline').value=frames.length-1;
+  updateWeatherTimeline();
+  if(options.preserveSelection && !latest && selected!=null){
+    let index=0;
+    frames.forEach((f,i)=>{if(f.time<=selected)index=i;});
+    $('timeline').value=index;
+  }
+  return true;
+}
+
 // Keep every radar observation internally, but the shared 2-hour weather
 // timeline always exposes 10-minute steps for every layer.
 let radarTimelineFrames=[];
@@ -232,7 +247,7 @@ async function applyFrame(options={}){
   if(!options.awaitRadar) await Promise.all([balticTask,nordicTask]);
 }
 
-async function loadKaiaRadarList(){
+async function loadKaiaRadarList(options={}){
   $('radarStatus').textContent='Radar: requesting official KAIA frame list…';
   $('radarStatus').className='status';
 
@@ -276,29 +291,24 @@ async function loadKaiaRadarList(){
 
   if(!fs.length) throw new Error('KAIA returned no composite frames');
 
-  radarTimelineFrames=fs.slice(-25);
-  frames=radarTimelineFrames;
-  $('timeline').min=0;
-  $('timeline').max=frames.length-1;
-  $('timeline').value=frames.length-1;
-  updateWeatherTimeline();
+  if(!replaceWeatherFrames(fs.slice(-25),options))return;
 
   $('radarStatus').textContent=`Radar: ${frames.length} official Estonian frames · 10-minute timeline.`;
   $('radarStatus').className='status ok';
-  await applyFrame();
+  await applyFrame({skipCloud:!!options.skipCloud});
   if($('cloudOn').checked) scheduleCloudPrecache();
 }
 
 // The shared weather clock still works when Estonia's API is unavailable.
-async function loadOfficialRadarList(){
-  try{return await loadKaiaRadarList();}
+async function loadOfficialRadarList(options={}){
+  try{return await loadKaiaRadarList(options);}
   catch(error){
     console.warn('KAIA timeline unavailable; keeping other national radars operational',error);
     const end=Math.floor(Date.now()/1000/600)*600-600;
-    radarTimelineFrames=Array.from({length:13},(_,i)=>({id:'clock-'+(end-(12-i)*600),time:end-(12-i)*600,url:null}));
-    frames=radarTimelineFrames;$('timeline').min=0;$('timeline').max=12;$('timeline').value=12;updateWeatherTimeline();
+    const next=Array.from({length:13},(_,i)=>({id:'clock-'+(end-(12-i)*600),time:end-(12-i)*600,url:null}));
+    if(!replaceWeatherFrames(next,options))return;
     $('radarStatus').textContent='EE radar unavailable · other national radar feeds remain independent.';
-    $('radarStatus').className='status warn';await applyFrame();
+    $('radarStatus').className='status warn';await applyFrame({skipCloud:!!options.skipCloud});
   }
 }
 
