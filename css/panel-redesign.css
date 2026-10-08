@@ -1,0 +1,257 @@
+/* Modern right-side weather control panels. Loaded by ui.js so the existing map logic and control IDs stay untouched. */
+:root{
+  --drawer-bg:rgba(9,20,31,.965);
+  --drawer-card:rgba(255,255,255,.045);
+  --drawer-card-hover:rgba(255,255,255,.065);
+  --drawer-line:rgba(174,207,224,.13);
+  --drawer-soft:#93a9b7;
+  --drawer-bright:#f3f8fa;
+  --drawer-accent:#6fe0c5;
+  --drawer-blue:#4ca8ff;
+}
+
+.weather-panel.modern-weather-panel{
+  top:96px;
+  right:16px!important;
+  left:auto!important;
+  width:min(430px,calc(100vw - 32px));
+  max-height:calc(100dvh - 216px);
+  padding:0;
+  overflow:hidden;
+  border:1px solid rgba(183,214,231,.18);
+  border-radius:22px;
+  background:linear-gradient(180deg,rgba(14,30,43,.975),var(--drawer-bg));
+  box-shadow:0 24px 70px rgba(0,7,15,.46),0 2px 10px rgba(0,0,0,.22);
+  backdrop-filter:blur(22px) saturate(1.15);
+  animation:weather-drawer-in .24s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes weather-drawer-in{
+  from{opacity:0;transform:translateX(34px)}
+  to{opacity:1;transform:translateX(0)}
+}
+.weather-panel.modern-weather-panel>.panel-heading{
+  position:sticky;
+  top:0;
+  z-index:5;
+  margin:0;
+  padding:22px 22px 18px;
+  border-bottom:1px solid var(--drawer-line);
+  background:linear-gradient(180deg,rgba(14,30,43,.99),rgba(12,26,38,.96));
+  backdrop-filter:blur(22px);
+}
+.weather-panel.modern-weather-panel>.panel-heading .eyebrow{
+  margin-bottom:6px;
+  color:var(--drawer-accent);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:1.75px;
+}
+.weather-panel.modern-weather-panel>.panel-heading h2{
+  color:var(--drawer-bright);
+  font-size:27px;
+  font-weight:720;
+  letter-spacing:-.75px;
+}
+.weather-panel.modern-weather-panel>.panel-heading p{
+  margin-top:6px;
+  color:var(--drawer-soft);
+  font-size:12px;
+}
+.weather-panel.modern-weather-panel>.panel-heading~*{
+  margin-left:16px;
+  margin-right:16px;
+}
+.weather-panel.modern-weather-panel>.panel-heading~*:last-child{margin-bottom:16px}
+.weather-panel.modern-weather-panel{overflow-y:auto;scrollbar-width:thin;scrollbar-color:#496275 transparent}
+.weather-panel.modern-weather-panel::-webkit-scrollbar{width:8px}
+.weather-panel.modern-weather-panel::-webkit-scrollbar-thumb{background:#496275;border-radius:20px;border:2px solid transparent;background-clip:padding-box}
+
+.modern-weather-panel .panel-actions button{
+  width:34px;height:34px;min-width:34px;
+  border-color:rgba(255,255,255,.1);
+  background:rgba(255,255,255,.035);
+}
+.modern-weather-panel .panel-actions button:hover{background:rgba(255,255,255,.09)}
+
+.modern-weather-panel>.source-card{
+  margin-top:16px!important;
+  margin-bottom:12px!important;
+  border-color:rgba(111,224,197,.22);
+  border-radius:15px;
+  background:rgba(111,224,197,.055);
+}
+
+.modern-weather-panel>.row,
+.modern-weather-panel>.details,
+.modern-weather-panel>.section,
+.modern-weather-panel>.accumulation-controls,
+.modern-weather-panel>.snow-history-controls,
+.modern-weather-panel>.cyclone-list,
+.modern-weather-panel>.warning-list{
+  border:1px solid var(--drawer-line)!important;
+  border-radius:15px;
+  background:var(--drawer-card);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+.modern-weather-panel>.row{
+  min-height:58px;
+  margin-top:14px!important;
+  margin-bottom:10px!important;
+  padding:13px 14px;
+}
+.modern-weather-panel>.details{
+  display:block!important;
+  margin-top:10px!important;
+  margin-bottom:10px!important;
+  padding:14px!important;
+}
+.modern-weather-panel>.section,
+.modern-weather-panel>.accumulation-controls,
+.modern-weather-panel>.snow-history-controls{
+  margin-top:10px!important;
+  padding:14px!important;
+}
+.modern-weather-panel>.section{border-top:1px solid var(--drawer-line)!important}
+.modern-weather-panel .panel-card-title{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0 0 12px;
+  color:#dce8ee;
+  font-size:11px;
+  font-weight:760;
+  letter-spacing:.35px;
+  text-transform:uppercase;
+}
+.modern-weather-panel .panel-card-title::before{
+  content:"";
+  width:6px;height:6px;border-radius:50%;background:var(--drawer-accent);box-shadow:0 0 0 4px rgba(111,224,197,.08)
+}
+.modern-weather-panel>.details>.panel-card-title:first-child,
+.modern-weather-panel>.section>.panel-card-title:first-child{margin-top:0}
+
+.modern-weather-panel .row{gap:12px}
+.modern-weather-panel .label{color:#e9f2f6;font-size:12.5px;font-weight:650}
+.modern-weather-panel .small{color:var(--drawer-soft)}
+.modern-weather-panel .badge{
+  border:0;
+  background:rgba(255,255,255,.055);
+  color:#9db1bd;
+  padding:4px 7px;
+  font-size:8.5px;
+}
+
+/* Switch-style checkboxes, while keeping the native input and all existing listeners. */
+.modern-weather-panel label:has(>input[type=checkbox]){gap:10px}
+.modern-weather-panel label>input[type=checkbox]{
+  appearance:none;
+  -webkit-appearance:none;
+  width:34px!important;height:20px!important;
+  min-width:34px;
+  margin:0;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  background:rgba(255,255,255,.09);
+  position:relative;
+  cursor:pointer;
+  transition:background .18s,border-color .18s;
+}
+.modern-weather-panel label>input[type=checkbox]::after{
+  content:"";
+  position:absolute;
+  top:2px;left:2px;
+  width:14px;height:14px;
+  border-radius:50%;
+  background:#d5e0e6;
+  box-shadow:0 1px 4px rgba(0,0,0,.45);
+  transition:transform .18s,background .18s;
+}
+.modern-weather-panel label>input[type=checkbox]:checked{
+  border-color:rgba(111,224,197,.72);
+  background:rgba(111,224,197,.72);
+}
+.modern-weather-panel label>input[type=checkbox]:checked::after{transform:translateX(14px);background:#08231e}
+.modern-weather-panel label>input[type=checkbox]:focus-visible{outline:2px solid var(--drawer-accent);outline-offset:3px}
+
+.modern-weather-panel select{
+  min-height:40px;
+  margin:7px 0 14px;
+  border-color:var(--drawer-line);
+  background:rgba(4,13,21,.45);
+}
+.modern-weather-panel input[type=range]{accent-color:var(--drawer-accent)}
+.modern-weather-panel .grid2{grid-template-columns:1fr 54px}
+.modern-weather-panel .value{color:#dce7ec;font-variant-numeric:tabular-nums}
+.modern-weather-panel .legend,
+.modern-weather-panel .wind-gradient,
+.modern-weather-panel .rain-legend{height:9px;box-shadow:0 0 0 1px rgba(255,255,255,.055)}
+
+/* Wind's two-state field selector becomes a segmented control. The real select remains authoritative. */
+.modern-weather-panel .segmented-control{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:3px;
+  margin:7px 0 14px;
+  padding:3px;
+  border:1px solid var(--drawer-line);
+  border-radius:12px;
+  background:rgba(2,10,17,.38);
+}
+.modern-weather-panel .segmented-control button{
+  min-height:36px;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:#b9c9d2;
+  font-size:11.5px;
+}
+.modern-weather-panel .segmented-control button.selected{
+  color:#05221b;
+  background:linear-gradient(180deg,#7ee8cf,#67d8be);
+  box-shadow:0 4px 12px rgba(0,0,0,.2);
+}
+.modern-weather-panel .segmented-source{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important}
+
+.modern-weather-panel .status{
+  color:#9fb2bd;
+  border-top-color:var(--drawer-line);
+  font-size:10.5px;
+}
+.modern-weather-panel .status.ok{color:#9fe0ba}
+.modern-weather-panel .status.warn{color:#f5ca78}
+.modern-weather-panel .status.bad{color:#ff9d9d}
+.modern-weather-panel .official-wind-controls>.label:first-of-type{font-size:11px;text-transform:uppercase;letter-spacing:.35px;color:#dce8ee}
+.modern-weather-panel .warning-list{padding:10px!important;max-height:300px}
+.modern-weather-panel .warning-card{border-radius:11px}
+
+/* Make the currently open top category read more clearly without moving the top navigation. */
+.category-tab[aria-expanded=true]{
+  background:linear-gradient(180deg,rgba(111,224,197,.14),rgba(111,224,197,.07));
+  border-color:rgba(111,224,197,.28);
+  color:#f4fbfa;
+}
+.category-tab[aria-expanded=true] svg{color:var(--drawer-accent)}
+
+@media(max-width:760px){
+  .weather-panel.modern-weather-panel{
+    top:132px;
+    right:10px!important;
+    width:calc(100vw - 20px);
+    max-width:none;
+    max-height:calc(100dvh - 330px);
+    border-radius:19px;
+    animation:weather-drawer-in-mobile .22s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes weather-drawer-in-mobile{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
+  .weather-panel.modern-weather-panel>.panel-heading{padding:18px 18px 15px}
+  .weather-panel.modern-weather-panel>.panel-heading~*{margin-left:12px;margin-right:12px}
+  .weather-panel.modern-weather-panel>.panel-heading h2{font-size:24px}
+}
+@media(max-height:650px) and (min-width:761px){
+  .weather-panel.modern-weather-panel{max-height:calc(100dvh - 132px)}
+}
+@media(prefers-reduced-motion:reduce){
+  .weather-panel.modern-weather-panel{animation:none}
+  .modern-weather-panel label>input[type=checkbox],
+  .modern-weather-panel label>input[type=checkbox]::after{transition:none}
+}
