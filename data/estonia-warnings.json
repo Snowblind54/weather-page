@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-08T06:56:35.730315+00:00",
+  "fetchedAt": "2026-10-08T07:23:02.308746+00:00",
   "forecastDays": [
     "2026-10-08",
     "2026-10-09",
@@ -40,19 +40,6 @@
       "regionId": "79",
       "country": "Estonia",
       "area": "Tartu maakond",
-      "event": "Fog",
-      "level": 1,
-      "effective": "2026-10-07T19:00:00+00:00",
-      "expires": "2026-10-08T08:00:00+00:00",
-      "description": "Fog!",
-      "descriptionEstonian": "Udu!",
-      "preAlert": false
-    },
-    {
-      "id": "5257",
-      "regionId": "84",
-      "country": "Estonia",
-      "area": "Viljandi maakond",
       "event": "Fog",
       "level": 1,
       "effective": "2026-10-07T19:00:00+00:00",
