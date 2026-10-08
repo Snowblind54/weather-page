@@ -1,7 +1,7 @@
 // Measured station labels load independently of the modeled particle animation.
 const OFFICIAL_WIND_CHECK_MS=5*60*1000,OFFICIAL_WIND_MAX_AGE=3*3600;
-const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL'];
-const OFFICIAL_WIND_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland'};
+const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL','CA','GL'];
+const OFFICIAL_WIND_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland',CA:'Canada',GL:'Greenland'};
 const OFFICIAL_WIND_GUST_LABELS={
   EE:'Gust max · latest feed period',
   FI:'Gust max · 10 min',
@@ -11,6 +11,8 @@ const OFFICIAL_WIND_GUST_LABELS={
   LV:'Gust max · observation period',
   LT:'Gust max · 1 hour',
   DK:'Max 3-sec mean · 10 min',
+  GL:'Max 3-sec mean · 10 min',
+  CA:'Instantaneous wind max · 10 min',
   PL:'Gust max · 10 min'
 };
 const OFFICIAL_WIND_SOURCE_LINKS={
@@ -22,6 +24,8 @@ const OFFICIAL_WIND_SOURCE_LINKS={
   LV:'https://data.gov.lv/dati/lv/dataset/hidrometeorologiskie-noverojumi',
   LT:'https://api.meteo.lt/',
   PL:'https://danepubliczne.imgw.pl/',
+  CA:'https://eccc-msc.github.io/open-data/msc-data/obs_station/readme_obs_insitu_en/',
+  GL:'https://www.dmi.dk/friedata/',
   DK:'https://www.dmi.dk/friedata/'
 };
 let officialWindData=null,officialWindPromise=null,officialWindLoadedAt=0,officialWindRetryAt=0,officialWindFailed=false;
@@ -64,7 +68,8 @@ function validateOfficialWind(data){
   if(data?.version!==1||data.units!=='m/s'||data.refreshMinutes!==10||!Number.isInteger(data.generatedAt)||data.generatedAt>now+300||!Array.isArray(data.stations)||data.stations.length>2500)throw new Error('Invalid official wind snapshot');
   const ids=new Set();
   for(const s of data.stations){
-    if(!OFFICIAL_WIND_COUNTRIES.includes(s.country)||!data.sources?.[s.country]||typeof s.code!=='string'||!s.code||typeof s.name!=='string'||!Number.isFinite(s.lat)||s.lat<48.5||s.lat>72.5||!Number.isFinite(s.lon)||s.lon<-26||s.lon>33||!Array.isArray(s.rows)||s.rows.length>200)throw new Error('Invalid official wind station');
+    const [south,north,west,east]=({CA:[41,84,-142,-52],GL:[59,84,-74,-10]})[s.country]||[48.5,72.5,-26,33];
+    if(!OFFICIAL_WIND_COUNTRIES.includes(s.country)||!data.sources?.[s.country]||typeof s.code!=='string'||!s.code||typeof s.name!=='string'||!Number.isFinite(s.lat)||s.lat<south||s.lat>north||!Number.isFinite(s.lon)||s.lon<west||s.lon>east||!Array.isArray(s.rows)||s.rows.length>200)throw new Error('Invalid official wind station');
     const id=s.country+'/'+s.code;if(ids.has(id))throw new Error('Duplicate official wind station');ids.add(id);
     s.rows.forEach((r,i)=>{
       if(!Array.isArray(r)||r.length!==4||!Number.isInteger(r[0])||r[0]>data.generatedAt+60||(i&&r[0]<=s.rows[i-1][0])||

@@ -102,12 +102,12 @@
   if(baseOfficialWindNeeded){officialWindNeeded=function(){return baseOfficialWindNeeded()||windChillMode();};}
 
   async function ensureWindChillInputs(force=false){
-    const tasks=[ensureModelWind(force)];
+    const tasks=[ensureModelWind(force),loadAmericasTemperatureData(force||!TEMP_GRID_SPECS.filter(s=>s.shared).every(s=>temperatureGridData.get(s.id)?.some(p=>p.wind)))];
     if(typeof loadOfficialWind==='function')tasks.push(loadOfficialWind(force));
     const results=await Promise.allSettled(tasks);
     // Model wind is mandatory for the continuous field. Official wind is an
     // enhancement for labels and may fail without disabling wind chill.
-    if(results[0]?.status==='rejected')throw results[0].reason;
+    if(results[0]?.status==='rejected'&&!TEMP_GRID_SPECS.filter(s=>s.shared).some(s=>temperatureGridData.get(s.id)?.some(p=>p.wind)))throw results[0].reason;
     return results;
   }
 
@@ -121,7 +121,32 @@
     return windTimeSlice(edge);
   }
 
+  const americasWindSlices=new Map();
+  function sharedWindSpeedAt(lat,lon,unix){
+    const spec=TEMP_GRID_SPECS.find(s=>s.shared&&axisBracket(s.latitudes,lat)&&axisBracket(s.longitudes,lon));
+    if(!spec)return null;
+    const series=temperatureGridData.get(spec.id);
+    if(!series?.length||!series[0].wind)return NaN;
+    let cached=americasWindSlices.get(spec.id);
+    if(!cached||cached.time!==unix||cached.series!==series){
+      const components=[[],[]];
+      for(const p of series){
+        let vector=null;
+        if(p.wind&&unix>=p.times[0]&&unix<=p.times.at(-1)){
+          const bracket=axisBracket(p.times,unix);
+          const a=p.wind[bracket.i0],b=p.wind[bracket.i1];
+          vector=[0,1].map(k=>Number.isFinite(a[k])&&Number.isFinite(b[k])?a[k]+(b[k]-a[k])*bracket.f:NaN);
+        }
+        components[0].push(vector?.[0]??NaN);components[1].push(vector?.[1]??NaN);
+      }
+      cached={time:unix,series,components};americasWindSlices.set(spec.id,cached);
+    }
+    const latB=axisBracket(spec.latitudes,lat),lonB=axisBracket(spec.longitudes,lon);
+    return Math.hypot(...cached.components.map(values=>bilinearValue(values,spec.longitudes.length,latB,lonB)));
+  }
   function modelWindSpeedAt(lat,lon,unix){
+    const shared=sharedWindSpeedAt(lat,lon,unix);
+    if(shared!==null)return shared;
     if(!windData)return NaN;
     const vector=windAt(lat,lon,modelWindSlice(unix));
     return vector?Math.hypot(vector[0],vector[1]):NaN;
@@ -161,7 +186,7 @@
     for(const region of TEMP_REGIONS){
       const spec=TEMP_GRID_SPECS.find(item=>item.id===region.id),sourceSeries=temperatureGridData.get(region.id);
       if(!spec||!sourceSeries?.length)continue;
-      const tempValues=sourceSeries.map(item=>sampleTemperatureAt(item,cacheTime));
+      const tempValues=sourceSeries.map(item=>sampleTemperatureGridPoint(spec,item,cacheTime));
       const cols=spec.longitudes.length,W=region.w,H=region.h;
       const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
       const ctx=canvas.getContext('2d',{alpha:true}),img=ctx.createImageData(W,H),d=img.data;
@@ -295,7 +320,7 @@
         $('tempStatus').className='status';
 
         try{
-          await ensureTemperatureData(false);
+          await loadTemperatures(false);
           if(windChillMode())await ensureWindChillInputs(false);
           queueTemperatureRender(frame.time,0);
         }catch(error){

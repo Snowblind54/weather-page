@@ -90,7 +90,7 @@ function validateAmericasTemperatureSnapshot(data){
       grid.series.every((item,i)=>item?.lat===spec.points[i][0] && item.lon===spec.points[i][1] &&
         Array.isArray(item.times) && item.times.length>=2 && item.times.every((t,j)=>Number.isFinite(t)&&(!j||t>item.times[j-1])) &&
         Array.isArray(item.temps) && item.temps.length===item.times.length &&
-        item.temps.every(t=>t===null||(Number.isFinite(t)&&t>-90&&t<60)) && item.temps.some(Number.isFinite));
+        item.temps.every(t=>t===null||(Number.isFinite(t)&&t>-90&&t<60)) && item.temps.some(Number.isFinite) && (!item.wind || (Array.isArray(item.wind)&&item.wind.length===item.times.length&&item.wind.every(r=>Array.isArray(r)&&r.length===3&&r.every((v,k)=>v===null||(Number.isFinite(v)&&Math.abs(v)<=100&&(k<2||v>=0)))))));
   });
 }
 

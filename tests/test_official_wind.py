@@ -121,3 +121,23 @@ class OfficialWind(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class AmericasWindTests(unittest.TestCase):
+    def test_canadian_units_quality_and_missing_gust(self):
+        from official_wind_americas import parse_canada
+        props={'msc_id-value':'CAN001','obs_date_tm':'2026-10-08T10:00:00Z',
+               'avg_wnd_spd_10m_pst10mts':36,'avg_wnd_spd_10m_pst10mts-qa':100,'avg_wnd_spd_10m_pst10mts-uom':'km/h',
+               'max_wnd_spd_10m_pst10mts':72,'max_wnd_spd_10m_pst10mts-qa':100,'max_wnd_spd_10m_pst10mts-uom':'km/h'}
+        feature={'properties':props,'geometry':{'coordinates':[-123,49]}}
+        rows=parse_canada([feature],{'CAN001':{'name':'Vancouver'}})[0]['rows']
+        self.assertEqual(rows[0][1:],[10,20,None])
+        props['max_wnd_spd_10m_pst10mts-qa']=10
+        self.assertIsNone(parse_canada([feature],{'CAN001':{}})[0]['rows'][0][2])
+        props['avg_wnd_spd_10m_pst10mts']=0
+        self.assertEqual(parse_canada([feature],{'CAN001':{}})[0]['rows'][0][1],0)
+        self.assertEqual(parse_canada([feature],{}),[])
+
+    def test_country_bounds_do_not_expand_europe(self):
+        w.station('GL','x','Nuuk',64,-51,[(100,5,None,90)])
+        w.station('CA','x','Canada',49,-123,[(100,5,None,90)])
+        with self.assertRaises(ValueError):w.station('EE','x','Wrong',49,-123,[(100,5,None,90)])

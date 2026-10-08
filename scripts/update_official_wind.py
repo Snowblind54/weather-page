@@ -23,6 +23,8 @@ LATVIA_DATASTORE = 'https://data.gov.lv/dati/api/3/action/datastore_search?'
 LATVIA_OBS_RESOURCE = '17460efb-ae99-4d1d-8144-1068f184b05f'
 LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
+    'CA': dict(name='Environment and Climate Change Canada / MSC',url='https://eccc-msc.github.io/open-data/msc-data/obs_station/readme_obs_insitu_en/',timeKind='observation',period='Quality-checked 10-minute mean wind and measured instantaneous wind maximum over 10 minutes; missing maxima remain unavailable.'),
+    'GL': dict(name='Danish Meteorological Institute (DMI)',url='https://www.dmi.dk/friedata/',timeKind='observation',period='10-minute mean wind and highest 3-second mean wind in the latest 10 minutes.'),
     'EE': dict(name='Estonian Environment Agency / Keskkonnaagentuur', url='https://www.ilmateenistus.ee/',
                timeKind='feed', period='Latest reported mean wind and gust; feed updates every 10 minutes.'),
     'FI': dict(name='Finnish Meteorological Institute (FMI)', url='https://en.ilmatieteenlaitos.fi/open-data',
@@ -96,7 +98,8 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    if not (48.5 <= lat <= 72.5 and -26 <= lon <= 33):
+    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10)}.get(country,(48.5,72.5,-26,33))
+    if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
     for stamp, speed, gust, direction in rows:
@@ -309,12 +312,15 @@ def parse_poland(payload):
     return result
 
 
-def parse_denmark(payloads, metadata):
+def parse_denmark(payloads, metadata, country='DK', provider_country='DNK', now=None):
     stations = {}
     for feature in metadata.get('features') or []:
         props = feature.get('properties') or {}
         coords = (feature.get('geometry') or {}).get('coordinates') or []
-        if props.get('owner') == 'DMI' and props.get('country') == 'DNK' and len(coords) >= 2:
+        if props.get('owner') == 'DMI' and props.get('country') == provider_country and len(coords) >= 2:
+            if now is not None:
+                end = props.get('validTo'); start = props.get('validFrom')
+                if (end and timestamp(end)<=int(now.timestamp())) or (start and timestamp(start)>int(now.timestamp())):continue
             stations[str(props.get('stationId'))] = (props.get('name') or props.get('stationId'), coords[1], coords[0])
     grouped = {}
     indexes = {'wind_speed': 1, 'wind_max': 2, 'wind_dir': 3}
@@ -332,7 +338,7 @@ def parse_denmark(payloads, metadata):
     for code, rows in grouped.items():
         name, lat, lon = stations[code]
         if any(number(r[1]) is not None or number(r[2]) is not None for r in rows.values()):
-            result.append(station('DK', code, name, lat, lon, rows.values()))
+            result.append(station(country, code, name, lat, lon, rows.values()))
     return result
 
 
@@ -450,6 +456,7 @@ def merge(previous, current, now):
 
 
 def main():
+    from official_wind_americas import load_canada, load_greenland
     now = dt.datetime.now(dt.timezone.utc)
     try:
         previous = json.loads(OUTPUT.read_text())
@@ -459,7 +466,7 @@ def main():
     results, sources = [], {}
     loaders = [('EE', load_estonia), ('FI', load_finland), ('SE', load_sweden), ('NO', load_norway),
                ('IS', load_iceland), ('LV', load_latvia), ('LT', load_lithuania), ('PL', load_poland),
-               ('DK', load_denmark)]
+               ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland)]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):
