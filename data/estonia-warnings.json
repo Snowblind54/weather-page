@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-08T07:23:02.308746+00:00",
+  "fetchedAt": "2026-10-08T07:51:01.567315+00:00",
   "forecastDays": [
     "2026-10-08",
     "2026-10-09",
@@ -9,45 +9,6 @@
     "2026-10-11"
   ],
   "records": [
-    {
-      "id": "5257",
-      "regionId": "50",
-      "country": "Estonia",
-      "area": "Jõgeva maakond",
-      "event": "Fog",
-      "level": 1,
-      "effective": "2026-10-07T19:00:00+00:00",
-      "expires": "2026-10-08T08:00:00+00:00",
-      "description": "Fog!",
-      "descriptionEstonian": "Udu!",
-      "preAlert": false
-    },
-    {
-      "id": "5257",
-      "regionId": "52",
-      "country": "Estonia",
-      "area": "Järva maakond",
-      "event": "Fog",
-      "level": 1,
-      "effective": "2026-10-07T19:00:00+00:00",
-      "expires": "2026-10-08T08:00:00+00:00",
-      "description": "Fog!",
-      "descriptionEstonian": "Udu!",
-      "preAlert": false
-    },
-    {
-      "id": "5257",
-      "regionId": "79",
-      "country": "Estonia",
-      "area": "Tartu maakond",
-      "event": "Fog",
-      "level": 1,
-      "effective": "2026-10-07T19:00:00+00:00",
-      "expires": "2026-10-08T08:00:00+00:00",
-      "description": "Fog!",
-      "descriptionEstonian": "Udu!",
-      "preAlert": false
-    },
     {
       "id": "5282",
       "regionId": "99997",
@@ -85,19 +46,6 @@
       "expires": "2026-10-09T11:00:00+00:00",
       "description": "South, southwest 14, in gusts 19 m/s.",
       "descriptionEstonian": "Lõuna- ja edelatuul 14, puhanguti 19 m/s.",
-      "preAlert": true
-    },
-    {
-      "id": "5222",
-      "regionId": "99996",
-      "country": "Estonia",
-      "area": "Soome lahe lääneosa",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-09T02:00:00+00:00",
-      "expires": "2026-10-09T12:00:00+00:00",
-      "description": "Southeast, south 12, in gusts 17 m/s, veering to southwest. ",
-      "descriptionEstonian": "Kagu- ja lõunatuul 12, puhanguti 17 m/s, pöördub edelasse.",
       "preAlert": true
     },
     {
@@ -189,19 +137,6 @@
       "expires": "2026-10-09T21:00:00+00:00",
       "description": "Northwest, west 15-20, in gusts 27-29 m/s.",
       "descriptionEstonian": "Edela- ja läänetuul 15-20, puhanguti 27-29 m/s.",
-      "preAlert": true
-    },
-    {
-      "id": "5222",
-      "regionId": "99996",
-      "country": "Estonia",
-      "area": "Soome lahe lääneosa",
-      "event": "Wind",
-      "level": 1,
-      "effective": "2026-10-09T17:00:00+00:00",
-      "expires": "2026-10-10T05:00:00+00:00",
-      "description": "Northwest, west 14, in gusts 20 m/s.",
-      "descriptionEstonian": "Loode- ja läänetuul 14, puhanguti 20 m/s.",
       "preAlert": true
     },
     {
