@@ -1,11 +1,11 @@
 // Wind crosses coastlines: never apply the temperature layer's land mask.
-const WIND_CACHE_KEY='balticWeatherWindV5';
+const WIND_CACHE_KEY='balticWeatherWindV6';
 const WIND_CACHE_MS=45*60*1000;
 // GitHub Actions fetches upstream data once; visitors share this snapshot.
 const SHARED_WIND_URL='data/model-wind.json';
 const WIND_GRIDS=[
   // Broad Atlantic grid, European detail, then the existing Baltic detail.
-  {south:25,north:82,west:-85,east:42,rows:12,cols:25},
+  {south:25,north:84,west:-142,east:42,rows:14,cols:36},
   {south:34,north:74,west:-15,east:42,rows:11,cols:17},
   {south:53,north:61,west:19,east:31,rows:9,cols:9}
 ];
@@ -99,7 +99,7 @@ map.on('click',event=>{
 });
 
 function validWindData(data){
-  return data?.version===3 && Number.isFinite(data.savedAt) &&
+  return data?.version===4 && Number.isFinite(data.savedAt) &&
     data.times?.length>=2 && data.times.every(Number.isFinite) &&
     data.times.every((time,i)=>i===0||time>data.times[i-1]) &&
     Array.isArray(data.grids) && data.grids.length===WIND_GRIDS.length &&
@@ -350,7 +350,7 @@ const WindCanvasLayer=L.Layer.extend({
     }
     const seeds=this.seeds;
     if(!seeds.length){
-      $('windStatus').textContent='Pan between the eastern United States, Atlantic, Europe and Moscow to see wind.';
+      $('windStatus').textContent='Pan across Canada, Greenland, the Atlantic or Europe to see wind.';
       $('windStatus').className='status';
       return;
     }
@@ -602,7 +602,7 @@ function renderWind(unix){
   const covered=windLayer.seeds?.length;
   $('windStatus').textContent=covered
     ? `10 m model ${currentWindMode()==='gust'?'gusts · hourly peaks':'sustained wind'} · ${fmt(unix)} · land + sea`
-    : 'Pan between the eastern United States, Atlantic, Europe and Moscow to see wind.';
+    : 'Pan across Canada, Greenland, the Atlantic or Europe to see wind.';
   $('windStatus').className=covered?'status ok':'status';
   return true;
 }

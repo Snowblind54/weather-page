@@ -23,7 +23,7 @@ API = "https://api.open-meteo.com/v1/forecast"
 BATCH_SIZE = 50
 
 WIND_GRIDS = [
-    {"south": 25, "north": 82, "west": -85, "east": 42, "rows": 12, "cols": 25},
+    {"south": 25, "north": 84, "west": -142, "east": 42, "rows": 14, "cols": 36},
     {"south": 34, "north": 74, "west": -15, "east": 42, "rows": 11, "cols": 17},
     {"south": 53, "north": 61, "west": 19, "east": 31, "rows": 9, "cols": 9},
 ]
@@ -151,7 +151,7 @@ def main() -> None:
         raise RuntimeError("No usable wind data returned")
 
     data = {
-        "version": 3,
+        "version": 4,
         "savedAt": int(time.time() * 1000),
         "times": times,
         "grids": grids,
