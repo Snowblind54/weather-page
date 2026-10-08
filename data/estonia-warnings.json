@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-08T04:22:04.409681+00:00",
+  "fetchedAt": "2026-10-08T04:50:18.431581+00:00",
   "forecastDays": [
     "2026-10-08",
     "2026-10-09",
@@ -9,19 +9,6 @@
     "2026-10-11"
   ],
   "records": [
-    {
-      "id": "5257",
-      "regionId": "37",
-      "country": "Estonia",
-      "area": "Harju maakond",
-      "event": "Fog",
-      "level": 1,
-      "effective": "2026-10-07T19:00:00+00:00",
-      "expires": "2026-10-08T07:00:00+00:00",
-      "description": "Fog!",
-      "descriptionEstonian": "Udu!",
-      "preAlert": false
-    },
     {
       "id": "5257",
       "regionId": "45",
@@ -63,19 +50,6 @@
     },
     {
       "id": "5257",
-      "regionId": "56",
-      "country": "Estonia",
-      "area": "Lääne maakond",
-      "event": "Fog",
-      "level": 1,
-      "effective": "2026-10-07T19:00:00+00:00",
-      "expires": "2026-10-08T07:00:00+00:00",
-      "description": "Fog!",
-      "descriptionEstonian": "Udu!",
-      "preAlert": false
-    },
-    {
-      "id": "5257",
       "regionId": "60",
       "country": "Estonia",
       "area": "Lääne-Viru maakond",
@@ -92,19 +66,6 @@
       "regionId": "64",
       "country": "Estonia",
       "area": "Põlva maakond",
-      "event": "Fog",
-      "level": 1,
-      "effective": "2026-10-07T19:00:00+00:00",
-      "expires": "2026-10-08T07:00:00+00:00",
-      "description": "Fog!",
-      "descriptionEstonian": "Udu!",
-      "preAlert": false
-    },
-    {
-      "id": "5257",
-      "regionId": "71",
-      "country": "Estonia",
-      "area": "Rapla maakond",
       "event": "Fog",
       "level": 1,
       "effective": "2026-10-07T19:00:00+00:00",
