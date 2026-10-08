@@ -15,6 +15,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,8 +26,9 @@ BATCH_SIZE = 50
 # Two-degree North Atlantic sampling, with half-degree detail around Iceland.
 WIND_GRIDS = [
     {"south": 25, "north": 84, "west": -142, "east": 42, "rows": 14, "cols": 36},
+    {"south": 40, "north": 84, "west": -142, "east": -52, "rows": 23, "cols": 31},
     {"south": 50, "north": 78, "west": -65, "east": 5, "rows": 15, "cols": 36},
-    {"south": 34, "north": 74, "west": -15, "east": 42, "rows": 11, "cols": 17},
+    {"south": 34, "north": 74, "west": -15, "east": 42, "rows": 21, "cols": 33},
     {"south": 53, "north": 61, "west": 19, "east": 31, "rows": 9, "cols": 9},
     {"south": 60, "north": 68, "west": -26, "east": -12, "rows": 17, "cols": 29},
 ]
@@ -95,6 +97,10 @@ def main() -> None:
     points = [point for grid in WIND_GRIDS for point in grid_points(grid)]
     all_series = []
     times = None
+    # Keep every batch on the same hours, even if collection crosses an hour.
+    anchor = int(time.time() // 3600) * 3600
+    start_hour = datetime.fromtimestamp(anchor - 4 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
+    end_hour = datetime.fromtimestamp(anchor + 2 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
 
     for offset in range(0, len(points), BATCH_SIZE):
         batch = points[offset : offset + BATCH_SIZE]
@@ -106,8 +112,8 @@ def main() -> None:
                 "wind_speed_unit": "ms",
                 "timeformat": "unixtime",
                 "timezone": "UTC",
-                "past_hours": "4",
-                "forecast_hours": "3",
+                "start_hour": start_hour,
+                "end_hour": end_hour,
                 "cell_selection": "nearest",
             }
         )
@@ -154,7 +160,7 @@ def main() -> None:
         raise RuntimeError("No usable wind data returned")
 
     data = {
-        "version": 5,
+        "version": 6,
         "savedAt": int(time.time() * 1000),
         "times": times,
         "grids": grids,

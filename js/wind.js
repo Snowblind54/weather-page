@@ -1,13 +1,14 @@
 // Wind crosses coastlines: never apply the temperature layer's land mask.
-const WIND_CACHE_KEY='balticWeatherWindV7';
+const WIND_CACHE_KEY='balticWeatherWindV8';
 const WIND_CACHE_MS=45*60*1000;
 // GitHub Actions fetches upstream data once; visitors share this snapshot.
 const SHARED_WIND_URL='data/model-wind.json';
 const WIND_GRIDS=[
-  // Last matching grid wins: broad coverage, Atlantic, Europe, Baltic, Iceland.
+  // Last matching grid wins: broad coverage, Canada, Atlantic, Europe, Baltic, Iceland.
   {south:25,north:84,west:-142,east:42,rows:14,cols:36},
+  {south:40,north:84,west:-142,east:-52,rows:23,cols:31},
   {south:50,north:78,west:-65,east:5,rows:15,cols:36},
-  {south:34,north:74,west:-15,east:42,rows:11,cols:17},
+  {south:34,north:74,west:-15,east:42,rows:21,cols:33},
   {south:53,north:61,west:19,east:31,rows:9,cols:9},
   {south:60,north:68,west:-26,east:-12,rows:17,cols:29}
 ];
@@ -101,7 +102,7 @@ map.on('click',event=>{
 });
 
 function validWindData(data){
-  return data?.version===5 && Number.isFinite(data.savedAt) &&
+  return data?.version===6 && Number.isFinite(data.savedAt) &&
     data.times?.length>=2 && data.times.every(Number.isFinite) &&
     data.times.every((time,i)=>i===0||time>data.times[i-1]) &&
     Array.isArray(data.grids) && data.grids.length===WIND_GRIDS.length &&
