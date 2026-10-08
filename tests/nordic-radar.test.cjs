@@ -85,7 +85,9 @@ test('decoded pixel memory is bounded and failures release their object URLs',as
  const c=harness();const revoked=[];let next=0;c.Blob=Blob;c.URL={createObjectURL:()=> 'blob:'+(next++),revokeObjectURL:url=>revoked.push(url)};c.fetch=async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)});
  c.Image=class{get naturalWidth(){return 2000}get naturalHeight(){return 2000}set src(value){if(value)queueMicrotask(()=>this.onload?.())}decode(){return Promise.resolve()}};
  for(let i=0;i<4;i++){c.record={url:'frame'+i,format:'png'};await vm.runInContext('nordicRadarFrame(record,2000)',c)}
- assert.equal(vm.runInContext('nordicRadarFrames.size',c),3);assert.deepEqual(revoked,['blob:0']);
+ assert.equal(vm.runInContext('nordicRadarFrames.size',c),4);assert.deepEqual(revoked,[]);assert(vm.runInContext('[...nordicRadarFrames.values()].reduce((n,f)=>n+f.bytes,0)',c)<=48*1024*1024);
+ c.record={url:'frame0',format:'png'};c.fetch=()=>assert.fail('prepared history was downloaded again');const reused=await vm.runInContext('nordicRadarFrame(record,2000)',c);assert(reused.image);assert.equal(reused.url,'blob:0');
+ c.fetch=async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)});
  c.Image=class{set src(value){if(value)queueMicrotask(()=>this.onerror?.())}};c.record={url:'bad',format:'png'};await assert.rejects(vm.runInContext('nordicRadarFrame(record,2000)',c),/could not be displayed/);assert.equal(revoked.at(-1),'blob:4');
 });
 test('Iceland live relay accepts only this service and uses live data ahead of the archive',async()=>{

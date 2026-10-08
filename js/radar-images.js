@@ -113,6 +113,7 @@ function dmiRadarCanvasLayer(frame){
     onAdd(map){this._map=map;this._canvas=frame.canvas;this._canvas.className='leaflet-image-layer';Object.assign(this._canvas.style,{position:'absolute',pointerEvents:'none',opacity:'.84',filter:'url(#radar-echo-colours)'});map.getPane('overlayPane').appendChild(this._canvas);map.on('zoom viewreset moveend',this._reset,this);this._reset();},
     onRemove(map){map.off('zoom viewreset moveend',this._reset,this);this._canvas.remove();},
     _reset(){const bounds=L.latLngBounds(frame.bounds),top=this._map.latLngToLayerPoint(bounds.getNorthWest()),bottom=this._map.latLngToLayerPoint(bounds.getSouthEast());L.DomUtil.setPosition(this._canvas,top);this._canvas.style.width=(bottom.x-top.x)+'px';this._canvas.style.height=(bottom.y-top.y)+'px';},
+    getBounds(){return L.latLngBounds(frame.bounds);},
     bringToFront(){this._canvas.parentNode?.appendChild(this._canvas);return this;}
   });return new Layer();
 }
@@ -135,12 +136,12 @@ const ESTONIA_RADAR_PRIORITY_BOUNDS=[[57.47,21.70],[59.62,28.14]];
 function radarBoundsOverlap(a,b){
   return a?.length===2&&b?.length===2&&a[0][0]<b[1][0]&&a[1][0]>b[0][0]&&a[0][1]<b[1][1]&&a[1][1]>b[0][1];
 }
-function estoniaRadarPriorityMask(bounds){
-  if(!radarBoundsOverlap(bounds,ESTONIA_RADAR_PRIORITY_BOUNDS))return '';
+function radarPriorityMask(bounds,polygons){
+  if(!bounds||!polygons.length)return '';
   const [[south,west],[north,east]]=bounds;
   const top=radarMercatorY(north),bottom=radarMercatorY(south);
   if(!Number.isFinite(top)||!Number.isFinite(bottom)||top===bottom||east===west)return '';
-  const holes=ESTONIA_RADAR_PRIORITY_POLYGONS.map(polygon=>{
+  const holes=polygons.map(polygon=>{
     const points=polygon.map(([lon,lat])=>{
       const x=(lon-west)/(east-west)*1000;
       const y=(top-radarMercatorY(lat))/(top-bottom)*1000;
@@ -151,6 +152,33 @@ function estoniaRadarPriorityMask(bounds){
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"><path fill="white" fill-rule="evenodd" d="M0 0H1000V1000H0Z ${holes}"/></svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
+function estoniaRadarPriorityMask(bounds){return radarBoundsOverlap(bounds,ESTONIA_RADAR_PRIORITY_BOUNDS)?radarPriorityMask(bounds,ESTONIA_RADAR_PRIORITY_POLYGONS):'';}
+// Display ownership seam through the shared Kattegat / Oresund coverage.
+// Bornholm and Danish waters south of Sweden stay on the Danish side.
+const DENMARK_RADAR_DOMAIN=[[2,52],[22,52],[22,54.8],[15.5,54.8],[15.5,55.4],[12.75,55.4],[12.65,55.75],[12.55,56.05],[11.3,57.75],[10,58.5],[2,58.5]];
+const SWEDEN_RADAR_DOMAIN=[[22,61],[2,61],[2,58.5],[10,58.5],[11.3,57.75],[12.55,56.05],[12.65,55.75],[12.75,55.4],[15.5,55.4],[15.5,54.8],[22,54.8]];
+function radarDomainInCoverage(polygon,layer){
+  const coverage=layer?.radarCoverage;
+  if(!coverage?.cells)return [polygon];
+  const [[south,west],[north,east]]=coverage.bounds,top=radarMercatorY(north),bottom=radarMercatorY(south),out=[];
+  for(let row=0;row<coverage.rows;row++)for(let col=0;col<coverage.cols;col++){
+    if(!coverage.cells[row*coverage.cols+col])continue;
+    const left=west+col/coverage.cols*(east-west),right=west+(col+1)/coverage.cols*(east-west);
+    const high=radarLatitudeAtY(top-row/coverage.rows*(top-bottom)),low=radarLatitudeAtY(top-(row+1)/coverage.rows*(top-bottom));
+    let points=polygon;
+    for(const [axis,limit,direction] of [[0,left,1],[0,right,-1],[1,low,1],[1,high,-1]]){
+      const next=[];
+      for(let i=0;i<points.length;i++){
+        const a=points[i],b=points[(i+1)%points.length],insideA=direction*(a[axis]-limit)>=0,insideB=direction*(b[axis]-limit)>=0;
+        if(insideA)next.push(a);
+        if(insideA!==insideB){const t=(limit-a[axis])/(b[axis]-a[axis]);next.push([a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])]);}
+      }
+      points=next;if(!points.length)break;
+    }
+    if(points.length>=3)out.push(points);
+  }
+  return out;
+}
 function secondaryRadarElement(layer){return layer?.getElement?.()||layer?._canvas||null;}
 function secondaryRadarBounds(layer){
   const bounds=layer?.getBounds?.();
@@ -158,7 +186,12 @@ function secondaryRadarBounds(layer){
 }
 function setEstoniaRadarPriorityMask(layer,enabled){
   const element=secondaryRadarElement(layer);if(!element)return;
-  const mask=enabled?estoniaRadarPriorityMask(secondaryRadarBounds(layer)):'';
+  const bounds=secondaryRadarBounds(layer),holes=enabled&&radarBoundsOverlap(bounds,ESTONIA_RADAR_PRIORITY_BOUNDS)?[...ESTONIA_RADAR_PRIORITY_POLYGONS]:[];
+  if(typeof nordicRadarLayers!=='undefined'&&nordicRadarLayers.has('dk:dk')&&nordicRadarLayers.has('se:se')){
+    if(layer===nordicRadarLayers.get('dk:dk'))holes.push(...radarDomainInCoverage(SWEDEN_RADAR_DOMAIN,nordicRadarLayers.get('se:se')));
+    if(layer===nordicRadarLayers.get('se:se'))holes.push(...radarDomainInCoverage(DENMARK_RADAR_DOMAIN,nordicRadarLayers.get('dk:dk')));
+  }
+  const mask=radarPriorityMask(bounds,holes);
   element.style.maskImage=mask;element.style.webkitMaskImage=mask;
   element.style.maskRepeat=mask?'no-repeat':'';element.style.webkitMaskRepeat=mask?'no-repeat':'';
   element.style.maskSize=mask?'100% 100%':'';element.style.webkitMaskSize=mask?'100% 100%':'';
