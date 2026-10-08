@@ -6,6 +6,7 @@ function harness(){
   context.globalThis=context;
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/cloud-pixels.js'),'utf8'),context);
+  context.baseExtract=vm.runInContext('cloudExtractPixel',context);
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/cloud-eumet-cleanup.js'),'utf8'),context);
   context.installEumetCleanClouds();
   return context;
@@ -36,7 +37,7 @@ test('cleanup is EUMETSAT-only',()=>{
   const c=harness();
   const noon=Date.parse('2026-10-07T12:00:00Z')/1000;
   c.other={id:'metop',day:new Uint8ClampedArray([170,170,170,255]),night:null,dayTime:noon,nightTime:noon};
-  const expected=vm.runInContext('visualCloudScore(170,170,170)**1.45*.86',c);
+  const expected=c.baseExtract(c.other,0,0,50,10).alpha;
   const actual=vm.runInContext('cloudExtractPixel(other,0,0,50,10).alpha',c);
   assert(Math.abs(actual-expected)<1e-9);
 });

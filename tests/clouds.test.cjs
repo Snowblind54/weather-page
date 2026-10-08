@@ -13,6 +13,7 @@ function harness(){
     setTimeout:(fn,delay)=>{timeouts.push({fn,delay});return timeouts.length;},clearTimeout(){},
     requestAnimationFrame:fn=>fn(performance.now()+1000)};
   vm.createContext(context);
+  context.window=context;
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/cloud-pixels.js'),'utf8'),context);
   vm.runInContext(source,context);
   vm.runInContext(`for(const p of Object.values(cloudProducts))p.latest={[p.day]:9000,[p.night]:9000,'msg_fes:clm':9000}`,context);
@@ -125,9 +126,12 @@ test('background worker produces identical pixels and transfers buffers for both
   const h=harness();
   const workerSource=fs.readFileSync(path.join(__dirname,'../js/cloud-worker.js'),'utf8');
   const pixelSource=fs.readFileSync(path.join(__dirname,'../js/cloud-pixels.js'),'utf8');
+  const helperSources=Object.fromEntries(['cloud-pixels.js','cloud-eumet-cleanup.js','cloud-nordic-coverage.js'].map(name=>[name,fs.readFileSync(path.join(__dirname,'../js',name),'utf8')]));
   const worker=new Worker(`const {parentPort}=require('node:worker_threads'),vm=require('node:vm');
-    const context={self:{postMessage:(data,transfer)=>parentPort.postMessage(data,transfer)},console};
-    vm.createContext(context);context.importScripts=()=>vm.runInContext(${JSON.stringify(pixelSource)},context);
+    const context={postMessage:(data,transfer)=>parentPort.postMessage(data,transfer),console};
+    context.self=context;
+    const sources=${JSON.stringify(helperSources)};
+    vm.createContext(context);context.importScripts=(...names)=>names.forEach(name=>vm.runInContext(sources[name.split('?')[0]],context));
     vm.runInContext(${JSON.stringify(workerSource)},context);
     parentPort.on('message',data=>context.self.onmessage({data}));`,{eval:true});
   try{

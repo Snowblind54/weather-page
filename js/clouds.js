@@ -19,7 +19,8 @@ let cloudRequestedTime=null, cloudFrameGeneration=0;
 const cloudProducts={
   eumet:{endpoint:CLOUD_EUMET,day:'mtg_fd:rgb_geocolour',night:'mtg_fd:ir105_hrfi',cadence:600},
   noaa:{endpoint:CLOUD_NOAA,day:'goes_visible_imagery',night:'goes_longwave_imagery',cadence:300},
-  gibs:{endpoint:CLOUD_GIBS,day:'GOES-East_ABI_GeoColor',night:'GOES-East_ABI_Band13_Clean_Infrared',cadence:600}
+  gibs:{endpoint:CLOUD_GIBS,day:'GOES-East_ABI_GeoColor',night:'GOES-East_ABI_Band13_Clean_Infrared',cadence:600},
+  west:{endpoint:CLOUD_GIBS,day:'GOES-West_ABI_GeoColor',night:'GOES-West_ABI_Band13_Clean_Infrared',cadence:600}
 };
 function cloudGuideSld(){
   // The Cloud Mask is never shown. It is only a soft guide for photographic extraction.
@@ -126,6 +127,7 @@ function cloudViewportSources(){
   return [...ids];
 }
 async function cloudEnsureMetadata(force=false){
+  const documents=new Map();
   await Promise.all(cloudViewportSources().map(async id=>{
     const product=cloudProducts[id];
     if(!force && product.retryAt>Date.now())return;
@@ -134,7 +136,8 @@ async function cloudEnsureMetadata(force=false){
     product.metadataPromise=(async()=>{
       try{
         const url=product.endpoint+'?'+new URLSearchParams({service:'WMS',request:'GetCapabilities',version:'1.3.0',...(force?{freshness:Math.floor(Date.now()/120000)}:{})});
-        const xml=await cloudFetch(url);
+        if(!documents.has(url))documents.set(url,cloudFetch(url));
+        const xml=await documents.get(url);
         const doc=new DOMParser().parseFromString(xml,'text/xml');
         const latest={},times={};
         for(const layer of doc.getElementsByTagNameNS('*','Layer')){
@@ -142,8 +145,14 @@ async function cloudEnsureMetadata(force=false){
           if(![product.day,product.night,'msg_fes:clm'].includes(name))continue;
           const dimension=[...layer.children].find(n=>['Dimension','Extent'].includes(n.localName)&&n.getAttribute('name')==='time');
           if(!dimension)continue;
-          times[name]=cloudTimeEntries(dimension.textContent||'');
           const value=Date.parse(dimension.getAttribute('default'))/1000;
+          if(product.polarComposite){
+            // The nominal orbit interval is not an exact list of swath times.
+            // Keep only published defaults we have actually observed; never
+            // fabricate ten-minute polar frames or borrow a future composite.
+            times[name]=[...new Set([...(product.times?.[name]||[]),value])]
+              .filter(t=>Number.isFinite(t)&&t>=Date.now()/1000-24*3600).sort((a,b)=>a-b);
+          }else times[name]=cloudTimeEntries(dimension.textContent||'');
           latest[name]=Number.isFinite(value)?value:times[name].at(-1);
         }
         if(!latest[product.day] || !latest[product.night])throw new Error('Satellite timestamps unavailable');
@@ -210,7 +219,7 @@ function cloudGetWorker(){
   if(cloudWorkerFailed || typeof Worker!=='function')return null;
   if(cloudWorker)return cloudWorker;
   try{
-    const worker=new Worker('js/cloud-worker.js?v=8.22');
+    const worker=new Worker('js/cloud-worker.js?v=8.110');
     worker.onmessage=({data})=>{
       const job=cloudWorkerJobs.get(data.id);if(!job)return;
       clearTimeout(job.timer);cloudWorkerJobs.delete(data.id);
@@ -327,6 +336,7 @@ const TransparentCloudTiles=L.GridLayer.extend({
         tile.getContext('2d').drawImage(result.canvas,0,0,256,256);tile._cloudImage=result.canvas;
         tile.dataset.cloudTime=String(requested);
         tile.dataset.cloudResolution=String(result.canvas.width);tile.dataset.cloudProcessor=result.processor;
+        tile.dataset.cloudObservations=JSON.stringify(result.times);
       }
       done(null,tile);
     }).catch(()=>done(null,tile));
@@ -344,10 +354,12 @@ function cloudTimeDescription(results){
     if(!groups.has(source.id))groups.set(source.id,new Set());
     times.forEach(t=>groups.get(source.id).add(t));
   }
-  const labels={eumet:'Meteosat',noaa:'GOES US',gibs:'GOES northern Atlantic'};
+  const labels={eumet:'Meteosat',noaa:'GOES US',gibs:'GOES-East',west:'GOES-West',metop:'Metop-C · six-orbit composite ending'};
   return [...groups].map(([id,times])=>{
     const sorted=[...times].sort((a,b)=>a-b);
-    return labels[id]+' '+fmt(sorted[0])+(sorted.length>1?' – '+fmt(sorted.at(-1)):'');
+    const older=Date.now()/1000-sorted.at(-1)>3600;
+    return labels[id]+' '+fmt(sorted[0])+(sorted.length>1?' – '+fmt(sorted.at(-1)):'')+
+      (older?' · '+Math.floor((Date.now()/1000-sorted.at(-1))/60)+' min old':'');
   }).join(' · ');
 }
 async function cloudCrossfade(entries,generation){
@@ -428,7 +440,7 @@ async function drawCloud(frame,options={}){
     }else await cloudCrossfade(entries,generation);
   }
   if(generation!==cloudFrameGeneration || session!==cloudSession)return;
-  entries.forEach(([tile,result])=>{tile._cloudImage=result.canvas;tile.dataset.cloudTime=String(frame.time);tile.dataset.cloudResolution=String(result.canvas.width);tile.dataset.cloudProcessor=result.processor;});
+  entries.forEach(([tile,result])=>{tile._cloudImage=result.canvas;tile.dataset.cloudTime=String(frame.time);tile.dataset.cloudResolution=String(result.canvas.width);tile.dataset.cloudProcessor=result.processor;tile.dataset.cloudObservations=JSON.stringify(result.times);});
   layer.displayTime=frame.time;layer.hasCompleteFrame=!failed&&!partial;
   layer.observationLabel=cloudTimeDescription(successful);
   const freshnessTimes=successful.flatMap(tile=>tile.times.flatMap(source=>[source.day,source.night].filter(Number.isFinite)));

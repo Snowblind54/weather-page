@@ -7,6 +7,7 @@ const {test}=require('node:test');
 function harness(){
   const context={console,Map,Set,Date,Math,Array,Uint8ClampedArray,Float32Array};
   context.self=context;
+  context.cloudProducts={eumet:{}};
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/cloud-pixels.js'),'utf8'),context);
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/cloud-nordic-coverage.js'),'utf8'),context);

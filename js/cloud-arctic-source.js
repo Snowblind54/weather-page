@@ -10,6 +10,7 @@
       day:'eps:m03_ir108',
       night:'eps:m03_ir108',
       cadence:1,
+      polarComposite:true,
       northernWeather:true
     };
 

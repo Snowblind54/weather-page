@@ -26,6 +26,14 @@
           weights.metop=polar;
           if(Number.isFinite(weights.eumet))weights.eumet*=1-polar;
         }
+        // Canada and western Greenland: complement both GOES views at their
+        // high-latitude limb. The same rule runs in the worker and page.
+        if(metopReady && lat>=64 && lat<=85 && lon>=-170 && lon<=-32){
+          const polar=smoothstep(64,73,lat)*smoothstep(-170,-155,lon)*
+            (1-smoothstep(-40,-32,lon));
+          weights.metop=polar;
+          for(const id of ['gibs','west','noaa'])weights[id]=(weights[id]||0)*(1-polar);
+        }
         return weights;
       }
       nordicSourceWeights._nordicPolarBlend=true;

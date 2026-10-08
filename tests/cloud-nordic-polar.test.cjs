@@ -30,8 +30,9 @@ test('browser does not request Metop before its product is installed',()=>{
   assert.equal(weights.metop,0);
 });
 
-test('polar blend is limited to Nordic longitudes',()=>{
+test('polar blend covers Arctic Canada and the Nordics, but not unrelated areas',()=>{
   const c=context();c.cloudProducts.metop={};
-  assert.equal(vm.runInContext('cloudSourceWeights(71,-40).metop',c),0);
+  assert(vm.runInContext('cloudSourceWeights(71,-100).metop',c)>.8);
+  assert.equal(vm.runInContext('cloudSourceWeights(60,-100).metop',c),0);
   assert.equal(vm.runInContext('cloudSourceWeights(71,50).metop',c),0);
 });

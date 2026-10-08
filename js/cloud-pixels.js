@@ -113,16 +113,26 @@ function cloudTileLocation(coords,x=128,y=128){
     lat:Math.atan(Math.sinh(Math.PI*(1-2*(coords.y+y/256)/n)))*180/Math.PI};
 }
 function cloudSourceWeights(lat,lon){
-  if(lat<25 || lat>82 || lon< -85 || lon>42) return {eumet:0,noaa:0,gibs:0};
+  if(lat<25 || lat>85 || lon< -170 || lon>42) return {eumet:0,noaa:0,gibs:0,west:0};
   const east=smoothstep(-56,-51,lon), north=smoothstep(49,50.3,lat);
   // Fade at the limb; geostationary satellites cannot see the poles.
   const limb=(satLon)=>smoothstep(.151,.22,
     Math.cos(lat*Math.PI/180)*Math.cos((lon-satLon)*Math.PI/180));
-  const eumet=east*limb(0), gibs=(1-east)*north*limb(-75);
+  const western=1-smoothstep(-115,-100,lon);
+  const eumet=east*limb(0), gibs=(1-east)*north*(1-western)*limb(-75);
+  const west=(1-east)*north*western*limb(-137);
   const noaa=(1-east)*(1-north);
-  return {eumet,noaa,gibs};
+  return {eumet,noaa,gibs,west};
 }
 function cloudExtractPixel(source,index,p,lat,lon){
+  if(source.id==='metop'){
+    // AVHRR IR is thermal imagery at every local time, never true colour.
+    const a=source.night||source.day;
+    if(!a)return {alpha:0,tone:190};
+    const lum=.2126*a[index]+.7152*a[index+1]+.0722*a[index+2];
+    return {alpha:smoothstep(52,205,lum)**1.35*.78*a[index+3]/255,
+      tone:Math.max(138,Math.min(255,142+113*smoothstep(18,235,lum)))};
+  }
   const solarTime=source.day?source.dayTime:source.nightTime;
   const mix=cloudSolarMix(solarTime,lat,lon).dayMix;
   let dayAlpha=0,nightAlpha=0,dayTone=190,nightTone=190;
@@ -138,7 +148,7 @@ function cloudExtractPixel(source,index,p,lat,lon){
   }
   if(source.night && mix<.999){
     const a=source.night;
-    const lum=source.id==='gibs'?cloudInfraredLuminance(a[index],a[index+1],a[index+2]):.2126*a[index]+.7152*a[index+1]+.0722*a[index+2];
+    const lum=['gibs','west'].includes(source.id)?cloudInfraredLuminance(a[index],a[index+1],a[index+2]):.2126*a[index]+.7152*a[index+1]+.0722*a[index+2];
     nightAlpha=source.guide?smoothstep(.055,.74,source.guide[p])*(.58+.42*smoothstep(16,225,lum)):smoothstep(52,205,lum)**1.35*.78;
     nightAlpha*=a[index+3]/255;
     nightTone=Math.max(138,Math.min(255,142+113*smoothstep(18,235,lum)));

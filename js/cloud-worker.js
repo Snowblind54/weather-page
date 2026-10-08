@@ -1,5 +1,5 @@
 // Keep cloud extraction away from map interaction and animation on the main thread.
-importScripts('cloud-pixels.js?v=8.19','cloud-eumet-cleanup.js?v=3','cloud-nordic-coverage.js?v=5');
+importScripts('cloud-pixels.js?v=8.110','cloud-eumet-cleanup.js?v=3','cloud-nordic-coverage.js?v=6');
 installEumetCleanClouds();
 installNordicCloudCoverage();
 self.onmessage=({data})=>{
