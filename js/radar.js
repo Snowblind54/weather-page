@@ -152,7 +152,7 @@ async function drawRadar(frame){
   const myGeneration=++radarRenderGeneration;
   const mySwapGeneration=++radarSwapGeneration;
 
-  if(!$('radarOn').checked || !frame?.url || !map.getBounds().intersects(L.latLngBounds(RADAR_BOUNDS))){
+  if(!$('radarOn').checked || !frame || !map.getBounds().intersects(L.latLngBounds(RADAR_BOUNDS))){
     if(radarLayer){
       map.removeLayer(radarLayer);
       radarLayer=null;
@@ -163,7 +163,9 @@ async function drawRadar(frame){
   const oldLayer=radarLayer;
 
   try{
-    const dataUrl=await h5ToRadarImage(frame);
+    const prepared=typeof preparedRadarFrame==='function'?await preparedRadarFrame('ee',frame.time):null;
+    const dataUrl=prepared?null:frame.url?await h5ToRadarImage(frame):null;
+    if(!prepared&&!dataUrl)throw new Error('No official observation at the selected time');
 
     if(myGeneration!==radarRenderGeneration ||
        mySwapGeneration!==radarSwapGeneration ||
@@ -171,12 +173,12 @@ async function drawRadar(frame){
       return;
     }
 
-    const nextLayer=L.imageOverlay(dataUrl,RADAR_BOUNDS,{
+    const nextLayer=(prepared?preparedRadarCanvasLayer(prepared,0):L.imageOverlay(dataUrl,RADAR_BOUNDS,{
       opacity:0,
       interactive:false
-    }).addTo(map);
+    })).addTo(map);
 
-    radarLayer=nextLayer;
+    radarLayer=nextLayer;nextLayer.radarTime=prepared?.time??frame.time;nextLayer.radarPrepared=!!prepared;
 
     // Radar opacity is intentionally fixed now that the UI slider is gone.
     fadeInRadarLayer(nextLayer,0.86,160);
@@ -187,7 +189,7 @@ async function drawRadar(frame){
       }
     },170);
 
-    $('radarStatus').textContent='Radar: EE official KAIA · '+fmt(frame.time);
+    $('radarStatus').textContent='Radar: EE official KAIA · '+fmt(prepared?.time??frame.time)+(prepared?' · prepared tiles':'');
     $('radarStatus').className='status ok';
 
     weatherFront();
@@ -199,7 +201,7 @@ async function drawRadar(frame){
 
     console.error(e);
     $('radarStatus').textContent=
-      'Radar: official KAIA frame could not be loaded — '+e.message;
+      'Radar: official KAIA frame could not be loaded — '+e.message+(oldLayer&&Number.isFinite(oldLayer.radarTime)?' · keeping '+fmt(oldLayer.radarTime):'');
     $('radarStatus').className='status bad';
   }
 }

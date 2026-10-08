@@ -1,0 +1,36 @@
+name: Prepare Nordic and Baltic radar tiles
+on:
+  schedule:
+    - cron: '7,17,27,37,47,57 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/update_radar_tiles.py
+      - scripts/update_nordic_radar.py
+      - scripts/requirements-radar-tiles.txt
+      - tests/test_radar_tiles.py
+      - .github/workflows/update-radar-tiles.yml
+permissions:
+  contents: write
+concurrency:
+  group: update-radar-tiles
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/requirements-radar-tiles.txt
+      - run: pip install -r scripts/requirements-radar-tiles.txt
+      - name: Check georeferencing, sparse tiles and failure retention
+        run: python3 -m unittest discover -s tests -p test_radar_tiles.py -v
+      - name: Prepare new observations and keep last successful frames
+        run: python3 scripts/update_radar_tiles.py
+      - name: Publish immutable tiles and archive measurements
+        run: bash scripts/publish_generated_data.sh 'Refresh prepared Nordic and Baltic radar tiles' data/radar-tiles.json data/radar-tiles

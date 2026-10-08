@@ -62,11 +62,15 @@ async function lvHistory(source,target,latest,force=false){
   return {dataUrl:record.url,time:record.time,bounds:source.bounds,mode:'official history'};
 }
 function prepareBalticRadarFrame(source,unix,latest,force=false){
-  const key=source.id+'|'+unix,cached=directRadarImageCache.get(key);
+  const view=typeof preparedRadarFrame==='function'?map.getBounds():null;
+  const key=source.id+'|'+unix+(view?'|'+map.getZoom()+'|'+[view.getSouth(),view.getWest(),view.getNorth(),view.getEast()].map(v=>v.toFixed(2)).join(','):''),cached=directRadarImageCache.get(key);
   if(!force&&cached){directRadarImageCache.delete(key);directRadarImageCache.set(key,cached);return Promise.resolve(cached.frame);}
   const pendingKey=key+'|'+force;
   if(balticRadarPending.has(pendingKey))return balticRadarPending.get(pendingKey);
-  const promise=(source.id==='lt'?ltHistory(source,unix):lvHistory(source,unix,latest,force))
+  const promise=(async()=>{
+    const prepared=typeof preparedRadarFrame==='function'?await preparedRadarFrame(source.id,unix):null;
+    return prepared?{...prepared,dataUrl:prepared.url}:source.id==='lt'?ltHistory(source,unix):lvHistory(source,unix,latest,force);
+  })()
     .then(frame=>{directRadarImageCache.set(key,{at:Date.now(),frame});while(directRadarImageCache.size>60)directRadarImageCache.delete(directRadarImageCache.keys().next().value);return frame;})
     .finally(()=>{if(balticRadarPending.get(pendingKey)===promise)balticRadarPending.delete(pendingKey);});
   balticRadarPending.set(pendingKey,promise);return promise;
@@ -84,19 +88,19 @@ async function drawDirectNationalRadars(unix,{force=false}={}){
       if(generation!==directRadarGeneration||!$('radarOn').checked)return;
       const previous=directRadarLayers.get(source.id);
       if(previous?.radarUrl!==frame.dataUrl){
-        const layer=L.imageOverlay(frame.dataUrl,frame.bounds,{opacity:source.opacity,interactive:false});layer.radarUrl=frame.dataUrl;
-        if(source.id==='lt')ensureRadarColourFilter();
-        balticRadarLayer.addLayer(layer);if(source.id==='lt')layer.getElement().style.filter='url(#radar-echo-colours)';if(previous)balticRadarLayer.removeLayer(previous);directRadarLayers.set(source.id,layer);
+        const layer=frame.prepared?preparedRadarCanvasLayer(frame,source.opacity):L.imageOverlay(frame.dataUrl,frame.bounds,{opacity:source.opacity,interactive:false});layer.radarUrl=frame.dataUrl;layer.radarTime=frame.time;
+        if(source.id==='lt'&&!frame.prepared)ensureRadarColourFilter();
+        balticRadarLayer.addLayer(layer);if(source.id==='lt'&&!frame.prepared)layer.getElement().style.filter='url(#radar-echo-colours)';if(previous)balticRadarLayer.removeLayer(previous);directRadarLayers.set(source.id,layer);
       }
-      labels[index]=source.id.toUpperCase()+' official '+fmt(frame.time);
+      labels[index]=source.id.toUpperCase()+' official '+fmt(frame.time)+(frame.prepared?' · prepared tiles':'');
     }catch(error){
       if(generation!==directRadarGeneration||!$('radarOn').checked)return;
-      const previous=directRadarLayers.get(source.id);if(previous)balticRadarLayer.removeLayer(previous);directRadarLayers.delete(source.id);
-      labels[index]=source.id.toUpperCase()+': '+error.message;failed++;
+      const previous=directRadarLayers.get(source.id);
+      labels[index]=source.id.toUpperCase()+': '+error.message+(previous?' · keeping '+fmt(previous.radarTime):'');failed++;
     }
     if(generation!==directRadarGeneration||!$('radarOn').checked)return;
     pending--;balticRadarLayer.eachLayer(layer=>layer.bringToFront?.());radarLayer?.bringToFront?.();weatherFront();
-    $('radarStatus').textContent=['Radar: EE official KAIA · '+fmt(unix),...labels].join(' · ');
+    $('radarStatus').textContent=['Radar: EE official KAIA · '+fmt(radarLayer?.radarTime??unix)+(radarLayer?.radarPrepared?' · prepared tiles':''),...labels].join(' · ');
     $('radarStatus').className=failed?'status warn':pending?'status':'status ok';
   }));
 }

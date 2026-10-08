@@ -392,13 +392,21 @@ async function drawNordicRadars(unix,{force=false}={}){
       if(previous?.radarUrl!==frame.url){
         // The old layer stays visible throughout download and decoding. Add
         // the ready replacement before removing it, in the same paint turn.
-        const layer=(frame.canvas?dmiRadarCanvasLayer(frame):L.imageOverlay(frame.image,frame.bounds,{opacity:.84,interactive:false})).addTo(map);layer.radarUrl=frame.url;layer.radarCoverage=frame.coverage;
+        const layer=(frame.prepared?preparedRadarCanvasLayer(frame):frame.canvas?dmiRadarCanvasLayer(frame):L.imageOverlay(frame.image,frame.bounds,{opacity:.84,interactive:false})).addTo(map);layer.radarUrl=frame.url;layer.radarCoverage=frame.coverage;layer.radarTime=record.time;
         nordicRadarLayers.set(id,layer);if(previous)map.removeLayer(previous);
       }
       keep.add(id);times.push(record.time);
     }
-    for(const [id,layer] of nordicRadarLayers)if(id.startsWith(source.id+':')&&!keep.has(id)){map.removeLayer(layer);nordicRadarLayers.delete(id);}
+    // A failed provider keeps its last successfully displayed observation,
+    // with the actual time disclosed instead of presenting it as current.
+    const retained=[];
+    for(const [id,layer] of nordicRadarLayers)if(id.startsWith(source.id+':')&&!keep.has(id)){
+      if(missing&&Number.isFinite(layer.radarTime))retained.push(layer.radarTime);
+      else{map.removeLayer(layer);nordicRadarLayers.delete(id);}
+    }
     labels[index]=times.length?source.name+' '+fmt(Math.min(...times))+(missing?' · partial coverage':''):source.name+' unavailable';
+    if(retained.length)labels[index]+=' · keeping '+fmt(Math.min(...retained));
+    if(result.rendered?.some(r=>r.value?.frame.prepared))labels[index]+=' · prepared tiles';
     if(missing||!times.length)failed++;
     pending--;
     orderNordicRadarLayers();
@@ -406,6 +414,8 @@ async function drawNordicRadars(unix,{force=false}={}){
   }
   await Promise.allSettled(visible.map(async(source,index)=>{
     try{
+      const prepared=typeof preparedRadarFrame==='function'?await preparedRadarFrame(source.id,unix):null;
+      if(prepared){finishSource(source,index,{rendered:[{status:'fulfilled',value:{record:{station:prepared.station,time:prepared.time},frame:prepared}}]});return;}
       const records=await listNordicRadar(source,force);
       if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;
     const stations=(source.id==='is'?['iskef','isska','isx2']:[...new Set(records.map(record=>record.station))]).filter(station=>radarRecordVisible({station}));

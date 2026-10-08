@@ -65,10 +65,10 @@ def colour_rates(values, what, how):
 def colour_rate_field(rates):
     import numpy as np
     valid = np.isfinite(rates) & (rates >= .05)
-    stops = [.1, .3, .5, 1, 2, 4, 8, 16, 50, float('inf')]
+    stops = [.1, .3, .5, 1, 2, 4, 8, 16, 50, 70, float('inf')]
     colours = np.array([[156,221,255,210],[54,170,255,210],[0,216,154,210],[232,247,0,210],
                         [255,196,0,210],[255,123,0,210],[255,42,42,210],[211,0,215,210],
-                        [150,0,190,210],[90,0,145,210]], dtype=np.uint8)
+                        [150,0,190,210],[255,126,218,225],[255,235,247,235]], dtype=np.uint8)
     pixels = colours[np.minimum(np.searchsorted(stops, rates, side='right'), len(colours)-1)]
     pixels[~valid] = 0
     return pixels

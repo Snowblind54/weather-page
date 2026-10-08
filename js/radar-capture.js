@@ -29,6 +29,11 @@ async function preloadVisibleRadars(){
   try{
     // A slow metadata endpoint must not hold up other countries' latest images.
     const latestTasks=visible.map(async source=>{
+      if(typeof preparedRadarFrame==='function'){
+        const prepare=async back=>{if(!allowed())return null;return preparedRadarFrame(source.id,target-back*300,{background:true,canPrepare:allowed});};
+        const ready=await prepare(0);
+        if(ready){tasks.push(prepare);return;}
+      }
       const records=await listNordicRadar(source);
       if(!allowed())return;
       for(const station of new Set(records.map(record=>record.station))){
@@ -47,7 +52,7 @@ async function preloadVisibleRadars(){
       const prepare=async back=>{
         const observations=typeof radarTimelineFrames!=='undefined'?radarTimelineFrames:frames;
         const frame=radarObservationAt(observations,target-back*300);
-        if(frame?.url)await h5ToRadarImage(frame,{quiet:true});
+        if(frame?.url&&!(typeof preparedRadarFrame==='function'&&await preparedRadarFrame('ee',frame.time,{background:true,canPrepare:allowed})))await h5ToRadarImage(frame,{quiet:true});
       };tasks.push(prepare);latestTasks.push(prepare(0));
     }
     for(const source of visibleBalticRadarSources()){
@@ -111,9 +116,15 @@ async function preloadRadarPlayback(){
   const visible=NORDIC_RADAR_SOURCES.filter(nordicRadarVisible);
   try{
   const tasks=visible.map(async source=>{
+    const remaining=[];
+    for(const target of targets){
+      if(!allowed())return;
+      if(!(typeof preparedRadarFrame==='function'&&await preparedRadarFrame(source.id,target.time,{background:true,canPrepare:allowed})))remaining.push(target);
+    }
+    if(!remaining.length)return;
     const records=await listNordicRadar(source);
     const stations=[...new Set(records.map(record=>record.station))];
-    for(const target of targets){
+    for(const target of remaining){
       if(!allowed())break;
       // Start the stations for this observation together so Iceland's three
       // scans can fill both preparation slots before moving to the next hour.
@@ -125,7 +136,7 @@ async function preloadRadarPlayback(){
     }
   });
   if(radarPreloadVisible(RADAR_BOUNDS))tasks.push((async()=>{
-    for(const target of targets){if(!allowed())break;try{if(target.url)await h5ToRadarImage(target,{quiet:true});}catch(_){}
+    for(const target of targets){if(!allowed())break;try{if(target.url&&!(typeof preparedRadarFrame==='function'&&await preparedRadarFrame('ee',target.time,{background:true,canPrepare:allowed})))await h5ToRadarImage(target,{quiet:true});}catch(_){}
       await new Promise(resolve=>setTimeout(resolve,80));}
   })());
   for(const source of visibleBalticRadarSources())tasks.push((async()=>{
