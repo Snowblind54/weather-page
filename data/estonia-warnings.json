@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-07T23:58:56.675844+00:00",
+  "fetchedAt": "2026-10-08T00:30:55.623168+00:00",
   "forecastDays": [
-    "2026-10-07",
     "2026-10-08",
     "2026-10-09",
-    "2026-10-10"
+    "2026-10-10",
+    "2026-10-11"
   ],
   "records": [
     {
