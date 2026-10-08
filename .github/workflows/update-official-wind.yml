@@ -6,6 +6,7 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/official_wind_americas.py
       - scripts/update_official_wind.py
       - scripts/publish_generated_data.sh
       - tests/test_official_wind.py
