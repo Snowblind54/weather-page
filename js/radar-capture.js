@@ -104,13 +104,13 @@ async function preloadRadarPlayback(){
     const stations=[...new Set(records.map(record=>record.station))];
     for(const target of targets){
       if(!allowed())break;
-      for(const station of stations){
-        if(!allowed())break;
+      // Start the stations for this observation together so Iceland's three
+      // scans can fill both preparation slots before moving to the next hour.
+      await Promise.allSettled(stations.map(async station=>{
+        if(!allowed())return;
         const record=radarObservationAt(records.filter(record=>record.station===station),target.time);
-        if(record&&radarRecordVisible(record)){
-          try{await nordicRadarFrame(record,edge,{background:true,canPrepare:allowed});}catch(_){}
-        }
-      }
+        if(record&&radarRecordVisible(record))await nordicRadarFrame(record,edge,{background:true,canPrepare:allowed});
+      }));
     }
   });
   if(radarPreloadVisible(RADAR_BOUNDS))tasks.push((async()=>{

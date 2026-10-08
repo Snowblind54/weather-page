@@ -209,7 +209,7 @@ function projectNordicRadar(buffer,descriptor,edge){
 function runNordicRadarQueue(){
   while(nordicRadarDownloads<2&&nordicRadarQueue.length){
     // Background preparation uses one slot; selected observations take priority.
-    if(nordicRadarQueue[0].background&&nordicRadarDownloads)break;
+    if(nordicRadarQueue[0].background&&nordicRadarDownloads&&!$('radarOn').checked)break;
     const job=nordicRadarQueue.shift();nordicRadarDownloads++;
     job.run().then(job.resolve,job.reject).finally(()=>{nordicRadarDownloads--;runNordicRadarQueue();});
   }
@@ -238,15 +238,38 @@ function decodeNordicRadarImage(url){
 }
 function orderNordicRadarLayers(){
   // Keep cross-border priority independent of network completion order.
-  const priority=['no','se','fi','dk','is'];
+  const priority=['no','dk','se','fi','is'];
   const ordered=[...nordicRadarLayers].sort(([a],[b])=>priority.indexOf(a.split(':')[0])-priority.indexOf(b.split(':')[0])||(a<b?-1:a>b?1:0));
   for(const [,layer] of ordered)layer.bringToFront();
   weatherFront();
 }
+function trimNordicRadarFrames(){
+  // Keep compressed prepared images after releasing their decoded pixels.
+  // Revisiting Iceland history then needs only PNG decode, not HDF download
+  // and radar reprojection again. Canvas-only DMI frames remain fully bounded.
+  const total=()=>[...nordicRadarFrames.values()].reduce((n,f)=>n+f.bytes,0);
+  for(const [key,entry] of nordicRadarFrames){
+    if(total()<=48*1024*1024)break;
+    if(entry.image){entry.image=null;entry.bytes=entry.blob.size;}
+    else if(entry.canvas){nordicRadarFrames.delete(key);}
+  }
+  while(nordicRadarFrames.size>180||total()>80*1024*1024){
+    const key=nordicRadarFrames.keys().next().value,entry=nordicRadarFrames.get(key);
+    if(entry.blob)URL.revokeObjectURL(entry.url);nordicRadarFrames.delete(key);
+  }
+}
 function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}){
   const key=record.url+'|'+edge;
   if(nordicRadarFrames.has(key)){
-    const entry=nordicRadarFrames.get(key);nordicRadarFrames.delete(key);nordicRadarFrames.set(key,entry);return Promise.resolve(entry);
+    const entry=nordicRadarFrames.get(key);nordicRadarFrames.delete(key);nordicRadarFrames.set(key,entry);
+    if(entry.blob&&!entry.image){
+      if(nordicRadarPending.has(key))return nordicRadarPending.get(key);
+      const promise=decodeNordicRadarImage(entry.url).then(image=>{
+        entry.image=image;entry.bytes=entry.blob.size+image.naturalWidth*image.naturalHeight*4;trimNordicRadarFrames();return {...entry,image};
+      }).finally(()=>{if(nordicRadarPending.get(key)===promise)nordicRadarPending.delete(key);});
+      nordicRadarPending.set(key,promise);return promise;
+    }
+    return Promise.resolve(entry);
   }
   if(nordicRadarPending.has(key)){
     if(!background){
@@ -293,7 +316,7 @@ function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}
       // their image element even if its object URL is evicted from this cache.
       entry.bytes=(entry.blob?.size||0)+(entry.image?entry.image.naturalWidth*entry.image.naturalHeight*4:entry.canvas.width*entry.canvas.height*4);
       nordicRadarFrames.set(key,entry);
-      while(nordicRadarFrames.size>180 || [...nordicRadarFrames.values()].reduce((bytes,frame)=>bytes+frame.bytes,0)>48*1024*1024){const oldKey=nordicRadarFrames.keys().next().value,old=nordicRadarFrames.get(oldKey);if(old.blob)URL.revokeObjectURL(old.url);nordicRadarFrames.delete(oldKey);}
+      trimNordicRadarFrames();
       return entry;
     }};
     if(background)nordicRadarQueue.push(job);
@@ -344,7 +367,7 @@ async function drawNordicRadars(unix,{force=false}={}){
       if(previous?.radarUrl!==frame.url){
         // The old layer stays visible throughout download and decoding. Add
         // the ready replacement before removing it, in the same paint turn.
-        const layer=(frame.canvas?dmiRadarCanvasLayer(frame):L.imageOverlay(frame.image,frame.bounds,{opacity:.84,interactive:false})).addTo(map);layer.radarUrl=frame.url;
+        const layer=(frame.canvas?dmiRadarCanvasLayer(frame):L.imageOverlay(frame.image,frame.bounds,{opacity:.84,interactive:false})).addTo(map);layer.radarUrl=frame.url;layer.radarCoverage=frame.coverage;
         nordicRadarLayers.set(id,layer);if(previous)map.removeLayer(previous);
       }
       keep.add(id);times.push(record.time);

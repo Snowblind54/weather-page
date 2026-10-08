@@ -39,3 +39,15 @@ test('historical Baltic frames remain cached beyond a minute and decoded native 
  const first=vm.runInContext("loadRadarNativeImage('native.png',{pixels:true})",c);image.onload();const loaded=await first;
  const again=await vm.runInContext("loadRadarNativeImage('native.png',{pixels:true})",c);assert.equal(again.image,loaded.image);
 });
+
+test('Danish and Swedish ownership masks are complementary and disappear on source failure',()=>{
+ const c=harness();c.radarMercatorY=lat=>lat;c.radarLatitudeAtY=y=>y;
+ const bounds={getSouth:()=>52,getWest:()=>2,getNorth:()=>61,getEast:()=>22};
+ c.dk={getElement:()=>c.dkElement,getBounds:()=>bounds};c.se={getElement:()=>c.seElement,getBounds:()=>bounds};c.dkElement={style:{}};c.seElement={style:{}};
+ vm.runInContext("nordicRadarLayers.set('dk:dk',dk);nordicRadarLayers.set('se:se',se);setEstoniaRadarPriorityMask(dk,false);setEstoniaRadarPriorityMask(se,false)",c);
+ assert(c.dkElement.style.maskImage);assert(c.seElement.style.maskImage);assert.notEqual(c.dkElement.style.maskImage,c.seElement.style.maskImage);
+ vm.runInContext("nordicRadarLayers.delete('se:se');setEstoniaRadarPriorityMask(dk,false)",c);assert.equal(c.dkElement.style.maskImage,'');
+ c.coverageLayer={radarCoverage:{bounds:[[52,2],[61,22]],cols:1,rows:1,cells:[0]}};
+ assert.equal(vm.runInContext('radarDomainInCoverage(SWEDEN_RADAR_DOMAIN,coverageLayer).length',c),0);
+ c.coverageLayer.radarCoverage.cells=[1];assert.equal(vm.runInContext('radarDomainInCoverage(SWEDEN_RADAR_DOMAIN,coverageLayer).length',c),1);
+});
