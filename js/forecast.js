@@ -24,7 +24,7 @@
         <time id="forecastSelectedTime" class="forecast-time"></time>
         <div id="forecastSelected"></div>
         <p class="forecast-note">Move the slider through the forecast. Later times may be 6 hours apart; rain totals retain their stated interval.</p>
-        <div class="forecast-hour-scroll"><table class="forecast-hours"><caption class="forecast-note">Available forecast times · wind and gusts in m/s</caption><thead><tr><th scope="col">Time</th><th scope="col">°C</th><th scope="col">Rain/snow</th><th scope="col">Wind</th><th scope="col">Gust</th></tr></thead><tbody id="forecastHours"></tbody></table></div>
+        <div class="forecast-hour-scroll"><table class="forecast-hours"><caption id="forecastUnitsCaption" class="forecast-note">Available forecast times · wind and gusts in m/s</caption><thead><tr><th scope="col">Time</th><th id="forecastTemperatureUnit" scope="col">°C</th><th scope="col">Rain/snow</th><th scope="col">Wind</th><th scope="col">Gust</th></tr></thead><tbody id="forecastHours"></tbody></table></div>
       </div>
       <div id="forecastDaily" role="tabpanel" aria-labelledby="forecastDailyTab" hidden><div id="forecastDays" class="forecast-days"></div><p class="forecast-note">Temperature ranges use available forecast times. ≥ marks a partial rain/snow total: periods crossing midnight are excluded rather than split. Today covers the remaining forecast period. Gusts may be unavailable later in the forecast.</p></div>
     </div>
@@ -87,6 +87,8 @@
   function metric(label,value,note){
     const card=text('div','', 'forecast-metric');card.append(text('small',label),text('strong',value));if(note)card.append(text('small',note));return card;
   }
+  const tempNum=(v,d=1)=>num(globalThis.WeatherUnits?.temperatureValue(v)??v,d);
+  const windNum=(v,d=1)=>num(globalThis.WeatherUnits?.windValue(v)??v,d);
   function renderSelected(syncMap=true){
     const index=Number($('forecastTimeline').value),row=forecastRows[index];if(!row)return;
     selectedTime=row.time;
@@ -94,13 +96,13 @@
     const selected=$('forecastSelected');selected.replaceChildren();
     const condition=weather(row.symbol),hero=text('div','', 'forecast-hero');
     const description=text('div','');description.append(text('span',condition.icon,'forecast-symbol'),text('div',condition.label,'forecast-condition'));
-    hero.append(text('strong',num(row.temp)+'°'),description);selected.append(hero);
+    hero.append(text('strong',tempNum(row.temp)+(globalThis.WeatherUnits?.temperatureUnit()??'°')),description);selected.append(hero);
     const metrics=text('div','', 'forecast-metrics');
     const direction=row.direction===null?'': 'From '+['N','NE','E','SE','S','SW','W','NW'][Math.round(row.direction/45)%8];
     const gustNote=row.gustSource?'ECMWF IFS · maximum for '+date(row.gustStart)+' – '+date(row.gustEnd)+' · nearest 0.25° grid point. Model run '+date(row.gustRun)+'.':null;
-    metrics.append(metric('Sustained wind',row.wind===null?'Unavailable':num(row.wind)+' m/s',direction),metric('Wind gusts',row.gust===null?'Unavailable':num(row.gust)+' m/s',gustNote),metric('Rain / snow',row.rain===null?'Unavailable':num(row.rain)+' mm',row.hours?'Over the next '+row.hours+' hour'+(row.hours===1?'':'s'):''),metric('Precipitation chance',row.probability===null?'Unavailable':num(row.probability,0)+'%',row.hours?'For the same '+row.hours+'h period':''),metric('Cloud cover',row.cloud===null?'Unavailable':num(row.cloud,0)+'%'),metric('Sea-level pressure',row.pressure===null?'Unavailable':num(row.pressure,0)+' hPa'));
+    metrics.append(metric('Sustained wind',row.wind===null?'Unavailable':windNum(row.wind)+' '+(globalThis.WeatherUnits?.windUnit()??'m/s'),direction),metric('Wind gusts',row.gust===null?'Unavailable':windNum(row.gust)+' '+(globalThis.WeatherUnits?.windUnit()??'m/s'),gustNote),metric('Rain / snow',row.rain===null?'Unavailable':num(row.rain)+' mm',row.hours?'Over the next '+row.hours+' hour'+(row.hours===1?'':'s'):''),metric('Precipitation chance',row.probability===null?'Unavailable':num(row.probability,0)+'%',row.hours?'For the same '+row.hours+'h period':''),metric('Cloud cover',row.cloud===null?'Unavailable':num(row.cloud,0)+'%'),metric('Sea-level pressure',row.pressure===null?'Unavailable':num(row.pressure,0)+' hPa'));
     selected.append(metrics);
-    if(row.min!==null&&row.max!==null)selected.append(text('p','Temperature uncertainty (10th–90th percentile): '+num(row.min)+' to '+num(row.max)+' °C.','forecast-note'));
+    if(row.min!==null&&row.max!==null)selected.append(text('p','Temperature uncertainty (10th–90th percentile): '+tempNum(row.min)+' to '+tempNum(row.max)+' '+(globalThis.WeatherUnits?.temperatureUnit()??'°C')+'.','forecast-note'));
     for(const tr of $('forecastHours').children)tr.setAttribute('aria-current',String(Number(tr.dataset.index)===index));
     if(syncMap!==false)window.NorthernForecastMap?.setTime(row.time);
   }
@@ -110,18 +112,20 @@
     forecastRows=all.filter(r=>r.time<=end);
     let index=0;if(selectedTime!==null)index=forecastRows.reduce((best,row,i)=>Math.abs(row.time-selectedTime)<Math.abs(forecastRows[best].time-selectedTime)?i:best,0);
     $('forecastTimeline').max=String(forecastRows.length-1);$('forecastTimeline').value=String(index);
+    if($('forecastUnitsCaption'))$('forecastUnitsCaption').textContent='Available forecast times · wind and gusts in '+(globalThis.WeatherUnits?.windUnit()??'m/s');
+    if($('forecastTemperatureUnit'))$('forecastTemperatureUnit').textContent=globalThis.WeatherUnits?.temperatureUnit()??'°C';
     $('forecastHours').replaceChildren();
     forecastRows.forEach((row,i)=>{
       const tr=document.createElement('tr');tr.dataset.index=String(i);
       if(row.gustSource)tr.setAttribute('title','Gust: ECMWF IFS maximum for '+date(row.gustStart)+' – '+date(row.gustEnd));
-      for(const value of [new Date(row.time).toLocaleString(undefined,{weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:zone}),num(row.temp),row.rain===null?'—':num(row.rain)+' mm / '+row.hours+'h',num(row.wind),num(row.gust)])tr.append(text('td',value));
+      for(const value of [new Date(row.time).toLocaleString(undefined,{weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:zone}),tempNum(row.temp),row.rain===null?'—':num(row.rain)+' mm / '+row.hours+'h',windNum(row.wind),windNum(row.gust)])tr.append(text('td',value));
       $('forecastHours').append(tr);
     });
     $('forecastDays').replaceChildren();
     for(const day of MetForecastData.days(all,zone)){
       const card=text('div','', 'forecast-day'),top=text('div','', 'forecast-day-top');
-      top.append(text('strong',new Date(day.time).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',timeZone:zone})),text('span',num(day.low)+'° to '+num(day.high)+'°'));
-      card.append(top,text('p','Rain/snow '+(day.rainHours?(day.partial?'≥ ':'')+num(day.rain)+' mm':'unavailable')+' · wind up to '+num(day.wind)+' m/s · '+(day.gust===null?'gusts unavailable':'gusts up to '+num(day.gust)+' m/s'+(day.ecmwfGusts?' (available ECMWF samples)':''))));
+      top.append(text('strong',new Date(day.time).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',timeZone:zone})),text('span',tempNum(day.low)+'° to '+tempNum(day.high)+(globalThis.WeatherUnits?.temperatureUnit()??'°C')));
+      card.append(top,text('p','Rain/snow '+(day.rainHours?(day.partial?'≥ ':'')+num(day.rain)+' mm':'unavailable')+' · wind up to '+windNum(day.wind)+' '+(globalThis.WeatherUnits?.windUnit()??'m/s')+' · '+(day.gust===null?'gusts unavailable':'gusts up to '+windNum(day.gust)+' '+(globalThis.WeatherUnits?.windUnit()??'m/s')+(day.ecmwfGusts?' (available ECMWF samples)':''))));
       $('forecastDays').append(card);
     }
     const issued=Date.parse(data.properties?.meta?.updated_at);
@@ -198,6 +202,7 @@
     }
   }).observe(panel,{attributes:true,attributeFilter:['hidden']});
   setInterval(()=>{if(!document.hidden&&!panel.hidden){if(Date.now()>=refreshAfter)loadForecast();else if(payload&&Date.now()-gustChecked>=15*60000)loadGusts();}},60000);
+  document.addEventListener('weather-units-change',()=>{if(payload)render(payload,false);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!panel.hidden)loadForecast();});
   window.addEventListener('online',()=>{if(!panel.hidden)loadForecast();});
   document.addEventListener('forecast-map-time',event=>{

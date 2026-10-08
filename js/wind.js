@@ -49,10 +49,10 @@ function showWindLegend(){
   const legend=$('windLegend');if(!legend)return;
   const mode=currentWindMode(),gust=mode==='gust',max=34;
   const stops=gust?WIND_GUST_COLOUR_STOPS:WIND_COLOUR_STOPS;
-  $('windLegendLabel').textContent=(gust?'Wind gust speed':'Sustained wind speed')+' · m/s';
+  $('windLegendLabel').textContent=(gust?'Wind gust speed':'Sustained wind speed')+' · '+(globalThis.WeatherUnits?.windUnit()??'m/s');
   const gradient=stops.map(s=>s.color+' '+s.speed/max*100+'%').join(',');
   const ticks=[0,5,10,15,20,25,30,34];
-  legend.innerHTML='<div class="wind-gradient" style="background:linear-gradient(90deg,'+gradient+')"></div><div class="wind-gradient-ticks">'+ticks.map(speed=>'<span style="left:'+speed/max*100+'%">'+speed+(speed===max?'+':'')+'</span>').join('')+'</div>';
+  legend.innerHTML='<div class="wind-gradient" style="background:linear-gradient(90deg,'+gradient+')"></div><div class="wind-gradient-ticks">'+ticks.map(speed=>'<span style="left:'+speed/max*100+'%">'+(globalThis.WeatherUnits?.windValue(speed)??speed)+(speed===max?'+':'')+'</span>').join('')+'</div>';
 }
 showWindLegend();
 
@@ -72,8 +72,8 @@ function windPopupContent(point,unix){
   return `<div class="wind-popup">
     <div class="wind-popup-heading"><i style="background:${colour}"></i>Wind at this point</div>
     <div class="wind-popup-readings">
-      <div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${speed.toFixed(1)} <span>m/s</span></div></div>
-      <div><div class="wind-popup-label">Wind gusts</div><div class="wind-popup-speed">${gust===null?'<span>Unavailable</span>':gust.toFixed(1)+' <span>m/s</span>'}</div></div>
+      <div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${(globalThis.WeatherUnits?.windValue(speed)??speed).toFixed(1)} <span>${globalThis.WeatherUnits?.windUnit()??'m/s'}</span></div></div>
+      <div><div class="wind-popup-label">Wind gusts</div><div class="wind-popup-speed">${gust===null?'<span>Unavailable</span>':(globalThis.WeatherUnits?.windValue(gust)??gust).toFixed(1)+' <span>'+(globalThis.WeatherUnits?.windUnit()??'m/s')+'</span>'}</div></div>
     </div>
     <div>${direction}</div>
     <div class="wind-popup-meta">${point.lat.toFixed(3)}°, ${lon.toFixed(3)}°<br>${htmlEscape(fmt(unix))}</div>

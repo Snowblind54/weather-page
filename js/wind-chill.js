@@ -245,7 +245,7 @@
     for(const station of pairs){
       const p=map.latLngToContainerPoint([station.lat,station.lon]);
       if(occupied.some(q=>Math.abs(q.x-p.x)<gapX&&Math.abs(q.y-p.y)<gapY))continue;occupied.push(p);
-      const marker=L.marker([station.lat,station.lon],{interactive:true,keyboard:true,title:`${station.name} · official wind chill`,icon:L.divIcon({className:'',html:`<div class="temp-label temp-label-observed"><span class="temp-observed-dot">●</span>${Math.round(station.windChill)}°C</div>`,iconSize:[58,22],iconAnchor:[29,11]})});
+      const marker=L.marker([station.lat,station.lon],{interactive:true,keyboard:true,title:`${station.name} · official wind chill`,icon:L.divIcon({className:'',html:`<div class="temp-label temp-label-observed"><span class="temp-observed-dot">●</span>${(globalThis.WeatherUnits?.temperature(station.windChill,0)??Math.round(station.windChill)+'°C')}</div>`,iconSize:[58,22],iconAnchor:[29,11]})});
       const tempTime=Number.isFinite(station.time)?fmt(station.time):'unavailable';
       const officialWind=station.windSource==='official'&&station.windStation;
       const windTime=officialWind?fmt(station.windTime):fmt(unix);
@@ -256,7 +256,7 @@
       const sourceLine=officialWind
         ? `Wind chill calculated from paired official observations. ${htmlEscape(pairing)} · ${htmlEscape(station.windStation.name)}`
         : 'Wind chill calculated from official measured air temperature plus the shared 10 m model wind field.';
-      marker.bindPopup(`<div class="temp-station-popup"><b>${htmlEscape(station.name)}</b><div style="font-size:24px;font-weight:800;margin:5px 0">Wind chill ${station.windChill.toFixed(1)}°C</div><div>Official measured air temperature: ${station.temp.toFixed(1)}°C</div><div>${windLabel}: ${station.windSpeed.toFixed(1)} m/s</div><div class="wind-popup-meta">Temperature observed ${htmlEscape(tempTime)}<br>Wind time ${htmlEscape(windTime)}</div><div class="wind-popup-meta">${sourceLine}</div></div>`,{maxWidth:310,className:'wind-popup-container',autoPan:false});
+      marker.bindPopup(`<div class="temp-station-popup"><b>${htmlEscape(station.name)}</b><div style="font-size:24px;font-weight:800;margin:5px 0">Wind chill ${(globalThis.WeatherUnits?.temperature(station.windChill,1)??station.windChill.toFixed(1)+'°C')}</div><div>Official measured air temperature: ${(globalThis.WeatherUnits?.temperature(station.temp,1)??station.temp.toFixed(1)+'°C')}</div><div>${windLabel}: ${(globalThis.WeatherUnits?.wind(station.windSpeed,1)??station.windSpeed.toFixed(1)+' m/s')}</div><div class="wind-popup-meta">Temperature observed ${htmlEscape(tempTime)}<br>Wind time ${htmlEscape(windTime)}</div><div class="wind-popup-meta">${sourceLine}</div></div>`,{maxWidth:310,className:'wind-popup-container',autoPan:false});
       marker.addTo(temperatureLabels);
     }
     temperatureLabels.addTo(map);

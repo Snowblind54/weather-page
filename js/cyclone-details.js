@@ -39,7 +39,7 @@ function renderCycloneList(){
     button.setAttribute('aria-label','View '+name+' · '+point.pressure.toFixed(1)+' hPa');
     button.innerHTML='<span class="cyclone-card-heading"><strong>'+htmlEscape(name)+'</strong><b style="color:'+cycloneColour(point.pressure)+'">'+point.pressure.toFixed(1)+' hPa</b></span>'+
       '<span class="cyclone-trend '+trend.kind+'">'+htmlEscape(trend.text)+'</span>'+
-      '<span class="cyclone-card-meta">'+(point.nearbyGust==null?'Gust unavailable':'Nearby peak gust '+point.nearbyGust.toFixed(1)+' m/s')+' · moving '+Math.round(point.speed)+' km/h</span>'+
+      '<span class="cyclone-card-meta">'+(point.nearbyGust==null?'Gust unavailable':'Nearby peak gust '+(globalThis.WeatherUnits?.wind(point.nearbyGust,1)??point.nearbyGust.toFixed(1)+' m/s'))+' · moving '+Math.round(point.speed)+' km/h</span>'+
       (system.europeanName?'<span class="cyclone-card-meta">Name: '+htmlEscape(system.europeanName.issuer)+' · inferred match</span>':system.nhc?'<span class="cyclone-card-meta">Official NHC name</span>':'');
     button.addEventListener('click',()=>{
       if(!$('cycloneOn').checked || !cycloneUsable())return;

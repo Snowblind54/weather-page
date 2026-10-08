@@ -47,14 +47,14 @@
 
     return `<div style="margin-top:9px;border-top:1px solid rgba(255,255,255,.12);padding-top:9px">
       <div class="wind-popup-meta" style="display:flex;justify-content:space-between;gap:8px;margin-bottom:3px"><strong style="color:#eaf7fb">Measured history · up to 24 h</strong><span>${rows.length} obs</span></div>
-      <div class="wind-popup-meta" style="display:flex;justify-content:space-between;gap:7px;margin-bottom:3px"><span>Now ${current.toFixed(1)}°C</span><span>Min ${min.toFixed(1)}°</span><span>Max ${max.toFixed(1)}°</span></div>
+      <div class="wind-popup-meta" style="display:flex;justify-content:space-between;gap:7px;margin-bottom:3px"><span>Now ${(globalThis.WeatherUnits?.temperature(current,1)??current.toFixed(1)+'°C')}</span><span>Min ${(globalThis.WeatherUnits?.temperature(min,1)??min.toFixed(1)+'°C')}</span><span>Max ${(globalThis.WeatherUnits?.temperature(max,1)??max.toFixed(1)+'°C')}</span></div>
       <svg viewBox="0 0 ${W} ${H}" width="100%" height="154" role="img" aria-label="Measured temperature history for ${htmlEscape(station.name)}">
         <g stroke="rgba(255,255,255,.13)" stroke-width="1">
           <line x1="${L}" y1="${T}" x2="${W-R}" y2="${T}"/><line x1="${L}" y1="${T+plotH/2}" x2="${W-R}" y2="${T+plotH/2}"/><line x1="${L}" y1="${T+plotH}" x2="${W-R}" y2="${T+plotH}"/>
           ${zeroY!==null?`<line x1="${L}" y1="${zeroY.toFixed(1)}" x2="${W-R}" y2="${zeroY.toFixed(1)}" stroke="rgba(255,255,255,.28)" stroke-dasharray="4 4"/>`:''}
         </g>
         <g fill="rgba(225,239,244,.72)" font-size="9" font-family="system-ui,sans-serif">
-          <text x="${L-5}" y="${T+3}" text-anchor="end">${yMax}°</text><text x="${L-5}" y="${T+plotH/2+3}" text-anchor="end">${((yMin+yMax)/2).toFixed(0)}°</text><text x="${L-5}" y="${T+plotH+3}" text-anchor="end">${yMin}°</text>
+          <text x="${L-5}" y="${T+3}" text-anchor="end">${(globalThis.WeatherUnits?.temperature(yMax,0)??Math.round(yMax)+'°C')}</text><text x="${L-5}" y="${T+plotH/2+3}" text-anchor="end">${(globalThis.WeatherUnits?.temperature(((yMin+yMax)/2),0)??Math.round(((yMin+yMax)/2))+'°C')}</text><text x="${L-5}" y="${T+plotH+3}" text-anchor="end">${(globalThis.WeatherUnits?.temperature(yMin,0)??Math.round(yMin)+'°C')}</text>
           <text x="${L}" y="${H-7}">${timeLabel(start)}</text><text x="${L+plotW/2}" y="${H-7}" text-anchor="middle">${timeLabel(mid)}</text><text x="${W-R}" y="${H-7}" text-anchor="end">${timeLabel(end)}</text>
         </g>
         <path d="${d.trim()}" fill="none" stroke="#71d8ff" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>

@@ -594,7 +594,7 @@ function officialTemperaturePopup(station){
   const observed=Number.isFinite(station.time)?fmt(station.time):'Observation time unavailable';
   return `<div class="temp-station-popup">
     <b>${htmlEscape(station.name)}</b>
-    <div style="font-size:24px;font-weight:800;margin:5px 0">${station.temp.toFixed(1)}°C</div>
+    <div style="font-size:24px;font-weight:800;margin:5px 0">${(globalThis.WeatherUnits?.temperature(station.temp,1)??station.temp.toFixed(1)+'°C')}</div>
     <div>Official measured air temperature</div>
     <div class="wind-popup-meta">Observed ${htmlEscape(observed)}</div>
     <div class="wind-popup-meta">Station ${htmlEscape(station.code||'—')} · ${htmlEscape(station.country)}</div>
@@ -646,7 +646,7 @@ renderTemperatureLabels=function(unix){
       title:`${station.name} · ${station.source}`,
       icon:L.divIcon({
         className:'',
-        html:`<div class="temp-label temp-label-observed"><span class="temp-observed-dot">●</span>${Math.round(station.temp)}°C</div>`,
+        html:`<div class="temp-label temp-label-observed"><span class="temp-observed-dot">●</span>${(globalThis.WeatherUnits?.temperature(station.temp,0)??Math.round(station.temp)+'°C')}</div>`,
         iconSize:[54,22],
         iconAnchor:[27,11]
       })
@@ -669,7 +669,7 @@ renderTemperatureLabels=function(unix){
       interactive:false,
       icon:L.divIcon({
         className:'',
-        html:`<div class="temp-label">${Math.round(t)}°C</div>`,
+        html:`<div class="temp-label">${(globalThis.WeatherUnits?.temperature(t,0)??Math.round(t)+'°C')}</div>`,
         iconSize:[46,22],
         iconAnchor:[23,11]
       })

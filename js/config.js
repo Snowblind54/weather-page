@@ -138,7 +138,7 @@ window.addEventListener('load',()=>{
   document.body.appendChild(cloudNordicScript);
 
   const windChillScript=document.createElement('script');
-  windChillScript.src='js/wind-chill.js?v=8.102';
+  windChillScript.src='js/wind-chill.js?v=8.103';
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');
@@ -151,7 +151,7 @@ window.addEventListener('load',()=>{
   document.body.appendChild(spaceWeatherScript);
 
   const temperatureHistoryScript=document.createElement('script');
-  temperatureHistoryScript.src='js/temperature-history.js?v=1';
+  temperatureHistoryScript.src='js/temperature-history.js?v=8.103';
   document.body.appendChild(temperatureHistoryScript);
 
   const freshnessScript=document.createElement('script');

@@ -100,7 +100,7 @@ function cyclonePopupContent(system,point){
   const end=Math.min(cycloneFrameTime(cycloneTrackStart())+72*3600,system.points.at(-1).time);
   const nhc=system.nhc;
   const official=nhc?'<div class="cyclone-advisory"><b>Latest NHC advisory · '+htmlEscape(fmt(nhc.issuedAt))+'</b><br>'+htmlEscape(nhc.classification)+
-    ' · '+nhc.pressure.toFixed(0)+' hPa · sustained wind '+nhc.windMS.toFixed(1)+' m/s<br>Moving '+nhc.movementKMH.toFixed(1)+' km/h'+
+    ' · '+nhc.pressure.toFixed(0)+' hPa · sustained wind '+(globalThis.WeatherUnits?.wind(nhc.windMS,1)??nhc.windMS.toFixed(1)+' m/s')+'<br>Moving '+nhc.movementKMH.toFixed(1)+' km/h'+
     (typeof nhc.url==='string'&&nhc.url.startsWith('https://www.nhc.noaa.gov/')?' · <a href="'+htmlEscape(nhc.url)+'" target="_blank" rel="noopener">Official advisory</a>':'')+'</div>':'';
   return '<div class="cyclone-popup"><b>'+htmlEscape(cycloneName(system))+'</b><div class="small">'+htmlEscape(system.id)+
     (system.europeanName?' · European name, inferred model match':system.name?' · name matched to NHC':' · no official name available')+'</div><div class="cyclone-readings">'+
@@ -109,8 +109,8 @@ function cyclonePopupContent(system,point){
     '<div><span>Moving towards</span><strong>'+direction+'</strong></div>'+
     '<div><span>Pressure change</span><strong>'+pressureChange+'</strong></div>'+
     (trend?'<div><span>Development</span><strong class="cyclone-trend '+trend.kind+'">'+htmlEscape(trend.text)+'</strong><small>Based on centre pressure, not an impact warning.</small></div>':'')+
-    '<div><span>Highest model wind within 200 km</span><strong>'+(point.nearbyWind==null?'Unavailable':point.nearbyWind.toFixed(1)+' m/s')+'</strong><small>10 m wind; excludes gusts</small></div>'+
-    '<div><span>Highest model gust within 200 km</span><strong>'+(point.nearbyGust==null?'Unavailable':point.nearbyGust.toFixed(1)+' m/s')+'</strong><small>GFS surface gust estimate</small></div></div>'+
+    '<div><span>Highest model wind within 200 km</span><strong>'+(point.nearbyWind==null?'Unavailable':(globalThis.WeatherUnits?.wind(point.nearbyWind,1)??point.nearbyWind.toFixed(1)+' m/s'))+'</strong><small>10 m wind; excludes gusts</small></div>'+
+    '<div><span>Highest model gust within 200 km</span><strong>'+(point.nearbyGust==null?'Unavailable':(globalThis.WeatherUnits?.wind(point.nearbyGust,1)??point.nearbyGust.toFixed(1)+' m/s'))+'</strong><small>GFS surface gust estimate</small></div></div>'+
     '<div class="cyclone-meta">Position: '+point.lat.toFixed(2)+'°, '+point.lon.toFixed(2)+'°<br>Valid: '+htmlEscape(fmt(point.time))+
     '<br>Model run: '+htmlEscape(fmt(cycloneData.modelRun))+'<br>Track available until '+htmlEscape(fmt(end))+
     '<br>NOAA / NCEP GFS 0.5° · derived centre and forecast track. Forecast uncertainty grows with time. Symbol rotation is illustrative.</div>'+official+(typeof cycloneEuropeanNameHtml==='function'?cycloneEuropeanNameHtml(system):'')+'</div>';
