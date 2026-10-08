@@ -23,6 +23,7 @@ function validPreparedRadarFrame(frame){
   return ['ee','fi','se','no','dk','is','lt','lv'].includes(frame.source)&&
     ['ee','fi','se','no','dk','iskef','isska','isx2','lt','lv'].includes(frame.station)&&
     Number.isSafeInteger(frame.time)&&/^data\/radar-tiles\/(ee|fi|se|no|dk|iskef|isska|isx2|lt|lv)-\d+-[a-f0-9]{12}$/.test(frame.path)&&
+    (frame.source!=='ee'||frame.style_version===2)&&
     frame.path.split('/').at(-1).startsWith(frame.station+'-'+frame.time+'-')&&
     frame.bounds?.length===2&&frame.bounds.every(p=>p.length===2&&p.every(Number.isFinite))&&
     frame.bounds[0][0]>=-85.051129&&frame.bounds[1][0]<=85.051129&&frame.bounds[0][1]>=-180&&frame.bounds[1][1]<=180&&

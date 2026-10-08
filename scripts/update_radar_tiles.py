@@ -147,6 +147,17 @@ def project_tiff(raw,record):
         return Image.fromarray(archive.colour_rate_field(dest)),[[south,west],[north,east]]
 
 
+def estonia_colours(rates):
+    # Preserve KAIA's existing colour/opacity scale, independently of Nordic dBZ.
+    stops=[.1,.3,.5,1,2,4,8,16,50,float('inf')]
+    colours=np.array([[156,221,255,155],[54,170,255,175],[0,216,154,185],[232,247,0,195],
+                      [255,196,0,205],[255,123,0,215],[255,42,42,225],[211,0,215,235],
+                      [150,0,190,240],[90,0,145,245]],np.uint8)
+    pixels=colours[np.minimum(np.searchsorted(stops,rates,side='right'),len(colours)-1)]
+    pixels[~np.isfinite(rates)|(rates<.05)]=0
+    return pixels
+
+
 def image_for(record):
     if record['format']=='prepared':return Image.open(ROOT/record['url']).convert('RGBA'),record['bounds'],0
     url=record['source_url']
@@ -164,7 +175,7 @@ def image_for(record):
             vals=file['dataset1/data1/data'][...]; what=archive.attrs(file.get('dataset1/what'))
             rate=vals.astype(np.float32)*float(what.get('gain',1))+float(what.get('offset',0))
             rate[(vals==what.get('nodata',65535))|(vals==what.get('undetect',0))|(vals>30000)]=np.nan
-            image=Image.fromarray(archive.colour_rate_field(rate));image.thumbnail((1000,1000),Image.Resampling.NEAREST)
+            image=Image.fromarray(estonia_colours(rate));image.thumbnail((1000,1000),Image.Resampling.NEAREST)
         bounds=BOUNDS['ee']
     else:
         image=Image.open(io.BytesIO(raw)).convert('RGBA');bounds=BOUNDS[record['source']]
@@ -212,7 +223,7 @@ def main():
     started=time.perf_counter();now=int(time.time());first=now-KEEP
     TILES.mkdir(parents=True,exist_ok=True)
     previous=json.loads(OUT.read_text()) if OUT.exists() else {'frames':[]}
-    existing={r['source_url']:r for r in retained(previous['frames'],first) if (ROOT/r['path']).is_dir()}
+    existing={r['source_url']:r for r in retained(previous['frames'],first) if (ROOT/r['path']).is_dir() and (r['source']!='ee' or r.get('style_version')==2)}
     records=[];errors=[];metrics=[]
     with futures.ThreadPoolExecutor(max_workers=4) as pool:
         jobs={pool.submit(discover,s,first,now):s for s in ['ee','fi','se','no','dk','lt','lv']}
@@ -244,7 +255,7 @@ def main():
             if final.exists():shutil.rmtree(temporary)
             else:temporary.rename(final)
             existing[r['source_url']]={k:r[k] for k in ['source','station','time','source_url']}
-            existing[r['source_url']].update(path='data/radar-tiles/'+name,bounds=bounds,tiles=indices,bytes=size,min_zoom=3,max_zoom=7)
+            existing[r['source_url']].update(path='data/radar-tiles/'+name,bounds=bounds,tiles=indices,bytes=size,min_zoom=3,max_zoom=7,style_version=2)
             metrics.append(dict(source=r['source'],time=r['time'],raw_bytes=raw_bytes,tile_bytes=size,tile_count=sum(map(len,indices.values())),seconds=round(time.perf_counter()-begin,3)))
         except Exception as exc:errors.append(r['station']+' '+str(r['time'])+': '+str(exc))
         finally:

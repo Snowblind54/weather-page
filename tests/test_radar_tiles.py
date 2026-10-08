@@ -50,6 +50,9 @@ class RadarTiles(unittest.TestCase):
                 radar.main()
             result=json.loads(out.read_text());self.assertEqual(result['frames'],[frame]);self.assertEqual(len(result['errors']),7)
 
+    def test_estonian_colour_opacity_matches_native_map(self):
+        self.assertEqual(radar.estonia_colours(np.array([.05,.2,60.,np.nan])).tolist(),[[156,221,255,155],[54,170,255,175],[90,0,145,245],[0,0,0,0]])
+
     def test_colour_palette_matches_high_rain_rates(self):
         pixels=radar.archive.colour_rate_field(np.array([50.,70.,np.nan]))
         self.assertEqual(pixels.tolist(),[[255,126,218,225],[255,235,247,235],[0,0,0,0]])
