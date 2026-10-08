@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-08T01:50:00.491860+00:00",
+  "fetchedAt": "2026-10-08T02:19:56.096286+00:00",
   "forecastDays": [
     "2026-10-08",
     "2026-10-09",
@@ -102,19 +102,6 @@
     },
     {
       "id": "5257",
-      "regionId": "68",
-      "country": "Estonia",
-      "area": "Pärnu maakond",
-      "event": "Fog",
-      "level": 1,
-      "effective": "2026-10-07T19:00:00+00:00",
-      "expires": "2026-10-08T07:00:00+00:00",
-      "description": "Fog!",
-      "descriptionEstonian": "Udu!",
-      "preAlert": false
-    },
-    {
-      "id": "5257",
       "regionId": "71",
       "country": "Estonia",
       "area": "Rapla maakond",
@@ -179,17 +166,17 @@
       "preAlert": false
     },
     {
-      "id": "5258",
-      "regionId": "99993",
+      "id": "5282",
+      "regionId": "99997",
       "country": "Estonia",
-      "area": "Peipsi järv",
+      "area": "Läänemere põhjaosa",
       "event": "Wind",
       "level": 1,
-      "effective": "2026-10-08T11:00:00+00:00",
-      "expires": "2026-10-08T19:00:00+00:00",
-      "description": "South, southeast 8, in gusts 11 m/s.",
-      "descriptionEstonian": "Lõuna-, kagutuul 8, puhanguti 11 m/s.",
-      "preAlert": true
+      "effective": "2026-10-08T16:00:00+00:00",
+      "expires": "2026-10-08T22:00:00+00:00",
+      "description": "Southeast in gusts 16 m/s. Wave height 1-2 m.",
+      "descriptionEstonian": "Kagutuul puhanguti 16 m/s. Laine kõrgus 1-2 m.",
+      "preAlert": false
     },
     {
       "id": "5258",
