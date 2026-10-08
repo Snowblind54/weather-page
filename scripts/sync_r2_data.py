@@ -172,6 +172,8 @@ def main():
     parser.add_argument('paths', nargs='*')
     parser.add_argument('--cleanup-only', action='store_true')
     args = parser.parse_args()
+    if not args.paths and not args.cleanup_only:
+        parser.error('Specify updater output paths; full-repository staging is retired')
     client, bucket = connect()
     with publication_lease(client, bucket) as lease:
         registry, _ = get_json(client, bucket, INDEX_KEY, {'version': 1, 'files': {}})

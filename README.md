@@ -1,3 +1,5 @@
+> Generated weather snapshots and archives now live in Cloudflare R2. The map reads them directly, and update jobs publish there without committing weather data to Git. See [R2 storage and expiry](docs/r2-storage.md) for safeguards and configuration.
+
 # Baltic Weather Map
 
 Interactive weather map covering the Baltics and Northern Europe.

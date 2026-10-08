@@ -41,8 +41,8 @@ jobs:
           path: |
             data/latvia-warnings.json
             data/national-warnings.json
-          key: r2-input-${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: r2-input-${{ github.workflow }}-
+          key: r2-input-update-latvia-warnings-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: r2-input-update-latvia-warnings-
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py data/latvia-warnings.json data/national-warnings.json
       - name: Check national warning parsers
