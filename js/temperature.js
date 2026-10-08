@@ -532,7 +532,7 @@ function renderTemperatureLabels(unix){
       interactive:false,
       icon:L.divIcon({
         className:'',
-        html:`<div class="temp-label">${Math.round(t)}°C</div>`,
+        html:`<div class="temp-label">${(globalThis.WeatherUnits?.temperature(t,0)??Math.round(t)+'°C')}</div>`,
         iconSize:[46,22],
         iconAnchor:[23,11]
       })
@@ -771,8 +771,9 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   renderTemperatureLabels(unix);
 
   const observationNote=result.correctionCount?` + ${result.correctionCount} fresh official station corrections`:'';
+  if($('tempStatus').dataset)$('tempStatus').dataset.unitRange=JSON.stringify([result.minT,result.maxT]);
   $('tempStatus').textContent=
-    `Temperature: terrain-aware hourly model${observationNote} + fast bilinear heatmap${$('heatmapOn')?.checked?' · coastline clipped':''}${temperatureUsingStaleCache?' · cached fallback':''} · ${result.minT.toFixed(1)} to ${result.maxT.toFixed(1)} °C · ${fmt(unix)}`;
+    `Temperature: terrain-aware hourly model${observationNote} + fast bilinear heatmap${$('heatmapOn')?.checked?' · coastline clipped':''}${temperatureUsingStaleCache?' · cached fallback':''} · ${(globalThis.WeatherUnits?.temperature(result.minT,1)??result.minT.toFixed(1)+'°C')} to ${(globalThis.WeatherUnits?.temperature(result.maxT,1)??result.maxT.toFixed(1)+'°C')} · ${fmt(unix)}`;
   $('tempStatus').className='status ok';
   weatherFront();
 }

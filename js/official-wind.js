@@ -122,9 +122,9 @@ function officialWindHistoryGraph(s,endUnix){
         <line x1="${L}" y1="${T}" x2="${W-R}" y2="${T}"/><line x1="${L}" y1="${T+plotH/2}" x2="${W-R}" y2="${T+plotH/2}"/><line x1="${L}" y1="${T+plotH}" x2="${W-R}" y2="${T+plotH}"/>
       </g>
       <g fill="rgba(225,239,244,.72)" font-size="9" font-family="system-ui,sans-serif">
-        <text x="${L-5}" y="${T+3}" text-anchor="end">${yMax}</text><text x="${L-5}" y="${T+plotH/2+3}" text-anchor="end">${(yMax/2).toFixed(yMax<4?1:0)}</text><text x="${L-5}" y="${T+plotH+3}" text-anchor="end">0</text>
+        <text x="${L-5}" y="${T+3}" text-anchor="end">${(globalThis.WeatherUnits?.windValue(yMax)??yMax).toFixed(0)}</text><text x="${L-5}" y="${T+plotH/2+3}" text-anchor="end">${(globalThis.WeatherUnits?.windValue((yMax/2))??(yMax/2)).toFixed(yMax<4?1:0)}</text><text x="${L-5}" y="${T+plotH+3}" text-anchor="end">0</text>
         <text x="${L}" y="${H-7}">${timeLabel(start)}</text><text x="${L+plotW/2}" y="${H-7}" text-anchor="middle">${timeLabel(mid)}</text><text x="${W-R}" y="${H-7}" text-anchor="end">${timeLabel(end)}</text>
-        <text x="4" y="9">m/s</text>
+        <text x="4" y="9">${globalThis.WeatherUnits?.windUnit()??'m/s'}</text>
       </g>
       ${sustained?`<path d="${sustained}" fill="none" stroke="#71d8ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
       ${gust?`<path d="${gust}" fill="none" stroke="#ffb45c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
@@ -156,7 +156,7 @@ function handleOfficialWindHistoryClick(event){
 document.addEventListener('click',handleOfficialWindHistoryClick,true);
 
 function officialWindPopup(s,r){
-  const source=officialWindData.sources[s.country],value=n=>n===null?'Unavailable':n.toFixed(1)+' <span>m/s</span>';
+  const source=officialWindData.sources[s.country],value=n=>n===null?'Unavailable':(globalThis.WeatherUnits?.windValue(n)??n).toFixed(1)+' <span>'+(globalThis.WeatherUnits?.windUnit()??'m/s')+'</span>';
   const direction=r[3]===null?'':`<div class="wind-popup-meta">Wind from ${Math.round(r[3])}°</div>`;
   const old=officialWindTime()-r[0]>90*60;
   const gustLabel=OFFICIAL_WIND_GUST_LABELS[s.country]||'Wind gusts';
@@ -177,17 +177,17 @@ function renderOfficialWind(){
   const bounds=map.getBounds(),key=[officialWindData.generatedAt,Math.floor(unix/60),bounds.toBBoxString(),map.getZoom(),sustained,gusts].join('/');
   const available=officialWindData.stations.map(s=>({s,r:officialWindReading(s,unix)})).filter(({r})=>r&&((sustained&&r[1]!==null)||(gusts&&r[2]!==null)));
   if(key!==officialWindRenderKey){
-    officialWindLabels.clearLayers();const occupied=new Map(),width=sustained&&gusts?105:62,height=25;
+    officialWindLabels.clearLayers();const occupied=new Map(),width=(globalThis.WeatherUnits?.windUnit()==='km/h')?(sustained&&gusts?142:82):(sustained&&gusts?105:62),height=25;
     const candidates=available.filter(({s})=>bounds.contains([s.lat,s.lon])).sort((a,b)=>(gusts?b.r[2]??-1:b.r[1]??-1)-(gusts?a.r[2]??-1:a.r[1]??-1));
     for(const {s,r} of candidates){
       const p=map.latLngToContainerPoint([s.lat,s.lon]),cx=Math.floor(p.x/width),cy=Math.floor(p.y/height);let clashes=false;
       for(let x=cx-1;x<=cx+1;x++)for(let y=cy-1;y<=cy+1;y++)for(const q of occupied.get(x+','+y)||[])if(Math.abs(p.x-q.x)<width&&Math.abs(p.y-q.y)<height)clashes=true;
       if(clashes)continue;const cell=cx+','+cy;if(!occupied.has(cell))occupied.set(cell,[]);occupied.get(cell).push(p);
       const old=unix-r[0]>90*60,parts=[];
-      if(sustained&&r[1]!==null)parts.push(`<span style="color:${windColour(r[1])}">${gusts?'S ':''}${r[1].toFixed(1)}</span>`);
-      if(gusts&&r[2]!==null)parts.push(`<span style="color:${windColour(r[2],'gust')}">${sustained?'G ':''}${r[2].toFixed(1)}</span>`);
-      const title=s.name+' · '+(sustained&&r[1]!==null?'Sustained '+r[1].toFixed(1)+' m/s · ':'')+(gusts&&r[2]!==null?'Gust '+r[2].toFixed(1)+' m/s · ':'')+fmt(r[0])+(old?' · delayed':'');
-      const marker=L.marker([s.lat,s.lon],{pane:'officialWindPane',title,keyboard:true,icon:L.divIcon({className:'official-wind-marker',iconSize:[width,24],iconAnchor:[width/2,12],popupAnchor:[0,-12],html:`<span class="official-wind-label${old?' official-wind-delayed':''}">${parts.join(' <span class="official-wind-separator">/</span> ')} <small>m/s</small>${old?' ◷':''}</span>`})})
+      if(sustained&&r[1]!==null)parts.push(`<span style="color:${windColour(r[1])}">${gusts?'S ':''}${(globalThis.WeatherUnits?.windValue(r[1])??r[1]).toFixed(1)}</span>`);
+      if(gusts&&r[2]!==null)parts.push(`<span style="color:${windColour(r[2],'gust')}">${sustained?'G ':''}${(globalThis.WeatherUnits?.windValue(r[2])??r[2]).toFixed(1)}</span>`);
+      const title=s.name+' · '+(sustained&&r[1]!==null?'Sustained '+(globalThis.WeatherUnits?.wind(r[1],1)??r[1].toFixed(1)+' m/s')+' · ':'')+(gusts&&r[2]!==null?'Gust '+(globalThis.WeatherUnits?.wind(r[2],1)??r[2].toFixed(1)+' m/s')+' · ':'')+fmt(r[0])+(old?' · delayed':'');
+      const marker=L.marker([s.lat,s.lon],{pane:'officialWindPane',title,keyboard:true,icon:L.divIcon({className:'official-wind-marker',iconSize:[width,24],iconAnchor:[width/2,12],popupAnchor:[0,-12],html:`<span class="official-wind-label${old?' official-wind-delayed':''}">${parts.join(' <span class="official-wind-separator">/</span> ')} <small>${globalThis.WeatherUnits?.windUnit()??'m/s'}</small>${old?' ◷':''}</span>`})})
         .bindPopup(officialWindPopup(s,r),{className:'official-wind-popup-container',maxWidth:360,autoPan:false,keepInView:false});
       marker.on('popupopen',e=>{const root=e.popup.getElement();if(root){L.DomEvent.disableClickPropagation(root);L.DomEvent.disableScrollPropagation(root);}});marker.addTo(officialWindLabels);
     }
