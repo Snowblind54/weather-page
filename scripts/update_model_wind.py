@@ -22,10 +22,13 @@ OUTPUT = ROOT / "data" / "model-wind.json"
 API = "https://api.open-meteo.com/v1/forecast"
 BATCH_SIZE = 50
 
+# Two-degree North Atlantic sampling, with half-degree detail around Iceland.
 WIND_GRIDS = [
     {"south": 25, "north": 84, "west": -142, "east": 42, "rows": 14, "cols": 36},
+    {"south": 50, "north": 78, "west": -65, "east": 5, "rows": 15, "cols": 36},
     {"south": 34, "north": 74, "west": -15, "east": 42, "rows": 11, "cols": 17},
     {"south": 53, "north": 61, "west": 19, "east": 31, "rows": 9, "cols": 9},
+    {"south": 60, "north": 68, "west": -26, "east": -12, "rows": 17, "cols": 29},
 ]
 
 
@@ -151,7 +154,7 @@ def main() -> None:
         raise RuntimeError("No usable wind data returned")
 
     data = {
-        "version": 4,
+        "version": 5,
         "savedAt": int(time.time() * 1000),
         "times": times,
         "grids": grids,
