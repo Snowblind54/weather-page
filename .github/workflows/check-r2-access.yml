@@ -23,3 +23,5 @@ jobs:
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: python3 scripts/check_r2_public.py
+
+# Inspect a verified asset while the initial archive copy completes.

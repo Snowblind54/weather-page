@@ -31,13 +31,25 @@ def main():
         print('Browser CORS configured for the current website.')
     except ClientError:
         print('Object credentials cannot manage bucket CORS. Check public response; dashboard configuration may be needed.')
-    request = urllib.request.Request(PUBLIC + '/weather/data/radar-tiles.json', headers={
+    objects = [obj for page in client.get_paginator('list_objects_v2').paginate(Bucket=os.environ['R2_BUCKET']) for obj in page.get('Contents', [])]
+    print('Stored R2 files:', len(objects), 'bytes:', sum(obj['Size'] for obj in objects), flush=True)
+    candidates = [obj for obj in objects if obj['Key'].startswith('weather/data/')]
+    if not candidates:
+        raise RuntimeError('Initial upload has not produced a public test file yet')
+    key = 'weather/data/radar-tiles.json'
+    radar_ready = any(obj['Key'] == key for obj in candidates)
+    if not radar_ready:
+        key = min(candidates, key=lambda obj: obj['Size'])['Key']
+    request = urllib.request.Request(PUBLIC + '/' + key, headers={
         'Origin': ORIGIN, 'User-Agent': 'NorthernWeather-R2-Migration/1.0'})
     with urllib.request.urlopen(request, timeout=30) as response:
-        data = json.load(response)
         cors = response.headers.get('Access-Control-Allow-Origin')
-    if cors not in [ORIGIN, '*']:
-        raise RuntimeError('Public files exist but browser CORS is missing. Add GET/HEAD CORS for https://snowblind54.github.io in the R2 bucket Settings.')
+        if cors not in [ORIGIN, '*']:
+            raise RuntimeError('Public files exist but browser CORS is missing. Add GET/HEAD CORS for https://snowblind54.github.io in the R2 bucket Settings.')
+        data = json.load(response) if radar_ready else None
+    if not radar_ready:
+        print('Public asset and browser CORS verified; initial manifest copy still running.')
+        return
     if data.get('version') != 1 or not isinstance(data.get('frames'), list):
         raise RuntimeError('Public radar manifest failed validation')
     print('Public R2 radar manifest verified; frames:', len(data['frames']))
