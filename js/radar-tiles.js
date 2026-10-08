@@ -10,7 +10,7 @@ function runPreparedRadarTileQueue(){
     const job=preparedRadarTileQueue.shift();
     if(!job.allowed()){preparedRadarTileJobs.delete(job.url);job.reject(new Error('Obsolete radar buffering'));continue;}
     preparedRadarTileActive++;
-    loadRadarNativeImage(job.url).then(job.resolve,job.reject).finally(()=>{preparedRadarTileJobs.delete(job.url);preparedRadarTileActive--;runPreparedRadarTileQueue();});
+    loadRadarNativeImage(job.url).then(result=>job.resolve(result.image),job.reject).finally(()=>{preparedRadarTileJobs.delete(job.url);preparedRadarTileActive--;runPreparedRadarTileQueue();});
   }
 }
 function loadPreparedRadarTile(url,background,allowed){

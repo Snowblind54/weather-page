@@ -4,8 +4,8 @@ function harness(){
  const record={source:'fi',station:'fi',time:1000,path:'data/radar-tiles/fi-1000-0123456789ab',bounds:[[-20,-20],[20,20]],min_zoom:3,max_zoom:7,tiles:{3:['3/3','3/4','4/3','4/4']}};
  const calls=[],view={getSouth:()=>0,getWest:()=>0,getNorth:()=>10,getEast:()=>10};
  const c={Map,Set,Promise,Date,Math,Number,Object,Array,AbortController,setTimeout,clearTimeout,console:{warn(){}},performance,
- map:{getZoom:()=>3,getBounds:()=>view},document:{createElement:()=>({width:0,height:0,dataset:{},getContext:()=>({drawImage(){}})})},
- fetch:async()=>({ok:true,json:async()=>({version:1,frames:[record]})}),loadRadarNativeImage:async url=>{calls.push(url);return {};}};
+ map:{getZoom:()=>3,getBounds:()=>view},document:{createElement:()=>({width:0,height:0,dataset:{},getContext:()=>({drawImage(image){assert.equal(image.kind,'decoded-image');}})})},
+ fetch:async()=>({ok:true,json:async()=>({version:1,frames:[record]})}),loadRadarNativeImage:async url=>{calls.push(url);return {image:{kind:'decoded-image'},width:256,height:256};}};
  vm.createContext(c);vm.runInContext(source,c);return {c,record,calls,view};
 }
 test('prepared radar loads only published visible tiles and reuses ready frames',async()=>{
