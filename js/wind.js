@@ -1,6 +1,8 @@
 // Wind crosses coastlines: never apply the temperature layer's land mask.
 const WIND_CACHE_KEY='balticWeatherWindV5';
 const WIND_CACHE_MS=45*60*1000;
+// GitHub Actions fetches upstream data once; visitors share this snapshot.
+const SHARED_WIND_URL='data/model-wind.json';
 const WIND_GRIDS=[
   // Broad Atlantic grid, European detail, then the existing Baltic detail.
   {south:25,north:82,west:-85,east:42,rows:12,cols:25},
@@ -9,6 +11,7 @@ const WIND_GRIDS=[
 ];
 let windData=null;
 let windLoadPromise=null;
+// Kept for compatibility with the separately loaded wind-chill module.
 let windRetryAt=0;
 let windLayer=null;
 let windHeatmapLayer=null;
@@ -95,31 +98,6 @@ map.on('click',event=>{
   windPopup.setLatLng(windProbe).setContent(windPopupContent(windProbe,selectedWindTime())).openOn(map);
 });
 
-function windVector(speed,direction){
-  if(!Number.isFinite(speed)||speed<0||!Number.isFinite(direction)) return null;
-  // API bearings describe where wind comes FROM; particles travel the other way.
-  const radians=direction*Math.PI/180;
-  return [-speed*Math.sin(radians),-speed*Math.cos(radians)];
-}
-
-function windSample(speed,direction,gust){
-  const vector=windVector(speed,direction);
-  return vector?[...vector,Number.isFinite(gust)&&gust>=0?gust:null]:null;
-}
-
-function windPoints(grid){
-  const points=[];
-  for(let row=0;row<grid.rows;row++){
-    for(let col=0;col<grid.cols;col++){
-      points.push([
-        grid.south+(grid.north-grid.south)*row/(grid.rows-1),
-        grid.west+(grid.east-grid.west)*col/(grid.cols-1)
-      ]);
-    }
-  }
-  return points;
-}
-
 function validWindData(data){
   return data?.version===3 && Number.isFinite(data.savedAt) &&
     data.times?.length>=2 && data.times.every(Number.isFinite) &&
@@ -141,55 +119,36 @@ function restoreWind(){
 restoreWind();
 
 async function fetchWindData(){
-  const points=WIND_GRIDS.flatMap(windPoints);
-  const series=[];
-  let times=null;
-  // Multi-location requests still count as individual locations at the provider.
-  // 568 samples, short time range, no eager loading or concurrent burst.
-  for(let offset=0;offset<points.length;offset+=50){
-    if($('windOn').checked){$('windStatus').textContent='Loading Atlantic and European wind… '+Math.round(offset/points.length*100)+'%';}
-    const batch=points.slice(offset,offset+50);
-    const params=new URLSearchParams({
-      latitude:batch.map(p=>p[0]).join(','),
-      longitude:batch.map(p=>p[1]).join(','),
-      hourly:'wind_speed_10m,wind_direction_10m,wind_gusts_10m',
-      wind_speed_unit:'ms',timeformat:'unixtime',timezone:'UTC',
-      past_hours:'4',forecast_hours:'3',cell_selection:'nearest'
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),15000);
+  try{
+    // Five-minute URL buckets avoid a stale intermediary cache while still
+    // letting simultaneous visitors share the same static response.
+    const cacheBucket=Math.floor(Date.now()/(5*60*1000));
+    const response=await fetch(`${SHARED_WIND_URL}?v=${cacheBucket}`,{
+      cache:'no-store',signal:controller.signal
     });
-    const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),20000);
-    let json;
-    try{
-      const response=await fetch('https://api.open-meteo.com/v1/forecast?'+params,{
-        cache:'no-store',signal:controller.signal
-      });
-      if(response.status===429){
-        windRetryAt=Date.now()+5*60*1000;
-        throw new Error('Wind service is rate limited. Retrying in 5 minutes.');
-      }
-      if(!response.ok) throw new Error('Wind service HTTP '+response.status);
-      json=await response.json();
-    }finally{clearTimeout(timeout);}
-    const items=Array.isArray(json)?json:[json];
-    if(items.length!==batch.length) throw new Error('Incomplete wind grid returned.');
-    for(const item of items){
-      const hourly=item.hourly;
-      if(!hourly||hourly.time.length<2) throw new Error('Wind hours are unavailable.');
-      if(!times) times=hourly.time;
-      if(JSON.stringify(times)!==JSON.stringify(hourly.time)) throw new Error('Wind grid hours do not match.');
-      series.push(times.map((_,i)=>windSample(hourly.wind_speed_10m?.[i],hourly.wind_direction_10m?.[i],hourly.wind_gusts_10m?.[i])));
+    if(!response.ok)throw new Error(`Shared wind snapshot HTTP ${response.status}`);
+    const data=await response.json();
+    if(!validWindData(data)||!data.grids?.[0]?.some(series=>series.some(Boolean))){
+      throw new Error('Shared wind snapshot is invalid');
     }
+
+    // savedAt is used by the existing client as its cache-receipt time. Keep
+    // the server generation time separately so a shared snapshot does not get
+    // re-downloaded on every toggle merely because it was generated earlier.
+    data.generatedAt=data.savedAt;
+    data.savedAt=Date.now();
+    windRetryAt=0;
+    return data;
+  }catch(error){
+    const detail=error?.name==='AbortError'?'timed out':'is temporarily unavailable';
+    const wrapped=new Error(`Shared wind data ${detail}. Please try again shortly.`);
+    wrapped.cause=error;
+    throw wrapped;
+  }finally{
+    clearTimeout(timeout);
   }
-  let offset=0;
-  const grids=WIND_GRIDS.map(grid=>{
-    const count=grid.rows*grid.cols;
-    const values=series.slice(offset,offset+count);
-    offset+=count;
-    return values;
-  });
-  const data={version:3,savedAt:Date.now(),times,grids};
-  if(!validWindData(data)||!grids[0].some(s=>s.some(Boolean))) throw new Error('No usable wind data returned.');
-  return data;
 }
 
 function selectedWindTime(){
@@ -205,29 +164,31 @@ function reportWindError(error){
 }
 
 async function loadWind(){
-  if(!windVisualEnabled()) return;
+  if(!windVisualEnabled())return;
+
   if(windData && Date.now()-windData.savedAt<WIND_CACHE_MS){
-    if($('windOn').checked) renderWind(selectedWindTime());
-    if($('windHeatmapOn').checked) renderWindHeatmap(selectedWindTime());
+    if($('windOn').checked)renderWind(selectedWindTime());
+    if($('windHeatmapOn').checked)renderWindHeatmap(selectedWindTime());
     return;
   }
-  if(Date.now()<windRetryAt) throw new Error('Wind service is cooling down. Please try again shortly.');
+
+  // There is no visitor-specific upstream cooldown anymore. An old 429 from
+  // the previous direct-fetch implementation must not block the new source.
+  windRetryAt=0;
   renderWind(selectedWindTime());
-  $('windStatus').textContent=windData?'Updating wind data…':'Loading wind over land and sea…';
+  $('windStatus').textContent=windData?'Updating shared wind data…':'Loading shared wind over land and sea…';
   $('windStatus').className='status';
+
   if(!windLoadPromise){
     windLoadPromise=fetchWindData().then(data=>{
       windData=data;
       try{localStorage.setItem(WIND_CACHE_KEY,JSON.stringify(data));}catch(e){}
-    }).catch(error=>{
-      windRetryAt=Math.max(windRetryAt,Date.now()+60000);
-      throw error;
     }).finally(()=>{windLoadPromise=null;});
   }
-  // A disabled layer can finish caching but must never add itself back.
+
   await windLoadPromise;
-  if($('windOn').checked) renderWind(selectedWindTime());
-  if($('windHeatmapOn').checked) renderWindHeatmap(selectedWindTime());
+  if($('windOn').checked)renderWind(selectedWindTime());
+  if($('windHeatmapOn').checked)renderWindHeatmap(selectedWindTime());
 }
 
 function windTimeSlice(unix){

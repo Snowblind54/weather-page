@@ -114,14 +114,6 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
   document.body.appendChild(panel);
 })();
 
-// Load the wind data-source override independently from the renderer. It can
-// begin downloading while the remaining map scripts parse and installs itself
-// as soon as wind.js is ready.
-const sharedWindSourceScript=document.createElement('script');
-sharedWindSourceScript.src='js/model-wind-source.js?v=1';
-sharedWindSourceScript.async=true;
-document.head.appendChild(sharedWindSourceScript);
-
 // Wind chill, satellite compatibility and Space Weather depend on modules that
 // are defined by the synchronous scripts below config.js, so install them after
 // page load.
