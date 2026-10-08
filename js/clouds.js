@@ -344,6 +344,9 @@ const TransparentCloudTiles=L.GridLayer.extend({
   }
 });
 function updateCloudBlendOpacity(){cloudLayer?.setOpacity(Number($('cloudOpacity').value)/100);}
+$('cloudCanadaView')?.addEventListener('click',()=>{
+  map.fitBounds([[42,-142],[83.5,-52]],{padding:[24,100]});
+});
 function cloudStatus(text,kind=''){
   $('cloudStatus').textContent=text;$('cloudStatus').className='status'+(kind?' '+kind:'');
 }
