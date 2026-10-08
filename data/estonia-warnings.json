@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
-  "fetchedAt": "2026-10-08T05:21:30.452218+00:00",
+  "fetchedAt": "2026-10-08T05:50:01.053415+00:00",
   "forecastDays": [
     "2026-10-08",
     "2026-10-09",
@@ -9,19 +9,6 @@
     "2026-10-11"
   ],
   "records": [
-    {
-      "id": "5257",
-      "regionId": "45",
-      "country": "Estonia",
-      "area": "Ida-Viru maakond",
-      "event": "Fog",
-      "level": 1,
-      "effective": "2026-10-07T19:00:00+00:00",
-      "expires": "2026-10-08T07:00:00+00:00",
-      "description": "Fog!",
-      "descriptionEstonian": "Udu!",
-      "preAlert": false
-    },
     {
       "id": "5257",
       "regionId": "50",
