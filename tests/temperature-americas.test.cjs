@@ -40,3 +40,13 @@ test('official station bounds accept the new countries without relaxing European
   assert(!h.run("officialTempValid(49,-123,7,'EE')"));assert(!h.run("officialTempValid(20,-123,7,'CA')"));
   assert(!h.run("officialTempValid(64,-51,null,'GL')"));
 });
+
+test('shared regions render while the European temperature request is still pending',async()=>{
+  const h=harness();let release,draws=0;
+  h.c.pending=new Promise(resolve=>release=resolve);h.c.frames=[{time:h.time}];
+  h.c.$=()=>({value:'0',checked:true});h.c.queueTemperatureRender=()=>draws++;
+  h.c.fetch=async()=>({ok:true,json:async()=>h.data});
+  h.run('ensureTemperatureData=()=>pending;');const loading=h.run('loadTemperatures()');
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(draws,1);
+  assert(h.run('temperatureSeries.length')>0);release();await loading;assert.equal(draws,2);
+});

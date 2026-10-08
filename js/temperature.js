@@ -975,7 +975,14 @@ async function ensureTemperatureData(force=false){
 }
 
 async function loadTemperatures(force=false){
-  const results=await Promise.allSettled([ensureTemperatureData(force),loadAmericasTemperatureData(force)]);
+  const americas=loadAmericasTemperatureData(force).then(()=>{
+    // Show the shared regions immediately; a slower European API request must
+    // not hold back Greenland or Canadian stations and heatmaps.
+    temperatureSeries=[...temperatureCitySeries,...TEMP_GRID_SPECS.flatMap(spec=>(temperatureGridData.get(spec.id)||[]).filter(Boolean))];
+    const frame=frames[Number($('timeline').value)];
+    if(frame && temperatureEnabled()) queueTemperatureRender(frame.time,0);
+  });
+  const results=await Promise.allSettled([ensureTemperatureData(force),americas]);
   temperatureSeries=[...temperatureCitySeries,...TEMP_GRID_SPECS.flatMap(spec=>(temperatureGridData.get(spec.id)||[]).filter(Boolean))];
   if(!temperatureSeries.length) throw results.find(result=>result.status==='rejected')?.reason||new Error('Temperature data unavailable');
   for(const result of results) if(result.status==='rejected') console.warn('Regional temperature source:',result.reason);
