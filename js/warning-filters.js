@@ -301,7 +301,7 @@ function updateVisibleWarningStatus(){
     ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['Greenland','GL'],['Canada','CA']
   ]){
     const count=counts.get(country)||0;
-    if(count) parts.push(`${label} ${count}`);
+    if(count || (['Canada','Greenland'].includes(country) && nationalWarningSnapshot?.countries?.[label])) parts.push(`${label} ${count}`);
   }
 
   if(previous.includes('cached')) parts.push('cached source used');
