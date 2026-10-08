@@ -6,12 +6,13 @@ function cacheRadarNativeImage(url,result){
   while(radarNativeImages.size>100 || [...radarNativeImages.values()].reduce((bytes,entry)=>bytes+(entry.image?entry.width*entry.height*4:0),0)>24*1024*1024)radarNativeImages.delete(radarNativeImages.keys().next().value);
 }
 function loadRadarNativeImage(url,{pixels=false}={}){
+  if(typeof weatherDataUrl==='function')url=weatherDataUrl(url);
   const cached=radarNativeImages.get(url);
   if(cached?.error&&Date.now()-cached.at<30000)return Promise.reject(cached.error);
   if(cached&&!cached.error&&(!pixels||cached.image)){cacheRadarNativeImage(url,cached);return Promise.resolve(cached);}
   if(radarNativePending.has(url))return radarNativePending.get(url);
   const promise=new Promise((resolve,reject)=>{
-    const image=new Image();image.decoding='async';image.referrerPolicy='no-referrer';
+    const image=new Image();if(typeof window!=='undefined'&&window.WEATHER_R2_BASE&&url.startsWith(window.WEATHER_R2_BASE+'/'))image.crossOrigin='anonymous';image.decoding='async';image.referrerPolicy='no-referrer';
     const finish=()=>{clearTimeout(timer);image.onload=image.onerror=null;};
     const fail=()=>{finish();const error=new Error('Official radar image unavailable');cacheRadarNativeImage(url,{at:Date.now(),error});reject(error);};
     const timer=setTimeout(()=>{image.src='';fail();},8000);

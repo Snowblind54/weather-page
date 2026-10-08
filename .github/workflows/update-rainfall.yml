@@ -11,16 +11,34 @@ on:
       - tests/test_rainfall.py
       - .github/workflows/update-rainfall.yml
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: update-official-rainfall
   cancel-in-progress: false
+env:
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+  R2_BUCKET: ${{ secrets.R2_BUCKET }}
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install boto3==1.40.50
+      - name: Restore cached updater inputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/official-rainfall.json
+          key: r2-input-${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: r2-input-${{ github.workflow }}-
+      - name: Restore verified last successful R2 data
+        run: python3 scripts/hydrate_r2_data.py data/official-rainfall.json
       - name: Check rainfall adapters
         run: python3 -m unittest discover -s tests -p test_rainfall.py -v
       - name: Fetch official hourly precipitation and retain histories

@@ -40,7 +40,7 @@
     const assetRoot=manifest.asset_root||'forecast-cache';
     if(!['forecast-cache','forecast-iceland-cache'].includes(assetRoot))throw Error('Invalid forecast asset root');
     if(typeof path!=='string'||!path.startsWith('data/'+assetRoot+'/'+cycle+'/')||path.split('/').length!==4||path.split('/').at(-1)!==name)throw Error('Invalid shared forecast image');
-    return path;
+    return typeof root.weatherDataUrl==='function'?root.weatherDataUrl(path):path;
   }
   function cachedTimes(manifest,now=Date.now()){
     const raw=expandTimes((manifest.cached_times||[]).join(','));

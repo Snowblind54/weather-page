@@ -52,7 +52,34 @@ def main():
         return
     if data.get('version') != 1 or not isinstance(data.get('frames'), list):
         raise RuntimeError('Public radar manifest failed validation')
-    print('Public R2 radar manifest verified; frames:', len(data['frames']))
+    print('Public R2 radar manifest verified; frames:', len(data['frames']), flush=True)
+    from concurrent.futures import ThreadPoolExecutor
+    from r2_store import get_json, INDEX_KEY
+    registry, _ = get_json(client, os.environ['R2_BUCKET'], INDEX_KEY)
+    if not registry:
+        return
+    active = {key: value for key, value in registry['files'].items() if value.get('protected')}
+    snapshots = [key for key in active if key.count('/') == 2 and key.endswith('.json')]
+    assets = []
+    for prefix in ['radar-tiles/', 'radar-cache/', 'forecast-cache/', 'forecast-iceland-cache/', 'snow-history/']:
+        key = next((key for key in active if key.startswith('weather/data/' + prefix)), None)
+        if key: assets.append(key)
+
+    def verify(key):
+        snapshot = key in snapshots
+        req = urllib.request.Request(PUBLIC + '/' + key, method='GET' if snapshot else 'HEAD',
+            headers={'Origin': ORIGIN, 'User-Agent': 'NorthernWeather-R2-Migration/1.0'})
+        with urllib.request.urlopen(req, timeout=60) as response:
+            if response.headers.get('Access-Control-Allow-Origin') not in [ORIGIN, '*']:
+                raise RuntimeError('CORS missing for ' + key)
+            if snapshot:
+                if not isinstance(json.load(response), (dict, list)):
+                    raise RuntimeError('Invalid public snapshot: ' + key)
+            elif int(response.headers['Content-Length']) != active[key]['size']:
+                raise RuntimeError('Public asset length differs: ' + key)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(verify, snapshots + assets))
+    print('All public snapshots verified:', len(snapshots), 'sampled radar/forecast/snow assets:', len(assets), flush=True)
 
 
 if __name__ == '__main__':

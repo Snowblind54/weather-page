@@ -84,7 +84,7 @@ def sync(client, bucket, root=ROOT, now=None, selected=None, registry=None, leas
     elif not entries:
         raise RuntimeError('No publication registry; refusing blind expiry')
     # Keep the previous live assets until all replacement manifests succeed.
-    protected = {key for key, entry in entries.items() if entry.get('protected')} | set(files)
+    protected = {key for key, entry in entries.items() if entry.get('protected')} | set(files) | set(registry.get('pending', []))
     objects = inventory(client, bucket)
     expired = expired_keys(objects, protected, now)
     for start in range(0, len(expired), 1000):
@@ -134,6 +134,13 @@ def sync(client, bucket, root=ROOT, now=None, selected=None, registry=None, leas
     with ThreadPoolExecutor(max_workers=24) as pool:
         list(pool.map(upload, assets))
     print('Verified assets; publishing current manifests.', flush=True)
+    if manifests:
+        # Write an intent before changing any manifest. If a later PUT fails,
+        # cleanup still protects every verified asset the live map may use.
+        intent = dict(registry, pending=list(files))
+        if lease: lease.check()
+        client.put_object(Bucket=bucket, Key=INDEX_KEY, Body=json.dumps(intent).encode(),
+            ContentType='application/json', CacheControl='no-store')
     for item in manifests:
         upload(item)
     for key in list(entries):

@@ -13,6 +13,10 @@ def hydrate(client, bucket, selected, root=ROOT, lease=None):
         raise RuntimeError('R2 publication registry must be initialized before updater inputs')
     objects = {key: {'Size': value['size'], 'ETag': value['etag'], 'sha256': value['sha256']}
                for key, value in registry['files'].items() if value.get('protected') and in_scope(key, selected)}
+    for key in registry.get('pending', []):
+        if in_scope(key, selected):
+            head = client.head_object(Bucket=bucket, Key=key)
+            objects[key] = {'Size': head['ContentLength'], 'ETag': head['ETag'], 'sha256': head['Metadata']['sha256']}
     if not objects:
         raise RuntimeError('R2 input scope is empty; refusing a fresh empty archive')
 

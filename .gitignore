@@ -1,0 +1,6 @@
+# Generated weather snapshots and archives live in R2.
+data/*
+!data/estonia-marine-warning-zones.geojson
+__pycache__/
+*.pyc
+r2-storage-report.json

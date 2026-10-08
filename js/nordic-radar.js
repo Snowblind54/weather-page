@@ -238,10 +238,11 @@ function runNordicRadarQueue(){
   }
 }
 function decodeNordicRadarImage(url){
+  if(typeof weatherDataUrl==='function')url=weatherDataUrl(url);
   // Preload the actual display element, including decoding, rather than only
   // the PNG bytes. Leaflet can reuse this ready image without a second load.
   return new Promise((resolve,reject)=>{
-    const image=new Image();image.decoding='async';
+    const image=new Image();if(typeof window!=='undefined'&&window.WEATHER_R2_BASE&&url.startsWith(window.WEATHER_R2_BASE+'/'))image.crossOrigin='anonymous';image.decoding='async';
     let settled=false;
     const finish=(error)=>{
       if(settled)return;settled=true;clearTimeout(timer);image.onload=image.onerror=null;

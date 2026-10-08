@@ -14,18 +14,37 @@ on:
       - .github/workflows/update-latvia-warnings.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: update-latvia-warnings
   cancel-in-progress: false
 
+env:
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+  R2_BUCKET: ${{ secrets.R2_BUCKET }}
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install boto3==1.40.50
+      - name: Restore cached updater inputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/latvia-warnings.json
+            data/national-warnings.json
+          key: r2-input-${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: r2-input-${{ github.workflow }}-
+      - name: Restore verified last successful R2 data
+        run: python3 scripts/hydrate_r2_data.py data/latvia-warnings.json data/national-warnings.json
       - name: Check national warning parsers
         run: python3 -m unittest discover -s tests -p 'test_national_warnings.py' -v
       - name: Fetch official LVGMC warnings and polygons
