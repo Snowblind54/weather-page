@@ -69,7 +69,7 @@ def sync(client, bucket, root=ROOT, now=None):
             if head.get('Metadata', {}).get('sha256') == digest:
                 return None
         return (key, size, digest)
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=24) as pool:
         changes = [item for item in pool.map(changed, files.items()) if item]
     peak = plan_peak(total, changes)
     if peak > BUDGET:
@@ -91,8 +91,9 @@ def sync(client, bucket, root=ROOT, now=None):
             raise RuntimeError('Upload verification failed; remaining manifests withheld')
     assets = [item for item in changes if item[0].count('/') != 2]
     manifests = [item for item in changes if item[0].count('/') == 2]
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=24) as pool:
         list(pool.map(upload, assets))
+    print('Verified archive assets; publishing current manifests.', flush=True)
     # No current manifest changes until every required asset has succeeded.
     for item in manifests:
         upload(item)
@@ -105,7 +106,7 @@ def sync(client, bucket, root=ROOT, now=None):
         'expiredFiles': len(expired), 'status': 'verified',
         'publicMapCutover': 'pending public URL and browser verification'}
     (root / 'r2-storage-report.json').write_text(json.dumps(report, indent=2) + '\n')
-    print(json.dumps(report))
+    print(json.dumps(report), flush=True)
     return report
 
 
@@ -123,7 +124,7 @@ def main():
     client = boto3.client('s3', endpoint_url=endpoint, region_name='auto',
         aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
         aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
-        config=Config(retries={'max_attempts': 5, 'mode': 'standard'},
+        config=Config(max_pool_connections=32, connect_timeout=15, read_timeout=60, retries={'max_attempts': 5, 'mode': 'standard'},
             request_checksum_calculation='when_required', response_checksum_validation='when_required'))
     sync(client, os.environ['R2_BUCKET'])
 
