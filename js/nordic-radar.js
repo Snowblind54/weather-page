@@ -125,6 +125,13 @@ async function cachedNordicRadar(source){
   const data=await nordicRadarArchive.promise;
   return (data.frames||[]).filter(frame=>validNordicRadarArchiveFrame(frame,source)).sort((a,b)=>a.time-b.time);
 }
+function preparedIcelandRadar(records,prepared){
+  const images=new Map(prepared.map(frame=>[frame.station+'|'+frame.time,frame]));
+  return records.map(record=>{
+    const image=images.get(record.station+'|'+record.time);
+    return image&&image.source_url===(record.source_url||record.url)?image:record;
+  });
+}
 async function listNordicRadar(source,force=false){
   const cached=nordicRadarLists.get(source.id);
   if(!force&&cached&&Date.now()-cached.at<(source.id==='is'?45000:120000))return cached.promise;
@@ -132,7 +139,17 @@ async function listNordicRadar(source,force=false){
     const last=Math.floor(Date.now()/1000),first=last-3*3600;
     let records=[];
     if(source.id==='is'){
-      try{return await liveIcelandRadar();}catch(error){console.warn('Iceland live service unavailable; trying official archive',error);}
+      // Fetch the prepared archive alongside live metadata. Only exact scans
+      // replace raw files; archive age never substitutes an older observation.
+      try{ensureNordicRadarWorker().postMessage({warmup:true});}catch(_){}
+      const prepared=cachedNordicRadar(source).catch(()=>[]);
+      try{
+        const live=await liveIcelandRadar();
+        let timer;
+        const images=await Promise.race([prepared,new Promise(resolve=>{timer=setTimeout(()=>resolve([]),1500);})]);
+        clearTimeout(timer);
+        return preparedIcelandRadar(live,images);
+      }catch(error){console.warn('Iceland live service unavailable; trying official archive',error);}
     }
     if(source.id==='dk'){
       try{

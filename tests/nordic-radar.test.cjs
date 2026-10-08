@@ -153,3 +153,10 @@ test('worker footprint follows scan geometry even when every measurement is dry'
  assert.equal(coverage.cells[0],0);assert.equal(coverage.cells[16*32+16],1);
  assert(coverage.cells.some(v=>v===0)&&coverage.cells.some(v=>v===1));
 });
+
+test('prepared Iceland PNGs replace only the identical official scan and preserve latest raw scans',()=>{
+ const c=harness();c.live=[{station:'iskef',time:100,url:'relay',source_url:'https://brunnur.vedur.is/scan.h5'},{station:'iskef',time:200,url:'new-relay',source_url:'https://brunnur.vedur.is/new.h5'}];
+ c.prepared=[{station:'iskef',time:100,format:'png',url:'data/radar-cache/exact.png',source_url:'https://brunnur.vedur.is/scan.h5'},{station:'isska',time:200,format:'png',url:'wrong-station',source_url:'https://brunnur.vedur.is/new.h5'}];
+ let rows=vm.runInContext('preparedIcelandRadar(live,prepared)',c);assert.equal(rows[0].format,'png');assert.equal(rows[1].url,'new-relay');assert.equal(rows[1].time,200);
+ c.prepared[0].source_url='https://brunnur.vedur.is/different.h5';rows=vm.runInContext('preparedIcelandRadar(live,prepared)',c);assert.equal(rows[0].url,'relay');
+});

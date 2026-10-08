@@ -99,6 +99,7 @@ async function render(message){
 }
 self.onmessage=event=>{
   const message=event.data;
+  if(message.warmup){dependencies().catch(()=>{});return;}
   sequence=sequence.then(async()=>{
     try{self.postMessage({id:message.id,...await render(message)});}
     catch(error){self.postMessage({id:message.id,error:error?.message||String(error)});}
