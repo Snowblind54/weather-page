@@ -64,3 +64,10 @@
 }
 @media(max-width:760px) and (max-height:500px) and (orientation:landscape){body #forecastSection{width:55vw;bottom:8px;max-height:calc(100dvh - 116px)}}
 @media(max-width:760px) and (max-height:500px) and (orientation:landscape){body.forecast-model-view #forecastSection{bottom:8px;max-height:calc(100dvh - 116px)}.forecast-map-dock{right:auto;width:calc(45vw - 24px)}}
+
+.forecast-map-layer-heading{display:flex;align-items:center;gap:8px}
+.forecast-map-layer-heading .info-button{display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid var(--border);border-radius:50%;background:transparent;color:var(--text);cursor:pointer}
+.forecast-map-layer-heading .info-button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+#forecastMapInfo{margin:8px 0 10px}
+#forecastMapInfo .forecast-note{margin:0}
+@media(max-width:760px){.forecast-map-layer-heading .info-button{width:44px;height:44px}}
