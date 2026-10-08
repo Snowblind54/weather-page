@@ -65,8 +65,8 @@ test('late old map images cannot replace a newer forecast selection',async()=>{
 test('recent loaded frames are reused without creating another image request',async()=>{
   const h=harness();h.open();await h.run();await h.loaded(0);h.time(first+3600000);await h.run();await h.loaded(1);h.time(first);await h.run();assert.equal(h.images.length,2);assert.equal(h.overlays.filter(l=>l.active)[0].img.dataset.forecastTime,'2026-10-07T21:00:00.000Z');
 });
-test('closing Forecast prevents late maps from appearing and restores the normal view',async()=>{
-  const h=harness();h.open();await h.run();h.close();await h.loaded(0);assert.equal(h.overlays.filter(l=>l.active).length,0);assert(!h.classes.has('forecast-model-view'));assert(h.ids.forecastMapLegend.hidden);
+test('leaving forecast mode prevents late maps from appearing and restores the normal view',async()=>{
+  const h=harness();h.open();await h.run();h.c.window.NorthernForecastMap.setActive(false);h.close();await h.loaded(0);assert.equal(h.overlays.filter(l=>l.active).length,0);assert(!h.classes.has('forecast-model-view'));assert(h.ids.forecastMapLegend.hidden);
 });
 
 test('loaded map and legend only request shared website assets',async()=>{
@@ -91,4 +91,16 @@ test('adding Iceland keeps the reused Nordic image attached after old overlays a
   const active=h.overlays.filter(l=>l.active);assert.equal(active.length,2);
   assert(active.every(l=>l.img.attached));assert.notEqual(active[0].img,old);
   assert.equal(h.images.length,2); // Nordic source image was reused from cache.
+});
+
+test('closing the forecast menu keeps images and timeline active and allows changing hours',async()=>{
+  const h=harness();h.open();await h.run();await h.loaded(0);h.close();
+  assert(h.classes.has('forecast-model-view'));assert(h.classes.has('forecast-view'));
+  assert(h.c.window.NorthernForecastMap.isActive());assert.equal(h.overlays.filter(l=>l.active).length,1);
+  assert.equal(h.c.document.body.children[0].hidden,false);
+  h.time(first+3600000);await h.run();await h.loaded(1);
+  assert.equal(h.overlays.filter(l=>l.active)[0].img.dataset.forecastTime,'2026-10-07T22:00:00.000Z');
+  h.c.window.NorthernForecastMap.setActive(false);
+  assert(!h.classes.has('forecast-view'));assert(!h.classes.has('forecast-model-view'));
+  assert.equal(h.c.document.body.children[0].hidden,true);assert.equal(h.overlays.filter(l=>l.active).length,0);
 });

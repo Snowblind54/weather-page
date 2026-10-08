@@ -3,7 +3,7 @@
   const panel=$('forecastSection');if(!panel)return;
   const D=ForecastMapData;
   const controls=document.createElement('div');controls.className='forecast-map-controls';
-  controls.innerHTML=`<div class="forecast-map-layer-heading"><label class="label" for="forecastMapLayer">Forecast map layer</label><button type="button" class="info-button" data-info="forecastMapInfo" aria-controls="forecastMapInfo" aria-expanded="false" aria-label="Forecast map information">i</button></div><div id="forecastMapInfo" class="source-card" hidden><h3>Forecast map information</h3><p class="forecast-note">Nordics/Baltics: MET Nordic. Iceland/North Atlantic: ECMWF IFS open data (0.25° grid), filling the gap to Norway; MET Nordic keeps priority inside its coverage. Both follow the same hourly timeline and colour scales. Iceland’s native steps are three hours: temperature, wind and clouds are interpolated between steps; rain shows the three-hour mean rate and gusts use the nearest native forecast, with its actual period shown below. The model cycles can differ. Shared maps refresh every six hours. Other weather overlays return when you close Forecast or choose location forecast only.</p></div><select id="forecastMapLayer"><option value="temperature">Temperature</option><option value="rain">Rain / snow</option><option value="wind">Sustained wind</option><option value="gusts">Wind gusts</option><option value="clouds">Cloud cover</option><option value="off">Location forecast only</option></select><div class="forecast-map-opacity"><label for="forecastMapOpacity">Map opacity</label><output id="forecastMapOpacityValue">55%</output></div><input id="forecastMapOpacity" type="range" min="10" max="90" step="5" value="55" aria-label="Forecast map opacity"><div id="forecastMapLegend" hidden><div id="forecastMapLegendTitle" class="label"></div><img id="forecastMapColorbar" alt="Forecast colour scale" width="256" height="18"><div id="forecastMapLegendTicks"></div><div id="forecastMapVisibleTime" class="forecast-note"></div></div><div id="forecastMapStatus" class="status" role="status" aria-live="polite">Open Forecast to load the forecast maps.</div>`;
+  controls.innerHTML=`<div class="forecast-map-layer-heading"><label class="label" for="forecastMapLayer">Forecast map layer</label><button type="button" class="info-button" data-info="forecastMapInfo" aria-controls="forecastMapInfo" aria-expanded="false" aria-label="Forecast map information">i</button></div><div id="forecastMapInfo" class="source-card" hidden><h3>Forecast map information</h3><p class="forecast-note">Nordics/Baltics: MET Nordic. Iceland/North Atlantic: ECMWF IFS open data (0.25° grid), filling the gap to Norway; MET Nordic keeps priority inside its coverage. Both follow the same hourly timeline and colour scales. Iceland’s native steps are three hours: temperature, wind and clouds are interpolated between steps; rain shows the three-hour mean rate and gusts use the nearest native forecast, with its actual period shown below. The model cycles can differ. Shared maps refresh every six hours. Closing this menu keeps the forecast map and timeline active. Choose another category in the top menu to return to its weather layers, or choose location forecast only to hide the coloured forecast map.</p></div><select id="forecastMapLayer"><option value="temperature">Temperature</option><option value="rain">Rain / snow</option><option value="wind">Sustained wind</option><option value="gusts">Wind gusts</option><option value="clouds">Cloud cover</option><option value="off">Location forecast only</option></select><div class="forecast-map-opacity"><label for="forecastMapOpacity">Map opacity</label><output id="forecastMapOpacityValue">55%</output></div><input id="forecastMapOpacity" type="range" min="10" max="90" step="5" value="55" aria-label="Forecast map opacity"><div id="forecastMapLegend" hidden><div id="forecastMapLegendTitle" class="label"></div><img id="forecastMapColorbar" alt="Forecast colour scale" width="256" height="18"><div id="forecastMapLegendTicks"></div><div id="forecastMapVisibleTime" class="forecast-note"></div></div><div id="forecastMapStatus" class="status" role="status" aria-live="polite">Open Forecast to load the forecast maps.</div>`;
   $('forecastLocation').before(controls);
   const dock=document.createElement('div');dock.className='forecast-map-dock';dock.hidden=true;
   dock.setAttribute('aria-label','Forecast map timeline');
@@ -12,12 +12,13 @@
   map.createPane('forecastModel');map.getPane('forecastModel').style.zIndex='430';map.getPane('forecastModel').style.pointerEvents='none';
   let meta=null,metaPromise=null,metaChecked=0,selectedTime=null,generation=0,overlay=null,visibleTime=null,visibleUrl=null,renderTimer=null,visibleRegions=[];
   const cache=new Map(),pending=new Map();
-  const active=()=>!panel.hidden&&$('forecastMapLayer').value!=='off';
+  let forecastMode=false;
+  const active=()=>forecastMode&&$('forecastMapLayer').value!=='off';
   const date=t=>new Date(t).toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
   function status(s,bad=false){$('forecastMapStatus').textContent=s;$('forecastMapStatus').className='status'+(bad?' bad':'');}
   function opacity(){overlay?.forEach(layer=>layer.setOpacity(Number($('forecastMapOpacity').value)/100));}
   function clearOverlay(){overlay?.forEach(layer=>map.removeLayer(layer));overlay=null;visibleRegions=[];visibleTime=null;visibleUrl=null;$('forecastMapLegend').hidden=true;}
-  function syncView(){document.body.classList.toggle('forecast-model-view',active());$('nav-forecastSection').classList.toggle('layer-active',active());dock.hidden=!active();}
+  function syncView(){document.body.classList.toggle('forecast-view',forecastMode);document.body.classList.toggle('forecast-model-view',active());$('nav-forecastSection').classList.toggle('layer-active',active());dock.hidden=!active();}
   async function metadata(){
     if(meta&&Date.now()-metaChecked<15*60000)return meta;
     if(metaPromise)return metaPromise;
@@ -106,14 +107,14 @@
   }
   function schedule(delay=180){generation++;clearTimeout(renderTimer);renderTimer=setTimeout(render,delay);}
   function chooseTime(index){if(!meta)return;selectedTime=meta.times[Math.max(0,Math.min(meta.times.length-1,index))];updateTimeline();schedule();document.dispatchEvent(new CustomEvent('forecast-map-time',{detail:{time:selectedTime}}));}
-  window.NorthernForecastMap={setTime(time){if(Number.isFinite(time)){selectedTime=time;if(active()){updateTimeline();schedule();}}}};
+  window.NorthernForecastMap={isActive:()=>forecastMode,setActive(enabled){forecastMode=Boolean(enabled);syncView();if(!active()){generation++;clearTimeout(renderTimer);clearOverlay();}else schedule(0);},setTime(time){if(Number.isFinite(time)){selectedTime=time;if(active()){updateTimeline();schedule();}}}};
   $('forecastMapTimeline').addEventListener('input',()=>chooseTime(Number($('forecastMapTimeline').value)));
   $('forecastMapPrevious').addEventListener('click',()=>chooseTime(Number($('forecastMapTimeline').value)-1));
   $('forecastMapNext').addEventListener('click',()=>chooseTime(Number($('forecastMapTimeline').value)+1));
   $('forecastMapLayer').addEventListener('change',()=>{clearOverlay();syncView();schedule(0);});
   $('forecastMapOpacity').addEventListener('input',()=>{$('forecastMapOpacityValue').textContent=$('forecastMapOpacity').value+'%';opacity();});
   $('forecastRetry').addEventListener('click',()=>{metaChecked=0;schedule(0);});
-  new MutationObserver(()=>{syncView();if(panel.hidden){generation++;clearTimeout(renderTimer);clearOverlay();}else schedule(0);}).observe(panel,{attributes:true,attributeFilter:['hidden']});
+  new MutationObserver(()=>{if(!panel.hidden){forecastMode=true;syncView();schedule(0);}}).observe(panel,{attributes:true,attributeFilter:['hidden']});
   map.on('moveend resize',()=>{if(active())schedule(250);});
   setInterval(()=>{if(!document.hidden&&active()&&Date.now()-metaChecked>=15*60000)schedule(0);},60000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&active())schedule(0);});

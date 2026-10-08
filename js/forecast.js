@@ -183,12 +183,13 @@
     tab.addEventListener('keydown',event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();switchView(event.key==='Home'?'hourly':event.key==='End'?'daily':view==='hourly'?'daily':'hourly');$('forecast'+view[0].toUpperCase()+view.slice(1)+'Tab').focus();}});
   }
   map.on('click',event=>{
-    if(panel.hidden)return;
+    if(panel.hidden&&!window.NorthernForecastMap?.isActive())return;
     if(event.originalEvent?.target?.closest?.('.leaflet-interactive,.leaflet-marker-icon,.leaflet-popup,.leaflet-control'))return;
+    if(panel.hidden&&typeof openWeatherPanel==='function')openWeatherPanel('forecastSection');
     map.closePopup();choose(event.latlng);
   });
   new MutationObserver(()=>{
-    document.body.classList.toggle('forecast-view',!panel.hidden);
+    
     if(panel.hidden){requestId++;controller?.abort();controller=null;clearTimeout(choose.timer);if(marker){map.removeLayer(marker);marker=null;}}
     else{
       if(typeof stop==='function')stop();

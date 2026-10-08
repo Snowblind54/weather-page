@@ -27,6 +27,7 @@ function positionWeatherPanel(){
   if(activeAccumulationHours())requestAnimationFrame(renderOfficialRainLabels);
 }
 function openWeatherPanel(id){
+  if(id!=='mapSettings')window.NorthernForecastMap?.setActive(id==='forecastSection');
   if(id==='snowSection')enterSnowView();
   else if(id!=='mapSettings' && snowMode)exitSnowView();
   if(openedWeatherPanel===id){closeWeatherPanel(true);return;}
