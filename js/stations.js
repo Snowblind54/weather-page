@@ -114,15 +114,16 @@ function officialTempCoord(record){
   return {lat,lon};
 }
 
-function officialTempValid(lat,lon,temp){
+function officialTempValid(lat,lon,temp,country){
+  const bounds=country==='GL'?[59,84,-74,-10]:country==='CA'?[41,84,-142,-52]:[48.5,72.5,-26,33];
   return Number.isFinite(lat) && Number.isFinite(lon) &&
-    lat>=48.5 && lat<=72.5 && lon>=-26 && lon<=33 &&
-    Number.isFinite(temp) && temp>-70 && temp<55;
+    lat>=bounds[0] && lat<=bounds[1] && lon>=bounds[2] && lon<=bounds[3] &&
+    Number.isFinite(temp) && temp>(country==='GL'||country==='CA'?-90:-70) && temp<55;
 }
 
 function officialTempRecord({country,code,name,lat,lon,temp,time,source}){
   lat=officialTempNumber(lat); lon=officialTempNumber(lon); temp=officialTempNumber(temp);
-  if(!officialTempValid(lat,lon,temp)) return null;
+  if(!officialTempValid(lat,lon,temp,country)) return null;
   return {
     country,code:String(code||''),name:String(name||'Weather station'),
     lat,lon,temp,time:Number.isFinite(Number(time))?Number(time):NaN,
@@ -479,7 +480,10 @@ const OFFICIAL_TEMP_LOADERS=[
   ['NO',loadNorwayOfficialTemperature],
   ['IS',loadIcelandOfficialTemperature],
   ['PL',loadPolandOfficialTemperature],
-  ['DK',loadDenmarkOfficialTemperature]
+  ['DK',loadDenmarkOfficialTemperature],
+  // Collected centrally in the shared snapshot; never queried per visitor.
+  ['GL',null],
+  ['CA',null]
 ];
 
 async function loadOfficialTemperatureStations(force=false){

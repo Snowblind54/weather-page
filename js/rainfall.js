@@ -1,4 +1,8 @@
 // Completed-hour rain + showers, independent of the two-hour radar archive.
+// Rainfall retains its existing coverage independently of temperature expansion.
+const RAIN_REGION_IDS=new Set(['baltics','scandinavia','iceland','poland','denmark']);
+const RAIN_GRID_SPECS=TEMP_GRID_SPECS.filter(spec=>RAIN_REGION_IDS.has(spec.id));
+const RAIN_REGIONS=TEMP_REGIONS.filter(region=>RAIN_REGION_IDS.has(region.id));
 const RAIN_CACHE_KEY='balticWeatherRainAccumulationV814';
 const RAIN_CACHE_TTL=30*60*1000;
 const RAIN_PERIODS=[1,24,48];
@@ -77,7 +81,7 @@ function rollingRainTotal(series,end,hours){
 
 function validRainData(data,end){
   return data?.version===1 && Number.isFinite(data.savedAt) && data.savedAt<=Date.now()+300000 &&
-    Date.now()-data.savedAt<RAIN_CACHE_TTL && TEMP_GRID_SPECS.every(spec=>{
+    Date.now()-data.savedAt<RAIN_CACHE_TTL && RAIN_GRID_SPECS.every(spec=>{
       const series=data.grids?.[spec.id];
       return Array.isArray(series) && series.length===spec.points.length && series.every((s,i)=>
         s.lat===spec.points[i][0] && s.lon===spec.points[i][1] &&
@@ -133,7 +137,7 @@ async function loadRainfall(force=false){
       // Avoid competing with the startup temperature grid requests.
       if(temperatureLoadPromise) await temperatureLoadPromise.catch(()=>{});
       const grids={};
-      for(const spec of TEMP_GRID_SPECS){
+      for(const spec of RAIN_GRID_SPECS){
         if(!activeAccumulationHours()) return null;
         $('rainAccumStatus').textContent='Loading rainfall · '+spec.id+'…';
         $('rainAccumStatus').className='status';
@@ -155,7 +159,7 @@ async function loadRainfall(force=false){
       if(error.rateLimited) rainRetryAt=Date.now()+60000;
       if(officialRainData?.stations.length){
         rainModelError=error.message;
-        if(!rainData) rainData={version:0,grids:Object.fromEntries(TEMP_GRID_SPECS.map(spec=>[spec.id,
+        if(!rainData) rainData={version:0,grids:Object.fromEntries(RAIN_GRID_SPECS.map(spec=>[spec.id,
           spec.points.map(([lat,lon])=>({lat,lon,times:[],amounts:[]}))]))};
         rainImageCache.clear();return rainData;
       }
@@ -197,7 +201,7 @@ function weatherPointInFeature(lat,lon,feature){
 
 function rainfallSpecAt(lat,lon){
   if(!rainCountryFeatures) return null;
-  return TEMP_GRID_SPECS.find(spec=>{
+  return RAIN_GRID_SPECS.find(spec=>{
     const [[south,west],[north,east]]=spec.bounds;
     return lat>=south && lat<=north && lon>=west && lon<=east &&
       rainCountryFeatures.some(feature=>TEMP_REGION_COUNTRY_IDS[spec.id].has(String(feature.id))&&
@@ -232,8 +236,8 @@ async function createRainfallImages(hours,end,generation){
   const features=await loadTemperatureCountryFeatures();
   rainCountryFeatures=features;
   const rendered=[];
-  for(const region of TEMP_REGIONS){
-    const spec=TEMP_GRID_SPECS.find(s=>s.id===region.id);
+  for(const region of RAIN_REGIONS){
+    const spec=RAIN_GRID_SPECS.find(s=>s.id===region.id);
     const series=rainData?.grids[region.id];
     if(!series || ![...TEMP_REGION_COUNTRY_IDS[region.id]].every(id=>features.some(f=>String(f.id)===id))){
       throw new Error('Rainfall coverage/coastline missing for '+region.id);

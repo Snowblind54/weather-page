@@ -5,7 +5,9 @@ const TEMP_REGIONS=[
   {id:'scandinavia',bounds:[[54.40,4.00],[71.60,32.20]],w:330,h:245},
   {id:'iceland',bounds:[[62.70,-25.20],[67.20,-12.40]],w:230,h:150},
   {id:'poland',bounds:[[48.80,14.00],[55.00,24.50]],w:320,h:260},
-  {id:'denmark',bounds:[[54.40,7.80],[57.90,15.30]],w:320,h:220}
+  {id:'denmark',bounds:[[54.40,7.80],[57.90,15.30]],w:320,h:220},
+  {id:'canada',bounds:[[41,-142],[84,-52]],w:580,h:400},
+  {id:'greenland',bounds:[[59,-74],[84,-10]],w:350,h:390}
 ];
 
 function mercatorY(lat){
@@ -65,13 +67,50 @@ const TEMP_GRID_SPECS=[
   makeStructuredGrid('poland',TEMP_REGIONS[3].bounds,1.10,1.40),
   makeStructuredGrid('denmark',TEMP_REGIONS[4].bounds,0.80,1.20),
   makeStructuredGrid('scandinavia',TEMP_REGIONS[1].bounds,1.50,2.00),
-  makeStructuredGrid('iceland',TEMP_REGIONS[2].bounds,0.90,1.40)
+  makeStructuredGrid('iceland',TEMP_REGIONS[2].bounds,0.90,1.40),
+  {...makeStructuredGrid('canada',TEMP_REGIONS[5].bounds,3,4),shared:true},
+  {...makeStructuredGrid('greenland',TEMP_REGIONS[6].bounds,2,3),shared:true}
 ];
 
 const temperatureGridData=new Map();
 let temperatureCitySeries=[];
 let temperatureCityMap=new Map();
 let temperatureLoadPromise=null;
+let americasTemperaturePromise=null;
+let americasTemperatureLoadedAt=0;
+
+function validateAmericasTemperatureSnapshot(data){
+  if(data?.version!==1 || !Number.isFinite(data.generatedAt) ||
+     data.generatedAt>Date.now()/1000+600 || Date.now()/1000-data.generatedAt>12*3600) return false;
+  return TEMP_GRID_SPECS.filter(spec=>spec.shared).every(spec=>{
+    const grid=data.grids?.[spec.id];
+    return grid && JSON.stringify(grid.latitudes)===JSON.stringify(spec.latitudes) &&
+      JSON.stringify(grid.longitudes)===JSON.stringify(spec.longitudes) &&
+      Array.isArray(grid.series) && grid.series.length===spec.points.length &&
+      grid.series.every((item,i)=>item?.lat===spec.points[i][0] && item.lon===spec.points[i][1] &&
+        Array.isArray(item.times) && item.times.length>=2 && item.times.every((t,j)=>Number.isFinite(t)&&(!j||t>item.times[j-1])) &&
+        Array.isArray(item.temps) && item.temps.length===item.times.length &&
+        item.temps.every(t=>t===null||(Number.isFinite(t)&&t>-90&&t<60)) && item.temps.some(Number.isFinite));
+  });
+}
+
+async function loadAmericasTemperatureData(force=false){
+  if(!force && Date.now()-americasTemperatureLoadedAt<30*60*1000) return;
+  if(americasTemperaturePromise) return americasTemperaturePromise;
+  americasTemperaturePromise=(async()=>{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+    try{
+      const response=await fetch('data/temperature-americas-model.json?v='+Math.floor(Date.now()/(10*60*1000)),{cache:'no-store',signal:controller.signal});
+      if(!response.ok) throw new Error('Canada/Greenland heatmap snapshot HTTP '+response.status);
+      const data=await response.json();
+      if(!validateAmericasTemperatureSnapshot(data)) throw new Error('Invalid Canada/Greenland heatmap snapshot');
+      for(const spec of TEMP_GRID_SPECS.filter(spec=>spec.shared)) temperatureGridData.set(spec.id,data.grids[spec.id].series);
+      americasTemperatureLoadedAt=Date.now();
+      temperatureImageCache.clear();temperatureStatsCache.clear();
+    }finally{clearTimeout(timer);}
+  })();
+  try{await americasTemperaturePromise;}finally{americasTemperaturePromise=null;}
+}
 
 const TEMP_DATA_CACHE_KEY='balticWeatherTemperatureDataV812';
 const TEMP_DATA_CACHE_MAX_AGE=30*60*1000;
@@ -117,9 +156,16 @@ function restoreTemperatureState(maxAge=TEMP_DATA_CACHE_MAX_AGE){
       return false;
     }
 
-    temperatureGridData.clear();
+    // Validate before replacing grids, and retain a separately loaded Americas
+    // snapshot when an older European cache is used after an upstream failure.
     for(const spec of TEMP_GRID_SPECS){
       const series=cached.grids[spec.id];
+      if(spec.shared && !series) continue;
+      if(!Array.isArray(series) || series.length!==spec.points.length) return false;
+    }
+    for(const spec of TEMP_GRID_SPECS){
+      const series=cached.grids[spec.id];
+      if(spec.shared && !series) continue; // Existing European caches remain usable.
       if(!Array.isArray(series) || series.length!==spec.points.length){
         return false;
       }
@@ -154,7 +200,9 @@ const TEMP_REGION_COUNTRY_IDS={
   scandinavia:new Set(['246','752','578']),  // Finland, Sweden, Norway
   iceland:new Set(['352']),                 // Iceland
   poland:new Set(['616']),                  // Poland
-  denmark:new Set(['208'])                  // Denmark, including its islands
+  denmark:new Set(['208']),                 // Denmark, including its islands
+  canada:new Set(['124']),
+  greenland:new Set(['304'])
 };
 let temperatureCountryFeaturesPromise=null;
 
@@ -410,10 +458,16 @@ function sampleGridTemperature(spec,lat,lon,unix){
   const series=temperatureGridData.get(spec.id);
   if(!series?.length) return NaN;
 
-  const values=series.map(item=>sampleTemperatureAt(item,unix));
+  const values=series.map(item=>sampleTemperatureGridPoint(spec,item,unix));
   const latB=axisBracket(spec.latitudes,lat);
   const lonB=axisBracket(spec.longitudes,lon);
   return bilinearValue(values,spec.longitudes.length,latB,lonB);
+}
+
+function sampleTemperatureGridPoint(spec,item,unix){
+  // Do not present the final forecast hour as indefinitely current data.
+  if(spec.shared && (!item || unix<item.times[0] || unix>item.times.at(-1))) return NaN;
+  return sampleTemperatureAt(item,unix);
 }
 
 function interpolateTemp(lat,lon,unix){
@@ -599,7 +653,7 @@ async function createTemperatureImage(unix, token){
 
     // Sample the model timeline only once per source point for this frame.
     // Pixel interpolation below is then just four-number bilinear blending.
-    const gridValues=sourceSeries.map(item=>sampleTemperatureAt(item,cacheKey));
+    const gridValues=sourceSeries.map(item=>sampleTemperatureGridPoint(spec,item,cacheKey));
     const cols=spec.longitudes.length;
 
     const W=region.w,H=region.h;
@@ -823,16 +877,18 @@ async function fetchTemperatureChunks(points,chunkSize=110){
 }
 
 async function fetchAllTemperatureData(){
-  temperatureGridData.clear();
+  for(const spec of TEMP_GRID_SPECS) if(!spec.shared) temperatureGridData.delete(spec.id);
 
   // Heatmap grids first. This critical path stays comfortably below the
   // Open-Meteo free-tier per-minute location budget.
   for(const spec of TEMP_GRID_SPECS){
+    if(spec.shared) continue; // These larger grids are fetched once centrally.
     const series=await fetchTemperatureChunks(spec.points,100);
     temperatureGridData.set(spec.id,series);
   }
 
   for(const spec of TEMP_GRID_SPECS){
+    if(spec.shared) continue;
     if(!temperatureGridData.get(spec.id)?.some(Boolean)){
       throw new Error('no '+spec.id+' temperature grid returned');
     }
@@ -919,7 +975,10 @@ async function ensureTemperatureData(force=false){
 }
 
 async function loadTemperatures(force=false){
-  await ensureTemperatureData(force);
+  const results=await Promise.allSettled([ensureTemperatureData(force),loadAmericasTemperatureData(force)]);
+  temperatureSeries=[...temperatureCitySeries,...TEMP_GRID_SPECS.flatMap(spec=>(temperatureGridData.get(spec.id)||[]).filter(Boolean))];
+  if(!temperatureSeries.length) throw results.find(result=>result.status==='rejected')?.reason||new Error('Temperature data unavailable');
+  for(const result of results) if(result.status==='rejected') console.warn('Regional temperature source:',result.reason);
 
   const i=Number($('timeline').value);
   const frame=frames[i];

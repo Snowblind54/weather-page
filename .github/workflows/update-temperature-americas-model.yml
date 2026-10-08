@@ -1,0 +1,27 @@
+name: Update Canada and Greenland temperature heatmap
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/update_temperature_americas_model.py
+      - .github/workflows/update-temperature-americas-model.yml
+permissions:
+  contents: write
+concurrency:
+  group: update-temperature-americas-model
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Build shared hourly temperature grid
+        run: python3 scripts/update_temperature_americas_model.py
+      - name: Publish shared heatmap samples
+        run: bash scripts/publish_generated_data.sh 'Refresh Canada and Greenland temperature heatmap' data/temperature-americas-model.json

@@ -8,6 +8,7 @@ on:
     paths:
       - scripts/update_official_temperature.py
       - scripts/update_official_temperature_all.py
+      - scripts/update_north_america_temperature.py
       - scripts/publish_generated_data.sh
       - js/stations.js
       - .github/workflows/update-official-temperature.yml
@@ -38,7 +39,7 @@ jobs:
           assert 'LV' in p['sources'], 'Latvia source missing from temperature snapshot'
           for s in p['stations']:
               assert s['rows']
-              assert -70 < s['rows'][-1][1] < 55
+              assert -90 < s['rows'][-1][1] < 55
           print('stations',len(p['stations']),p['sources'])
           PY
       - name: Save official temperature snapshot
