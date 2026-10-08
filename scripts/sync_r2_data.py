@@ -5,11 +5,13 @@ Current source files remain protected, including the last successful snapshots.
 Run all writers in the shared r2-weather-storage Actions concurrency group.
 """
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 import hashlib
 import json
 import mimetypes
 import os
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -57,23 +59,26 @@ def sync(client, bucket, root=ROOT, now=None):
     # Re-read actual storage after expiry; never assume deletion freed space.
     objects = inventory(client, bucket)
     total = sum(o['Size'] for o in objects.values())
-    changes = []
-    for key, path in files.items():
+    def changed(item):
+        key, path = item
         size = path.stat().st_size
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         existing = objects.get(key)
         if existing and existing['Size'] == size:
             head = client.head_object(Bucket=bucket, Key=key)
             if head.get('Metadata', {}).get('sha256') == digest:
-                continue
-        changes.append((key, size, digest))
+                return None
+        return (key, size, digest)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        changes = [item for item in pool.map(changed, files.items()) if item]
     peak = plan_peak(total, changes)
     if peak > BUDGET:
         raise RuntimeError(f'8 GB storage guard: {total} stored + incoming files would require {peak} bytes; no uploads performed')
     # Assets and nested JSON first; publish root manifests only after all assets
     # have been uploaded and independently verified through authenticated HEAD.
     changes.sort(key=lambda item: (item[0].count('/') == 2, item[0].endswith('.json'), item[0]))
-    for key, size, digest in changes:
+    def upload(item):
+        key, size, digest = item
         path = files[key]
         is_snapshot = key.count('/') == 2
         with path.open('rb') as body:
@@ -84,6 +89,13 @@ def sync(client, bucket, root=ROOT, now=None):
         head = client.head_object(Bucket=bucket, Key=key)
         if head['ContentLength'] != size or head.get('Metadata', {}).get('sha256') != digest:
             raise RuntimeError('Upload verification failed; remaining manifests withheld')
+    assets = [item for item in changes if item[0].count('/') != 2]
+    manifests = [item for item in changes if item[0].count('/') == 2]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(upload, assets))
+    # No current manifest changes until every required asset has succeeded.
+    for item in manifests:
+        upload(item)
     final = inventory(client, bucket)
     stored = sum(o['Size'] for o in final.values())
     if stored > BUDGET:
@@ -104,9 +116,10 @@ def main():
     missing = [k for k in required if not os.environ.get(k)]
     if missing:
         raise RuntimeError('Missing GitHub secrets: ' + ', '.join(missing))
-    endpoint = os.environ['R2_ENDPOINT'].rstrip('/')
-    if not endpoint.startswith('https://'):
-        raise RuntimeError('R2_ENDPOINT must be an HTTPS S3 endpoint')
+    match = re.search(r'https://[a-f0-9]{32}(?:\.(?:eu|fedramp))?\.r2\.cloudflarestorage\.com', os.environ['R2_ENDPOINT'].strip(), re.I)
+    if not match:
+        raise RuntimeError('R2_ENDPOINT is not the Cloudflare S3 API endpoint. Update the GitHub secret with the HTTPS account endpoint ending in .r2.cloudflarestorage.com, not the public r2.dev URL.')
+    endpoint = match.group(0).lower()
     client = boto3.client('s3', endpoint_url=endpoint, region_name='auto',
         aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
         aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
