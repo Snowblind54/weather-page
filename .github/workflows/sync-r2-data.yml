@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - scripts/sync_r2_data.py
+      - scripts/check_r2_public.py
       - tests/test_r2_storage.py
       - .github/workflows/sync-r2-data.yml
 permissions:
@@ -35,7 +36,15 @@ jobs:
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: python3 scripts/sync_r2_data.py
+      - name: Verify public browser access and configure CORS when permitted
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python3 scripts/check_r2_public.py
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: r2-storage-report
           path: r2-storage-report.json
