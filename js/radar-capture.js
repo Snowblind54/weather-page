@@ -24,7 +24,7 @@ async function preloadVisibleRadars(){
   const visible=NORDIC_RADAR_SOURCES.filter(nordicRadarVisible),edge=nordicRadarEdge();
   const latest=(typeof frames!=='undefined'?frames.at(-1)?.time:0)||Math.floor(Date.now()/1000/300)*300-300;
   const target=visible.some(source=>source.id==='is')?Math.floor(Date.now()/1000/300)*300-300:latest;
-  const recent=navigator.connection?.saveData?0:2;
+  const recent=navigator.connection?.saveData||typeof radarLightMode==='function'&&radarLightMode()?0:2;
   const tasks=[];
   try{
     // A slow metadata endpoint must not hold up other countries' latest images.
@@ -76,8 +76,18 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseRadarP
 
 // Rolling playback window: selected frames retain priority over these jobs.
 let radarPlaybackPreloadTimer=null,radarPlaybackPreloadGeneration=0,radarPlaybackPreloadRunning=false,radarPlaybackPreloadAgain=false;
+let radarSelectedFrameTime=null,radarSelectedFrameReady=false,radarSelectedFrameGeneration=0;
+function beginRadarSelectedFrame(time){
+  radarSelectedFrameTime=time;radarSelectedFrameReady=false;
+  invalidateRadarPlaybackPreload();
+  return ++radarSelectedFrameGeneration;
+}
+function finishRadarSelectedFrame(time,generation){
+  if(time!==radarSelectedFrameTime||generation!==radarSelectedFrameGeneration)return;
+  radarSelectedFrameReady=true;scheduleRadarPlaybackPreload();
+}
 function scheduleRadarPlaybackPreload(){
-  if(document.hidden||!$('radarOn').checked)return;
+  if(document.hidden||!$('radarOn').checked||!radarSelectedFrameReady)return;
   clearTimeout(radarPlaybackPreloadTimer);
   radarPlaybackPreloadTimer=setTimeout(()=>{radarPlaybackPreloadTimer=null;preloadRadarPlayback();},60);
 }
@@ -87,15 +97,16 @@ function invalidateRadarPlaybackPreload(){
 function radarPlaybackTargets(){
   const index=Number($('timeline').value),count=frames.length,saveData=navigator.connection?.saveData;
   if(!count)return [];
-  const offsets=saveData?[1]:[1,2,3,4,5,6,-1,-2];
+  const light=typeof radarLightMode==='function'&&radarLightMode();
+  const offsets=saveData?[1]:light?[1,2,-1]:[1,2,3,4,5,6,-1,-2];
   return [...new Set(offsets.map(offset=>(index+offset+count)%count))].filter(i=>i!==index).map(i=>frames[i]);
 }
 async function preloadRadarPlayback(){
-  if(document.hidden||!$('radarOn').checked)return;
+  if(document.hidden||!$('radarOn').checked||!radarSelectedFrameReady)return;
   if(radarPlaybackPreloadRunning){radarPlaybackPreloadAgain=true;return;}
   radarPlaybackPreloadRunning=true;
   const generation=radarPlaybackPreloadGeneration;
-  const allowed=()=>generation===radarPlaybackPreloadGeneration&&!document.hidden&&$('radarOn').checked;
+  const allowed=()=>generation===radarPlaybackPreloadGeneration&&!document.hidden&&$('radarOn').checked&&radarSelectedFrameReady;
   const targets=radarPlaybackTargets(),latest=frames.at(-1)?.time,edge=nordicRadarEdge();
   const visible=NORDIC_RADAR_SOURCES.filter(nordicRadarVisible);
   try{
@@ -127,6 +138,6 @@ async function preloadRadarPlayback(){
     if(again)scheduleRadarPlaybackPreload();
   }
 }
-map.on('moveend',()=>{invalidateRadarPlaybackPreload();scheduleRadarPlaybackPreload();});
+map.on('moveend',()=>{radarSelectedFrameReady=false;invalidateRadarPlaybackPreload();});
 $('radarOn').addEventListener('change',()=>{invalidateRadarPlaybackPreload();if($('radarOn').checked)scheduleRadarPlaybackPreload();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidateRadarPlaybackPreload();else scheduleRadarPlaybackPreload();});

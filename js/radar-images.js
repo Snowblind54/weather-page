@@ -69,7 +69,7 @@ function radarTriangle(context,image,source,target){
   context.transform(a,b,c,d,x0-a*u0-c*v0,y0-b*u0-d*v0);context.drawImage(image,0,0);context.restore();
 }
 async function prepareDmiRadarImage(record,edge,allowed){
-  const plan=dmiImagePlan(record.time,edge),source=document.createElement('canvas');
+  const plan=dmiImagePlan(record.time,edge,record.viewBounds||[[52,2],[61,22]]),source=document.createElement('canvas');
   source.width=plan.columns*512;source.height=plan.rows*512;const input=source.getContext('2d');
   let next=0;
   await Promise.all([0,1].map(async()=>{
@@ -95,7 +95,16 @@ async function prepareDmiRadarImage(record,edge,allowed){
     radarTriangle(output,source,[a.source,c.source,d.source],[a.target,c.target,d.target]);
   }
   source.width=source.height=0;
-  return {canvas,bounds:plan.bounds};
+  // A viewport crop is not the native radar footprint; retain broad native
+  // geometry so panning never mistakes an earlier crop for absent coverage.
+  return {canvas,bounds:plan.bounds,coverage:{bounds:[[52,2],[61,22]]}};
+}
+function radarDmiViewportBounds(){
+  if(map.getZoom()<5)return null;
+  const b=map.getBounds();
+  const south=Math.max(52,Math.floor(b.getSouth()*2)/2-.5),west=Math.max(2,Math.floor(b.getWest()*2)/2-.5);
+  const north=Math.min(61,Math.ceil(b.getNorth()*2)/2+.5),east=Math.min(22,Math.ceil(b.getEast()*2)/2+.5);
+  return south<north&&west<east?[[south,west],[north,east]]:null;
 }
 function ensureRadarColourFilter(){
   if(document.getElementById('radar-echo-colours'))return;

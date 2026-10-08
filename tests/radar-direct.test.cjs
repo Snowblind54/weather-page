@@ -51,3 +51,14 @@ test('Danish and Swedish ownership masks are complementary and disappear on sour
  assert.equal(vm.runInContext('radarDomainInCoverage(SWEDEN_RADAR_DOMAIN,coverageLayer).length',c),0);
  c.coverageLayer.radarCoverage.cells=[1];assert.equal(vm.runInContext('radarDomainInCoverage(SWEDEN_RADAR_DOMAIN,coverageLayer).length',c),1);
 });
+
+test('Danish mobile viewport crop stays within service bounds and includes a pan margin',()=>{
+ const c=harness();c.map.getZoom=()=>6;c.map.getBounds=()=>({getSouth:()=>55.3,getWest:()=>10.3,getNorth:()=>56.2,getEast:()=>12.2});
+ const bounds=vm.runInContext('radarDmiViewportBounds()',c);
+ assert.equal(JSON.stringify(bounds),JSON.stringify([[54.5,9.5],[57,13]]));
+ c.bounds=bounds;const cropped=vm.runInContext('dmiImagePlan(1000,900,bounds)',c);
+ const full=vm.runInContext('dmiImagePlan(1000,900)',c);
+ assert.notEqual(cropped.tiles[0].url,full.tiles[0].url);
+ assert.equal(cropped.bounds,bounds);
+ c.map.getZoom=()=>4;assert.equal(vm.runInContext('radarDmiViewportBounds()',c),null);
+});

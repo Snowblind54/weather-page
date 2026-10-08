@@ -160,3 +160,14 @@ test('prepared Iceland PNGs replace only the identical official scan and preserv
  let rows=vm.runInContext('preparedIcelandRadar(live,prepared)',c);assert.equal(rows[0].format,'png');assert.equal(rows[1].url,'new-relay');assert.equal(rows[1].time,200);
  c.prepared[0].source_url='https://brunnur.vedur.is/different.h5';rows=vm.runInContext('preparedIcelandRadar(live,prepared)',c);assert.equal(rows[0].url,'relay');
 });
+
+test('mobile overview reduces raster size and retains full close-zoom detail',()=>{
+ const c=harness();let zoom=4;c.map.getZoom=()=>zoom;
+ assert.equal(vm.runInContext('nordicRadarEdge()',c),900);
+ c.window={matchMedia:()=>({matches:true})};
+ assert.equal(vm.runInContext('nordicRadarEdge()',c),512);
+ zoom=6;assert.equal(vm.runInContext('nordicRadarEdge()',c),900);
+ zoom=7;assert.equal(vm.runInContext('nordicRadarEdge()',c),2000);
+ c.window.matchMedia=()=>({matches:false});zoom=6;
+ assert.equal(vm.runInContext('nordicRadarEdge()',c),1400);
+});

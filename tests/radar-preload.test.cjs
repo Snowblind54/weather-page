@@ -55,6 +55,7 @@ test('active playback preloads six upcoming frames across the loop and excludes 
  c.visibleBalticRadarSources=()=>[{id:'lt'}];const calls=[];
  c.nordicRadarFrame=async(r,e,o)=>{assert(o.background);assert(o.canPrepare());calls.push(['fi',r.time]);};
  c.h5ToRadarImage=async f=>calls.push(['ee',f.time]);c.prepareBalticRadarFrame=async(s,time)=>calls.push(['lt',time]);
+ vm.runInContext('finishRadarSelectedFrame(frames[8].time,beginRadarSelectedFrame(frames[8].time))',c);
  await vm.runInContext('preloadRadarPlayback()',c);
  const expected=[9,0,1,2,3,4,7,6].map(i=>c.frames[i].time);
  for(const source of ['fi','ee','lt'])assert.deepEqual(calls.filter(x=>x[0]===source).map(x=>x[1]),expected);
@@ -74,4 +75,19 @@ test('Estonian cache retains recently used frames beyond the previous six-frame 
  vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/radar.js'),'utf8'),c);
  vm.runInContext("for(let i=0;i<32;i++)cacheSet(i,'image'+i);h5ToRadarImage({id:0});cacheSet(32,'next')",c);
  assert.equal(c.radarImageCache.size,32);assert(c.radarImageCache.has(0));assert(!c.radarImageCache.has(1));
+});
+
+test('mobile buffering waits for the selected frame and prepares only two ahead and one behind',async()=>{
+ const {c,toggle,events}=harness();toggle.checked=true;c.radarLightMode=()=>true;
+ c.$=id=>id==='timeline'?{value:2}:toggle;
+ c.frames=Array.from({length:6},(_,i)=>({time:100+i*300,url:'ee'+i}));
+ const calls=[];c.h5ToRadarImage=async f=>calls.push(f.time);
+ c.generation=vm.runInContext('beginRadarSelectedFrame(frames[2].time)',c);
+ await vm.runInContext('preloadRadarPlayback()',c);assert.equal(calls.length,0);
+ vm.runInContext('finishRadarSelectedFrame(frames[2].time,generation-1)',c);
+ assert.equal(vm.runInContext('radarSelectedFrameReady',c),false);
+ vm.runInContext('finishRadarSelectedFrame(frames[2].time,generation)',c);
+ await vm.runInContext('preloadRadarPlayback()',c);
+ assert.deepEqual(calls,[1000,1300,400]);
+ events.moveend();assert.equal(vm.runInContext('radarSelectedFrameReady',c),false);
 });

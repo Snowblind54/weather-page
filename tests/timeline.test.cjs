@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-test('cloud timeline selects ten-minute observations and restores every radar frame',()=>{
+test('shared timeline keeps ten-minute steps across categories and retains raw radar observations',()=>{
   const timeline={value:24,max:24};
   const context={frames:Array.from({length:25},(_,i)=>({time:1800000000+i*300})),Math,$:()=>timeline};
   vm.createContext(context);
@@ -14,9 +14,10 @@ test('cloud timeline selects ten-minute observations and restores every radar fr
   timeline.value=3;
   const selected=context.frames[3].time;
   vm.runInContext('updateWeatherTimeline(false)',context);
-  assert.equal(context.frames.length,25);
+  assert.equal(context.frames.length,13);
+  assert.equal(vm.runInContext('radarTimelineFrames.length',context),25);
   assert.equal(context.frames[timeline.value].time,selected);
   timeline.value=7;
   vm.runInContext('updateWeatherTimeline(true)',context);
-  assert.equal(Math.abs(context.frames[timeline.value].time-(1800000000+7*300)),300);
+  assert.equal(context.frames[timeline.value].time,1800000000+7*600);
 });

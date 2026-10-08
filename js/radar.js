@@ -237,11 +237,15 @@ async function applyFrame(options={}){
 
   const cloudTask=options.skipCloud?Promise.resolve():drawCloud(frame,{readyOnly:!!options.cloudReadyOnly}).catch(console.error);
   if(options.awaitCloud) await cloudTask;
-  if(typeof scheduleRadarPlaybackPreload==='function')scheduleRadarPlaybackPreload();
+  const radarSelection=typeof beginRadarSelectedFrame==='function'&&$('radarOn').checked?beginRadarSelectedFrame(frame.time):null;
   // Every regional source starts independently; KAIA latency cannot block it.
   const nordicTask=drawNordicRadars(frame.time).catch(console.error);
   const balticTask=drawDirectNationalRadars(frame.time).catch(console.error);
-  await drawRadar(frame);
+  const estoniaTask=drawRadar(frame);
+  Promise.allSettled([nordicTask,balticTask,estoniaTask]).then(()=>{
+    if(radarSelection!==null&&typeof finishRadarSelectedFrame==='function')finishRadarSelectedFrame(frame.time,radarSelection);
+  });
+  await estoniaTask;
   if(options.awaitRadar) await nordicTask;
   // Legacy Baltic animation discovery may be slow; it is generation guarded.
   if(!options.awaitRadar) await Promise.all([balticTask,nordicTask]);

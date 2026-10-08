@@ -16,6 +16,10 @@ function nordicRadarStatus(text,kind='status'){
   $('nordicRadarStatus').textContent=text;$('nordicRadarStatus').className=kind;
 }
 const radarFootprints=new Map();
+function radarLightMode(){
+  return typeof navigator!=='undefined'&&!!navigator.connection?.saveData ||
+    typeof window!=='undefined'&&!!window.matchMedia?.('(pointer: coarse)').matches;
+}
 function radarFootprintVisible(footprint){
   const view=map.getBounds(),bounds=L.latLngBounds(footprint.bounds);
   if(!view.intersects(bounds))return false;
@@ -32,14 +36,14 @@ function radarFootprintVisible(footprint){
   return false;
 }
 function radarRecordVisible(record){
-  if(map.getZoom()<6)return true;
+  if(map.getZoom()<6&&!radarLightMode())return true;
   const known=radarFootprints.get(record.station);
   if(record.bounds&&!radarFootprintVisible({bounds:record.bounds}))return false;
   return !known||Date.now()-known.at>10*60*1000||radarFootprintVisible(known);
 }
 function nordicRadarVisible(source){
   if(!map.getBounds().intersects(L.latLngBounds(source.bounds)))return false;
-  if(map.getZoom()<6)return true;
+  if(map.getZoom()<6&&!radarLightMode())return true;
   const stations=source.id==='is'?['iskef','isska','isx2']:[source.id];
   return stations.some(station=>{const known=radarFootprints.get(station);return !known||Date.now()-known.at>10*60*1000||radarFootprintVisible(known);});
 }
@@ -179,7 +183,9 @@ async function listNordicRadar(source,force=false){
       const data=await nordicRadarJson('https://radar-stacapi.met.no/v1/collections/Mosaic-Norway-v1/items?'+params);
       for(const file of data.features||[]){
         if(file.properties?.dataType!=='dBZ'||!file.assets?.data?.href)continue;
-        records.push({time:Date.parse(file.properties.datetime)/1000,url:file.assets.data.href,format:'tif',quantity:'DBZH',projection:file.properties['proj:wkt2'],station:'no'});
+        const box=file.bbox;
+        const bounds=box?.length===4&&box.every(Number.isFinite)&&box[0]>=-180&&box[2]<=180&&box[1]>=-85&&box[3]<=85&&box[0]<box[2]&&box[1]<box[3]?[[box[1],box[0]],[box[3],box[2]]]:undefined;
+        records.push({time:Date.parse(file.properties.datetime)/1000,url:file.assets.data.href,format:'tif',quantity:'DBZH',projection:file.properties['proj:wkt2'],station:'no',bounds});
       }
     }else{
       const days=radarUtcDays(first,last);
@@ -226,7 +232,7 @@ function projectNordicRadar(buffer,descriptor,edge){
 function runNordicRadarQueue(){
   while(nordicRadarDownloads<2&&nordicRadarQueue.length){
     // Background preparation uses one slot; selected observations take priority.
-    if(nordicRadarQueue[0].background&&nordicRadarDownloads&&!$('radarOn').checked)break;
+    if(nordicRadarQueue[0].background&&nordicRadarDownloads)break;
     const job=nordicRadarQueue.shift();nordicRadarDownloads++;
     job.run().then(job.resolve,job.reject).finally(()=>{nordicRadarDownloads--;runNordicRadarQueue();});
   }
@@ -265,18 +271,20 @@ function trimNordicRadarFrames(){
   // Revisiting Iceland history then needs only PNG decode, not HDF download
   // and radar reprojection again. Canvas-only DMI frames remain fully bounded.
   const total=()=>[...nordicRadarFrames.values()].reduce((n,f)=>n+f.bytes,0);
+  const light=radarLightMode(),decodedLimit=(light?20:48)*1024*1024,byteLimit=(light?36:80)*1024*1024;
   for(const [key,entry] of nordicRadarFrames){
-    if(total()<=48*1024*1024)break;
+    if(total()<=decodedLimit)break;
     if(entry.image){entry.image=null;entry.bytes=entry.blob.size;}
     else if(entry.canvas){nordicRadarFrames.delete(key);}
   }
-  while(nordicRadarFrames.size>180||total()>80*1024*1024){
+  while(nordicRadarFrames.size>(light?60:180)||total()>byteLimit){
     const key=nordicRadarFrames.keys().next().value,entry=nordicRadarFrames.get(key);
     if(entry.blob)URL.revokeObjectURL(entry.url);nordicRadarFrames.delete(key);
   }
 }
 function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}){
-  const key=record.url+'|'+edge;
+  const viewBounds=record.format==='dmi-wms'&&radarLightMode()?radarDmiViewportBounds():null;
+  const key=record.url+'|'+edge+(viewBounds?'|'+JSON.stringify(viewBounds):'');
   if(nordicRadarFrames.has(key)){
     const entry=nordicRadarFrames.get(key);nordicRadarFrames.delete(key);nordicRadarFrames.set(key,entry);
     if(entry.blob&&!entry.image){
@@ -313,7 +321,7 @@ function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}
         }
       }
       let buffer,result;
-      if(record.format==='dmi-wms')result=await prepareDmiRadarImage(record,edge,allowed);
+      if(record.format==='dmi-wms')result=await prepareDmiRadarImage({...record,viewBounds},edge,allowed);
       else if(record.format==='png'){
         const response=await fetch(record.url);if(!response.ok)throw new Error('Radar image HTTP '+response.status);
         buffer=await response.arrayBuffer();
@@ -350,7 +358,7 @@ function clearNordicRadars(){
   clearTimeout(nordicRadarRefreshTimer);nordicRadarRefreshTimer=null;
   nordicRadarStatus('Nordic radar is off.');
 }
-function nordicRadarEdge(){const zoom=map.getZoom();return zoom>=7?2000:zoom<=4?900:1400;}
+function nordicRadarEdge(){const zoom=map.getZoom();return zoom>=7?2000:radarLightMode()?(zoom<=4?512:900):zoom<=4?900:1400;}
 function followNordicRadarClock(){
   if(playing||typeof radarTimelineFrames==='undefined'||!radarTimelineFrames.length||typeof cloudTimelineMode!=='undefined'&&cloudTimelineMode||Number($('timeline').value)!==Number($('timeline').max))return;
   const end=Math.floor(Date.now()/1000/300)*300-300,last=radarTimelineFrames.at(-1).time;
@@ -401,7 +409,15 @@ async function drawNordicRadars(unix,{force=false}={}){
       const records=await listNordicRadar(source,force);
       if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;
     const stations=(source.id==='is'?['iskef','isska','isx2']:[...new Set(records.map(record=>record.station))]).filter(station=>radarRecordVisible({station}));
-      const selected=stations.map(station=>radarObservationAt(records.filter(record=>record.station===station),unix)).filter(record=>record&&radarRecordVisible(record));
+      const observations=stations.map(station=>radarObservationAt(records.filter(record=>record.station===station),unix)).filter(Boolean);
+      const selected=observations.filter(radarRecordVisible);
+      if(observations.length&&!selected.length){
+        for(const [id,layer] of nordicRadarLayers)if(id.startsWith(source.id+':')){map.removeLayer(layer);nordicRadarLayers.delete(id);}
+        orderNordicRadarLayers();
+        labels[index]=source.name+' outside scan area';pending--;
+        nordicRadarStatus((pending?'Loading Nordic radar · ':'')+labels.join(' · '),failed?'status warn':pending?'status':'status ok');
+        return;
+      }
       if(!selected.length)throw new Error(source.name+' unavailable at '+fmt(unix));
       const rendered=await Promise.allSettled(selected.map(async record=>({record,frame:await nordicRadarFrame(record,edge)})));
       // Missing stations count as partial coverage rather than a dry radar image.
@@ -416,18 +432,21 @@ async function drawNordicRadars(unix,{force=false}={}){
   }else{
     clearTimeout(nordicRadarRefreshTimer);nordicRadarRefreshTimer=setTimeout(()=>{
       const frame=frames[Number($('timeline').value)];if(frame){
-      Promise.allSettled([drawNordicRadars(frame.time),drawDirectNationalRadars(frame.time),drawRadar(frame)]);
-      scheduleRadarPlaybackPreload();
+      refreshSelectedRadarFrame(frame);
     }
     },visible.some(source=>source.id==='is')?60000:120000);
   }
+}
+function refreshSelectedRadarFrame(frame){
+  const selection=beginRadarSelectedFrame(frame.time);
+  return Promise.allSettled([drawNordicRadars(frame.time),drawDirectNationalRadars(frame.time),drawRadar(frame)])
+    .then(()=>finishRadarSelectedFrame(frame.time,selection));
 }
 map.on('moveend',()=>{
   if(!$('radarOn').checked)return;
   clearTimeout(nordicRadarRefreshTimer);nordicRadarRefreshTimer=setTimeout(()=>{
     const frame=frames[Number($('timeline').value)];if(frame){
-      Promise.allSettled([drawNordicRadars(frame.time),drawDirectNationalRadars(frame.time),drawRadar(frame)]);
-      scheduleRadarPlaybackPreload();
+      refreshSelectedRadarFrame(frame);
     }
   },180);
 });
