@@ -1,8 +1,8 @@
-// IMGW county warnings and DMI municipality/coastal warnings, copied directly
+// Official IMGW, DMI and ECCC warning polygons, copied directly
 // from their national feeds by the scheduled repository updater.
 const NATIONAL_WARNING_URL='https://raw.githubusercontent.com/Snowblind54/weather-page/main/data/national-warnings.json';
 const NATIONAL_WARNING_MAX_AGE=60*60*1000;
-const NATIONAL_WARNING_CACHE_KEY='weatherMapNationalWarningsV813';
+const NATIONAL_WARNING_CACHE_KEY='weatherMapNationalWarningsV8107';
 let nationalWarningSnapshotPromise=null;
 let nationalWarningSnapshot=null;
 let nationalWarningSnapshotFetchedAt=0;
@@ -17,7 +17,7 @@ function validNationalWarningPolygon(polygon){
 }
 
 function validateNationalWarningCountry(data,code){
-  const name=code==='PL'?'Poland':'Denmark';
+  const name=({PL:'Poland',DK:'Denmark',GL:'Greenland',CA:'Canada'})[code];
   const country=data?.countries?.[code];
   const updated=Date.parse(country?.updatedAt);
   if(data?.version!==1 || country?.country!==name || !Array.isArray(country.records) ||
@@ -25,18 +25,20 @@ function validateNationalWarningCountry(data,code){
     throw new Error(name+' official warning data invalid');
   }
   for(const record of country.records){
-    if(record.country!==name || !['Moderate','Severe','Extreme'].includes(record.level) ||
+    if(record.country!==name || !['Moderate','Severe','Extreme',...(code==='CA'?['Information']:[])].includes(record.level) ||
        !Number.isFinite(Date.parse(record.expires)) || !Number.isFinite(Date.parse(record.effective)) ||
+       (code==='CA' && !Number.isFinite(Date.parse(record.messageExpires))) ||
        !record.polygons?.length || !record.polygons.every(validNationalWarningPolygon)){
       throw new Error(name+' official warning data invalid');
     }
   }
-  return country.records.filter(record=>Date.parse(record.expires)>Date.now())
+  return country.records.filter(record=>Date.parse(record.expires)>Date.now() &&
+    (!record.messageExpires || Date.parse(record.messageExpires)>Date.now()))
     .map(record=>({...record,sourceUpdatedAt:country.updatedAt}));
 }
 
 async function fetchNationalWarningSnapshot(){
-  // PL and DK are requested concurrently by the shared warnings loader.
+  // All supported countries share a single snapshot request.
   if(nationalWarningSnapshot && Date.now()-nationalWarningSnapshotFetchedAt<30000) return nationalWarningSnapshot;
   if(nationalWarningSnapshotPromise) return nationalWarningSnapshotPromise;
   nationalWarningSnapshotPromise=(async()=>{

@@ -3,6 +3,7 @@ import datetime as dt
 import pathlib
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'scripts'))
 import update_national_warnings as warnings
@@ -64,6 +65,53 @@ class NationalWarnings(unittest.TestCase):
             warnings.parse_denmark({}, {}, NOW)
         with self.assertRaises(ValueError):
             warnings.parse_poland({}, {}, NOW)
+
+    def test_greenland_official_region_and_validity(self):
+        boundary = {'features': [{'properties': {'komkode': 3900, 'komnavn': 'Nuuk'},
+                                  'geometry': SHAPE}]}
+        alert = {'formattedCategory': 3, 'warningTitle': 'Piteraq', 'warningText': 'Official DMI alert',
+                 'validFrom': '2026-10-03T07:00:00Z', 'validTo': '2026-10-03T12:00:00Z'}
+        group = {'id': 3900, 'name': 'Nuuk', 'municipalityWarnings': [alert]}
+        rows = warnings.parse_denmark({'warningActual': [group], 'warning5days': [group]}, boundary, NOW, 'Greenland')
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['country'], 'Greenland')
+        self.assertEqual(rows[0]['flag'], '🇬🇱')
+        self.assertEqual(rows[0]['level'], 'Extreme')
+        self.assertEqual(rows[0]['sourceUrl'], warnings.GREENLAND_FEED)
+        self.assertEqual(len(rows[0]['polygons']), 2)
+
+    def test_canada_information_colours_and_message_expiry(self):
+        properties = {'alert_type': 'statement', 'alert_name_en': 'Special weather statement',
+                      'publication_datetime': '2026-10-03T07:00:00Z',
+                      'validity_datetime': '2026-10-04T01:00:00Z',
+                      'event_end_datetime': '2026-10-04T10:00:00Z',
+                      'expiration_datetime': '2026-10-03T12:00:00Z',
+                      'province': 'BC', 'feature_name_en': 'North coast', 'alert_text_en': 'Heavy snow possible'}
+        feature = {'id': 'zone:SPS', 'properties': properties, 'geometry': SHAPE}
+        payload = {'type': 'FeatureCollection', 'features': [feature]}
+        row = warnings.parse_canada(payload, NOW)[0]
+        self.assertEqual(row['level'], 'Information')
+        self.assertEqual(row['alertType'], 'Statement')
+        self.assertEqual(row['timeZone'], 'America/Vancouver')
+        self.assertEqual(len(row['polygons'][0]), 2)
+        self.assertEqual(row['expires'], '2026-10-04T10:00:00+00:00')
+        self.assertEqual(warnings.parse_canada(payload, NOW + dt.timedelta(hours=4)), [])
+        for colour, level in [('yellow', 'Moderate'), ('orange', 'Severe'), ('red', 'Extreme')]:
+            properties.update(alert_type='warning', risk_colour_en=colour)
+            self.assertEqual(warnings.parse_canada(payload, NOW)[0]['level'], level)
+        properties['status_en'] = 'cancelled'
+        self.assertEqual(warnings.parse_canada(payload, NOW), [])
+
+    def test_canada_pagination_and_wrong_host(self):
+        page = {'type': 'FeatureCollection', 'features': []}
+        link = {'rel': 'next', 'href': '/collections/weather-alerts/items?offset=1000'}
+        with patch.object(warnings, 'download_json', side_effect=[{**page, 'links': [link]}, page]) as request:
+            self.assertEqual(warnings.canada_payload(), page)
+            self.assertEqual(request.call_count, 2)
+        link['href'] = 'https://example.com/alerts'
+        with patch.object(warnings, 'download_json', return_value={**page, 'links': [link]}):
+            with self.assertRaisesRegex(ValueError, 'pagination URL'):
+                warnings.canada_payload()
 
 
 if __name__ == '__main__':

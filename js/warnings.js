@@ -726,7 +726,7 @@ async function loadWarnings(force=false){
   const parts=[`${allRecords.length} active warning records`];
   for(const [country,label] of [
     ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
-    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK']
+    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['Greenland','GL'],['Canada','CA']
   ]){
     if(counts.get(country)) parts.push(`${label} ${counts.get(country)}`);
   }
@@ -1128,9 +1128,9 @@ const FINLAND_METEOALARM_FALLBACK={
   country:'Finland',flag:'🇫🇮',slug:'finland',
   feed:'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-finland'
 };
-const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV813';
+const NORDIC_WARNING_CACHE_KEY='weatherMapNordicWarningsV8107';
 const NORDIC_WARNING_CACHE_MAX_AGE=6*60*60*1000;
-const NORDIC_WARNING_REFRESH_MS=15*60*1000;
+const NORDIC_WARNING_REFRESH_MS=10*60*1000;
 
 let nordicWarnings=[];
 let nordicWarningLoadedAt=0;
@@ -1147,6 +1147,8 @@ function xmlLocalText(root,name){
 
 function warningSeverity(level){
   const s=String(level||'').toLowerCase();
+
+  if(s==='information') return {name:'Information',color:'#8dabc4',rank:0};
 
   if(s.includes('extreme') || s.includes('red')){
     return {name:'Red / Extreme',color:'#e03131',rank:3};
@@ -1640,6 +1642,8 @@ async function loadNordicWarnings(force=false){
       },
       {country:'Poland',run:()=>loadNationalWarningCountry('PL')},
       {country:'Denmark',run:()=>loadNationalWarningCountry('DK')},
+      {country:'Greenland',run:()=>loadNationalWarningCountry('GL')},
+      {country:'Canada',run:()=>loadNationalWarningCountry('CA')},
       ...NORDIC_WARNING_SOURCES.map(source=>({
         country:source.country,
         run:async()=>{
@@ -1701,12 +1705,12 @@ async function loadNordicWarnings(force=false){
 
 function nordicWarningPopupHtml(record){
   const sev=warningSeverity(record.level);
-  const start=warningLocalTime(record.onset||record.effective,record.country);
-  const end=warningLocalTime(record.expires,record.country);
+  const start=warningLocalTime(record.onset||record.effective,record.country,record.timeZone);
+  const end=warningLocalTime(record.expires,record.country,record.timeZone);
 
   return `<div class="warning-popup">
     <h3>${htmlEscape(record.flag+' '+(record.headline||record.event))}</h3>
-    <p class="sev" style="color:${sev.color}">${htmlEscape(sev.name)}</p>
+    <p class="sev" style="color:${sev.color}">${htmlEscape(record.alertType?record.alertType+' · '+sev.name:sev.name)}</p>
     <p><b>Country:</b> ${htmlEscape(record.country)}</p>
     <p><b>Area:</b> ${htmlEscape(record.area)}</p>
     ${start||end?`<p><b>Valid:</b> ${htmlEscape(start)}${start&&end?' – ':''}${htmlEscape(end)}</p>`:''}
@@ -1730,10 +1734,10 @@ async function renderNordicWarnings(){
       const layer=L.polygon(polygon,{
         pane:'warningPane',
         color:sev.color,
-        weight:3,
-        opacity:.96,
+        weight:record.level==='Information'?1.5:3,
+        opacity:record.level==='Information'?.70:.96,
         fillColor:sev.color,
-        fillOpacity:.22
+        fillOpacity:record.level==='Information'?.09:.22
       }).bindPopup(nordicWarningPopupHtml(record),{maxWidth:380});
 
       warningLayerGroup.addLayer(layer);
@@ -1746,8 +1750,8 @@ async function renderNordicWarnings(){
         pane:'warningPane',
         radius:circle.radiusKm*1000,
         color:sev.color,
-        weight:3,
-        opacity:.96,
+        weight:record.level==='Information'?1.5:3,
+        opacity:record.level==='Information'?.70:.96,
         fillColor:sev.color,
         fillOpacity:.20
       }).bindPopup(nordicWarningPopupHtml(record),{maxWidth:380});
@@ -1762,12 +1766,12 @@ async function renderNordicWarnings(){
     card.style.borderLeftColor=sev.color;
 
     const end=record.expires
-      ? warningLocalTime(record.expires,record.country)
+      ? warningLocalTime(record.expires,record.country,record.timeZone)
       : 'No expiry provided';
 
     card.innerHTML=
       `<div class="warning-title">${htmlEscape(record.flag+' '+(record.headline||record.event))}</div>`+
-      `<div class="warning-meta">${htmlEscape(sev.name)} · until ${htmlEscape(end)}</div>`+
+      `<div class="warning-meta">${htmlEscape(record.alertType?record.alertType+' · '+sev.name:sev.name)} · until ${htmlEscape(end)}</div>`+
       `<div class="warning-area">${htmlEscape(record.area)}</div>`+
       (record.description
         ? `<div class="warning-meta" style="margin-top:4px">${htmlEscape(record.description)}</div>`

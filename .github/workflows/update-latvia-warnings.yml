@@ -1,8 +1,8 @@
-name: Update official Latvia, Poland and Denmark warnings
+name: Update official Latvia, Poland, Denmark, Greenland and Canada warnings
 
 on:
   schedule:
-    - cron: '7,22,37,52 * * * *'
+    - cron: '7,17,27,37,47,57 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -23,16 +23,16 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - name: Check national warning parsers
         run: python3 -m unittest discover -s tests -p 'test_national_warnings.py' -v
       - name: Fetch official LVGMC warnings and polygons
         run: python3 scripts/update_latvia_warnings.py
-      - name: Fetch official IMGW and DMI warnings and polygons
+      - name: Fetch official IMGW, DMI and ECCC warnings and polygons
         if: ${{ !cancelled() }}
         run: python3 scripts/update_national_warnings.py
       - name: Save updated warning snapshots
         if: ${{ !cancelled() }}
-        run: bash scripts/publish_generated_data.sh 'Refresh official Latvia, Poland and Denmark warnings' data/latvia-warnings.json data/national-warnings.json
+        run: bash scripts/publish_generated_data.sh 'Refresh official Latvia, Poland, Denmark, Greenland and Canada warnings' data/latvia-warnings.json data/national-warnings.json
