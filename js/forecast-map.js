@@ -3,7 +3,7 @@
   const panel=$('forecastSection');if(!panel)return;
   const D=ForecastMapData;
   const controls=document.createElement('div');controls.className='forecast-map-controls';
-  controls.innerHTML=`<label class="label" for="forecastMapLayer">Forecast map layer</label><select id="forecastMapLayer"><option value="temperature">Temperature</option><option value="rain">Rain / snow</option><option value="wind">Sustained wind</option><option value="gusts">Wind gusts</option><option value="clouds">Cloud cover</option><option value="off">Location forecast only</option></select><div class="forecast-map-opacity"><label for="forecastMapOpacity">Map opacity</label><output id="forecastMapOpacityValue">55%</output></div><input id="forecastMapOpacity" type="range" min="10" max="90" step="5" value="55" aria-label="Forecast map opacity"><div id="forecastMapLegend" hidden><div id="forecastMapLegendTitle" class="label"></div><img id="forecastMapColorbar" alt="Forecast colour scale" width="256" height="18"><div id="forecastMapLegendTicks"></div><div id="forecastMapVisibleTime" class="forecast-note"></div></div><div id="forecastMapStatus" class="status" role="status" aria-live="polite">Open Forecast to load the forecast maps.</div><p class="forecast-note">Nordics/Baltics: MET Nordic. Iceland: ECMWF IFS open data (0.25° grid). Both follow the same hourly timeline and colour scales. Iceland’s native steps are three hours: temperature, wind and clouds are interpolated between steps; rain shows the three-hour mean rate and gusts use the nearest native forecast, with its actual period shown below. The model cycles can differ. Shared maps refresh every six hours. Other weather overlays return when you close Forecast or choose location forecast only.</p>`;
+  controls.innerHTML=`<label class="label" for="forecastMapLayer">Forecast map layer</label><select id="forecastMapLayer"><option value="temperature">Temperature</option><option value="rain">Rain / snow</option><option value="wind">Sustained wind</option><option value="gusts">Wind gusts</option><option value="clouds">Cloud cover</option><option value="off">Location forecast only</option></select><div class="forecast-map-opacity"><label for="forecastMapOpacity">Map opacity</label><output id="forecastMapOpacityValue">55%</output></div><input id="forecastMapOpacity" type="range" min="10" max="90" step="5" value="55" aria-label="Forecast map opacity"><div id="forecastMapLegend" hidden><div id="forecastMapLegendTitle" class="label"></div><img id="forecastMapColorbar" alt="Forecast colour scale" width="256" height="18"><div id="forecastMapLegendTicks"></div><div id="forecastMapVisibleTime" class="forecast-note"></div></div><div id="forecastMapStatus" class="status" role="status" aria-live="polite">Open Forecast to load the forecast maps.</div><p class="forecast-note">Nordics/Baltics: MET Nordic. Iceland/North Atlantic: ECMWF IFS open data (0.25° grid), filling the gap to Norway; MET Nordic keeps priority inside its coverage. Both follow the same hourly timeline and colour scales. Iceland’s native steps are three hours: temperature, wind and clouds are interpolated between steps; rain shows the three-hour mean rate and gusts use the nearest native forecast, with its actual period shown below. The model cycles can differ. Shared maps refresh every six hours. Other weather overlays return when you close Forecast or choose location forecast only.</p>`;
   $('forecastLocation').before(controls);
   const dock=document.createElement('div');dock.className='forecast-map-dock';dock.hidden=true;
   dock.setAttribute('aria-label','Forecast map timeline');
@@ -53,7 +53,7 @@
     $('forecastMapStart').textContent=date(meta.times[0]);$('forecastMapEnd').textContent=date(meta.times.at(-1));
     $('forecastMapPrevious').disabled=index===0;$('forecastMapNext').disabled=index===meta.times.length-1;
     const older=Date.now()-Date.parse(meta.reference_time)>9*3600000;
-    $('forecastMapCycle').textContent=meta.regions.map(r=>r.region+' cycle '+date(Date.parse(r.reference_time))).join(' · ')+(older?' · older Nordic cycle':'');
+    $('forecastMapCycle').textContent=meta.regions.map(r=>(r.region==='Iceland'?'Iceland / Atlantic':r.region)+' cycle '+date(Date.parse(r.reference_time))).join(' · ')+(older?' · older Nordic cycle':'');
     for(const option of $('forecastMapLayer').options)option.disabled=option.value!=='off'&&!meta.layers[option.value];
   }
   function image(url){
@@ -73,8 +73,8 @@
     const notes=visibleRegions.map(region=>{
       if(region.region!=='Iceland')return kind==='rain'?'Nordics: total for '+date(visibleTime)+' – '+date(visibleTime+3600000)+'.':'Nordics: valid '+date(visibleTime)+'.';
       const period=region.periods[new Date(visibleTime).toISOString()];
-      if(kind==='rain'||kind==='gusts')return 'Iceland: '+(kind==='rain'?'three-hour mean precipitation rate':'maximum gust (nearest native forecast)')+' for '+date(Date.parse(kind==='gusts'?(period.gust_start||period.start):period.start))+' – '+date(Date.parse(kind==='gusts'?(period.gust_end||period.end):period.end))+'.';
-      return 'Iceland: valid '+date(visibleTime)+(period.interpolated?' · interpolated between native three-hour forecasts.':'.');
+      if(kind==='rain'||kind==='gusts')return 'Iceland / North Atlantic: '+(kind==='rain'?'three-hour mean precipitation rate':'maximum gust (nearest native forecast)')+' for '+date(Date.parse(kind==='gusts'?(period.gust_start||period.start):period.start))+' – '+date(Date.parse(kind==='gusts'?(period.gust_end||period.end):period.end))+'.';
+      return 'Iceland / North Atlantic: valid '+date(visibleTime)+(period.interpolated?' · interpolated between native three-hour forecasts.':'.');
     });
     $('forecastMapVisibleTime').textContent=notes.join(' ')+(kind==='rain'?' Rain/snow is liquid-water equivalent.':'');
     $('forecastMapLegend').hidden=false;
@@ -98,7 +98,7 @@
         // Keep cached image elements independent of Leaflet's DOM ownership.
         // Removing an old overlay must not detach an image reused by a new one.
         const display=img.cloneNode(false),region=regions[index];display.dataset.forecastTime=new Date(selectedTime).toISOString();display.dataset.forecastLayer=kind;display.dataset.forecastRegion=region.region;
-        return L.imageOverlay(display,[[region.bounds[1],region.bounds[0]],[region.bounds[3],region.bounds[2]]],{pane:'forecastModel',opacity:Number($('forecastMapOpacity').value)/100,interactive:false,attribution:region.region==='Iceland'?'Forecast © <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data" target="_blank" rel="noopener">ECMWF</a> · CC BY 4.0 · hourly interpolation':'Forecast © <a href="https://api.met.no/" target="_blank" rel="noopener">MET Norway</a> · CC BY 4.0'}).addTo(map);
+        return L.imageOverlay(display,[[region.bounds[1],region.bounds[0]],[region.bounds[3],region.bounds[2]]],{pane:'forecastModel',zIndex:region.region==='Iceland'?0:1,opacity:Number($('forecastMapOpacity').value)/100,interactive:false,attribution:region.region==='Iceland'?'Forecast © <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data" target="_blank" rel="noopener">ECMWF</a> · CC BY 4.0 · hourly interpolation':'Forecast © <a href="https://api.met.no/" target="_blank" rel="noopener">MET Norway</a> · CC BY 4.0'}).addTo(map);
       });
       overlay?.forEach(layer=>map.removeLayer(layer));overlay=next;visibleRegions=regions;visibleTime=selectedTime;visibleUrl=key;legend(kind);
       status('Forecast map ready · '+D.layers[kind].label+' · '+date(visibleTime));

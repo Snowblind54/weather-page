@@ -39,12 +39,35 @@ class IcelandForecastTests(unittest.TestCase):
         palette=np.array([[i,i,i,255] for i in range(64)],dtype=np.uint8)
         lat=np.array([61.,69.]);lon=np.array([-28.,-12.])
         grid=np.array([[0.,0.],[30.,30.]])
-        with tempfile.TemporaryDirectory() as directory,patch.object(m,'SIZE',16):
+        with tempfile.TemporaryDirectory() as directory,patch.object(m,'SIZE',16),patch.object(m,'BOUNDS',[-28,61,-12,69]):
             path=Path(directory)/'wind.webp';m.render(grid,lat,lon,'wind',palette,path)
             with Image.open(path) as im:
                 self.assertEqual(im.getpixel((0,0))[0],63)
                 self.assertEqual(im.getpixel((0,15))[0],0)
             m.render(np.zeros((2,2)),lat,lon,'rain',palette,path)
             with Image.open(path) as im:self.assertEqual(im.getpixel((4,4))[3],0)
+
+    def test_nordic_domain_mask_reprojects_north_and_excludes_only_coverage(self):
+        with patch.object(m,'SIZE',5):
+            alpha=np.array([[255,255],[0,0]],dtype=np.uint8)
+            mask=m.nordic_exclusion(alpha,m.BOUNDS)
+            self.assertTrue(mask[0].all())
+            self.assertFalse(mask[-1].any())
+            east=m.nordic_exclusion(np.full((2,2),255),[0,54,16,76])
+            self.assertFalse(east[:,:3].any())
+            self.assertTrue(east[:,-1].all())
+
+    def test_all_fields_leave_nordic_pixels_clear_even_when_ecmwf_rains(self):
+        palette=np.full((64,4),255,dtype=np.uint8)
+        lat=np.array([54.,76.]);lon=np.array([-30.,16.])
+        with tempfile.TemporaryDirectory() as directory,patch.object(m,'SIZE',16):
+            exclusion=np.zeros((16,16),dtype=bool);exclusion[:,8:]=True
+            for kind in m.FIELDS:
+                path=Path(directory)/(kind+'.webp')
+                value=sum(m.RANGES[kind])/2
+                m.render(np.full((2,2),value),lat,lon,kind,palette,path,exclusion)
+                with Image.open(path) as im:
+                    self.assertEqual(im.getpixel((4,4))[3],255)
+                    self.assertEqual(im.getpixel((12,4))[3],0)
 
 if __name__=='__main__':unittest.main()

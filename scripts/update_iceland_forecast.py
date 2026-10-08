@@ -7,6 +7,7 @@ is a three-hour mean rate; gusts retain the maximum over their native GRIB inter
 import io
 import json
 import math
+import re
 import shutil
 import tempfile
 import urllib.request
@@ -19,7 +20,8 @@ from PIL import Image
 from scipy.interpolate import RegularGridInterpolator
 
 ROOT = 'https://data.ecmwf.int/forecasts/'
-BOUNDS = [-28, 61, -12, 69]
+BOUNDS = [-30, 54, 16, 76]
+ASSET_VERSION = 'atlantic-v1'
 SIZE = 2048
 PARAMS = {'2t', '10u', '10v', 'tp', 'tcc', '10fg'}
 FIELDS = {'temperature':'air_temperature_2m', 'rain':'precipitation_amount',
@@ -110,7 +112,20 @@ def hourly_fields(lower, upper, fraction):
             'clouds':np.clip(mix('tcc'),0,1), 'rain':np.maximum(0,delta)*1000/3,
             'gusts':upper['10fg']}
 
-def render(grid, lat, lon, kind, palette, destination):
+def nordic_exclusion(alpha, bounds):
+    """Reproject the Nordic domain alpha, including dry precipitation areas."""
+    merc = lambda v: math.log(math.tan(math.pi/4+math.radians(v)/2))
+    x=np.linspace(BOUNDS[0],BOUNDS[2],SIZE)
+    y=np.linspace(merc(BOUNDS[3]),merc(BOUNDS[1]),SIZE)
+    west,south,east,north=bounds
+    inside_x=(x>=west)&(x<=east)
+    inside_y=(y>=merc(south))&(y<=merc(north))
+    cols=np.clip(np.rint((x-west)/(east-west)*(alpha.shape[1]-1)),0,alpha.shape[1]-1).astype(int)
+    rows=np.clip(np.rint((merc(north)-y)/(merc(north)-merc(south))*(alpha.shape[0]-1)),0,alpha.shape[0]-1).astype(int)
+    coverage=alpha[np.ix_(rows,cols)]>0
+    return coverage & inside_y[:,None] & inside_x[None,:]
+
+def render(grid, lat, lon, kind, palette, destination, exclusion=None):
     # Equal spacing in Mercator y is essential for Leaflet imageOverlay.
     merc = lambda v: math.log(math.tan(math.pi/4+math.radians(v)/2))
     y = np.linspace(merc(BOUNDS[3]),merc(BOUNDS[1]),SIZE)
@@ -126,6 +141,7 @@ def render(grid, lat, lon, kind, palette, destination):
         bins = np.clip(np.floor((values-lo)/(hi-lo)*64),0,63).astype(int)
         rgba = palette[bins].copy()
         if kind=='rain': rgba[values<lo,3]=0
+        if exclusion is not None: rgba[exclusion[first:first+64],3]=0
         pixels[first:first+64] = rgba
     Image.fromarray(pixels).save(destination,format='WEBP',lossless=True,method=4)
 
@@ -140,7 +156,8 @@ def main():
     run = None
     for attempt in range(3):
         trial = candidate-timedelta(hours=6*attempt)
-        if previous.get('reference_time')==trial.isoformat():
+        if (previous.get('reference_time')==trial.isoformat()
+                and previous.get('asset_version')==ASSET_VERSION and previous.get('bounds')==BOUNDS):
             files = [p for frames in previous.get('images',{}).values() for p in frames.values()]
             if files and all((data.parent/p).is_file() for p in files):
                 print('Iceland ECMWF images already current; no field downloads.');return
@@ -154,9 +171,14 @@ def main():
         frames[step] = read_step(run,step,first if step==0 else last if step==90 else None)
         print('Downloaded Iceland fields:',step,'/ 90 hours',flush=True)
     root = data/'forecast-iceland-cache';root.mkdir(exist_ok=True)
-    cycle = run.strftime('%Y%m%dT%HZ')
+    cycle = run.strftime('%Y%m%dT%HZ')+'-'+ASSET_VERSION
     stage = Path(tempfile.mkdtemp(prefix='_staging-',dir=root))
     try:
+        # Temperature alpha describes the model domain. Rain alpha also marks
+        # dry pixels, so it cannot be used to decide which model has priority.
+        coverage_path=data.parent/next(iter(nordic['images']['temperature'].values()))
+        with Image.open(coverage_path) as im:
+            exclusion=nordic_exclusion(np.array(im.convert('RGBA'))[:,:,3],nordic['bounds'])
         palettes = {}
         for kind in FIELDS:
             legend = data.parent/nordic['legends'][kind]
@@ -178,7 +200,7 @@ def main():
                             'gust_sample_time':iso(run+timedelta(hours=gust_step))}
             for kind,grid in fields.items():
                 filename = kind+'-'+valid.strftime('%Y%m%dT%HZ')+'.webp'
-                render(grid,frames[lower]['lat'],frames[lower]['lon'],kind,palettes[kind],stage/filename)
+                render(grid,frames[lower]['lat'],frames[lower]['lon'],kind,palettes[kind],stage/filename,exclusion)
                 images[kind][key] = f'data/forecast-iceland-cache/{cycle}/{filename}'
             if hour%6==0: print('Rendered hourly Iceland maps:',hour,'/ 90',flush=True)
         size = sum(p.stat().st_size for p in stage.iterdir())
@@ -187,16 +209,18 @@ def main():
         if target.exists(): shutil.rmtree(target)
         stage.rename(target)
         manifest = {'delivery':'static-regional-images','asset_root':'forecast-iceland-cache',
-                    'source':'ECMWF IFS open data · Iceland','reference_time':run.isoformat(),
+                    'asset_version':ASSET_VERSION,'source':'ECMWF IFS open data · Iceland and North Atlantic','reference_time':run.isoformat(),
                     'generated_at':datetime.now(timezone.utc).isoformat(),'bounds':BOUNDS,'layers':FIELDS,
                     'images':images,'cached_times':times,'periods':periods,'image_size':[SIZE,SIZE],
                     'legends':{k:f'data/forecast-iceland-cache/{cycle}/{k}-legend.webp' for k in FIELDS},
                     'grid_spacing_degrees':.25,'native_step_hours':3,'cache_bytes':size,'licence':'CC BY 4.0',
                     'documentation':'https://www.ecmwf.int/en/forecasts/datasets/open-data',
                     'source_variables':sorted(PARAMS),
+                    'nordic_priority':{'bounds':nordic['bounds'],'coverage_source':str(coverage_path.relative_to(data.parent)),
+                                       'method':'Nordic temperature-domain alpha excludes ECMWF under every layer, including dry rain pixels.'},
                     'processing':'Hourly temperature, wind components and cloud cover are linearly interpolated. Rain is a native three-hour mean rate; gusts use the nearest native forecast and retain its maximum interval.'}
         temp=data/'forecast-iceland.json.tmp';temp.write_text(json.dumps(manifest,indent=2)+'\n');temp.replace(previous_path)
-        cycles=sorted(p for p in root.iterdir() if p.is_dir() and p.name.endswith('Z'))
+        cycles=sorted(p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-atlantic-v1)?',p.name))
         for old in cycles[:-2]: shutil.rmtree(old)
         print('Published Iceland:',len(times),'hours;',round(size/1024/1024,2),'MiB',flush=True)
     finally:
