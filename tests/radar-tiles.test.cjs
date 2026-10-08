@@ -30,3 +30,16 @@ test('panning prepares a different viewport while keeping cached earlier views',
  view.getWest=()=>-10;view.getEast=()=>0;const second=await vm.runInContext("preparedRadarFrame('fi',1000)",c);
  assert.notEqual(first.url,second.url);assert.equal(first.canvas.width,256);assert.equal(second.canvas.width,256);
 });
+test('mobile overview mosaics stay within four MiB per source',async()=>{
+ const {c,record,view}=harness();c.radarLightMode=()=>true;c.map.getZoom=()=>7;
+ record.bounds=[[45,-30],[75,40]];record.tiles={3:[],4:[],5:[],6:[],7:[]};
+ view.getWest=()=>-15;view.getEast=()=>15;view.getSouth=()=>50;view.getNorth=()=>70;
+ const frame=await vm.runInContext("preparedRadarFrame('fi',1000)",c);
+ assert(frame);assert(frame.canvas.width*frame.canvas.height*4<=4*1024*1024);
+});
+test('zooming during a tile download releases the unfinished mosaic and cannot cache it',async()=>{
+ const {c,view}=harness();let finish;c.loadRadarNativeImage=()=>new Promise(resolve=>{finish=resolve});
+ const promise=vm.runInContext("preparedRadarFrame('fi',1000)",c);await new Promise(resolve=>setImmediate(resolve));
+ view.getWest=()=>-10;finish({image:{kind:'decoded-image'}});
+ assert.equal(await promise,null);assert.equal(vm.runInContext('preparedRadarFrames.size',c),0);
+});

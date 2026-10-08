@@ -163,7 +163,8 @@ async function drawRadar(frame){
   const oldLayer=radarLayer;
 
   try{
-    const prepared=typeof preparedRadarFrame==='function'?await preparedRadarFrame('ee',frame.time):null;
+    const prepared=typeof preparedRadarFrame==='function'?await preparedRadarFrame('ee',frame.time,{canPrepare:()=>myGeneration===radarRenderGeneration&&mySwapGeneration===radarSwapGeneration&&$('radarOn').checked}):null;
+    if(myGeneration!==radarRenderGeneration||mySwapGeneration!==radarSwapGeneration||!$('radarOn').checked)return;
     const dataUrl=prepared?null:frame.url?await h5ToRadarImage(frame):null;
     if(!prepared&&!dataUrl)throw new Error('No official observation at the selected time');
 
@@ -173,7 +174,7 @@ async function drawRadar(frame){
       return;
     }
 
-    const nextLayer=(prepared?preparedRadarCanvasLayer(prepared,0):L.imageOverlay(dataUrl,RADAR_BOUNDS,{
+    const nextLayer=(prepared?preparedRadarCanvasLayer(prepared,0):(typeof radarImageOverlay==='function'?radarImageOverlay:L.imageOverlay)(dataUrl,RADAR_BOUNDS,{
       opacity:0,
       interactive:false
     })).addTo(map);

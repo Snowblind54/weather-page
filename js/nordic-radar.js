@@ -393,7 +393,7 @@ async function drawNordicRadars(unix,{force=false}={}){
       if(previous?.radarUrl!==frame.url){
         // The old layer stays visible throughout download and decoding. Add
         // the ready replacement before removing it, in the same paint turn.
-        const layer=(frame.prepared?preparedRadarCanvasLayer(frame):frame.canvas?dmiRadarCanvasLayer(frame):L.imageOverlay(frame.image,frame.bounds,{opacity:.84,interactive:false})).addTo(map);layer.radarUrl=frame.url;layer.radarCoverage=frame.coverage;layer.radarTime=record.time;
+        const layer=(frame.prepared?preparedRadarCanvasLayer(frame):frame.canvas?dmiRadarCanvasLayer(frame):(typeof radarImageOverlay==='function'?radarImageOverlay(frame.image,frame.bounds,{opacity:.84,interactive:false}):L.imageOverlay(frame.image,frame.bounds,{opacity:.84,interactive:false}))).addTo(map);layer.radarUrl=frame.url;layer.radarCoverage=frame.coverage;layer.radarTime=record.time;
         nordicRadarLayers.set(id,layer);if(previous)map.removeLayer(previous);
       }
       keep.add(id);times.push(record.time);
@@ -415,7 +415,7 @@ async function drawNordicRadars(unix,{force=false}={}){
   }
   await Promise.allSettled(visible.map(async(source,index)=>{
     try{
-      const prepared=typeof preparedRadarFrame==='function'?await preparedRadarFrame(source.id,unix):null;
+      const prepared=typeof preparedRadarFrame==='function'?await preparedRadarFrame(source.id,unix,{canPrepare:()=>generation===nordicRadarGeneration&&$('radarOn').checked}):null;
       if(prepared){finishSource(source,index,{rendered:[{status:'fulfilled',value:{record:{station:prepared.station,time:prepared.time},frame:prepared}}]});return;}
       const records=await listNordicRadar(source,force);
       if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;

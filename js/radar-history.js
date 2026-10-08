@@ -71,7 +71,7 @@ function prepareBalticRadarFrame(source,unix,latest,force=false){
     const prepared=typeof preparedRadarFrame==='function'?await preparedRadarFrame(source.id,unix):null;
     return prepared?{...prepared,dataUrl:prepared.url}:source.id==='lt'?ltHistory(source,unix):lvHistory(source,unix,latest,force);
   })()
-    .then(frame=>{directRadarImageCache.set(key,{at:Date.now(),frame});while(directRadarImageCache.size>60)directRadarImageCache.delete(directRadarImageCache.keys().next().value);return frame;})
+    .then(frame=>{directRadarImageCache.set(key,{at:Date.now(),frame});const light=typeof radarLightMode==='function'&&radarLightMode(),bytes=()=>[...directRadarImageCache.values()].reduce((n,e)=>n+(e.frame.canvas?e.frame.canvas.width*e.frame.canvas.height*4:0),0);while(directRadarImageCache.size>(light?12:60)||(light&&bytes()>8*1024*1024))directRadarImageCache.delete(directRadarImageCache.keys().next().value);return frame;})
     .finally(()=>{if(balticRadarPending.get(pendingKey)===promise)balticRadarPending.delete(pendingKey);});
   balticRadarPending.set(pendingKey,promise);return promise;
 }
@@ -88,7 +88,7 @@ async function drawDirectNationalRadars(unix,{force=false}={}){
       if(generation!==directRadarGeneration||!$('radarOn').checked)return;
       const previous=directRadarLayers.get(source.id);
       if(previous?.radarUrl!==frame.dataUrl){
-        const layer=frame.prepared?preparedRadarCanvasLayer(frame,source.opacity):L.imageOverlay(frame.dataUrl,frame.bounds,{opacity:source.opacity,interactive:false});layer.radarUrl=frame.dataUrl;layer.radarTime=frame.time;
+        const layer=frame.prepared?preparedRadarCanvasLayer(frame,source.opacity):(typeof radarImageOverlay==='function'?radarImageOverlay:L.imageOverlay)(frame.dataUrl,frame.bounds,{opacity:source.opacity,interactive:false});layer.radarUrl=frame.dataUrl;layer.radarTime=frame.time;
         if(source.id==='lt'&&!frame.prepared)ensureRadarColourFilter();
         balticRadarLayer.addLayer(layer);if(source.id==='lt'&&!frame.prepared)layer.getElement().style.filter='url(#radar-echo-colours)';if(previous)balticRadarLayer.removeLayer(previous);directRadarLayers.set(source.id,layer);
       }

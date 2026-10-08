@@ -15,7 +15,7 @@ function runPreparedRadarTileQueue(){
 }
 function loadPreparedRadarTile(url,background,allowed){
   const existing=preparedRadarTileJobs.get(url);
-  if(existing){if(!background){existing.background=false;existing.allowed=()=>true;runPreparedRadarTileQueue();}return existing.promise;}
+  if(existing){if(!background){existing.background=false;existing.allowed=allowed;runPreparedRadarTileQueue();}return existing.promise;}
   const job={url,background,allowed};job.promise=new Promise((resolve,reject)=>{job.resolve=resolve;job.reject=reject;});
   preparedRadarTileJobs.set(url,job);preparedRadarTileQueue.push(job);runPreparedRadarTileQueue();return job.promise;
 }
@@ -61,41 +61,52 @@ function preparedRadarPlan(record,z){
 }
 function cachePreparedRadarFrame(key,frame){
   preparedRadarFrames.delete(key);preparedRadarFrames.set(key,frame);
-  const limit=(typeof radarLightMode==='function'&&radarLightMode()?20:40)*1024*1024;
+  const limit=(typeof radarLightMode==='function'&&radarLightMode()?8:40)*1024*1024;
   let total=[...preparedRadarFrames.values()].reduce((n,f)=>n+f.canvas.width*f.canvas.height*4,0);
   while(preparedRadarFrames.size>36||total>limit){const oldest=preparedRadarFrames.keys().next().value,f=preparedRadarFrames.get(oldest);total-=f.canvas.width*f.canvas.height*4;preparedRadarFrames.delete(oldest);}
 }
+function preparedRadarViewToken(){const v=map.getBounds();return [map.getZoom(),v.getSouth(),v.getWest(),v.getNorth(),v.getEast()].join('|');}
 async function preparedRadarFrame(source,unix,{background=false,canPrepare=()=>true}={}){
   if(source==='is'||map.getZoom()<3||map.getZoom()>7||!canPrepare())return null;
   try{
     const records=(await loadPreparedRadarManifest()).filter(r=>r.source===source&&r.time<=unix&&unix-r.time<=900);
     if(!records.length||!canPrepare())return null;
-    const record=records.sort((a,b)=>b.time-a.time)[0],z=Math.max(3,Math.min(7,Math.floor(map.getZoom()))),plan=preparedRadarPlan(record,z);
-    if(!plan)return null;
+    const record=records.sort((a,b)=>b.time-a.time)[0],light=typeof radarLightMode==='function'&&radarLightMode();
+    let z=Math.max(3,Math.min(7,Math.floor(map.getZoom()))),plan;
+    while(true){
+      try{plan=preparedRadarPlan(record,z);}catch(error){if(light&&z>3){z--;continue;}throw error;}
+      if(!plan)return null;
+      if(!light||z===3||((plan.x1-plan.x0)*(plan.y1-plan.y0)<=16&&Math.max(plan.x1-plan.x0,plan.y1-plan.y0)<=8))break;
+      z--;
+    }
     const key=[record.path,z,plan.x0,plan.y0,plan.x1,plan.y1].join('|');
     if(preparedRadarFrames.has(key)){const frame=preparedRadarFrames.get(key);cachePreparedRadarFrame(key,frame);return frame;}
     if(preparedRadarPending.has(key)){
       const pending=preparedRadarPending.get(key);
-      if(!background){pending.foreground=true;for(const job of preparedRadarTileJobs.values())if(job.url.startsWith(record.path+'/')){job.background=false;job.allowed=()=>true;}runPreparedRadarTileQueue();}
+      if(!background){pending.foreground=true;pending.canPrepare=canPrepare;pending.viewToken=preparedRadarViewToken();for(const job of preparedRadarTileJobs.values())if(job.url.startsWith(record.path+'/')){job.background=false;job.allowed=canPrepare;}runPreparedRadarTileQueue();}
       return pending.promise;
     }
-    const pending={foreground:!background};
-    const allowed=()=>pending.foreground||canPrepare();
+    const pending={foreground:!background,canPrepare,viewToken:preparedRadarViewToken()};
+    const allowed=()=>pending.canPrepare()&&pending.viewToken===preparedRadarViewToken();
     const promise=(async()=>{
       const started=performance.now(),canvas=document.createElement('canvas');
       canvas.width=(plan.x1-plan.x0)*256;canvas.height=(plan.y1-plan.y0)*256;
+      try{
       const context=canvas.getContext('2d');let next=0;
       await Promise.all(Array.from({length:Math.min(4,plan.tiles.length)},async()=>{
-        while(next<plan.tiles.length){if(!allowed())throw new Error('Obsolete radar buffering');const tile=plan.tiles[next++],image=await loadPreparedRadarTile(tile.url,!pending.foreground,allowed);context.drawImage(image,(tile.x-plan.x0)*256,(tile.y-plan.y0)*256);}
+        while(next<plan.tiles.length){if(!allowed())throw new Error('Obsolete radar buffering');const tile=plan.tiles[next++],image=await loadPreparedRadarTile(tile.url,!pending.foreground,allowed);if(!allowed())throw new Error('Obsolete radar buffering');context.drawImage(image,(tile.x-plan.x0)*256,(tile.y-plan.y0)*256);}
       }));
+      if(!allowed())throw new Error('Obsolete radar buffering');
       const frame={canvas,bounds:plan.bounds,coverage:{bounds:record.bounds},url:key,time:record.time,station:record.station,prepared:true,tileCount:plan.tiles.length,loadMs:Math.round(performance.now()-started)};
       canvas.dataset.radarTiles=String(frame.tileCount);canvas.dataset.radarLoadMs=String(frame.loadMs);canvas.dataset.radarSource=source;
       cachePreparedRadarFrame(key,frame);return frame;
+      }catch(error){canvas.width=canvas.height=0;throw error;}
     })().finally(()=>preparedRadarPending.delete(key));
     pending.promise=promise;preparedRadarPending.set(key,pending);return await promise;
   }catch(error){console.warn('Prepared '+source+' radar unavailable; using native feed',error);return null;}
 }
 function preparedRadarCanvasLayer(frame,opacity=.84){
+  if(typeof radarViewportLayer==='function')return radarViewportLayer(frame,opacity);
   const Layer=L.Layer.extend({
     onAdd(map){this._map=map;this._canvas=frame.canvas;this._canvas.className='leaflet-image-layer';Object.assign(this._canvas.style,{position:'absolute',pointerEvents:'none',opacity:String(opacity)});map.getPane('overlayPane').appendChild(this._canvas);map.on('zoom viewreset moveend',this._reset,this);this._reset();},
     onRemove(map){map.off('zoom viewreset moveend',this._reset,this);this._canvas.remove();},

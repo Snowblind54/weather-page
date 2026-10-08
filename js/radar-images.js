@@ -3,7 +3,8 @@
 const radarNativeImages=new Map(),radarNativePending=new Map();
 function cacheRadarNativeImage(url,result){
   radarNativeImages.delete(url);radarNativeImages.set(url,result);
-  while(radarNativeImages.size>100 || [...radarNativeImages.values()].reduce((bytes,entry)=>bytes+(entry.image?entry.width*entry.height*4:0),0)>24*1024*1024)radarNativeImages.delete(radarNativeImages.keys().next().value);
+  const limit=(typeof radarLightMode==='function'&&radarLightMode()?12:24)*1024*1024;
+  while(radarNativeImages.size>100 || [...radarNativeImages.values()].reduce((bytes,entry)=>bytes+(entry.image?entry.width*entry.height*4:0),0)>limit)radarNativeImages.delete(radarNativeImages.keys().next().value);
 }
 function loadRadarNativeImage(url,{pixels=false}={}){
   if(typeof weatherDataUrl==='function')url=weatherDataUrl(url);
@@ -119,6 +120,7 @@ function ensureRadarColourFilter(){
 }
 function dmiRadarCanvasLayer(frame){
   ensureRadarColourFilter();
+  if(typeof radarViewportLayer==='function')return radarViewportLayer(frame,.84,'url(#radar-echo-colours)');
   const Layer=L.Layer.extend({
     onAdd(map){this._map=map;this._canvas=frame.canvas;this._canvas.className='leaflet-image-layer';Object.assign(this._canvas.style,{position:'absolute',pointerEvents:'none',opacity:'.84',filter:'url(#radar-echo-colours)'});map.getPane('overlayPane').appendChild(this._canvas);map.on('zoom viewreset moveend',this._reset,this);this._reset();},
     onRemove(map){map.off('zoom viewreset moveend',this._reset,this);this._canvas.remove();},
