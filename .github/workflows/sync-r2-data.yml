@@ -1,0 +1,42 @@
+name: Stage weather data in R2
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '3,13,23,33,43,53 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - scripts/sync_r2_data.py
+      - tests/test_r2_storage.py
+      - .github/workflows/sync-r2-data.yml
+permissions:
+  contents: read
+concurrency:
+  group: r2-weather-storage
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install boto3==1.40.50
+      - name: Verify storage admission and expiry safeguards
+        run: python3 -m unittest discover -s tests -p test_r2_storage.py -v
+      - name: Copy data, expire unused files and verify storage
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python3 scripts/sync_r2_data.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r2-storage-report
+          path: r2-storage-report.json
+          retention-days: 7
