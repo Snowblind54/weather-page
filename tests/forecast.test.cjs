@@ -7,6 +7,28 @@ const now=Date.parse('2026-10-07T20:30:00Z');
 function item(time,details={},periods={}){return {time,data:{instant:{details:{air_temperature:5,...details}},...periods}};}
 const period=(amount,h=1)=>({['next_'+h+'_hours']:{details:{precipitation_amount:amount},summary:{symbol_code:'rain'}}});
 const payload=items=>({properties:{meta:{updated_at:'2026-10-07T19:30:00Z'},timeseries:items}});
+const gustGrid=()=>({reference_time:'2026-10-07T18:00:00Z',units:'m/s',grid_spacing_degrees:.25,latitudes:[65,65.25],longitudes:[-19.25,-19],samples:[
+  {time:'2026-10-07T21:00:00Z',start:'2026-10-07T20:00:00Z',end:'2026-10-07T21:00:00Z',values:[0,12,13,14]},
+  {time:'2026-10-08T00:00:00Z',start:'2026-10-07T23:00:00Z',end:'2026-10-08T00:00:00Z',values:[20,22,23,24]}
+]});
+test('Iceland gust sampling preserves zero, nearest native periods, and refuses extrapolation',()=>{
+  const grid=forecast.validateGustGrid(gustGrid(),'2026-10-07T18:00:00Z');
+  const s=forecast.gustSample(grid,65.05,-19.2,Date.parse('2026-10-07T22:00:00Z'));
+  assert.equal(s.value,0);assert.equal(s.end,Date.parse('2026-10-07T21:00:00Z'));assert.equal(s.start,Date.parse('2026-10-07T20:00:00Z'));
+  assert.equal(forecast.gustSample(grid,64,-19.2,now),null);
+  assert.equal(forecast.gustSample(grid,65.05,-19.2,Date.parse('2026-10-08T03:00:00Z')),null);
+});
+test('malformed, mismatched or unphysical gust grids cannot produce readings',()=>{
+  const grid=gustGrid();assert.throws(()=>forecast.validateGustGrid(grid,'2026-10-07T12:00:00Z'));
+  grid.samples[0].values[0]=-1;assert.throws(()=>forecast.validateGustGrid(grid,grid.reference_time));
+  grid.samples[0].values[0]=0;grid.samples[0].end='2026-10-07T22:00:00Z';assert.throws(()=>forecast.validateGustGrid(grid,grid.reference_time));
+});
+test('ECMWF only supplements missing gusts and daily maxima are labelled as available samples',()=>{
+  const grid=gustGrid(),series=[{time:Date.parse('2026-10-07T21:00:00Z'),temp:5,gust:null,wind:2,rain:null},{time:Date.parse('2026-10-07T22:00:00Z'),temp:6,gust:8,wind:3,rain:null}];
+  const rows=forecast.addGusts(series,grid,65.05,-19.2);
+  assert.equal(rows[0].gust,0);assert.equal(rows[0].gustSource,'ECMWF IFS');assert.equal(rows[1].gust,8);assert.equal(rows[1].gustSource,undefined);assert.equal(series[0].gust,null);
+  assert(forecast.days(rows,'UTC')[0].ecmwfGusts);
+});
 test('zero is preserved, missing gusts stay unavailable, and old times are removed',()=>{
   const r=forecast.rows(payload([item('2026-10-07T19:00:00Z'),item('2026-10-07T20:00:00Z',{wind_speed:0},period(0))]),now);
   assert.equal(r.length,1);assert.equal(r[0].wind,0);assert.equal(r[0].gust,null);assert.equal(r[0].rain,0);assert.equal(r[0].hours,1);
@@ -53,7 +75,8 @@ function harness(){
   const choose=(lat,lng)=>{listeners.click({latlng:{lat,lng}});};
   const runDebounce=()=>{for(const [id,t]of timers)if(t.n===350){timers.delete(id);t.f();}};
   const reply=(i,temp=5)=>requests[i].resolve({ok:true,status:200,headers:{get:()=>new Date(now+3600000).toUTCString()},json:async()=>payload([item('2026-10-07T20:00:00Z',{air_temperature:temp},period(0))])});
-  return {ids,requests,open,choose,runDebounce,reply,tick,close:()=>{ids.forecastSection.hidden=true;observer();}};
+  const replyJson=(i,data)=>requests[i].resolve({ok:true,json:async()=>data});
+  return {ids,requests,open,choose,runDebounce,reply,replyJson,tick,close:()=>{ids.forecastSection.hidden=true;observer();}};
 }
 test('repeated updates reuse cache and in-flight requests; API URL identifies rounded coordinates',async()=>{
   const h=harness();h.open();h.runDebounce();h.ids.forecastRetry.events.click();assert.equal(h.requests.length,1);
@@ -68,4 +91,19 @@ test('a late response for an old location cannot replace the new location',async
 test('closing the panel cancels work and prevents a late result from being shown',async()=>{
   const h=harness();h.open();h.runDebounce();h.close();assert(h.requests[0].options.signal.aborted);
   h.reply(0);await flush();assert.equal(h.ids.forecastContent.hidden,true);
+});
+const gustMeta={reference_time:'2026-10-07T18:00:00Z',asset_root:'forecast-iceland-cache',asset_version:'atlantic-v1',gust_grid:{path:'data/forecast-iceland-cache/20261007T18Z-atlantic-v1/gust-grid-v1.json',units:'m/s'}};
+test('Iceland panel loads shared numeric gusts, labels the native interval, and reuses the grid',async()=>{
+  const h=harness();h.open();h.choose(65.05,-19.2);h.runDebounce();h.reply(0);await flush();
+  assert(h.requests[1].url.startsWith('data/forecast-iceland.json'));h.replyJson(1,gustMeta);await flush();
+  assert.equal(h.requests[2].url,gustMeta.gust_grid.path);h.replyJson(2,gustGrid());await flush();
+  const card=h.ids.forecastSelected.children[1].children[1];assert.equal(card.children[1].textContent,'0.0 m/s');assert.match(card.children[2].textContent,/ECMWF IFS.*maximum.*0.25°/);
+  assert.equal(h.ids.forecastGustAttribution.hidden,false);
+  h.choose(65.1,-19.1);h.runDebounce();h.reply(3);await flush();assert.equal(h.requests.length,4); // One new MET location request, no new gust grid.
+});
+test('a late Iceland grid cannot replace another location or a closed forecast panel',async()=>{
+  const h=harness();h.open();h.choose(65.05,-19.2);h.runDebounce();h.reply(0);await flush();h.replyJson(1,gustMeta);await flush();
+  h.choose(59,25);h.runDebounce();h.reply(3,9);await flush();h.replyJson(2,gustGrid());await flush();
+  assert.equal(h.ids.forecastSelected.children[0].children[0].textContent,'9.0°');assert.equal(h.ids.forecastSelected.children[1].children[1].children[1].textContent,'Unavailable');assert.equal(h.ids.forecastGustAttribution.hidden,true);
+  const other=harness();other.open();other.choose(65.05,-19.2);other.runDebounce();other.reply(0);await flush();other.close();other.replyJson(1,gustMeta);await flush();other.replyJson(2,gustGrid());await flush();assert.equal(other.ids.forecastGustAttribution.hidden,true);
 });

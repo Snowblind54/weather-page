@@ -22,6 +22,8 @@ from scipy.interpolate import RegularGridInterpolator
 ROOT = 'https://data.ecmwf.int/forecasts/'
 BOUNDS = [-30, 54, 16, 76]
 ASSET_VERSION = 'atlantic-v1'
+POINT_BOUNDS = [-28, 61, -12, 69]
+GUST_FILE = 'gust-grid-v1.json'
 SIZE = 2048
 PARAMS = {'2t', '10u', '10v', 'tp', 'tcc', '10fg'}
 FIELDS = {'temperature':'air_temperature_2m', 'rain':'precipitation_amount',
@@ -112,6 +114,36 @@ def hourly_fields(lower, upper, fraction):
             'clouds':np.clip(mix('tcc'),0,1), 'rain':np.maximum(0,delta)*1000/3,
             'gusts':upper['10fg']}
 
+def gust_grid(frames, run):
+    """Compact native grid for Iceland point readings; retain native maxima."""
+    first=frames[min(frames)]
+    latmask=(first['lat']>=POINT_BOUNDS[1])&(first['lat']<=POINT_BOUNDS[3])
+    lonmask=(first['lon']>=POINT_BOUNDS[0])&(first['lon']<=POINT_BOUNDS[2])
+    lats=first['lat'][latmask];lons=first['lon'][lonmask]
+    if len(lats)<2 or len(lons)<2:raise ValueError('Incomplete Iceland gust grid')
+    samples=[]
+    for step,frame in sorted(frames.items()):
+        if step==0:continue
+        if not np.array_equal(frame['lat'],first['lat']) or not np.array_equal(frame['lon'],first['lon']):
+            raise ValueError('Gust grids differ')
+        values=frame['10fg'][np.ix_(latmask,lonmask)]
+        if not np.isfinite(values).all() or values.min()<0 or values.max()>150:raise ValueError('Invalid point gust values')
+        samples.append({'time':iso(run+timedelta(hours=step)),
+                        'start':iso(run+timedelta(hours=frame['gust_start'])),
+                        'end':iso(run+timedelta(hours=frame['gust_end'])),
+                        'values':np.round(values,3).ravel().tolist()})
+    return {'source':'ECMWF IFS open data','reference_time':run.isoformat(),'units':'m/s',
+            'bounds':POINT_BOUNDS,'grid_spacing_degrees':.25,'latitudes':lats.tolist(),
+            'longitudes':lons.tolist(),'samples':samples,
+            'processing':'Nearest 0.25-degree grid point and nearest native forecast, within 90 minutes. Maxima retain their native interval; no temporal interpolation.'}
+
+def write_gust_grid(frames, run, destination):
+    destination.write_text(json.dumps(gust_grid(frames,run),separators=(',',':'))+'\n')
+
+def gust_manifest(cycle):
+    return {'path':f'data/forecast-iceland-cache/{cycle}/{GUST_FILE}',
+            'bounds':POINT_BOUNDS,'units':'m/s','sampling':'nearest native grid point and forecast'}
+
 def nordic_exclusion(alpha, bounds):
     """Reproject the Nordic domain alpha, including dry precipitation areas."""
     merc = lambda v: math.log(math.tan(math.pi/4+math.radians(v)/2))
@@ -160,6 +192,22 @@ def main():
                 and previous.get('asset_version')==ASSET_VERSION and previous.get('bounds')==BOUNDS):
             files = [p for frames in previous.get('images',{}).values() for p in frames.values()]
             if files and all((data.parent/p).is_file() for p in files):
+                cycle=trial.strftime('%Y%m%dT%HZ')+'-'+ASSET_VERSION
+                info=gust_manifest(cycle)
+                if previous.get('gust_grid')!=info or not (data.parent/info['path']).is_file():
+                    # An existing complete image cycle only needs its gust messages.
+                    frames={}
+                    for step in range(3,91,3):
+                        row=index(trial,step)['10fg']
+                        frames[step]=read_step(trial,step,{'10fg':row})
+                        print('Downloaded point gusts:',step,'/ 90 hours',flush=True)
+                    target=data.parent/info['path'];temp=target.with_suffix('.json.tmp')
+                    write_gust_grid(frames,trial,temp);temp.replace(target)
+                    previous['gust_grid']=info
+                    previous['cache_bytes']=sum(p.stat().st_size for p in target.parent.iterdir() if p.is_file())
+                    temp=data/'forecast-iceland.json.tmp';temp.write_text(json.dumps(previous,indent=2)+'\n');temp.replace(previous_path)
+                    print('Published cached Iceland point gusts:',target.stat().st_size,'bytes',flush=True)
+                    return
                 print('Iceland ECMWF images already current; no field downloads.');return
         try:
             first,last = index(trial,0),index(trial,90)
@@ -174,6 +222,7 @@ def main():
     cycle = run.strftime('%Y%m%dT%HZ')+'-'+ASSET_VERSION
     stage = Path(tempfile.mkdtemp(prefix='_staging-',dir=root))
     try:
+        write_gust_grid(frames,run,stage/GUST_FILE)
         # Temperature alpha describes the model domain. Rain alpha also marks
         # dry pixels, so it cannot be used to decide which model has priority.
         coverage_path=data.parent/next(iter(nordic['images']['temperature'].values()))
@@ -216,6 +265,7 @@ def main():
                     'grid_spacing_degrees':.25,'native_step_hours':3,'cache_bytes':size,'licence':'CC BY 4.0',
                     'documentation':'https://www.ecmwf.int/en/forecasts/datasets/open-data',
                     'source_variables':sorted(PARAMS),
+                    'gust_grid':gust_manifest(cycle),
                     'nordic_priority':{'bounds':nordic['bounds'],'coverage_source':str(coverage_path.relative_to(data.parent)),
                                        'method':'Nordic temperature-domain alpha excludes ECMWF under every layer, including dry rain pixels.'},
                     'processing':'Hourly temperature, wind components and cloud cover are linearly interpolated. Rain is a native three-hour mean rate; gusts use the nearest native forecast and retain its maximum interval.'}

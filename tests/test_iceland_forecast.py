@@ -1,5 +1,6 @@
 import importlib.util
 import tempfile
+from datetime import datetime,timezone
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +12,15 @@ spec=importlib.util.spec_from_file_location('iceland',Path(__file__).resolve().p
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
 class IcelandForecastTests(unittest.TestCase):
+    def test_numeric_gust_grid_keeps_coordinates_zero_and_native_maximum_interval(self):
+        lat=np.array([60.75,61.,61.25,69.,69.25]);lon=np.array([-28.25,-28.,-27.75,-12.,-11.75])
+        values=np.arange(25,dtype=float).reshape(5,5);values[1,1]=0
+        frames={3:{'lat':lat,'lon':lon,'10fg':values,'gust_start':2,'gust_end':3}}
+        grid=m.gust_grid(frames,datetime(2026,10,7,12,tzinfo=timezone.utc))
+        self.assertEqual(grid['latitudes'],[61.,61.25,69.]);self.assertEqual(grid['longitudes'],[-28.,-27.75,-12.])
+        self.assertEqual(grid['samples'][0]['values'][0],0);self.assertEqual(len(grid['samples'][0]['values']),9)
+        self.assertEqual(grid['samples'][0]['start'],'2026-10-07T14:00:00.000Z')
+        self.assertEqual(grid['samples'][0]['end'],'2026-10-07T15:00:00.000Z')
     def test_hourly_wind_interpolates_components_not_speed(self):
         lower={'2t':np.array([[270.]]),'10u':np.array([[4.]]),'10v':np.array([[0.]]),
                'tp':np.array([[.003]]),'tcc':np.array([[.2]])}
