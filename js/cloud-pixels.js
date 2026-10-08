@@ -114,14 +114,16 @@ function cloudTileLocation(coords,x=128,y=128){
 }
 function cloudSourceWeights(lat,lon){
   if(lat<25 || lat>85 || lon< -170 || lon>42) return {eumet:0,noaa:0,gibs:0,west:0};
-  const east=smoothstep(-56,-51,lon), north=smoothstep(49,50.3,lat);
+  const east=smoothstep(-56,-51,lon);
   // Fade at the limb; geostationary satellites cannot see the poles.
   const limb=(satLon)=>smoothstep(.151,.22,
     Math.cos(lat*Math.PI/180)*Math.cos((lon-satLon)*Math.PI/180));
   const western=1-smoothstep(-115,-100,lon);
-  const eumet=east*limb(0), gibs=(1-east)*north*(1-western)*limb(-75);
-  const west=(1-east)*north*western*limb(-137);
-  const noaa=(1-east)*(1-north);
+  const eumet=east*limb(0), gibs=(1-east)*(1-western)*limb(-75);
+  const west=(1-east)*western*limb(-137);
+  // Use the same full-disk GOES products on both sides of Canada's border.
+  // Latitude must not switch to a differently rendered US-only feed.
+  const noaa=0;
   return {eumet,noaa,gibs,west};
 }
 function cloudExtractPixel(source,index,p,lat,lon){

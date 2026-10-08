@@ -60,3 +60,14 @@ test('West infrared uses the same thermal palette as East and polar IR is daylig
   h.run("source.id='metop';source.night=new Uint8ClampedArray([230,230,230,255]);source.day=source.night;");
   assert.equal(h.run('cloudExtractPixel(source,0,0,75,0).alpha'),h.run('cloudExtractPixel(source,0,0,75,-180).alpha'));
 });
+
+test('southern Canada and neighbouring US use the same GOES products across the former seam',()=>{
+  const h=harness();
+  for(const lon of [-125,-105,-80,-65]){
+    for(const lat of [40,43,45,48,49,49.7,50.3,52]){
+      const w=h.run(`cloudSourceWeights(${lat},${lon})`);
+      assert.equal(w.noaa,0);
+      assert(Math.abs(w.gibs+w.west-1)<1e-9,`${lat},${lon}`);
+    }
+  }
+});

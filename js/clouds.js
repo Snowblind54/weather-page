@@ -219,7 +219,7 @@ function cloudGetWorker(){
   if(cloudWorkerFailed || typeof Worker!=='function')return null;
   if(cloudWorker)return cloudWorker;
   try{
-    const worker=new Worker('js/cloud-worker.js?v=8.110');
+    const worker=new Worker('js/cloud-worker.js?v=8.112');
     worker.onmessage=({data})=>{
       const job=cloudWorkerJobs.get(data.id);if(!job)return;
       clearTimeout(job.timer);cloudWorkerJobs.delete(data.id);
