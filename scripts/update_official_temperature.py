@@ -21,6 +21,7 @@ HISTORY_SEC = 24 * 60 * 60
 FUTURE_TOLERANCE_SEC = 10 * 60
 NORWAY_REFRESH_SEC = 55 * 60
 BOUNDS = (48.5, 72.5, -26.0, 33.0)
+COUNTRY_BOUNDS = {"GL": (59.0, 84.0, -74.0, -10.0), "CA": (41.0, 84.0, -142.0, -52.0)}
 USER_AGENT = "NorthernWeather/8.71 (github.com/Snowblind54/weather-page)"
 
 SOURCES = {
@@ -53,7 +54,7 @@ def num(value):
         n = float(value)
     except (TypeError, ValueError):
         return None
-    return round(n, 2) if math.isfinite(n) and -70 < n < 55 else None
+    return round(n, 2) if math.isfinite(n) and -90 < n < 55 else None
 
 
 def stamp(value):
@@ -81,7 +82,7 @@ def make_station(country, code, name, lat, lon, rows):
         lat, lon = float(lat), float(lon)
     except (TypeError, ValueError):
         return None
-    south, north, west, east = BOUNDS
+    south, north, west, east = COUNTRY_BOUNDS.get(country, BOUNDS)
     if not (south <= lat <= north and west <= lon <= east):
         return None
     by_time = {}
