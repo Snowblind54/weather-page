@@ -5,7 +5,7 @@ const script=name=>fs.readFileSync(path.join(__dirname,'../js',name),'utf8');
 function harness(){
   const c={console,Map,Set,Date,Math,Promise,Array,Uint8ClampedArray,Float32Array,
     URLSearchParams,AbortController,performance,setTimeout,clearTimeout,
-    document:{querySelector:()=>null},map:{on(){}},
+    document:{querySelector:()=>null},$:()=>null,map:{on(){}},
     fmt:t=>String(t),L:{GridLayer:{extend:()=>function(){}}}};
   c.window=c;c.self=c;vm.createContext(c);
   for(const name of ['cloud-pixels.js','clouds.js','cloud-nordic-coverage.js','cloud-arctic-source.js'])vm.runInContext(script(name),c);
