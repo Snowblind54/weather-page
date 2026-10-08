@@ -56,3 +56,11 @@ test('wind particle drawing samples once per particle and batches strokes withou
     colours:['#fff'],segments:[[]],particles:Array.from({length:10},()=>({x:100,y:100,age:0,life:3})),sample:sampleSpy,validPoint:()=>true});windTest.animate(1000);`,context);
   assert.equal(samples,10);assert.equal(strokes,1);assert.equal(ctx.shadowBlur,0);
 });
+
+test('same-hour redraw resumes a paused wind animation without restarting an active one',()=>{
+ const c={L:{Layer:{extend:m=>m}},currentWindMode:()=> 'sustained',windData:{},document:{hidden:false}};vm.createContext(c);
+ const source=read('wind.js');vm.runInContext(source.slice(source.indexOf('const WindCanvasLayer='),source.indexOf('function hideWind')),c);
+ c.calls=0;vm.runInContext('layer=Object.create(WindCanvasLayer);Object.assign(layer,{unix:100,data:windData,mode:"sustained",_map:{},raf:null,scheduleReset(){calls++;}});layer.setTime(100)',c);assert.equal(c.calls,1);
+ vm.runInContext('layer.raf=1;layer.setTime(100)',c);assert.equal(c.calls,1);
+ vm.runInContext('layer.raf=null;document.hidden=true;layer.setTime(100)',c);assert.equal(c.calls,1);
+});

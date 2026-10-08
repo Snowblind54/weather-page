@@ -322,7 +322,11 @@ const WindCanvasLayer=L.Layer.extend({
   },
   setTime(unix){
     const mode=currentWindMode();
-    if(this.unix===unix && this.data===windData && this.mode===mode) return;
+    if(this.unix===unix && this.data===windData && this.mode===mode){
+      // Re-enabling or redrawing a paused layer at the same hour must resume it.
+      if(this._map&&!this.raf&&!document.hidden)this.scheduleReset();
+      return;
+    }
     this.mode=mode;
     this.unix=unix;
     this.data=windData;
