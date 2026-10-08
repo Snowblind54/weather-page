@@ -1,3 +1,15 @@
+// Load the presentation-only right-panel redesign without changing any weather-layer IDs or data logic.
+(()=>{
+  if(!document.querySelector('link[data-panel-redesign]')){
+    const link=document.createElement('link');
+    link.rel='stylesheet';link.href='css/panel-redesign.css?v=8.106';link.dataset.panelRedesign='1';
+    document.head.appendChild(link);
+  }
+  const script=document.createElement('script');
+  script.src='js/ui-redesign.js?v=8.106';script.defer=true;
+  document.head.appendChild(script);
+})();
+
 // Navigation opens controls independently of whether their map layers are enabled.
 const weatherCategories=[
   ['tempSection','tempOn'],['windSection','windOn'],['cloudSection','cloudOn'],
