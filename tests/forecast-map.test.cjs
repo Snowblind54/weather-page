@@ -23,6 +23,15 @@ test('shared image URLs stay on the website and reject external images',()=>{
   assert.equal(D.assetUrl(manifest,'rain'),'data/forecast-cache/20261007T21Z/rain-legend.webp');
   const bad=structuredClone(manifest);bad.images.wind[new Date(first).toISOString()]='https://thredds.met.no/image.png';assert.throws(()=>D.assetUrl(bad,'wind',first));
 });
+test('expanded Atlantic assets have immutable versioned URLs and reject unknown versions',()=>{
+  const m=structuredClone(iceManifest);m.asset_version='atlantic-v1';
+  for(const kind of Object.keys(m.layers)){
+    m.legends[kind]=m.legends[kind].replace('20261007T21Z/','20261007T21Z-atlantic-v1/');
+    for(const time of m.cached_times)m.images[kind][time]=m.images[kind][time].replace('20261007T21Z/','20261007T21Z-atlantic-v1/');
+  }
+  assert.match(D.assetUrl(m,'wind',first),/20261007T21Z-atlantic-v1\/wind/);
+  m.asset_version='../../other';assert.throws(()=>D.assetUrl(m,'wind',first));
+});
 test('timeline only exposes complete shared frames and does not discard the final cached hour',()=>{
   assert.equal(D.cachedTimes(manifest,now).at(-1),Date.parse('2026-10-10T06:00:00Z'));
   const missing=structuredClone(manifest);delete missing.images.clouds[new Date(first).toISOString()];assert(!D.cachedTimes(missing,now).includes(first));
@@ -69,6 +78,7 @@ test('loaded map and legend only request shared website assets',async()=>{
 test('Iceland uses the same hour and colour layer alongside the Nordic maps',async()=>{
   const h=harness({iceland:true,wide:true});h.open();await h.run();assert.equal(h.images.length,2);await h.loaded(0);await h.loaded(1);
   const maps=h.overlays.filter(l=>l.active);assert.equal(maps.length,2);assert.equal(maps[0].img.dataset.forecastTime,maps[1].img.dataset.forecastTime);assert.equal(maps[1].img.dataset.forecastRegion,'Iceland');assert.match(maps[1].img.url,/forecast-iceland-cache/);
+  assert(maps[0].options.zIndex>maps[1].options.zIndex); // MET Nordic keeps priority.
   h.time(first+3600000);await h.run();assert.equal(h.images.length,4);await h.loaded(3);assert.equal(h.overlays.filter(l=>l.active)[0].img.dataset.forecastTime,'2026-10-07T21:00:00.000Z');await h.loaded(2);assert(h.overlays.filter(l=>l.active).every(l=>l.img.dataset.forecastTime==='2026-10-07T22:00:00.000Z'));
 });
 test('visible-region selection does not download Iceland frames when outside the viewport',()=>{
