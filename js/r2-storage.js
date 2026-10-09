@@ -65,9 +65,8 @@
       if(!excluded(path))fallbackUntil=Date.now()+60000;
     }
     if(signal?.aborted)throw signal.reason||new DOMException('Aborted','AbortError');
-    // Optional prepared radar/cloud archives are deliberately not mirrored.
-    // Their existing loaders recover through official providers.
-    if(excluded(path))return new Response('',{status:503});
+    // Prepared archives have the same relative paths in the GitHub mirror.
+    // If neither copy is available, their loaders still use official providers.
     try{
       const response=await nativeFetch(requestFor(github+path),remoteOptions);
       if(response.ok||signal?.aborted)return response;

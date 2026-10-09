@@ -89,16 +89,20 @@ class GitHubFallbackTests(unittest.TestCase):
         self.assertEqual(json.loads(self.show('data/model-wind.json'))['generatedAt'],200)
         with self.assertRaises(RuntimeError):fallback.publish(['data/missing.json'],root=self.root)
 
-    def test_excludes_acceleration_tiles_and_static_geometry(self):
+    def test_mirrors_prepared_tiles_and_excludes_static_geometry(self):
         for path in ['data/radar-tiles.json','data/radar-tiles/f/1.png',
                      'data/cloud-tiles.json','data/cloud-tiles/f/1.png',
                      'data/estonia-marine-warning-zones.geojson']:
             self.put(path,b'{}')
         self.put('data/radar-cache/iceland/frame.png',b'raw radar')
         files=fallback.local_files(self.root,['data'])
-        self.assertEqual(list(files),['data/radar-cache/iceland/frame.png'])
-        with patch.dict(os.environ,{'GITHUB_TOKEN':''}):
-            fallback.publish(['data/cloud-tiles.json','data/cloud-tiles'],root=self.root)
+        self.assertEqual(len(files),5)
+        self.assertNotIn('data/estonia-marine-warning-zones.geojson',files)
+        fallback.publish(['data/radar-tiles.json','data/radar-tiles','data/cloud-tiles.json','data/cloud-tiles'],root=self.root)
+        records=json.loads(self.show('_fallback/index.json'))['files']
+        self.assertIn('data/radar-tiles/f/1.png',records)
+        self.assertIn('data/cloud-tiles/f/1.png',records)
+        self.assertEqual(self.show('data/cloud-tiles/f/1.png'),b'{}')
         with self.assertRaises(ValueError):fallback.publish(['../secrets'],root=self.root)
 
     def test_verified_restore_is_atomic_on_corrupt_download(self):

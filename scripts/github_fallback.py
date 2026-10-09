@@ -18,7 +18,6 @@ REPO = 'Snowblind54/weather-page'
 BRANCH = 'weather-fallback'
 GIT_URL = f'https://github.com/{REPO}.git'
 RAW = f'https://raw.githubusercontent.com/{REPO}/{BRANCH}/'
-EXCLUDED = ('data/radar-tiles', 'data/cloud-tiles')
 BACKUP_SCOPES = ['data/'+name for name in (
     'official-temperature.json', 'temperature-americas-model.json', 'official-wind.json',
     'model-wind.json', 'official-rainfall.json', 'official-snow-depth.json',
@@ -26,15 +25,14 @@ BACKUP_SCOPES = ['data/'+name for name in (
     'forecast-map.json', 'forecast-cache', 'forecast-iceland.json', 'forecast-iceland-cache',
     'estonia-warnings.json', 'latvia-warnings.json', 'national-warnings.json',
     'cyclones.json', 'fronts.json', 'cyclone-ensemble.json', 'space-weather.json',
-    'aurora-cloud.json', 'nordic-radar-cache.json', 'radar-cache')]
-MAX_BYTES = 400 * 1024 * 1024
+    'aurora-cloud.json', 'nordic-radar-cache.json', 'radar-cache',
+    'radar-tiles.json', 'radar-tiles', 'cloud-tiles.json', 'cloud-tiles')]
+MAX_BYTES = 1024 * 1024 * 1024
 
 
 def eligible(path):
     p = Path(path)
     return (p.parts and p.parts[0] == 'data' and '..' not in p.parts
-            and not any(path == prefix or path.startswith(prefix+'/') or path == prefix+'.json'
-                        for prefix in EXCLUDED)
             and path != 'data/estonia-marine-warning-zones.geojson')
 
 
@@ -74,7 +72,6 @@ def download(path):
 def restore(selected, root=ROOT, allow_empty=False):
     selected = scopes(selected)
     if not any(eligible(value) for value in selected):
-        # These optional acceleration archives are rebuilt from providers.
         return
     index = json.loads(download('_fallback/index.json'))
     if index.get('version') != 1 or not isinstance(index.get('files'), dict):
@@ -120,7 +117,6 @@ def publish(selected, root=ROOT, active=True, control=None):
     incoming = local_files(root, selected) if control is None else {}
     if not incoming and control is None:
         if all(not eligible(v) for v in selected):
-            print('Prepared tiles withheld; the map uses direct radar/cloud providers.', flush=True)
             return
         raise RuntimeError('No fallback data; keeping previous GitHub snapshot')
     token = os.environ.get('GITHUB_TOKEN')
@@ -140,11 +136,19 @@ def publish(selected, root=ROOT, active=True, control=None):
                 return result
             git('init', '-q'); git('config', 'user.name', 'github-actions[bot]')
             git('config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
+            # Preserve the full tree, but fetch/check out only this publisher's
+            # scope. A station update must not download the satellite archive.
+            git('remote', 'add', 'origin', url)
+            git('config', 'remote.origin.promisor', 'true')
+            git('config', 'remote.origin.partialclonefilter', 'blob:none')
+            git('sparse-checkout', 'init', '--no-cone')
+            patterns = ['/_fallback/'] + [f'/{value}' for value in selected] + [f'/{value}/**' for value in selected]
+            git('sparse-checkout', 'set', '--no-cone', '--stdin', input='\n'.join(patterns)+'\n')
             remote = git('ls-remote', '--exit-code', url, 'refs/heads/'+BRANCH, check=False)
             if remote.returncode not in [0,2]: raise RuntimeError('GitHub fallback branch could not be read')
             previous = remote.stdout.split()[0] if remote.returncode == 0 else ''
             if previous:
-                git('fetch', '-q', '--depth=1', url, 'refs/heads/'+BRANCH)
+                git('fetch', '-q', '--depth=1', '--filter=blob:none', 'origin', 'refs/heads/'+BRANCH)
                 # The observed SHA must match the tree used for the lease.
                 previous = git('rev-parse', 'FETCH_HEAD').stdout.strip()
                 git('checkout', '-q', '--detach', previous)
@@ -161,7 +165,7 @@ def publish(selected, root=ROOT, active=True, control=None):
                 target = work/path; target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(root/path, target); records[path] = record
             if sum(r['size'] for r in records.values()) > MAX_BYTES:
-                raise RuntimeError('GitHub fallback snapshot exceeds 400 MiB; previous snapshot retained')
+                raise RuntimeError('GitHub fallback snapshot exceeds 1 GiB; previous snapshot retained')
             now = datetime.now(timezone.utc).isoformat()
             index_path.parent.mkdir(exist_ok=True)
             index_path.write_text(json.dumps({'version':1, 'generatedAt':now, 'files':records}, separators=(',',':')))

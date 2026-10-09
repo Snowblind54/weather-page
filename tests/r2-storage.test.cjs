@@ -31,9 +31,14 @@ const address=input=>input instanceof Request?input.url:String(input);
  ({window,calls}=setup({fail:true}));const request=new Request('https://snowblind54.github.io/weather-page/data/model-wind.json',{headers:{Range:'bytes=0-1023'}});
  await window.fetch(request);assert.equal(calls.find(([input])=>address(input).startsWith(R2))[0].headers.get('Range'),'bytes=0-1023');
  const retry=calls.find(([input])=>address(input).startsWith(GH+'data/'));assert.equal(retry[0].headers.get('Range'),'bytes=0-1023');
- ({window,calls}=setup({fail:true}));result=await window.fetch('data/radar-tiles.json');assert.equal(result.status,503);
- assert(!calls.some(([input])=>address(input).startsWith(GH+'data/radar-tiles')));
+ ({window,calls}=setup({fail:true}));result=await window.fetch('data/radar-tiles.json');assert.equal(await result.text(),GH+'data/radar-tiles.json');
+ assert(calls.some(([input])=>address(input).startsWith(GH+'data/radar-tiles')));
  assert.equal(window.weatherDataUrl('data/official-wind.json'),R2+'data/official-wind.json'); // Missing optional tiles alone must not divert all snapshots.
+ ({window,calls}=setup({active:true}));
+ for(const path of ['data/radar-tiles.json','data/radar-tiles/f/1.png','data/cloud-tiles.json','data/cloud-tiles/f/overview.webp']){
+  result=await window.fetch(path);assert.equal(await result.text(),GH+path);
+ }
+ assert(!calls.some(([input])=>address(input).startsWith(R2)));
  ({window,calls}=setup());const abort=new AbortController();abort.abort();
  await assert.rejects(window.fetch('data/model-wind.json',{signal:abort.signal}));
  assert(!calls.some(([input])=>address(input).startsWith(GH+'data/')));
