@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - scripts/update_model_wind.py
+      - tests/test_model_wind.py
       - scripts/publish_generated_data.sh
       - .github/workflows/update-model-wind.yml
 
@@ -48,6 +49,10 @@ jobs:
           restore-keys: r2-input-${{ github.workflow }}-
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py data/model-wind.json
+      - name: Test wind collection and coverage
+        run: |
+          python3 -m unittest discover -s tests -p test_model_wind.py -v
+          node --test tests/wind-coverage.test.cjs tests/wind-source.test.cjs tests/wind-performance.test.cjs tests/wind-chill-americas.test.cjs
       - name: Fetch shared Open-Meteo wind grid
         run: python3 scripts/update_model_wind.py
       - name: Publish shared wind snapshot

@@ -33,6 +33,15 @@ WIND_GRIDS = [
     {"south": 60, "north": 68, "west": -26, "east": -12, "rows": 17, "cols": 29},
 ]
 
+# Keep the six legacy grids intact so already-open pages can use new snapshots.
+# Additional grids are self-describing and consumed by the extended client.
+WIND_EXTRA_GRIDS = [
+    {"id": "hemisphere", "model": "best_match", "south": 0, "north": 84, "west": -180, "east": 180, "rows": 22, "cols": 73},
+    {"id": "usa", "model": "gfs_seamless", "south": 18, "north": 54, "west": -132, "east": -55, "rows": 37, "cols": 78},
+    {"id": "alaska", "model": "gfs_seamless", "south": 50, "north": 74, "west": -180, "east": -130, "rows": 13, "cols": 26},
+    {"id": "hawaii", "model": "gfs_seamless", "south": 17, "north": 24, "west": -163, "east": -151, "rows": 8, "cols": 13},
+]
+
 
 def grid_points(grid: dict) -> list[tuple[float, float]]:
     points: list[tuple[float, float]] = []
@@ -93,17 +102,9 @@ def request_json(url: str):
     raise RuntimeError(f"Open-Meteo wind request failed after retries: {last_error}")
 
 
-def main() -> None:
-    points = [point for grid in WIND_GRIDS for point in grid_points(grid)]
+def collect_points(points, model, start_hour, end_hour, expected_times=None):
     all_series = []
-    times = None
-    # Keep every batch on the same hours, even if collection crosses an hour.
-    anchor = int(time.time() // 3600) * 3600
-    start_hour = datetime.fromtimestamp(anchor - 4 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
-    # The collector runs every two hours and can be delayed in Actions. Keep
-    # enough forecast hours to span collection time and a missed update.
-    end_hour = datetime.fromtimestamp(anchor + 6 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
-
+    times = expected_times
     for offset in range(0, len(points), BATCH_SIZE):
         batch = points[offset : offset + BATCH_SIZE]
         params = urllib.parse.urlencode(
@@ -117,6 +118,7 @@ def main() -> None:
                 "start_hour": start_hour,
                 "end_hour": end_hour,
                 "cell_selection": "nearest",
+                "models": model,
             }
         )
         payload = request_json(f"{API}?{params}")
@@ -126,8 +128,11 @@ def main() -> None:
 
         for item in items:
             hourly = item.get("hourly") or {}
+            units = item.get("hourly_units") or {}
+            if units.get("wind_speed_10m") != "m/s" or units.get("wind_gusts_10m") != "m/s" or units.get("wind_direction_10m") != "°":
+                raise RuntimeError("Unexpected wind units")
             item_times = hourly.get("time") or []
-            if len(item_times) < 2:
+            if len(item_times) < 2 or any(b <= a for a, b in zip(item_times, item_times[1:])):
                 raise RuntimeError("Wind hours are unavailable")
             if times is None:
                 times = item_times
@@ -147,27 +152,41 @@ def main() -> None:
             ]
             all_series.append(series)
 
-        print(f"Fetched {min(offset + len(batch), len(points))}/{len(points)} wind points", flush=True)
+        print(f"Fetched {min(offset + len(batch), len(points))}/{len(points)} {model} wind points", flush=True)
         if offset + len(batch) < len(points):
             time.sleep(1.5)
+    return times, all_series
 
-    grids = []
-    offset = 0
-    for grid in WIND_GRIDS:
-        count = grid["rows"] * grid["cols"]
-        grids.append(all_series[offset : offset + count])
-        offset += count
 
-    if not times or len(grids) != len(WIND_GRIDS) or not any(any(sample for sample in series) for series in grids[0]):
-        raise RuntimeError("No usable wind data returned")
-
-    data = {
+def build_snapshot(anchor):
+    # Pin all regions/models to the same hours, even across an hourly boundary.
+    start_hour = datetime.fromtimestamp(anchor - 4 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
+    end_hour = datetime.fromtimestamp(anchor + 6 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
+    specs = [{**grid, "model": "best_match"} for grid in WIND_GRIDS] + WIND_EXTRA_GRIDS
+    keys = lambda grid: [(grid["model"], round(lat, 6), round(((lon+180) % 360)-180, 6)) for lat, lon in grid_points(grid)]
+    unique = list(dict.fromkeys(key for grid in specs for key in keys(grid)))
+    series_by_key = {}
+    times = None
+    for model in dict.fromkeys(key[0] for key in unique):
+        model_keys = [key for key in unique if key[0] == model]
+        times, series = collect_points([(lat, lon) for _, lat, lon in model_keys], model, start_hour, end_hour, times)
+        series_by_key.update(zip(model_keys, series))
+    grids = [[series_by_key[key] for key in keys(grid)] for grid in specs]
+    if not times or any(not any(sample for series in grid for sample in series) for grid in grids):
+        raise RuntimeError("No usable wind data returned for a region")
+    print(f"Collected {len(unique)} unique model locations; shared nodes fetched once", flush=True)
+    return {
         "version": 6,
         "savedAt": int(time.time() * 1000),
         "times": times,
-        "grids": grids,
-        "source": "Open-Meteo hourly 10 m wind",
+        "grids": grids[:len(WIND_GRIDS)],
+        "extraGrids": [{**spec, "series": series} for spec, series in zip(WIND_EXTRA_GRIDS, grids[len(WIND_GRIDS):])],
+        "source": "Open-Meteo best match; NOAA GFS/HRRR seamless over USA, Alaska and Hawaii · hourly 10 m wind",
     }
+
+
+def main() -> None:
+    data = build_snapshot(int(time.time() // 3600) * 3600)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     temp = OUTPUT.with_suffix(".json.tmp")
     temp.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
