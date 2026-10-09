@@ -560,7 +560,9 @@ const WindHeatmapLayer=L.Layer.extend({
     // Panning now reveals the same wind field rather than resampling at new
     // geographic points every time the screen origin changes.
     const zoom=this._map.getZoom();
-    const topLeft=this._map.project(this._map.containerPointToLatLng([0,0]),zoom);
+    // Use the viewport pixel bounds directly. A latitude round trip clamps
+    // at the Mercator pole and shifts the field when zoomed out globally.
+    const topLeft=this._map.getPixelBounds().min;
     const anchorX=Math.floor(topLeft.x/step)*step,anchorY=Math.floor(topLeft.y/step)*step;
     const startX=anchorX-topLeft.x,startY=anchorY-topLeft.y;
     const cols=Math.ceil((size.x-startX)/step)+2,rows=Math.ceil((size.y-startY)/step)+2;
