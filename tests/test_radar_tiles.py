@@ -58,3 +58,32 @@ class RadarTiles(unittest.TestCase):
         self.assertEqual(pixels.tolist(),[[255,126,218,225],[255,235,247,235],[0,0,0,0]])
 
 if __name__=='__main__':unittest.main()
+
+class RadarArchives(unittest.TestCase):
+    def test_archive_keeps_every_png_byte_and_empty_frames(self):
+        import struct
+        from radar_archive import pack_tiles
+        with tempfile.TemporaryDirectory() as folder:
+            root=pathlib.Path(folder);directory=root/'frame';directory.mkdir()
+            indices,_=radar.make_tiles(Image.new('RGBA',(64,64),(255,42,42,210)),[[55,20],[60,30]],directory)
+            target=root/'fi-1000-0123456789ab.bin'
+            meta=pack_tiles(directory,target,indices);body=target.read_bytes()
+            self.assertEqual(body[:8],b'NWRAD001')
+            length=struct.unpack('<I',body[8:12])[0];index=json.loads(body[12:12+length]);start=12+length
+            self.assertEqual(meta['bytes'],len(body));self.assertEqual(meta['index_bytes'],start)
+            for key,(offset,size) in index['tiles'].items():
+                self.assertEqual(body[start+offset:start+offset+size],(directory/(key+'.png')).read_bytes())
+            meta=pack_tiles(directory,target,{str(z):[] for z in range(3,8)})
+            self.assertEqual(meta['bytes'],meta['index_bytes'])
+
+    def test_conversion_is_incremental_and_retains_archives_on_provider_failure(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=pathlib.Path(folder);tiles=root/'data/radar-tiles';directory=tiles/'fi-1-0123456789ab';directory.mkdir(parents=True)
+            indices,size=radar.make_tiles(Image.new('RGBA',(64,64),(255,42,42,210)),[[55,20],[60,30]],directory)
+            frame=dict(source='fi',station='fi',time=1,source_url='official',path='data/radar-tiles/'+directory.name,bytes=size,tiles=indices)
+            out=root/'data/radar-tiles.json';out.write_text(json.dumps(dict(frames=[frame])))
+            with patch.multiple(radar,ROOT=root,OUT=out,TILES=tiles),patch.object(radar,'discover',side_effect=OSError('provider offline')):
+                radar.main();record=json.loads(out.read_text())['frames'][0];body=(root/record['archive']['path']).read_bytes()
+                self.assertFalse(directory.exists());radar.main()
+                self.assertEqual((root/record['archive']['path']).read_bytes(),body)
+                self.assertEqual(json.loads(out.read_text())['frames'][0],record)

@@ -10,13 +10,13 @@ function runPreparedRadarTileQueue(){
     const job=preparedRadarTileQueue.shift();
     if(!job.allowed()){preparedRadarTileJobs.delete(job.url);job.reject(new Error('Obsolete radar buffering'));continue;}
     preparedRadarTileActive++;
-    loadRadarNativeImage(job.url).then(result=>job.resolve(result.image),job.reject).finally(()=>{preparedRadarTileJobs.delete(job.url);preparedRadarTileActive--;runPreparedRadarTileQueue();});
+    (job.archiveLoad?job.archiveLoad():loadRadarNativeImage(job.url).then(result=>result.image)).then(job.resolve,job.reject).finally(()=>{preparedRadarTileJobs.delete(job.url);preparedRadarTileActive--;runPreparedRadarTileQueue();});
   }
 }
-function loadPreparedRadarTile(url,background,allowed){
+function loadPreparedRadarTile(url,background,allowed,archiveLoad=null){
   const existing=preparedRadarTileJobs.get(url);
   if(existing){if(!background){existing.background=false;existing.allowed=allowed;runPreparedRadarTileQueue();}return existing.promise;}
-  const job={url,background,allowed};job.promise=new Promise((resolve,reject)=>{job.resolve=resolve;job.reject=reject;});
+  const job={url,background,allowed,archiveLoad};job.promise=new Promise((resolve,reject)=>{job.resolve=resolve;job.reject=reject;});
   preparedRadarTileJobs.set(url,job);preparedRadarTileQueue.push(job);runPreparedRadarTileQueue();return job.promise;
 }
 function validPreparedRadarFrame(frame){
@@ -28,6 +28,7 @@ function validPreparedRadarFrame(frame){
     frame.bounds?.length===2&&frame.bounds.every(p=>p.length===2&&p.every(Number.isFinite))&&
     frame.bounds[0][0]>=-85.051129&&frame.bounds[1][0]<=85.051129&&frame.bounds[0][1]>=-180&&frame.bounds[1][1]<=180&&
     frame.bounds[0][0]<frame.bounds[1][0]&&frame.bounds[0][1]<frame.bounds[1][1]&&frame.min_zoom===3&&frame.max_zoom===7&&
+    (!frame.archive||(typeof validRadarArchive==='function'&&validRadarArchive(frame)))&&
     frame.tiles&&Object.entries(frame.tiles).every(([z,list])=>Number(z)>=3&&Number(z)<=7&&Array.isArray(list)&&list.length<=4096&&list.every(v=>/^\d+\/\d+$/.test(v)&&v.split('/').every(n=>Number(n)<2**Number(z))));
 }
 async function loadPreparedRadarManifest(){
@@ -94,7 +95,7 @@ async function preparedRadarFrame(source,unix,{background=false,canPrepare=()=>t
       try{
       const context=canvas.getContext('2d');let next=0;
       await Promise.all(Array.from({length:Math.min(4,plan.tiles.length)},async()=>{
-        while(next<plan.tiles.length){if(!allowed())throw new Error('Obsolete radar buffering');const tile=plan.tiles[next++],image=await loadPreparedRadarTile(tile.url,!pending.foreground,allowed);if(!allowed())throw new Error('Obsolete radar buffering');context.drawImage(image,(tile.x-plan.x0)*256,(tile.y-plan.y0)*256);}
+        while(next<plan.tiles.length){if(!allowed())throw new Error('Obsolete radar buffering');const tile=plan.tiles[next++],image=await loadPreparedRadarTile(record.archive?tile.url+'|'+key:tile.url,!pending.foreground,allowed,record.archive?()=>decodeRadarArchiveTile(record,tile,z,allowed):null);try{if(!allowed())throw new Error('Obsolete radar buffering');context.drawImage(image,(tile.x-plan.x0)*256,(tile.y-plan.y0)*256);}finally{if(record.archive)image.close?.();}}
       }));
       if(!allowed())throw new Error('Obsolete radar buffering');
       const frame={canvas,bounds:plan.bounds,coverage:{bounds:record.bounds},url:key,time:record.time,station:record.station,prepared:true,tileCount:plan.tiles.length,loadMs:Math.round(performance.now()-started)};

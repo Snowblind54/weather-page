@@ -21,6 +21,7 @@ import numpy as np
 from PIL import Image
 from pyproj import Transformer
 import update_nordic_radar as archive
+from radar_archive import pack_tiles
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / 'data/radar-tiles.json'
@@ -223,8 +224,15 @@ def main():
     started=time.perf_counter();now=int(time.time());first=now-KEEP
     TILES.mkdir(parents=True,exist_ok=True)
     previous=json.loads(OUT.read_text()) if OUT.exists() else {'frames':[]}
-    existing={r['source_url']:r for r in retained(previous['frames'],first) if (ROOT/r['path']).is_dir() and (r['source']!='ee' or r.get('style_version')==2)}
+    existing={r['source_url']:r for r in retained(previous['frames'],first) if ((ROOT/r['path']).is_dir() or (r.get('archive') and (ROOT/r['archive']['path']).is_file())) and (r['source']!='ee' or r.get('style_version')==2)}
     records=[];errors=[];metrics=[]
+    for record in existing.values():
+        if not record.get('archive') and record.get('tiles') is not None:
+            directory=ROOT/record['path']
+            record['archive']=pack_tiles(directory,TILES/(directory.name+'.bin'),record['tiles'])
+            record['bytes']=record['archive']['bytes']
+            shutil.rmtree(directory)
+
     with futures.ThreadPoolExecutor(max_workers=4) as pool:
         jobs={pool.submit(discover,s,first,now):s for s in ['ee','fi','se','no','dk','lt','lv']}
         for job in futures.as_completed(jobs):
@@ -251,12 +259,13 @@ def main():
             name=f"{r['station']}-{r['time']}-{identity}";temporary=TILES/(name+'.tmp');temporary.mkdir(exist_ok=True)
             indices,size=make_tiles(image,bounds,temporary)
             if sum(v['bytes'] for v in existing.values())+size>MAX_BYTES:raise ValueError('Tile archive storage budget reached')
-            final=TILES/name
-            if final.exists():shutil.rmtree(temporary)
-            else:temporary.rename(final)
+            packed=pack_tiles(temporary,TILES/(name+'.bin'),indices)
+            size=packed['bytes']
+            if sum(v['bytes'] for v in existing.values())+size>MAX_BYTES:raise ValueError('Tile archive storage budget reached')
+            shutil.rmtree(temporary)
             existing[r['source_url']]={k:r[k] for k in ['source','station','time','source_url']}
-            existing[r['source_url']].update(path='data/radar-tiles/'+name,bounds=bounds,tiles=indices,bytes=size,min_zoom=3,max_zoom=7,style_version=2)
-            metrics.append(dict(source=r['source'],time=r['time'],raw_bytes=raw_bytes,tile_bytes=size,tile_count=sum(map(len,indices.values())),seconds=round(time.perf_counter()-begin,3)))
+            existing[r['source_url']].update(path='data/radar-tiles/'+name,bounds=bounds,tiles=indices,bytes=size,min_zoom=3,max_zoom=7,style_version=2,archive=packed)
+            metrics.append(dict(source=r['source'],time=r['time'],raw_bytes=raw_bytes,tile_bytes=size,tile_count=sum(map(len,indices.values())),uploaded_objects=1,seconds=round(time.perf_counter()-begin,3)))
         except Exception as exc:errors.append(r['station']+' '+str(r['time'])+': '+str(exc))
         finally:
             if temporary is not None and temporary.exists():shutil.rmtree(temporary)
@@ -267,6 +276,7 @@ def main():
     keep={r['path'].split('/')[-1] for r in frames}
     for path in TILES.iterdir():
         if path.is_dir() and path.name not in keep:shutil.rmtree(path)
+        elif path.is_file() and path.stem not in keep:path.unlink()
     print(json.dumps(result['metrics'],indent=2));print('\n'.join(errors))
 
 if __name__=='__main__':main()

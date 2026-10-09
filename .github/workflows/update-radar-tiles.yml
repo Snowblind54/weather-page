@@ -7,6 +7,9 @@ on:
     branches: [main]
     paths:
       - scripts/update_radar_tiles.py
+      - scripts/radar_archive.py
+      - scripts/check_radar_archives.py
+      - tests/radar-archive.test.cjs
       - scripts/update_nordic_radar.py
       - scripts/requirements-radar-tiles.txt
       - tests/test_radar_tiles.py
@@ -52,7 +55,12 @@ jobs:
       - run: pip install -r scripts/requirements-radar-tiles.txt
       - name: Check georeferencing, sparse tiles and failure retention
         run: python3 -m unittest discover -s tests -p test_radar_tiles.py -v
+      - name: Check archive browser loading and memory limits
+        run: node --test tests/radar-archive.test.cjs tests/radar-tiles.test.cjs
       - name: Prepare new observations and keep last successful frames
         run: python3 scripts/update_radar_tiles.py
       - name: Publish immutable tiles and archive measurements
         run: bash scripts/publish_generated_data.sh 'Refresh prepared Nordic and Baltic radar tiles' data/radar-tiles.json data/radar-tiles
+      - name: Verify public whole and partial archive delivery after migration
+        if: github.event_name == 'push'
+        run: python3 scripts/check_radar_archives.py
