@@ -102,7 +102,9 @@ async function main(){
    try{
     const ids=vm.runInContext('cloudTileSources(coords)',local);
     const sources=await Promise.all(ids.map(id=>{local.sourceId=id;return vm.runInContext('cloudLoadSource(sourceId,coords,requested)',local);}));
-    local.sources=sources;
+    // A four-tile block must use the same native-pixel neighbourhood as
+    // individual browser tiles, rather than four times broader smoothing.
+    sources.forEach(s=>{s.blockScale=size/256;});local.sources=sources;
     const pixels=vm.runInContext(`cloudProcessPixels(coords,sources,${size})`,local);
     const digest=require('node:crypto').createHash('sha256').update(t.identity).update(pixels).digest('hex').slice(0,16);
     const names=[],buffers=[];

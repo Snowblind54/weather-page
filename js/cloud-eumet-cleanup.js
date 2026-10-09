@@ -2,11 +2,11 @@
 // GeoColour contains the real Earth surface, so do not use its broad brightness
 // directly as cloud opacity. Pair it with the matching FCI IR10.5 image instead.
 (function(root){
-  function localVisibleSmoothness(day,p){
+  function localVisibleSmoothness(day,p,blockScale=1){
     if(!day?.length)return .5;
     const side=Math.round(Math.sqrt(day.length/4));
     if(side<8 || side*side*4!==day.length)return .5;
-    const x=p%side,y=Math.floor(p/side),r=Math.max(2,Math.round(side/64));
+    const x=p%side,y=Math.floor(p/side),r=Math.max(2,Math.round(side/(64*blockScale)));
     let min=255,max=0,sum=0,count=0;
     for(const dy of [-r,0,r])for(const dx of [-r,0,r]){
       if(dx===0&&dy===0)continue;
@@ -108,7 +108,7 @@
             const neutral=1-smoothstep(18,72,chroma);
             const sheetVisible=smoothstep(.30,.76,visual);
             const warmIr=smoothstep(42-6*north,118-10*north,irLum);
-            const smooth=localVisibleSmoothness(day,p);
+            const smooth=localVisibleSmoothness(day,p,source.blockScale||1);
             const lowCloudSheet=northEurope*sheetVisible*neutral*
               (.55+.45*smooth)*(.22+.78*warmIr)*(.56+.08*north);
             dayAlpha=Math.max(dayAlpha,lowCloudSheet);
