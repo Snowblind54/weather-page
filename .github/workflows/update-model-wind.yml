@@ -9,6 +9,8 @@ on:
     paths:
       - scripts/update_model_wind.py
       - scripts/noaa_model_wind.py
+      - js/wind.js
+      - tests/wind-coverage.test.cjs
       - tests/test_noaa_model_wind.py
       - tests/test_model_wind.py
       - scripts/publish_generated_data.sh

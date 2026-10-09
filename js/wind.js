@@ -1,5 +1,5 @@
 // Wind crosses coastlines: never apply the temperature layer's land mask.
-const WIND_CACHE_KEY='balticWeatherWindV8';
+const WIND_CACHE_KEY='balticWeatherWindV9';
 const WIND_CACHE_MS=45*60*1000;
 // GitHub Actions fetches upstream data once; visitors share this snapshot.
 const SHARED_WIND_URL='data/model-wind.json';
@@ -64,7 +64,8 @@ function windPopupContent(point,unix){
   const vector=windAt(point.lat,point.lng,slice);
   if(!vector) return '<div class="wind-popup"><b>Wind unavailable</b><p>No wind data for this location at the selected time.</p></div>';
   const speed=Math.hypot(vector[0],vector[1]);
-  const gust=windGustAt(point.lat,point.lng,slice);
+  const gustSample=windGustAt(point.lat,point.lng,slice,true);
+  const gust=gustSample?.value??null;
   const mode=currentWindMode();
   const colourSpeed=mode==='gust'?gust:speed;
   const colour=windColour(colourSpeed,mode);
@@ -81,7 +82,7 @@ function windPopupContent(point,unix){
     <div>${direction}</div>
     <div class="wind-popup-meta">${point.lat.toFixed(3)}°, ${lon.toFixed(3)}°<br>${htmlEscape(fmt(slice.time??unix))}${slice.cached?'<br>Last available model hour · waiting for an update':''}</div>
     <div class="wind-popup-meta">10 m model wind · interpolated estimate</div>
-    ${gust===null?'':`<div class="wind-popup-meta">Gust estimate for hour ending ${htmlEscape(fmt(windData.times[windGustHour(slice)]))}</div>`}
+    ${gust===null?'':`<div class="wind-popup-meta">Hourly model gust estimate · ${htmlEscape(fmt(windData.times[gustSample.hour]))}</div>`}
   </div>`;
 }
 
@@ -102,19 +103,26 @@ map.on('click',event=>{
 });
 
 function validWindData(data){
+  const validSeries=grid=>Array.isArray(grid) && grid.every(series=>Array.isArray(series)&&series.length===data.times.length &&
+    series.every(v=>v===null||(Array.isArray(v)&&v.length===3&&Number.isFinite(v[0])&&Number.isFinite(v[1])&&
+      (v[2]===null||(Number.isFinite(v[2])&&v[2]>=0)))));
   return data?.version===6 && Number.isFinite(data.savedAt) &&
-    data.times?.length>=2 && data.times.every(Number.isFinite) &&
+    Array.isArray(data.times) && data.times.length>=2 && data.times.every(Number.isFinite) &&
     data.times.every((time,i)=>i===0||time>data.times[i-1]) &&
     Array.isArray(data.grids) && data.grids.length===WIND_GRIDS.length &&
-    data.grids.every((grid,i)=>grid.length===WIND_GRIDS[i].rows*WIND_GRIDS[i].cols &&
-      grid.every(series=>Array.isArray(series)&&series.length===data.times.length &&
-        series.every(v=>v===null||(Array.isArray(v)&&v.length===3&&
-          Number.isFinite(v[0])&&Number.isFinite(v[1])&&
-          (v[2]===null||(Number.isFinite(v[2])&&v[2]>=0))))));
+    data.grids.every((grid,i)=>validSeries(grid)&&grid.length===WIND_GRIDS[i].rows*WIND_GRIDS[i].cols) &&
+    (data.extraGrids===undefined || (Array.isArray(data.extraGrids)&&data.extraGrids.length<=8&&data.extraGrids.every(g=>
+      g && ['hemisphere','usa','alaska','hawaii'].includes(g.id) &&
+      [g.south,g.north,g.west,g.east].every(Number.isFinite) &&
+      g.south>=0&&g.north<=85&&g.south<g.north&&g.west>=-180&&g.east<=180&&g.west<g.east&&
+      Number.isInteger(g.rows)&&Number.isInteger(g.cols)&&g.rows>=2&&g.cols>=2&&g.rows*g.cols<=12000&&
+      validSeries(g.series)&&g.series.length===g.rows*g.cols)));
 }
 
 function restoreWind(){
   try{
+    // Free the replaced model cache before storing the expanded shared field.
+    localStorage.removeItem('balticWeatherWindV8');
     const data=JSON.parse(localStorage.getItem(WIND_CACHE_KEY));
     if(validWindData(data) && Date.now()-data.savedAt<WIND_CACHE_MS) windData=data;
   }catch(e){ /* Storage is optional, including in private browsing. */ }
@@ -223,17 +231,31 @@ function windGridWeights(grid,lat,lon){
     return {indices,weights};
 }
 
+const windSamplingCache=new WeakMap();
+function windSamplingGrids(){
+  if(!windData)return [];
+  if(windSamplingCache.has(windData))return windSamplingCache.get(windData);
+  const extras=windData.extraGrids||[];
+  const entries=[{spec:WIND_GRIDS[0],series:windData.grids[0],gustTiming:windData.legacyGustTiming},
+    ...extras.filter(g=>g.id==='hemisphere').map(g=>({spec:g,series:g.series,gustTiming:g.gustTiming})),
+    ...WIND_GRIDS.slice(1).map((g,i)=>({spec:g,series:windData.grids[i+1],gustTiming:windData.legacyGustTiming})),
+    ...extras.filter(g=>g.id!=='hemisphere').map(g=>({spec:g,series:g.series,gustTiming:g.gustTiming}))];
+  windSamplingCache.set(windData,entries);
+  return entries;
+}
+
 function windAt(lat,lon,slice){
   if(!slice) return null;
-  // Prefer the finer Baltic grid; fall back to the continuous regional grid.
-  for(let g=WIND_GRIDS.length-1;g>=0;g--){
-    const cell=windGridWeights(WIND_GRIDS[g],lat,lon);
+  // USA detail and existing regional grids take priority over hemisphere data.
+  const grids=windSamplingGrids();
+  for(let g=grids.length-1;g>=0;g--){
+    const cell=windGridWeights(grids[g].spec,lat,lon);
     if(!cell) continue;
     const {indices,weights}=cell;
     let u=0,v=0,valid=true;
     for(let n=0;n<4;n++){
       if(weights[n]===0) continue;
-      const series=windData.grids[g][indices[n]];
+      const series=grids[g].series[indices[n]];
       const a=series[slice.i],b=series[slice.i+1];
       if(!a||!b){valid=false;break;}
       u+=(a[0]*(1-slice.f)+b[0]*slice.f)*weights[n];
@@ -250,20 +272,21 @@ function windGustHour(slice){
   return slice.i+(slice.f>0?1:0);
 }
 
-function windGustAt(lat,lon,slice){
+function windGustAt(lat,lon,slice,details=false){
   if(!slice) return null;
-  const hour=windGustHour(slice);
-  for(let g=WIND_GRIDS.length-1;g>=0;g--){
-    const cell=windGridWeights(WIND_GRIDS[g],lat,lon);
+  const grids=windSamplingGrids();
+  for(let g=grids.length-1;g>=0;g--){
+    const cell=windGridWeights(grids[g].spec,lat,lon);
     if(!cell) continue;
+    const hour=grids[g].gustTiming==='instant'?slice.i+(slice.f>=0.5?1:0):windGustHour(slice);
     let gust=0,valid=true;
     for(let n=0;n<4;n++){
       if(cell.weights[n]===0) continue;
-      const value=windData.grids[g][cell.indices[n]][hour]?.[2];
+      const value=grids[g].series[cell.indices[n]][hour]?.[2];
       if(!Number.isFinite(value)||value<0){valid=false;break;}
       gust+=value*cell.weights[n];
     }
-    if(valid) return gust;
+    if(valid) return details?{value:gust,hour}:gust;
   }
   return null;
 }
@@ -350,7 +373,7 @@ const WindCanvasLayer=L.Layer.extend({
           let vector=windAt(ll.lat,ll.lng,slice);
           if(this.mode==='gust'){
             const gust=windGustAt(ll.lat,ll.lng,slice);
-            // Gust magnitude is an hourly peak; use modeled wind direction.
+            // Gust magnitude uses the selected model hour and modeled wind direction.
             vector=vector && gust!==null && (Math.hypot(vector[0],vector[1])>0.01 || gust===0)
               ? [vector[0],vector[1],gust] : null;
           }
@@ -362,7 +385,7 @@ const WindCanvasLayer=L.Layer.extend({
     }
     const seeds=this.seeds;
     if(!seeds.length){
-      $('windStatus').textContent='Pan across Canada, Greenland, the Atlantic or Europe to see wind.';
+      $('windStatus').textContent='Pan between the equator and 84°N to see wind.';
       $('windStatus').className='status';
       return;
     }
@@ -613,8 +636,8 @@ function renderWind(unix){
   if(!map.hasLayer(windLayer)) windLayer.addTo(map);
   const covered=windLayer.seeds?.length;
   $('windStatus').textContent=covered
-    ? `10 m model ${currentWindMode()==='gust'?'gusts · hourly peaks':'sustained wind'} · ${fmt(slice.time??unix)} · ${slice.cached?'last available model hour · waiting for update':'land + sea'}`
-    : 'Pan across Canada, Greenland, the Atlantic or Europe to see wind.';
+    ? `10 m model ${currentWindMode()==='gust'?'gust estimates':'sustained wind'} · ${fmt(slice.time??unix)} · ${slice.cached?'last available model hour · waiting for update':windData.regionalSource?.startsWith('NOAA fallback')?'land + sea · regional model fallback':'land + sea'}`
+    : 'Pan between the equator and 84°N to see wind.';
   $('windStatus').className=covered?(slice.cached?'status warn':'status ok'):'status';
   return true;
 }

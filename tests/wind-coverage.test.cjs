@@ -90,3 +90,12 @@ test('missing USA cells fall back to existing coverage and invalid dimensions ar
  h.run('windData.times="invalid"');
  assert.equal(h.run('validWindData(windData)'),false);
 });
+
+test('NOAA instantaneous gusts use the nearest hour; regional hourly peaks retain their interval',()=>{
+ const h=withExtraGrids();
+ assert.equal(h.run('windGustAt(30,-100,windTimeSlice(125))'),31);
+ assert.equal(h.run('windGustAt(30,-100,windTimeSlice(125),true).hour'),0);
+ assert.equal(h.run('windGustAt(57,25,windTimeSlice(125))'),12);
+ h.run('windData={...windData,legacyGustTiming:"instant"}');
+ assert.equal(h.run('windGustAt(57,25,windTimeSlice(125))'),8);
+});
