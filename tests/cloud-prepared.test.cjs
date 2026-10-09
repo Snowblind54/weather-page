@@ -22,7 +22,7 @@ function browser(failed=false){
   cloudTileCache:cache,cloudTilePromises:promises,CLOUD_TILE_CACHE_LIMIT:768,CLOUD_CACHE_BYTES:48*1024*1024,cloudCacheBytes:()=>cache.size*256*256*4,
   map:{on:()=>{}},$:()=>({addEventListener:()=>{},checked:true}),createImageBitmap:async()=>({width:1024,height:1024,close(){}}),
   document:{createElement:()=>({width:0,height:0,getContext:()=>({drawImage:(...a)=>draws.push(a)})})},
-  fetch:async url=>{calls.push(url);return url.endsWith('.json')?{ok:true,json:async()=>({version:1,records:[record]})}:{ok:!failed,blob:async()=>({})};}
+  fetch:async url=>{calls.push(url);return url.split('?')[0].endsWith('.json')?{ok:true,json:async()=>({version:1,records:[record]})}:{ok:!failed,blob:async()=>({})};}
  };
  vm.createContext(ctx);vm.runInContext(fs.readFileSync('js/cloud-prepared.js','utf8'),ctx);return {ctx,calls,draws,cache,promises};
 }
@@ -37,4 +37,10 @@ test('CDN images are cropped at zoom 6, reuse one download and preserve exact ob
 test('A missing CDN tile falls back without a self-referencing pending promise',async()=>{
  const {ctx,promises}=browser(true);await ctx.cloudEnsureMetadata();
  const result=await ctx.cloudGetTile({z:6,x:33,y:18},110);assert.equal(result.processor,'native');assert.equal(promises.size,0);
+});
+test('Freshness checks share a minute URL and advance despite a long browser TTL',async()=>{
+ const {ctx,calls}=browser();let now=120000;ctx.Date={now:()=>now};
+ await ctx.cloudEnsureMetadata(true);await ctx.cloudEnsureMetadata(true);
+ assert.equal(calls[0],calls[1]);now+=60000;await ctx.cloudEnsureMetadata();
+ assert.notEqual(calls[1],calls[2]);assert.match(calls[2],/cloud-tiles\.json\?minute=3$/);
 });

@@ -9,7 +9,8 @@
   if(pending)return pending;if(!force&&Date.now()-checkedAt<60000)return;
   pending=(async()=>{
    try{
-    const r=await fetch('data/cloud-tiles.json',{cache:'default'});
+    // One shared URL per minute also handles CDNs with a longer browser TTL.
+    const r=await fetch('data/cloud-tiles.json?minute='+Math.floor(Date.now()/60000),{cache:'default'});
     if(!r.ok)throw Error('Prepared clouds unavailable');const next=await r.json();
     if(next.version!==1||!Array.isArray(next.records))throw Error('Invalid cloud manifest');
     manifest=next;
