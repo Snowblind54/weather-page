@@ -35,7 +35,8 @@ class BudgetPaused(RuntimeError):
 
 
 def period(now, day):
-    day = int(day)
+    try: day = int(day)
+    except (TypeError, ValueError): raise ValueError('R2_BILLING_DAY must be a number from 1 to 31') from None
     if not 1 <= day <= 31: raise ValueError('Billing day must be between 1 and 31')
     def date(year, month):
         return datetime(year, month, min(day, calendar.monthrange(year, month)[1]), tzinfo=timezone.utc)
@@ -113,7 +114,7 @@ def decision(now=None, previous=None):
     except Exception as exc:
         # No guessed usage or zero totals when an activated guard loses telemetry.
         diagnostic = str(exc)
-        for secret in [os.environ.get('CLOUDFLARE_R2_ANALYTICS_TOKEN', ''), os.environ.get('R2_ENDPOINT', '')]:
+        for secret in [os.environ.get('CLOUDFLARE_R2_ANALYTICS_TOKEN', ''), os.environ.get('R2_ENDPOINT', ''), os.environ.get('R2_BILLING_DAY', '')]:
             if secret: diagnostic = diagnostic.replace(secret, '[redacted]')
         diagnostic = re.sub(r'[a-fA-F0-9]{32}', '[account]', diagnostic)
         diagnostic = re.sub(r'[\r\n]', ' ', diagnostic)[:500]
