@@ -20,7 +20,7 @@ node --test tests/forecast-map.test.cjs
 
 ## Automatic operation cutoff
 
-The account usage guard stops these weather workflows' R2 requests when Cloudflare reports **950,000 Class A** or **9,700,000 Class B** operations in the current billing cycle. Both limits apply account-wide, including other buckets and visitor requests. It uses `r2OperationsAdaptiveGroups` rather than estimating uploads or counting only this repository's jobs. Unknown operations, malformed/partial analytics and API errors fail closed after activation. The new monitor schedules checks every five minutes; running S3 clients recheck at most once per minute before their next call, including paginator calls. Manual `R2_PAUSED=true` still overrides the automatic guard.
+The account usage guard stops these weather workflows' R2 requests when Cloudflare reports **950,000 Class A** or **9,700,000 Class B** operations in the current billing cycle. Both limits apply account-wide, including other buckets and visitor requests. It uses `r2OperationsAdaptiveGroups` rather than estimating uploads or counting only this repository's jobs. Unfamiliar dashboard/configuration operations are conservatively counted against both limits, so totals may slightly exceed billable usage. Malformed/partial analytics and API errors fail closed after activation. The new monitor schedules checks every five minutes; running S3 clients recheck at most once per minute before their next call, including paginator calls. Manual `R2_PAUSED=true` still overrides the automatic guard.
 
 Activation requires:
 

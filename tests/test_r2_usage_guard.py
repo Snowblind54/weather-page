@@ -71,10 +71,12 @@ class UsageGuardTests(unittest.TestCase):
   self.assertEqual(read.call_args.args[0].full_url,guard.API)
 
  def test_partial_or_unknown_analytics_cannot_be_treated_as_zero(self):
-  for payload in [{'errors':[{'message':'rate limit'}],'data':{}},
-                  {'data':{'viewer':{'accounts':[{'r2OperationsAdaptiveGroups':[{'dimensions':{'actionType':'UnknownNewAPI'},'sum':{'requests':1}}]}]}}}]:
-   with patch.object(guard.urllib.request,'urlopen',return_value=io.BytesIO(json.dumps(payload).encode())):
-    with self.assertRaises(ValueError):guard.usage(NOW,NOW)
+  payload={'errors':[{'message':'rate limit'}],'data':{}}
+  with patch.object(guard.urllib.request,'urlopen',return_value=io.BytesIO(json.dumps(payload).encode())):
+   with self.assertRaises(ValueError):guard.usage(NOW,NOW)
+  payload={'data':{'viewer':{'accounts':[{'r2OperationsAdaptiveGroups':[{'dimensions':{'actionType':'GetBucketSippyConfiguration'},'sum':{'requests':3}}]}]}}}
+  with patch.object(guard.urllib.request,'urlopen',return_value=io.BytesIO(json.dumps(payload).encode())):
+   self.assertEqual(guard.usage(NOW,NOW),{'classA':3,'classB':3})
 
  def test_before_call_guard_stops_a_running_batch_on_next_recheck(self):
   with patch.object(guard,'decision',side_effect=[{'paused':False},{'paused':True,'reason':'operations_limit'}]),patch.object(guard.time,'monotonic',side_effect=[100,110,161,161]):

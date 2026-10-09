@@ -84,7 +84,13 @@ def usage(now, start):
         action = re.sub(r'[^a-z]', '', row['dimensions']['actionType'].lower())
         if action in CLASS_A: counts['classA'] += math.ceil(count)
         elif action in CLASS_B: counts['classB'] += math.ceil(count)
-        elif action not in FREE and count: raise ValueError('Unclassified R2 operation: '+action[:80])
+        elif action not in FREE and count:
+            # Analytics also includes dashboard/configuration actions absent from
+            # the billing operation table. Count these against both limits so an
+            # unfamiliar action cannot hide usage or stop all weather delivery.
+            counts['classA'] += math.ceil(count)
+            counts['classB'] += math.ceil(count)
+            print('R2 guard conservatively counts unfamiliar operation against both limits: '+action[:80], file=sys.stderr)
     return counts
 
 
