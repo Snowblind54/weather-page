@@ -3,6 +3,7 @@ from pathlib import Path
 import tempfile
 import sys
 import hashlib
+import base64
 import json
 from io import BytesIO
 import unittest
@@ -20,6 +21,8 @@ class FakeStore:
         self.objects, self.puts, self.deletes = initial or {}, [], []
         self.fail = fail
         self.scans = 0
+        self.heads = []
+        self.checksums = {}
     def get_paginator(self, _): return self
     def paginate(self, **_):
         self.scans += 1
@@ -27,12 +30,17 @@ class FakeStore:
             'ETag': value['ETag'], 'LastModified': value['LastModified']}
             for key, value in self.objects.items()]}]
     def head_object(self, Bucket, Key):
+        self.heads.append(Key)
         value = self.objects[Key]
         return {'ContentLength': len(value['Body']), 'ETag': value['ETag'], 'Metadata': value['Metadata']}
     def put_object(self, Bucket, Key, Body, **kwargs):
         self.puts.append(Key)
         if Key == self.fail: raise RuntimeError('simulated provider failure')
         body = Body.read() if hasattr(Body, 'read') else Body
+        if 'ContentMD5' in kwargs:
+            self.checksums[Key] = kwargs['ContentMD5']
+            if kwargs['ContentMD5'] != base64.b64encode(hashlib.md5(body, usedforsecurity=False).digest()).decode():
+                raise RuntimeError('BadDigest')
         etag = '"' + hashlib.md5(body, usedforsecurity=False).hexdigest() + '"'
         self.objects[Key] = {'Body': body, 'ETag': etag,
             'Metadata': kwargs.get('Metadata', {}), 'LastModified': datetime.now(timezone.utc)}
@@ -156,10 +164,63 @@ class StorageSafety(unittest.TestCase):
             self.assertEqual(report['inventoryScans'], 0)
             self.assertEqual(store.scans, 0)
             registry = json.loads(store.objects['_weather/control/registry.json']['Body'])
+            puts_before = len(store.puts)
+            heads_before = len(store.heads)
             report = r2.sync(store, 'b', root=root, registry=registry)
             self.assertEqual(report['uploadedFiles'], 0)
             self.assertEqual(store.puts.count('weather/data/latest.json'), 1)
             self.assertEqual(store.deletes, [])
+            self.assertEqual(len(store.puts), puts_before)
+            self.assertEqual(len(store.heads), heads_before)
+            self.assertEqual(report['registryWrites'], 0)
+
+    def test_unchanged_archive_still_retires_old_entries_and_clears_only_own_pending(self):
+        store = FakeStore()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); (root / 'data/radar-tiles').mkdir(parents=True)
+            (root / 'data/radar-tiles/live.png').write_bytes(b'live')
+            r2.sync(store, 'b', root=root, registry=accounted(store))
+            registry = json.loads(store.objects['_weather/control/registry.json']['Body'])
+            retired = 'weather/data/radar-tiles/retired.png'
+            other = 'weather/data/cloud-tiles/pending.webp'
+            registry['files'][retired] = {'protected': True, 'size': 7}
+            registry['pending'] = [retired, other]
+            before = len(store.puts)
+            report = r2.sync(store, 'b', root=root, selected=['data/radar-tiles'], registry=registry)
+            self.assertEqual(report['registryWrites'], 1)
+            self.assertEqual(len(store.puts)-before, 1)
+            final = json.loads(store.objects['_weather/control/registry.json']['Body'])
+            self.assertNotIn(retired, final['files'])
+            self.assertEqual(final['pending'], [other])
+            self.assertEqual(final['accounting'], registry['accounting'])
+
+    def test_assets_use_server_checksum_without_heads_and_manifest_keeps_head(self):
+        store = FakeStore()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); (root / 'data/radar-tiles').mkdir(parents=True)
+            (root / 'data/radar-tiles/new.png').write_bytes(b'new')
+            (root / 'data/radar-tiles.json').write_text('{}')
+            report = r2.sync(store, 'b', root=root, registry=accounted(store))
+            self.assertEqual(store.heads, ['weather/data/radar-tiles.json'])
+            self.assertEqual(len(store.checksums), 2)
+            self.assertEqual(report['verificationReads'], 1)
+
+    def test_invalid_put_receipt_withholds_new_manifest_and_retains_pending(self):
+        class BadReceipt(FakeStore):
+            def put_object(self, **args):
+                result = super().put_object(**args)
+                if args['Key'].endswith('.png'): result['ETag'] = '"invalid"'
+                return result
+        store = BadReceipt()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); (root / 'data/radar-tiles').mkdir(parents=True)
+            (root / 'data/radar-tiles/new.png').write_bytes(b'new')
+            (root / 'data/radar-tiles.json').write_text('{}')
+            with self.assertRaisesRegex(RuntimeError, 'Upload verification failed'):
+                r2.sync(store, 'b', root=root, registry=accounted(store))
+            self.assertNotIn('weather/data/radar-tiles.json', store.puts)
+            pending = json.loads(store.objects['_weather/control/registry.json']['Body'])['pending']
+            self.assertIn('weather/data/radar-tiles/new.png', pending)
 
     def test_cleanup_scans_once_counts_foreign_data_and_initializes_legacy_registry(self):
         now = datetime.now(timezone.utc)

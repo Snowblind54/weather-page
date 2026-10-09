@@ -1,5 +1,6 @@
 """Publish without bucket scans; central maintenance audits storage and expiry."""
 import argparse
+import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 import hashlib
@@ -163,6 +164,30 @@ def sync(client, bucket, root=ROOT, now=None, selected=None, registry=None, leas
     if peak > BUDGET:
         raise RuntimeError(f'8 GB storage guard: incoming files and metadata would require {peak} bytes; no uploads performed')
 
+    if not changes:
+        # Hash equality alone is insufficient: archive retirement, protection,
+        # and recovery of an interrupted publication still need recording.
+        for key in list(entries):
+            if in_scope(key, selected) and key not in files:
+                del entries[key]
+        for key, path in files.items():
+            entries[key]['protected'] = True
+            entries[key]['generation'] = generation(path)
+        updated = dict(registry, files=entries, pending=[
+            key for key in registry.get('pending', []) if not in_scope(key, selected)])
+        # A missing empty pending list is equivalent to an explicit empty list.
+        previous = dict(registry, pending=registry.get('pending', []))
+        writes = int(updated != previous)
+        if writes:
+            save_registry(client, bucket, updated, lease)
+        report = {'generatedAt': now.isoformat(), 'budgetBytes': BUDGET, 'bucketBytes': total,
+            'managedFiles': len(files), 'uploadedFiles': 0, 'expiredFiles': 0,
+            'inventoryScans': 0, 'registryWrites': writes, 'verificationReads': 0,
+            'status': 'unchanged'}
+        (root / 'r2-storage-report.json').write_text(json.dumps(report, indent=2) + '\n')
+        print(json.dumps(report), flush=True)
+        return report
+
     # Reserve the full upload bytes BEFORE the first asset PUT. A crashed or
     # partial upload stays conservatively charged until the next audit.
     # Other publishers share this accounting under the existing R2 lease.
@@ -178,14 +203,30 @@ def sync(client, bucket, root=ROOT, now=None, selected=None, registry=None, leas
         key, size, digest = item
         path = files[key]
         with path.open('rb') as body:
-            client.put_object(Bucket=bucket, Key=key, Body=body, ContentLength=size,
+            md5 = hashlib.md5(usedforsecurity=False)
+            sha = hashlib.sha256()
+            length = 0
+            while chunk := body.read(1024 * 1024):
+                md5.update(chunk); sha.update(chunk); length += len(chunk)
+            if length != size or sha.hexdigest() != digest:
+                raise RuntimeError('Source changed during publication; remaining manifests withheld')
+            body.seek(0)
+            result = client.put_object(Bucket=bucket, Key=key, Body=body, ContentLength=size,
+                ContentMD5=base64.b64encode(md5.digest()).decode('ascii'),
                 ContentType=mimetypes.guess_type(path.name)[0] or 'application/octet-stream',
                 CacheControl='public, max-age=60, must-revalidate' if key.count('/') == 2 else 'public, max-age=86400',
                 Metadata={'sha256': digest})
-        head = client.head_object(Bucket=bucket, Key=key)
-        if head['ContentLength'] != size or head.get('Metadata', {}).get('sha256') != digest:
+        etag = result.get('ETag')
+        if not isinstance(etag, str) or etag.strip('"').lower() != md5.hexdigest():
             raise RuntimeError('Upload verification failed; remaining manifests withheld')
-        entries[key] = {'sha256': digest, 'size': size, 'etag': head['ETag'], 'exists': True}
+        if key.count('/') == 2:
+            # Keep independent verification for the files which expose new data
+            # to clients. Asset bodies were verified by R2 during their PUT.
+            head = client.head_object(Bucket=bucket, Key=key)
+            if (head['ContentLength'] != size or head.get('Metadata', {}).get('sha256') != digest
+                    or head.get('ETag') != etag):
+                raise RuntimeError('Upload verification failed; remaining manifests withheld')
+        entries[key] = {'sha256': digest, 'size': size, 'etag': etag, 'exists': True}
 
     assets = [item for item in changes if item[0].count('/') != 2]
     manifests = [item for item in changes if item[0].count('/') == 2]
@@ -206,7 +247,8 @@ def sync(client, bucket, root=ROOT, now=None, selected=None, registry=None, leas
         'pending': remaining, 'accounting': dict(accounting, bucket_bytes=stored)}, lease)
     report = {'generatedAt': now.isoformat(), 'budgetBytes': BUDGET, 'bucketBytes': stored,
         'managedFiles': len(files), 'uploadedFiles': len(changes), 'expiredFiles': 0,
-        'inventoryScans': 0, 'status': 'verified-accounted'}
+        'inventoryScans': 0, 'registryWrites': 2, 'verificationReads': len(manifests),
+        'status': 'verified-accounted'}
     (root / 'r2-storage-report.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report), flush=True)
     return report

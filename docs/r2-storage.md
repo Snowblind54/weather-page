@@ -16,6 +16,35 @@ Automatic uploads refuse a conservative projected bucket usage above **8,000,000
 
 Reports are emitted to workflow logs; hourly maintenance stores a seven-day Actions report artifact. Registry and renewable publication lock are under `_weather/control/`.
 
+## Lower operation counts
+
+A fully unchanged scoped publication does not rewrite the registry. If the same
+files require an archive retirement, protection update, or clearing interrupted
+publication intent, the publisher writes that metadata once. New uploads still
+reserve their full bytes before any asset writes and finish with the verified
+registry under the shared lease.
+
+Every asset PUT supplies the R2-supported `Content-MD5` integrity checksum and
+checks the returned single-PUT ETag. The publisher retains SHA-256 in the registry
+and rejects local files that changed after planning. Image/archive uploads no
+longer require a separate HEAD request; current top-level snapshots/manifests
+retain HEAD verification of length, SHA-256 metadata and ETag. A failed checksum
+or receipt withholds subsequent manifests and leaves intent protected. Reports
+include `registryWrites` and `verificationReads` to show the savings.
+
+These changes save two Class A registry PUTs on a completely unchanged run and
+one Class B HEAD per changed non-manifest asset, without altering frontend
+refresh intervals, cache TTLs, image quality, or timeline coverage. Lease and
+registry reads still occur, so an unchanged run is not zero R2 operations.
+
+Cloudflare Smart Tiered Cache is a separate domain setting: select
+`northweather.app` in the dashboard, then **Caching → Tiered Cache → Smart Tiered
+Cache**. Keep the existing `/weather/data/` cache rule and TTLs. For R2 custom
+domains, Cloudflare automatically chooses an upper tier close to the bucket.
+This setting requires dashboard access or a zone settings token; the analytics
+read token and R2 object credentials cannot enable it. Documentation of the
+toggle here does not imply that the account setting has been enabled.
+
 ## Configuration
 
 GitHub Secrets: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`. Credentials are only used by Actions; no credentials are delivered to browsers. The browser public base URL is configured in `index.html` and routed by `js/r2-storage.js`.
