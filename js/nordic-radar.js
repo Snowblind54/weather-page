@@ -242,7 +242,7 @@ function decodeNordicRadarImage(url){
   // Preload the actual display element, including decoding, rather than only
   // the PNG bytes. Leaflet can reuse this ready image without a second load.
   return new Promise((resolve,reject)=>{
-    const image=new Image();if(typeof window!=='undefined'&&window.WEATHER_R2_BASE&&url.startsWith(window.WEATHER_R2_BASE+'/'))image.crossOrigin='anonymous';image.decoding='async';
+    const image=new Image();if(typeof window!=='undefined'&&((window.WEATHER_R2_BASE&&url.startsWith(window.WEATHER_R2_BASE+'/'))||url.startsWith('https://raw.githubusercontent.com/Snowblind54/weather-page/weather-fallback/')))image.crossOrigin='anonymous';image.decoding='async';
     let settled=false;
     const finish=(error)=>{
       if(settled)return;settled=true;clearTimeout(timer);image.onload=image.onerror=null;

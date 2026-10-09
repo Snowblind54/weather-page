@@ -62,15 +62,21 @@
     if(pending.has(url))return pending.get(url);
     const work=new Promise((resolve,reject)=>{
       const img=new Image();img.referrerPolicy='no-referrer-when-downgrade';
-      const timer=setTimeout(()=>{img.onload=img.onerror=null;img.src='';reject(Error('Forecast image timed out'));},25000);
+      const backup=window.weatherGithubDataUrl?.(url)||url;let retried=false,timer;
+      const failed=()=>{clearTimeout(timer);
+        if(!retried&&backup!==url){retried=true;load(backup);return;}
+        img.onload=img.onerror=null;img.src='';reject(Error('Forecast image unavailable'));
+      };
+      const load=source=>{timer=setTimeout(failed,source===url&&backup!==url?8000:25000);img.src=source;};
       img.onload=()=>{clearTimeout(timer);img.onload=img.onerror=null;cache.set(url,img);while(cache.size>8)cache.delete(cache.keys().next().value);resolve(img);};
-      img.onerror=()=>{clearTimeout(timer);img.onload=img.onerror=null;reject(Error('Forecast image unavailable'));};img.src=url;
+      img.onerror=failed;load(url);
     }).finally(()=>pending.delete(url));pending.set(url,work);return work;
   }
   document.addEventListener('weather-units-change',()=>{if(overlay)legend($('forecastMapLayer').value);});
   function legend(kind){
     const l=D.layers[kind];$('forecastMapLegendTitle').textContent=l.label+' · '+(kind==='temperature'?(globalThis.WeatherUnits?.temperatureUnit()??l.unit):['wind','gusts'].includes(kind)?(globalThis.WeatherUnits?.windUnit()??l.unit):l.unit);
-    $('forecastMapColorbar').src=D.assetUrl(visibleRegions[0]||meta,kind);
+    const colorbar=$('forecastMapColorbar');colorbar.onerror=()=>{const backup=window.weatherGithubDataUrl?.(colorbar.src);if(backup&&backup!==colorbar.src)colorbar.src=backup;};
+    colorbar.src=D.assetUrl(visibleRegions[0]||meta,kind);
     $('forecastMapLegendTicks').replaceChildren(...l.ticks.map(value=>{const e=document.createElement('span');const native=Number(String(value).replace('−','-').replace('+',''));
       const converted=kind==='temperature'?(globalThis.WeatherUnits?.temperatureValue(native)??native):['wind','gusts'].includes(kind)?(globalThis.WeatherUnits?.windValue(native)??native):native;
       e.textContent=['temperature','wind','gusts'].includes(kind)&&Number.isFinite(native)?String(Math.round(converted))+(String(value).endsWith('+')?'+':''):value;return e;}));

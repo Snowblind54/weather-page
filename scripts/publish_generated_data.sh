@@ -5,4 +5,9 @@ if (( $# < 2 )); then
   exit 2
 fi
 shift
-python3 scripts/sync_r2_data.py "$@"
+paused="${R2_PAUSED:-false}"
+if [[ "${paused,,}" != "true" ]] && python3 scripts/sync_r2_data.py "$@"; then
+  exit 0
+fi
+echo 'R2 publication unavailable or paused; publishing the GitHub fallback.'
+python3 scripts/github_fallback.py publish "$@"

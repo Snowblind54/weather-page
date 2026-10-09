@@ -2,6 +2,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import sys
+import os
 from r2_store import connect, get_json, INDEX_KEY, publication_lease, error_code
 from sync_r2_data import ROOT, PREFIX, scopes, in_scope, inventory
 
@@ -70,8 +71,19 @@ def hydrate(client, bucket, selected, root=ROOT, lease=None, allow_empty=False):
     print('Restored R2 updater inputs:', len(objects), flush=True)
 
 
+def restore_inputs(selected, allow_empty=False):
+    try:
+        if os.environ.get('R2_PAUSED','').lower()=='true':
+            raise RuntimeError('R2 publishing is paused')
+        client, bucket = connect()
+        with publication_lease(client, bucket) as lease:
+            hydrate(client, bucket, selected, lease=lease, allow_empty=allow_empty)
+    except Exception:
+        print('R2 input restore unavailable; trying verified GitHub fallback.', flush=True)
+        from github_fallback import restore
+        restore(selected, allow_empty=allow_empty)
+
+
 if __name__ == '__main__':
-    client, bucket = connect()
-    with publication_lease(client, bucket) as lease:
-        selected = [arg for arg in sys.argv[1:] if arg != '--allow-empty']
-        hydrate(client, bucket, selected, lease=lease, allow_empty='--allow-empty' in sys.argv[1:])
+    restore_inputs([arg for arg in sys.argv[1:] if arg != '--allow-empty'],
+                   allow_empty='--allow-empty' in sys.argv[1:])

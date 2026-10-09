@@ -104,3 +104,16 @@ test('closing the forecast menu keeps images and timeline active and allows chan
   assert(!h.classes.has('forecast-view'));assert(!h.classes.has('forecast-model-view'));
   assert.equal(h.c.document.body.children[0].hidden,true);assert.equal(h.overlays.filter(l=>l.active).length,0);
 });
+
+test('an R2 forecast image failure retries the GitHub backup and renders it',async()=>{
+ const h=harness();h.c.window.weatherGithubDataUrl=url=>'https://backup.example/'+url;
+ h.open();await h.run();const img=h.images[0],original=img.url;
+ img.onerror();assert.equal(img.url,'https://backup.example/'+original);
+ await h.loaded(0);assert.equal(h.overlays.filter(l=>l.active).length,1);
+ assert.equal(h.overlays[0].img.url,'https://backup.example/'+original);
+});
+test('failure of both forecast stores stops retrying and clears the layer',async()=>{
+ const h=harness();h.c.window.weatherGithubDataUrl=url=>'https://backup.example/'+url;
+ h.open();await h.run();h.images[0].onerror();h.images[0].onerror();await flush();
+ assert.equal(h.overlays.filter(l=>l.active).length,0);assert.match(h.ids.forecastMapStatus.textContent,/unavailable/);
+});
