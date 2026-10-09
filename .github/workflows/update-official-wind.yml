@@ -10,6 +10,7 @@ on:
       - scripts/update_official_wind.py
       - scripts/publish_generated_data.sh
       - tests/test_official_wind.py
+      - tests/official-wind.test.cjs
       - js/official-wind.js
       - .github/workflows/update-official-wind.yml
 permissions:
@@ -49,6 +50,8 @@ jobs:
         run: python3 scripts/hydrate_r2_data.py data/official-wind.json
       - name: Check official wind adapters
         run: python3 -m unittest discover -s tests -p test_official_wind.py -v
+      - name: Check measured wind labels
+        run: node --test tests/official-wind.test.cjs tests/test_wind_observation_blend.js
       - name: Fetch measured station wind
         run: python3 scripts/update_official_wind.py
       - name: Save official wind snapshot

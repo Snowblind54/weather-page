@@ -1,4 +1,4 @@
-"""10-minute shared snapshots of official Northern European station wind; never substitute models.
+"""10-minute shared snapshots of official station wind; never substitute models.
 
 EE exposes a feed timestamp, not per-station observation timestamps. Keep that
 meaning explicit. Other providers supply actual observation times. Native values
@@ -23,6 +23,9 @@ LATVIA_DATASTORE = 'https://data.gov.lv/dati/api/3/action/datastore_search?'
 LATVIA_OBS_RESOURCE = '17460efb-ae99-4d1d-8144-1068f184b05f'
 LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
+    'US': dict(name='NOAA / National Weather Service Aviation Weather Center',
+               url='https://aviationweather.gov/data/metar/', timeKind='observation',
+               period='Florida METAR/SPECI airport observations: 2-minute mean wind and reported instantaneous gust maximum from the preceding 10 minutes. Missing gust reports remain unavailable.'),
     'CA': dict(name='Environment and Climate Change Canada / MSC',url='https://eccc-msc.github.io/open-data/msc-data/obs_station/readme_obs_insitu_en/',timeKind='observation',period='Quality-checked 10-minute mean wind and measured instantaneous wind maximum over 10 minutes; missing maxima remain unavailable.'),
     'GL': dict(name='Danish Meteorological Institute (DMI)',url='https://www.dmi.dk/friedata/',timeKind='observation',period='10-minute mean wind and highest 3-second mean wind in the latest 10 minutes.'),
     'EE': dict(name='Estonian Environment Agency / Keskkonnaagentuur', url='https://www.ilmateenistus.ee/',
@@ -98,7 +101,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10)}.get(country,(48.5,72.5,-26,33))
+    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(24,31,-88,-79)}.get(country,(48.5,72.5,-26,33))
     if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
@@ -442,6 +445,50 @@ def load_denmark(now):
     return parse_denmark(dict(zip(parameters, values)), metadata)
 
 
+def parse_florida(observations, metadata):
+    """Use official state metadata, not a bounding box alone, to select Florida."""
+    if not isinstance(observations, list) or not isinstance(metadata, list):
+        raise ValueError('Invalid NOAA station response')
+    if len(observations) >= 400 or len(metadata) >= 400:
+        raise ValueError('NOAA response may be truncated')
+    official = {m['icaoId']: m for m in metadata
+                if m.get('country') == 'US' and m.get('state') == 'FL' and m.get('icaoId')}
+    grouped = {}
+    for item in observations:
+        code = item.get('icaoId')
+        meta = official.get(code)
+        if not meta or item.get('metarType') not in ('METAR', 'SPECI'):
+            continue
+        try:
+            stamp = timestamp(item.get('obsTime'))
+            # NOAA's decoded METAR speed and gust fields are in knots.
+            def speed(key):
+                value = number(item.get(key), 200)
+                return None if value is None else value * 1852 / 3600
+            row = (stamp, speed('wspd'), speed('wgst'), number(item.get('wdir'), 360))
+            target = station('US', code, meta.get('site') or code,
+                             meta['lat'], meta['lon'], [row])
+        except (KeyError, ValueError, TypeError):
+            continue
+        if not target['rows']:
+            continue
+        if code in grouped:
+            grouped[code]['rows'] += target['rows']
+        else:
+            grouped[code] = target
+    return [station(s['country'], s['code'], s['name'], s['lat'], s['lon'], s['rows'])
+            for s in grouped.values()]
+
+
+def load_florida(now):
+    base = 'https://aviationweather.gov/api/data/'
+    params = urllib.parse.urlencode({'bbox': '24,-88,31,-79', 'format': 'json'})
+    # Two small bulk requests per shared update, never one request per visitor/station.
+    metadata = download_json(base + 'stationinfo?' + params)
+    observations = download_json(base + 'metar?' + params)
+    return parse_florida(observations, metadata)
+
+
 def merge(previous, current, now):
     cutoff = int(now.timestamp()) - 24 * 3600
     limit = int(now.timestamp()) + 60
@@ -466,7 +513,7 @@ def main():
     results, sources = [], {}
     loaders = [('EE', load_estonia), ('FI', load_finland), ('SE', load_sweden), ('NO', load_norway),
                ('IS', load_iceland), ('LV', load_latvia), ('LT', load_lithuania), ('PL', load_poland),
-               ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland)]
+               ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_florida)]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):

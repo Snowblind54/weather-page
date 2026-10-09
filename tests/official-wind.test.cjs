@@ -1,14 +1,14 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{test}=require('node:test');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../js/official-wind.js'),'utf8');
 function harness(){
-  const now=Math.floor(Date.now()/1000),elements={officialWindSustained:{checked:false},officialWindGusts:{checked:false},officialWindStatus:{},timeline:{value:'1',max:'1'}};
+  const now=Math.floor(Date.now()/1000),elements={officialWindSustained:{checked:false},officialWindGusts:{checked:false},officialWindStatus:{},windMode:{value:'sustained'},windOn:{checked:false},windHeatmapOn:{checked:false},timeline:{value:'1',max:'1'}};
   for(const e of Object.values(elements))e.addEventListener=(type,fn)=>e[type]=fn;
   const layers=new Set(),group={children:[],clearLayers(){this.children=[];},getLayers(){return this.children;},addTo(){layers.add(this);return this;}};
   const map={createPane(){},getPane:()=>({style:{}}),on(){},hasLayer:l=>layers.has(l),removeLayer:l=>layers.delete(l),getZoom:()=>6,getBounds:()=>({toBBoxString:()=> 'view',contains:()=>true}),latLngToContainerPoint:([lat,lon])=>({x:(lon-18)*100,y:(lat-53)*100})};
   const context={console,Date,Math,Number,Array,Map,Set,Promise,AbortController,setTimeout,clearTimeout,setInterval(){},document:{hidden:false,addEventListener(){}},$:id=>elements[id],map,frames:[{time:now-7200},{time:now}],fmt:t=>String(t),windColour:()=> '#fff',htmlEscape:s=>String(s).replaceAll('<','&lt;'),
-    L:{layerGroup:()=>group,divIcon:o=>o,marker:(ll,o)=>({ll,options:o,bindPopup(html,opts){this.popup=html;this.popupOptions=opts;return this;},addTo(g){g.children.push(this);return this;}})}};
+    L:{layerGroup:()=>group,divIcon:o=>o,marker:(ll,o)=>({ll,options:o,on(){return this;},bindPopup(html,opts){this.popup=html;this.popupOptions=opts;return this;},addTo(g){g.children.push(this);return this;}})}};
   vm.createContext(context);const run=s=>vm.runInContext(s,context);run(source);
-  const fixture={version:1,generatedAt:now,refreshMinutes:60,units:'m/s',sources:{EE:{status:'ok',timeKind:'feed',name:'Agency',period:'Latest values'},FI:{status:'ok',timeKind:'observation',name:'FMI'}},stations:[{country:'EE',code:'EE1',name:'<Estonia>',lat:59,lon:25,rows:[[now-7200,1,2,null],[now-1200,0,null,230]]},{country:'FI',code:'FI1',name:'Finland',lat:61,lon:25,rows:[[now-3600,3.4,7.2,240]]}]};
+  const fixture={version:1,generatedAt:now,refreshMinutes:10,units:'m/s',sources:{EE:{status:'ok',timeKind:'feed',name:'Agency',period:'Latest values'},FI:{status:'ok',timeKind:'observation',name:'FMI'}},stations:[{country:'EE',code:'EE1',name:'<Estonia>',lat:59,lon:25,rows:[[now-7200,1,2,null],[now-1200,0,null,230]]},{country:'FI',code:'FI1',name:'Finland',lat:61,lon:25,rows:[[now-3600,3.4,7.2,240]]}]};
   context.fixture=fixture;return {now,elements,layers,group,context,run,fixture};
 }
 test('official wind toggles work independently and missing gusts never show as zero',()=>{
@@ -33,4 +33,19 @@ test('validation rejects future snapshots, negative speeds, duplicate station id
 });
 test('snapshot fetch is shared and disabling during a load cannot resurrect labels',async()=>{
   const h=harness();h.elements.officialWindSustained.checked=true;let resolve,calls=0;h.context.fetch=()=>{calls++;return new Promise(r=>resolve=r);};const pending=h.run('loadOfficialWind()');h.run('loadOfficialWind()');assert.equal(calls,1);h.elements.officialWindSustained.checked=false;h.run('renderOfficialWind()');resolve({ok:true,json:async()=>h.fixture});await pending;assert.equal(h.layers.size,0);assert.equal(h.group.children.length,0);
+});
+
+test('Florida stations validate and display NOAA observations with missing gusts intact',()=>{
+  const h=harness();
+  h.fixture.sources.US={status:'ok',timeKind:'observation',name:'NOAA / NWS',period:'2-minute mean wind'};
+  h.fixture.stations=[{country:'US',code:'KMIA',name:'Miami',lat:25.8,lon:-80.3,rows:[[h.now-600,5.14,null,90]]}];
+  h.run('officialWindData=validateOfficialWind(fixture)');
+  h.elements.officialWindSustained.checked=true;h.run('renderOfficialWind()');
+  assert.equal(h.group.children.length,1);
+  assert.match(h.group.children[0].popup,/Florida, USA/);
+  assert.match(h.group.children[0].popup,/NOAA/);
+  assert.match(h.group.children[0].popup,/Unavailable/);
+  h.elements.officialWindSustained.checked=false;h.elements.officialWindGusts.checked=true;h.run('renderOfficialWind()');
+  assert.equal(h.group.children.length,0);
+  h.fixture.stations[0].lat=40;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
 });

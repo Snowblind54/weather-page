@@ -141,3 +141,31 @@ class AmericasWindTests(unittest.TestCase):
         w.station('GL','x','Nuuk',64,-51,[(100,5,None,90)])
         w.station('CA','x','Canada',49,-123,[(100,5,None,90)])
         with self.assertRaises(ValueError):w.station('EE','x','Wrong',49,-123,[(100,5,None,90)])
+
+
+class FloridaWindTests(unittest.TestCase):
+    def test_official_state_filter_units_gaps_and_observation_time(self):
+        metadata = [dict(icaoId='KMIA', country='US', state='FL', site='Miami', lat=25.8, lon=-80.3),
+                    dict(icaoId='KAAA', country='US', state='GA', site='Georgia', lat=30.8, lon=-81.5)]
+        base = dict(icaoId='KMIA', metarType='METAR', obsTime=STAMP, wspd=10, wgst=20, wdir=90)
+        rows = w.parse_florida([base, {**base, 'icaoId':'KAAA'}], metadata)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['country'], 'US')
+        self.assertEqual(rows[0]['rows'], [[STAMP, 5.14, 10.29, 90]])
+        for value in (None, -1, 'NaN'):
+            result = w.parse_florida([{**base, 'wgst':value, 'wdir':'VRB', 'wspd':0}], metadata)
+            self.assertEqual(result[0]['rows'], [[STAMP, 0, None, None]])
+        self.assertEqual(w.parse_florida([{**base, 'wgst':None, 'wspd':None}], metadata), [])
+        self.assertEqual(w.parse_florida([{**base, 'obsTime':None}], metadata), [])
+        self.assertEqual(w.parse_florida([{**base, 'metarType':'TAF'}], metadata), [])
+        self.assertEqual(w.parse_florida([base], []), [])
+        with self.assertRaises(ValueError): w.station('US','X','Wrong state',40,-80,[(STAMP,3,5,90)])
+        with self.assertRaises(ValueError): w.parse_florida([base]*400, metadata)
+
+    def test_special_reports_are_sorted_and_keep_latest_timestamp(self):
+        meta = [dict(icaoId='KMIA', country='US', state='FL', site='Miami', lat=25.8, lon=-80.3)]
+        base = dict(icaoId='KMIA', metarType='SPECI', obsTime=STAMP, wspd=10, wgst=None, wdir=180)
+        result = w.parse_florida([{**base, 'obsTime':STAMP+600, 'wgst':20},base,base],meta)[0]
+        self.assertEqual([r[0] for r in result['rows']], [STAMP,STAMP+600])
+        self.assertEqual(result['rows'][0][2], None)
+        self.assertEqual(result['rows'][1][2], 10.29)
