@@ -32,7 +32,7 @@ async function metadata(c,previous,now){
  const products=vm.runInContext('cloudProducts',c),errors=[];
  for(const endpoint of [...new Set(['eumet','gibs','west','metop'].map(id=>products[id].endpoint))]){
   try{
-   const xml=await download(endpoint+'?service=WMS&request=GetCapabilities&version=1.3.0');
+   const xml=await download(endpoint+'?service=WMS&request=GetCapabilities&version=1.3.0&freshness='+Math.floor(now/120));
    const parser=`import sys,json,xml.etree.ElementTree as E
 t=E.fromstring(sys.stdin.read());out={}
 for l in t.iter():

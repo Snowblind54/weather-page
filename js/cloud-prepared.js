@@ -24,6 +24,13 @@
   const key=`${z}/${Math.floor(coords.x/factor)}/${Math.floor(coords.y/factor)}`;
   const r=manifest.records.filter(r=>r.key===key&&r.time<=time).sort((a,b)=>b.time-a.time)[0];
   if(!r)return null;
+  // A cached composite must not hide a newer real observation at this timeline time.
+  for(const observation of r.times||[]){
+   const product=cloudProducts[observation.id];if(!product)continue;
+   for(const kind of ['day','night'])if(Number.isFinite(observation[kind])){
+    try{if(cloudAvailableTime(product,product[kind],time)>observation[kind])return null;}catch{/* Metadata can be unavailable for an older polar pass. */}
+   }
+  }
   const index=Math.min(r.paths.length-1,Math.max(0,coords.z-z));
   if(!/^data\/cloud-tiles\/[a-f0-9]+-(256|512|1024)\.webp$/.test(r.paths[index]))return null;
   if(r.archive&&(typeof validCloudArchive!=='function'||!validCloudArchive(r)))return null;
@@ -55,16 +62,20 @@
  }
  cloudEnsureMetadata=async function(force=false){
   await refresh(force);
-  const visible=cloudVisibleTiles();
-  if(visible.length&&visible.every(t=>selection(t.coords,cloudRequestedTime)))return;
-  // Initial GridLayer has not been created yet. Published metadata also makes
-  // fallback keys valid without downloading capabilities on every phone.
+  // Seed metadata for archive-only loading, without overwriting a newer direct discovery.
   if(manifest?.products){
    for(const [id,p] of Object.entries(manifest.products))if(cloudProducts[id]){
-    cloudProducts[id].times=p.times;cloudProducts[id].latest=p.latest;cloudProducts[id].metadataAt=Date.now();
+    const current=cloudProducts[id];
+    if(!current.metadataAt||Math.max(...Object.values(p.latest||{}))>Math.max(...Object.values(current.latest||{}))){
+     current.times=p.times;current.latest=p.latest;current.metadataAt=Date.now();
+    }
    }
   }
-  return nativeMetadata(force);
+  // Automatic freshness checks discover newer official scans even when older
+  // prepared tiles exist. Ordinary archive/history loading stays CDN-first.
+  const visible=cloudVisibleTiles();
+  if(!force&&visible.length&&visible.every(t=>selection(t.coords,cloudRequestedTime)))return;
+  return nativeMetadata(force||!visible.length);
  };
  cloudTileKey=function(coords,time){const s=selection(coords,time);return s?'prepared-cloud:'+s.path+':'+coords.z+'/'+coords.x+'/'+coords.y:nativeKey(coords,time);};
  cloudGetTile=function(coords,time,priority=0){

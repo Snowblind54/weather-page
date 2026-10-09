@@ -74,3 +74,24 @@ test('The workflow publishes latest archives before history and keeps both fallb
  const secondPublish=workflow.indexOf('bash scripts/publish_generated_data.sh',history);
  assert(latest<firstPublish&&firstPublish<history&&history<secondPublish);
 });
+
+test('Recent history uses a newer official scan instead of repeating an older prepared block',async()=>{
+ const {ctx}=browser(false,true);
+ ctx.cloudProducts.eumet={day:'visible',night:'ir',metadataAt:1,latest:{visible:120,ir:120},times:{visible:[100,120],ir:[100,120]}};
+ ctx.cloudAvailableTime=(p,name,time)=>Math.max(...p.times[name].filter(t=>t<=time));
+ await ctx.cloudEnsureMetadata();
+ assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},110)).processor,'cdn','archive matches the selected historical observation');
+ assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},130)).processor,'native','newer advertised scan must not be hidden by an old archive');
+ assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},90)).processor,'native','never use an archive from the future');
+});
+test('Automatic metadata discovery runs even when every visible tile already has an archive',async()=>{
+ const {ctx}=browser(false,true);let discoveries=0;
+ // Reload with an instrumented native metadata function.
+ ctx.cloudEnsureMetadata=async force=>{if(force)discoveries++;};
+ ctx.cloudVisibleTiles=()=>[{coords:{z:6,x:33,y:18}}];
+ vm.runInContext(fs.readFileSync('js/cloud-prepared.js','utf8'),ctx);
+ await ctx.cloudEnsureMetadata(true);
+ assert.equal(discoveries,1);
+ await ctx.cloudEnsureMetadata(false);
+ assert.equal(discoveries,1,'ordinary archive loading does not add provider discovery calls');
+});

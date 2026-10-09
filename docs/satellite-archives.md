@@ -48,3 +48,12 @@ and shares the original 180-block-per-run limit. Both publications use the same
 verified R2/GitHub publisher. If history processing fails, the first publication
 remains available. Satellite availability and GitHub scheduling still determine
 when new observations can begin processing.
+
+Freshness discovery uses a shared two-minute cache key on the official WMS
+capabilities request. The map checks official availability on activation and its
+existing automatic refresh, even when a prepared archive already covers the
+viewport. For each selected timeline time, a prepared block is accepted only if
+it does not lag a newer advertised observation in its source metadata; otherwise
+existing direct-provider delivery fills the gap until the prepared archive
+catches up. No future observation is substituted into history. Provider
+publication delays remain visible in the actual observation-time label.
