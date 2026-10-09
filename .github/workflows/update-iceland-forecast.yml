@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -40,12 +40,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            data/forecast-map.json
             data/forecast-iceland.json
             data/forecast-iceland-cache
           key: r2-input-${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: r2-input-${{ github.workflow }}-
       - name: Restore verified last successful R2 data
-        run: python3 scripts/hydrate_r2_data.py data/forecast-iceland.json data/forecast-iceland-cache
+        run: python3 scripts/hydrate_r2_data.py data/forecast-map.json data/forecast-iceland.json data/forecast-iceland-cache
       - name: Install GRIB decoder and image renderer
         run: python3 -m pip install numpy==2.3.5 scipy==1.17.0 eccodes==2.46.0 Pillow==11.3.0
       - name: Generate shared Iceland forecast maps
