@@ -32,7 +32,7 @@ def in_scope(key, selected):
 def expiry_days(key):
     if key.startswith(PREFIX + 'data/snow-history/'):
         return 16
-    if key.startswith((PREFIX + 'data/radar-tiles/', PREFIX + 'data/radar-cache/')):
+    if key.startswith((PREFIX + 'data/radar-tiles/', PREFIX + 'data/radar-cache/', PREFIX + 'data/cloud-tiles/')):
         return 1
     return 2
 

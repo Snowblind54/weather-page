@@ -6,7 +6,7 @@ from r2_store import connect, get_json, INDEX_KEY, publication_lease
 from sync_r2_data import ROOT, PREFIX, scopes, in_scope, inventory
 
 
-def hydrate(client, bucket, selected, root=ROOT, lease=None):
+def hydrate(client, bucket, selected, root=ROOT, lease=None, allow_empty=False):
     selected = scopes(selected)
     registry, _ = get_json(client, bucket, INDEX_KEY)
     if not registry or not registry.get('files'):
@@ -18,6 +18,9 @@ def hydrate(client, bucket, selected, root=ROOT, lease=None):
             head = client.head_object(Bucket=bucket, Key=key)
             objects[key] = {'Size': head['ContentLength'], 'ETag': head['ETag'], 'sha256': head['Metadata']['sha256']}
     if not objects:
+        if allow_empty:
+            print('New R2 input scope; starting its first archive', flush=True)
+            return
         raise RuntimeError('R2 input scope is empty; refusing a fresh empty archive')
 
     def restore(item):
@@ -63,4 +66,5 @@ def hydrate(client, bucket, selected, root=ROOT, lease=None):
 if __name__ == '__main__':
     client, bucket = connect()
     with publication_lease(client, bucket) as lease:
-        hydrate(client, bucket, sys.argv[1:], lease=lease)
+        selected = [arg for arg in sys.argv[1:] if arg != '--allow-empty']
+        hydrate(client, bucket, selected, lease=lease, allow_empty='--allow-empty' in sys.argv[1:])

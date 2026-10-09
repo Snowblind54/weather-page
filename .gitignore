@@ -4,3 +4,4 @@ data/*
 __pycache__/
 *.pyc
 r2-storage-report.json
+scripts/cloud-tiles/node_modules/
