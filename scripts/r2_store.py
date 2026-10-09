@@ -16,6 +16,8 @@ def error_code(exc):
 
 
 def connect():
+    from r2_usage_guard import ensure_allowed
+    ensure_allowed()
     import boto3
     from botocore.config import Config
     required = ['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ENDPOINT', 'R2_BUCKET']
@@ -30,6 +32,7 @@ def connect():
         config=Config(max_pool_connections=32, connect_timeout=15, read_timeout=60,
             retries={'max_attempts': 5, 'mode': 'standard'},
             request_checksum_calculation='when_required', response_checksum_validation='when_required'))
+    client.meta.events.register('before-call.s3', ensure_allowed)
     return client, os.environ['R2_BUCKET'].strip()
 
 

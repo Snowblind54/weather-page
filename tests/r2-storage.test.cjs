@@ -1,13 +1,13 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const code=fs.readFileSync('js/r2-storage.js','utf8');
 const R2='https://example.r2.dev/weather/',GH='https://raw.githubusercontent.com/Snowblind54/weather-page/weather-fallback/';
-function setup({fail=false,active=false}={}){
+function setup({fail=false,active=false,failGithub=false}={}){
  const calls=[];let now=Date.now();
  const window={WEATHER_R2_BASE:'https://example.r2.dev',location:{href:'https://snowblind54.github.io/weather-page/'},fetch:async(input,opts)=>{
   const url=input instanceof Request?input.url:String(input);calls.push([input,opts]);
   if(opts?.signal?.aborted)throw opts.signal.reason;
   if(url.includes('_fallback/status'))return new Response(JSON.stringify({version:1,mode:active?'active':'standby',until:active?now/1000+120:0}));
-  return new Response(url,{status:fail&&url.startsWith(R2)?503:200});
+  return new Response(url,{status:(fail&&url.startsWith(R2))||(failGithub&&url.startsWith(GH))?503:200});
  }};
  vm.runInNewContext(code,{window,URL,Request,Response,AbortController,DOMException,setTimeout,clearTimeout,Date:class extends Date{static now(){return now;}}});
  return {window,calls,advance:ms=>now+=ms};
@@ -17,7 +17,7 @@ const address=input=>input instanceof Request?input.url:String(input);
  let {window,calls}=setup();
  let result=await window.fetch('data/cyclones.json?v=1',{cache:'no-store'});
  assert.equal(await result.text(),R2+'data/cyclones.json?v=1');
- assert.equal(calls[0][1].cache,'no-store');assert.equal(calls[0][1].credentials,'omit');
+ const primary=calls.find(([input])=>address(input).startsWith(R2));assert.equal(primary[1].cache,'no-store');assert.equal(primary[1].credentials,'omit');
  assert.equal(window.weatherDataUrl('data/radar-tiles/frame/3/1/2.png'),R2+'data/radar-tiles/frame/3/1/2.png');
  await window.fetch('https://official.example/data/file.json');assert.equal(address(calls.at(-1)[0]),'https://official.example/data/file.json');
  await window.fetch('data/estonia-marine-warning-zones.geojson');assert.equal(address(calls.at(-1)[0]),'data/estonia-marine-warning-zones.geojson');
@@ -26,9 +26,10 @@ const address=input=>input instanceof Request?input.url:String(input);
  assert.equal(window.weatherDataUrl('data/forecast-cache/run/temperature.webp'),GH+'data/forecast-cache/run/temperature.webp');
  await window.fetch('data/official-temperature.json');assert.equal(address(calls.at(-1)[0]),GH+'data/official-temperature.json');
  ({window,calls}=setup({active:true}));result=await window.fetch('data/model-wind.json');
- assert.equal(await result.text(),GH+'data/model-wind.json'); // Even stale HTTP-200 R2 responses are bypassed during a publishing pause.
+ assert.equal(await result.text(),GH+'data/model-wind.json');assert(!calls.some(([input])=>address(input).startsWith(R2))); // Even stale HTTP-200 R2 responses are bypassed during a publishing pause.
+ ({window,calls}=setup({active:true,failGithub:true}));result=await window.fetch(R2+'data/model-wind.json');assert.equal(result.status,503);assert(!calls.some(([input])=>address(input).startsWith(R2)));
  ({window,calls}=setup({fail:true}));const request=new Request('https://snowblind54.github.io/weather-page/data/model-wind.json',{headers:{Range:'bytes=0-1023'}});
- await window.fetch(request);assert.equal(calls[0][0].headers.get('Range'),'bytes=0-1023');
+ await window.fetch(request);assert.equal(calls.find(([input])=>address(input).startsWith(R2))[0].headers.get('Range'),'bytes=0-1023');
  const retry=calls.find(([input])=>address(input).startsWith(GH+'data/'));assert.equal(retry[0].headers.get('Range'),'bytes=0-1023');
  ({window,calls}=setup({fail:true}));result=await window.fetch('data/radar-tiles.json');assert.equal(result.status,503);
  assert(!calls.some(([input])=>address(input).startsWith(GH+'data/radar-tiles')));

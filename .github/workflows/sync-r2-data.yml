@@ -15,6 +15,10 @@ permissions:
 concurrency:
   group: r2-weather-storage
   cancel-in-progress: false
+env:
+  R2_PAUSED: ${{ vars.R2_PAUSED }}
+  CLOUDFLARE_R2_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_R2_ANALYTICS_TOKEN }}
+  R2_BILLING_DAY: ${{ vars.R2_BILLING_DAY }}
 jobs:
   sync:
     runs-on: ubuntu-latest

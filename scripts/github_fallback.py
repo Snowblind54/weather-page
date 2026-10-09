@@ -61,7 +61,7 @@ def local_files(root, selected):
 
 
 def download(path):
-    if path not in ['_fallback/index.json', '_fallback/status.json'] and not eligible(path):
+    if path not in ['_fallback/index.json', '_fallback/status.json', '_fallback/budget.json'] and not eligible(path):
         raise ValueError('Unexpected fallback path')
     url = RAW+path+'?minute='+str(int(time.time()//60))
     with urllib.request.urlopen(url, timeout=30) as response:
@@ -115,9 +115,10 @@ def restore(selected, root=ROOT, allow_empty=False):
     print('Restored verified GitHub fallback inputs:', len(records), flush=True)
 
 
-def publish(selected, root=ROOT, active=True):
-    selected = scopes(selected); incoming = local_files(root, selected)
-    if not incoming:
+def publish(selected, root=ROOT, active=True, control=None):
+    selected = scopes(selected) if control is None else []
+    incoming = local_files(root, selected) if control is None else {}
+    if not incoming and control is None:
         if all(not eligible(v) for v in selected):
             print('Prepared tiles withheld; the map uses direct radar/cloud providers.', flush=True)
             return
@@ -164,10 +165,17 @@ def publish(selected, root=ROOT, active=True):
             now = datetime.now(timezone.utc).isoformat()
             index_path.parent.mkdir(exist_ok=True)
             index_path.write_text(json.dumps({'version':1, 'generatedAt':now, 'files':records}, separators=(',',':')))
+            budget_path = work/'_fallback/budget.json'
+            if control is not None:
+                budget_path.write_text(json.dumps(control))
+            budget = json.loads(budget_path.read_text()) if budget_path.exists() else {}
             # A healthy hourly backup must not cancel a recent outage signal.
             status_path = work/'_fallback/status.json'
             status = json.loads(status_path.read_text()) if status_path.exists() else {}
-            if active or status.get('until', 0) < time.time():
+            if budget.get('paused') and budget.get('until', 0) > time.time():
+                status_path.write_text(json.dumps({'version':1,'mode':'active','until':budget['until'],
+                    'reason':'budget_guard','updatedAt':now}))
+            elif active or status.get('until', 0) < time.time() or status.get('reason') == 'budget_guard':
                 status_path.write_text(json.dumps({'version':1, 'mode':'active' if active else 'standby',
                     'until':int(time.time()+1800) if active else 0, 'updatedAt':now}))
             git('add', '--all')
@@ -190,6 +198,7 @@ if __name__ == '__main__':
     if args.command == 'backup':
         from hydrate_r2_data import restore_inputs
         restore_inputs(BACKUP_SCOPES)
-        publish(BACKUP_SCOPES, active=os.environ.get('R2_PAUSED','').lower()=='true')
+        from r2_usage_guard import decision
+        publish(BACKUP_SCOPES, active=decision()['paused'])
     else:
         publish(args.paths)

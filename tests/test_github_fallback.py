@@ -64,6 +64,19 @@ class GitHubFallbackTests(unittest.TestCase):
         records=json.loads(self.show('_fallback/index.json'))['files']
         self.assertEqual(set(records),{'data/model-wind.json','data/official-temperature.json'})
 
+    def test_budget_control_preserves_data_and_overrides_normal_publications(self):
+        import time
+        self.put('data/model-wind.json',{'generatedAt':200})
+        fallback.publish(['data/model-wind.json'],root=self.root,active=False)
+        control={'version':1,'enabled':True,'paused':True,'reason':'operations_limit','until':int(time.time()+3600)}
+        fallback.publish([],root=self.root,active=False,control=control)
+        fallback.publish(['data/model-wind.json'],root=self.root,active=False)
+        status=json.loads(self.show('_fallback/status.json'))
+        self.assertEqual(status['until'],control['until']);self.assertEqual(status['reason'],'budget_guard')
+        self.assertEqual(json.loads(self.show('data/model-wind.json'))['generatedAt'],200)
+        fallback.publish([],root=self.root,active=False,control={**control,'paused':False,'until':0})
+        self.assertEqual(json.loads(self.show('_fallback/status.json'))['mode'],'standby')
+
     def test_older_failed_or_oversized_publications_keep_successful_snapshot(self):
         self.put('data/model-wind.json',{'generatedAt':200})
         fallback.publish(['data/model-wind.json'],root=self.root)

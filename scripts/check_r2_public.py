@@ -8,15 +8,14 @@ ORIGIN = 'https://snowblind54.github.io'
 
 
 def main():
-    import boto3
-    from botocore.config import Config
+    from r2_store import connect
+    from r2_usage_guard import BudgetPaused
     from botocore.exceptions import ClientError
-    import re
-    endpoint = re.search(r'https://[a-f0-9]{32}(?:\.(?:eu|fedramp))?\.r2\.cloudflarestorage\.com',
-                         os.environ['R2_ENDPOINT'].strip(), re.I).group(0)
-    client = boto3.client('s3', endpoint_url=endpoint, region_name='auto',
-        aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'], aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
-        config=Config(request_checksum_calculation='when_required', response_checksum_validation='when_required'))
+    try:
+        client, _bucket = connect()
+    except BudgetPaused:
+        print('Public R2 verification skipped during operation cutoff.', flush=True)
+        return
     rule = {'AllowedOrigins': [ORIGIN], 'AllowedMethods': ['GET', 'HEAD'],
             'AllowedHeaders': ['*'], 'ExposeHeaders': ['ETag'], 'MaxAgeSeconds': 3600}
     try:

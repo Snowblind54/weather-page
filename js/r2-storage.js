@@ -42,6 +42,10 @@
   }
   window.weatherGithubDataUrl=value=>{const path=dataPath(value);return path?github+path:value;};
   window.weatherDataUrl=value=>{const path=dataPath(value);return path?(useGithub()?github:r2)+path:value;};
+  if(typeof document!=='undefined'){
+    setInterval(()=>{if(!document.hidden)checkMode();},60000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden){checkedAt=0;checkMode();}});
+  }
   window.fetch=async(input,options={})=>{
     const isRequest=typeof Request!=='undefined'&&input instanceof Request;
     const original=isRequest?input.url:String(input),method=options.method||(isRequest?input.method:'GET');
@@ -50,10 +54,10 @@
     const signal=options.signal||(isRequest?input.signal:undefined);
     const remoteOptions={...options,signal,credentials:'omit'};
     const requestFor=url=>isRequest?new Request(url,input):url;
-    // Start the primary request alongside the tiny pause-status check.
+    // Check the cutoff before issuing any new R2 request.
+    await checkMode();
     const primary=useGithub()?null:timedFetch(requestFor(r2+path),remoteOptions,4000)
       .then(response=>({response}),error=>({error}));
-    await checkMode();
     if(!useGithub()&&primary){
       const result=await primary;
       if(signal?.aborted){if(result.error)throw result.error;return result.response;}
@@ -68,6 +72,7 @@
       const response=await nativeFetch(requestFor(github+path),remoteOptions);
       if(response.ok||signal?.aborted)return response;
     }catch(error){if(signal?.aborted)throw error;}
+    if(useGithub())return new Response('',{status:503});
     return nativeFetch(input,options);
   };
 })();

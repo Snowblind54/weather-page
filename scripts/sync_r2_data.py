@@ -220,7 +220,13 @@ def main():
     args = parser.parse_args()
     if not args.paths and not args.cleanup_only:
         parser.error('Specify updater output paths; full-repository staging is retired')
-    client, bucket = connect()
+    from r2_usage_guard import BudgetPaused
+    try:
+        client, bucket = connect()
+    except BudgetPaused:
+        if not args.cleanup_only: raise
+        print('R2 maintenance skipped during operation cutoff.', flush=True)
+        return
     with publication_lease(client, bucket) as lease:
         registry, _ = get_json(client, bucket, INDEX_KEY, {'version': 1, 'files': {}})
         sync(client, bucket, selected=args.paths, registry=registry, lease=lease, cleanup_only=args.cleanup_only)
