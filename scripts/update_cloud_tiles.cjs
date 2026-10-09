@@ -1,5 +1,6 @@
 // Prepare the existing transparent satellite view once, using its shared pixel rules.
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const {available,archiveBytes,packRecords}=require('./cloud_archive.cjs');
 const {execFile}=require('node:child_process'),{promisify}=require('node:util');
 const run=promisify(execFile);
 let sharp;try{sharp=require('./cloud-tiles/node_modules/sharp');}catch{sharp=require('sharp');}
@@ -78,7 +79,7 @@ async function main(){
  const previous=fs.existsSync(OUT)?JSON.parse(fs.readFileSync(OUT)):{};
  const c=runtime(),{products,errors}=await metadata(c,previous,now);
  c.cloudImagePixels=async(url,size)=>new Uint8ClampedArray(await sharp(await download(url)).resize(size,size).ensureAlpha().raw().toBuffer());
- const old=(previous.records||[]).filter(r=>r.style===STYLE&&r.paths.every(p=>fs.existsSync(path.join(ROOT,p))));
+ const old=(previous.records||[]).filter(r=>r.style===STYLE&&available(ROOT,r));
  const records=retain(old,now-KEEP),tasks=[];
  for(const coords of coordinates(c)){
   c.coords=coords;const ids=vm.runInContext('cloudTileSources(coords)',c);
@@ -94,7 +95,7 @@ async function main(){
   }
  }
  tasks.sort((a,b)=>b.time-a.time);
- let cursor=0,prepared=0,bytes=records.reduce((n,r)=>n+r.bytes,0);
+ let cursor=0,prepared=0,bytes=archiveBytes(records);
  async function worker(){
   while(cursor<tasks.length&&cursor<MAX_NEW&&Date.now()-started<12*60000){
    const t=tasks[cursor++];const local=runtime();
@@ -128,9 +129,11 @@ async function main(){
  await Promise.all(Array.from({length:3},worker));
  const kept=retain(records,now-KEEP);
  if(!kept.length)throw Error('No successful satellite tiles; published data unchanged: '+errors.slice(0,5).join('; '));
- const result={version:1,generated_at:now,records:kept,products:Object.fromEntries(Object.entries(products).filter(([id])=>id!=='noaa')),errors:errors.slice(-100),metrics:{prepared_blocks:prepared,archive_bytes:kept.reduce((n,r)=>n+r.bytes,0),processing_seconds:Math.round((Date.now()-started)/1000)},retention_seconds:KEEP};
+ const uploadedArchives=packRecords(ROOT,DIR,kept);
+ const activeBytes=archiveBytes(kept);if(activeBytes>MAX_BYTES)throw Error('Satellite archive budget reached');
+ const result={version:1,generated_at:now,records:kept,products:Object.fromEntries(Object.entries(products).filter(([id])=>id!=='noaa')),errors:errors.slice(-100),metrics:{prepared_blocks:prepared,archive_bytes:activeBytes,uploaded_archives:uploadedArchives,processing_seconds:Math.round((Date.now()-started)/1000)},retention_seconds:KEEP};
  fs.writeFileSync(OUT+'.tmp',JSON.stringify(result));fs.renameSync(OUT+'.tmp',OUT);
- const protectedPaths=new Set(kept.flatMap(r=>r.paths).map(p=>path.basename(p)));
+ const protectedPaths=new Set(kept.flatMap(r=>r.archive?[r.archive.path]:r.paths).map(p=>path.basename(p)));
  for(const name of fs.readdirSync(DIR))if(!protectedPaths.has(name))fs.unlinkSync(path.join(DIR,name));
  console.log(JSON.stringify(result.metrics));
 }

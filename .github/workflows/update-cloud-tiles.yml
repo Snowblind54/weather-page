@@ -7,6 +7,10 @@ on:
     branches: [main]
     paths:
       - scripts/update_cloud_tiles.cjs
+      - scripts/cloud_archive.cjs
+      - scripts/migrate_cloud_archives.cjs
+      - scripts/check_cloud_archives.py
+      - tests/cloud-archive.test.cjs
       - scripts/cloud-tiles/**
       - js/cloud-pixels.js
       - js/cloud-arctic-source.js
@@ -51,8 +55,15 @@ jobs:
       - name: Restore last successful cloud archive
         run: python3 scripts/hydrate_r2_data.py --allow-empty data/cloud-tiles.json data/cloud-tiles
       - name: Test prepared satellite delivery
-        run: node --test tests/cloud-prepared.test.cjs
+        run: node --test tests/cloud-prepared.test.cjs tests/cloud-archive.test.cjs
+      - name: Pack the existing verified satellite snapshot on migration
+        if: github.event_name == 'push'
+        run: node scripts/migrate_cloud_archives.cjs
       - name: Prepare transparent clouds and preserve failed-provider frames
+        if: github.event_name != 'push'
         run: node scripts/update_cloud_tiles.cjs
       - name: Publish verified cloud images before their manifest
         run: bash scripts/publish_generated_data.sh 'Refresh prepared satellite clouds' data/cloud-tiles.json data/cloud-tiles
+      - name: Verify browser access and partial satellite downloads after migration
+        if: github.event_name == 'push'
+        run: python3 scripts/check_cloud_archives.py

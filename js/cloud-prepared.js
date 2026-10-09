@@ -26,16 +26,19 @@
   if(!r)return null;
   const index=Math.min(r.paths.length-1,Math.max(0,coords.z-z));
   if(!/^data\/cloud-tiles\/[a-f0-9]+-(256|512|1024)\.webp$/.test(r.paths[index]))return null;
+  if(r.archive&&(typeof validCloudArchive!=='function'||!validCloudArchive(r)))return null;
   return {r,path:r.paths[index],factor,x:coords.x%factor,y:coords.y%factor};
  }
- async function imageFor(path){
+ async function imageFor(path,record){
   if(images.has(path)){const hit=images.get(path);images.delete(path);images.set(path,hit);return hit;}
   if(downloads.has(path))return downloads.get(path);
   const session=cloudSession,ctrl=new AbortController();cloudControllers.add(ctrl);
   const timer=setTimeout(()=>ctrl.abort(),15000);
   const p=(async()=>{
-   const r=await fetch(path,{signal:ctrl.signal});if(!r.ok)throw Error('Cloud tile HTTP '+r.status);
-   const blob=await r.blob();let drawable,url;
+   let blob;
+   if(record.archive)blob=await cloudArchiveBlob(record,path);
+   else {const r=await fetch(path,{signal:ctrl.signal});if(!r.ok)throw Error('Cloud tile HTTP '+r.status);blob=await r.blob();}
+   let drawable,url;
    try{
     if(typeof createImageBitmap==='function')drawable=await createImageBitmap(blob);
     else {url=URL.createObjectURL(blob);drawable=new Image();await new Promise((resolve,reject)=>{drawable.onload=resolve;drawable.onerror=reject;drawable.src=url;});}
@@ -70,7 +73,7 @@
   if(cloudTileCache.has(key))return Promise.resolve(cloudTileCache.get(key));
   if(cloudTilePromises.has(key))return cloudTilePromises.get(key);
   const session=cloudSession;
-  const p=imageFor(s.path).then(source=>{
+  const p=imageFor(s.path,s.r).then(source=>{
    if(session!==cloudSession)throw Error('Cloud loading cancelled');
    const size=cloudTileResolution(coords),canvas=document.createElement('canvas');canvas.width=canvas.height=size;
    const span=source.width/s.factor;
