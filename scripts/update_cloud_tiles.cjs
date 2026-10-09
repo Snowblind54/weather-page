@@ -9,6 +9,9 @@ const STYLE=1;
 const MAX_NEW=Math.max(1,Math.min(180,Number(process.env.CLOUD_TILE_MAX_NEW)||180));
 function runtime(){
  const c=vm.createContext({console,URLSearchParams,URL,Date,Map,Set,Uint8ClampedArray,Float32Array,Promise,Math,document:{querySelector:()=>null}});
+ // Millions of per-pixel Math calls should not traverse the VM's global proxy.
+ // Bind the same built-ins lexically; the numerical rules remain identical.
+ vm.runInContext('const Math=globalThis.Math;',c);
  for(const name of ['cloud-pixels.js','clouds.js','cloud-arctic-source.js','cloud-eumet-cleanup.js','cloud-nordic-coverage.js']){
   let code=fs.readFileSync(path.join(ROOT,'js',name),'utf8');
   if(name==='clouds.js')code=code.split('let cloudWorker=null')[0];
