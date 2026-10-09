@@ -70,7 +70,7 @@ test('European heatmap renders while Americas snapshot is still pending',async()
   const h=harness();let release,draws=0;
   h.c.pending=new Promise(resolve=>release=resolve);h.c.frames=[{time:h.time}];
   h.c.$=()=>({value:'0',checked:true});h.c.queueTemperatureRender=()=>draws++;
-  h.run('loadAmericasTemperatureData=()=>pending;ensureTemperatureData=async()=>{temperatureSeries=[data.grids.canada.series[0]];};');
+  h.run("loadAmericasTemperatureData=()=>pending;ensureTemperatureData=async()=>{temperatureGridData.set('canada',data.grids.canada.series);temperatureSeries=data.grids.canada.series;};");
   const loading=h.run('loadTemperatures()');
   await new Promise(resolve=>setImmediate(resolve));assert.equal(draws,1);
   release();await loading;
