@@ -2,7 +2,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import sys
-from r2_store import connect, get_json, INDEX_KEY, publication_lease
+from r2_store import connect, get_json, INDEX_KEY, publication_lease, error_code
 from sync_r2_data import ROOT, PREFIX, scopes, in_scope, inventory
 
 
@@ -15,7 +15,14 @@ def hydrate(client, bucket, selected, root=ROOT, lease=None, allow_empty=False):
                for key, value in registry['files'].items() if value.get('protected') and in_scope(key, selected)}
     for key in registry.get('pending', []):
         if in_scope(key, selected):
-            head = client.head_object(Bucket=bucket, Key=key)
+            try:
+                head = client.head_object(Bucket=bucket, Key=key)
+            except Exception as exc:
+                # Publication reserves/protects assets before uploading them.
+                # A failed asset phase can leave pending files not yet present.
+                if key not in objects and error_code(exc) in ['NoSuchKey', '404', 'NotFound']:
+                    continue
+                raise
             objects[key] = {'Size': head['ContentLength'], 'ETag': head['ETag'], 'sha256': head['Metadata']['sha256']}
     if not objects:
         if allow_empty:

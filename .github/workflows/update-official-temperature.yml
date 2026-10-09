@@ -41,6 +41,8 @@ jobs:
             data/official-temperature.json
           key: r2-input-${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: r2-input-${{ github.workflow }}-
+      - name: Verify scan-free storage publication safeguards
+        run: python3 -m unittest discover -s tests -p test_r2_storage.py -q
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py data/official-temperature.json
       - name: Fetch official temperature observations
