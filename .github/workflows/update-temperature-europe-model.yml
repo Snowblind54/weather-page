@@ -43,7 +43,7 @@ jobs:
           key: r2-input-${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: r2-input-${{ github.workflow }}-
       - name: Restore verified last successful R2 data
-        run: python3 scripts/hydrate_r2_data.py data/temperature-europe-model.json
+        run: python3 scripts/hydrate_r2_data.py --allow-empty data/temperature-europe-model.json
       - name: Build shared hourly temperature grid
         run: python3 scripts/update_temperature_europe_model.py
       - name: Publish shared heatmap samples
