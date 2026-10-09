@@ -84,7 +84,7 @@ def usage(now, start):
         action = re.sub(r'[^a-z]', '', row['dimensions']['actionType'].lower())
         if action in CLASS_A: counts['classA'] += math.ceil(count)
         elif action in CLASS_B: counts['classB'] += math.ceil(count)
-        elif action not in FREE and count: raise ValueError('Unclassified R2 operation')
+        elif action not in FREE and count: raise ValueError('Unclassified R2 operation: '+action[:80])
     return counts
 
 
