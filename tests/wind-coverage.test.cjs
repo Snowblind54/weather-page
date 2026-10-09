@@ -28,8 +28,17 @@ test('sustained vectors and native hourly gusts cover both countries and Arctic 
  }
  assert.equal(h.run('windAt(60,-145,windTimeSlice(150))'),null);
  assert.equal(h.run('windAt(85,-51,windTimeSlice(150))'),null);
- assert.equal(h.run('windTimeSlice(201)'),null);
+ assert.equal(h.run('windTimeSlice(201).cached'),true);
  assert.equal(h.run('windAt(57,25,windTimeSlice(150))[0]'),7);
+});
+test('delayed updates retain the last model hour for at most two hours and never invent past history',()=>{
+ const h=harness();
+ assert.equal(h.run('windTimeSlice(99)'),null);
+ assert.equal(h.run('windTimeSlice(7401)'),null);
+ assert.equal(h.run('windTimeSlice(7400).time'),200);
+ assert.equal(h.run('windTimeSlice(7400).f'),1);
+ assert.equal(h.run('windGustAt(57,25,windTimeSlice(201))'),12);
+ assert.equal(h.run('windTimeSlice(150).f'),0.5);
 });
 test('missing gusts remain unavailable without hiding valid sustained wind',()=>{
  const h=harness();h.run('windData.grids.forEach(g=>g.forEach(p=>p[1][2]=null))');

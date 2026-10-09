@@ -100,7 +100,9 @@ def main() -> None:
     # Keep every batch on the same hours, even if collection crosses an hour.
     anchor = int(time.time() // 3600) * 3600
     start_hour = datetime.fromtimestamp(anchor - 4 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
-    end_hour = datetime.fromtimestamp(anchor + 2 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
+    # The collector runs every two hours and can be delayed in Actions. Keep
+    # enough forecast hours to span collection time and a missed update.
+    end_hour = datetime.fromtimestamp(anchor + 6 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
 
     for offset in range(0, len(points), BATCH_SIZE):
         batch = points[offset : offset + BATCH_SIZE]

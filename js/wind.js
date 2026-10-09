@@ -79,7 +79,7 @@ function windPopupContent(point,unix){
       <div><div class="wind-popup-label">Wind gusts</div><div class="wind-popup-speed">${gust===null?'<span>Unavailable</span>':(globalThis.WeatherUnits?.windValue(gust)??gust).toFixed(1)+' <span>'+(globalThis.WeatherUnits?.windUnit()??'m/s')+'</span>'}</div></div>
     </div>
     <div>${direction}</div>
-    <div class="wind-popup-meta">${point.lat.toFixed(3)}°, ${lon.toFixed(3)}°<br>${htmlEscape(fmt(unix))}</div>
+    <div class="wind-popup-meta">${point.lat.toFixed(3)}°, ${lon.toFixed(3)}°<br>${htmlEscape(fmt(slice.time??unix))}${slice.cached?'<br>Last available model hour · waiting for an update':''}</div>
     <div class="wind-popup-meta">10 m model wind · interpolated estimate</div>
     ${gust===null?'':`<div class="wind-popup-meta">Gust estimate for hour ending ${htmlEscape(fmt(windData.times[windGustHour(slice)]))}</div>`}
   </div>`;
@@ -169,7 +169,9 @@ function reportWindError(error){
 async function loadWind(){
   if(!windVisualEnabled())return;
 
-  if(windData && Date.now()-windData.savedAt<WIND_CACHE_MS){
+  const requested=selectedWindTime();
+  if(windData && Date.now()-windData.savedAt<WIND_CACHE_MS &&
+      requested>=windData.times[0] && requested<=windData.times.at(-1)){
     if($('windOn').checked)renderWind(selectedWindTime());
     if($('windHeatmapOn').checked)renderWindHeatmap(selectedWindTime());
     return;
@@ -195,7 +197,14 @@ async function loadWind(){
 }
 
 function windTimeSlice(unix){
-  if(!windData||unix<windData.times[0]||unix>windData.times.at(-1)) return null;
+  if(!windData||unix<windData.times[0]) return null;
+  const latest=windData.times.at(-1);
+  // A delayed collector must not blank the map at an hourly boundary. Hold
+  // the last available hour briefly, without extrapolating or hiding its age.
+  if(unix>latest){
+    if(unix-latest>2*3600)return null;
+    return {i:windData.times.length-2,f:1,time:latest,cached:true};
+  }
   let i=0;
   while(i<windData.times.length-2 && windData.times[i+1]<unix) i++;
   return {i,f:(unix-windData.times[i])/(windData.times[i+1]-windData.times[i])};
@@ -560,7 +569,7 @@ const WindHeatmapLayer=L.Layer.extend({
     this.ctx.drawImage(low,0,0,cols,rows,startX-step/2,startY-step/2,cols*step,rows*step);
     this.ctx.restore();
     const source=corrections.length?`model + ${corrections.length} fresh official readings`:'model field';
-    $('windHeatmapStatus').textContent=shown?`${this.mode==='gust'?'Gust':'Sustained wind'} heatmap · ${source} · ${fmt(this.unix)}`:'Wind heatmap unavailable in this view.';
+    $('windHeatmapStatus').textContent=shown?`${this.mode==='gust'?'Gust':'Sustained wind'} heatmap · ${source} · ${fmt(slice.time??this.unix)}${slice.cached?' · last available model hour':''}`:'Wind heatmap unavailable in this view.';
   }
 });
 
@@ -604,8 +613,8 @@ function renderWind(unix){
   if(!map.hasLayer(windLayer)) windLayer.addTo(map);
   const covered=windLayer.seeds?.length;
   $('windStatus').textContent=covered
-    ? `10 m model ${currentWindMode()==='gust'?'gusts · hourly peaks':'sustained wind'} · ${fmt(unix)} · land + sea`
+    ? `10 m model ${currentWindMode()==='gust'?'gusts · hourly peaks':'sustained wind'} · ${fmt(slice.time??unix)} · ${slice.cached?'last available model hour · waiting for update':'land + sea'}`
     : 'Pan across Canada, Greenland, the Atlantic or Europe to see wind.';
-  $('windStatus').className=covered?'status ok':'status';
+  $('windStatus').className=covered?(slice.cached?'status warn':'status ok'):'status';
   return true;
 }
