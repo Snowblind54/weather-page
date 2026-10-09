@@ -369,3 +369,8 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 .topbar-tools{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:auto}
 @media(min-width:1101px){.topbar-tools{justify-self:end;margin-left:0}}
 @media(max-width:760px){.topbar-tools{order:1}}
+
+/* Keep the tooltip within the top-right controls on phones as well. */
+.clear-layers-button{position:relative}
+.clear-layers-tooltip{position:absolute;right:0;top:calc(100% + 10px);width:max-content;max-width:220px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;background:#14212b;color:#edf5fa;font-size:12px;line-height:1.4;box-shadow:0 6px 24px #0006;pointer-events:none;opacity:0;visibility:hidden;z-index:1000}
+.clear-layers-button:hover .clear-layers-tooltip,.clear-layers-button:focus-visible .clear-layers-tooltip{opacity:1;visibility:visible}

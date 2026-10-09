@@ -128,3 +128,24 @@ for(const id of ['radarOn','cloudOn','tempOn','heatmapOn','windOn','windHeatmapO
 }
 syncTimelineForPanel();
 updateTimelineLoading();
+
+ 
+// Use the existing off handlers so animation loops and pending renders stop too.
+$('clearLayers').addEventListener('click',()=>{
+  window.NorthernForecastMap?.setActive(false);
+  // Clearing snow must not restore the layers or map position saved on entry.
+  if(snowMode)exitSnowView({restore:false});
+  const layerIds=[
+    'tempOn','heatmapOn','windOn','windHeatmapOn',
+    'officialWindSustained','officialWindGusts','cloudOn','radarOn',
+    'rain1h','rain24h','rain48h','cycloneOn','warningOn',
+    'auroraOn','auroraViewingOn','snowOn','snowDepthOn'
+  ];
+  // Switch all state off first: handlers must never briefly enable another layer.
+  const enabled=layerIds.map(id=>$(id)).filter(input=>input?.checked);
+  for(const input of enabled) input.checked=false;
+  for(const input of enabled) input.dispatchEvent(new Event('change',{bubbles:true}));
+  closeWeatherPanel(false,false);
+  updateCategoryIndicators();
+  map.closePopup();
+});
