@@ -19,7 +19,7 @@ BRANCH = 'weather-fallback'
 GIT_URL = f'https://github.com/{REPO}.git'
 RAW = f'https://raw.githubusercontent.com/{REPO}/{BRANCH}/'
 BACKUP_SCOPES = ['data/'+name for name in (
-    'official-temperature.json', 'temperature-americas-model.json', 'official-wind.json',
+    'official-temperature.json', 'temperature-americas-model.json', 'temperature-europe-model.json', 'official-wind.json',
     'model-wind.json', 'official-rainfall.json', 'official-snow-depth.json',
     'iceland-snow-stations.json', 'snow-history.json', 'snow-history',
     'forecast-map.json', 'forecast-cache', 'forecast-iceland.json', 'forecast-iceland-cache',

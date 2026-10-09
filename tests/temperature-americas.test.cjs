@@ -48,5 +48,30 @@ test('shared regions render while the European temperature request is still pend
   h.c.fetch=async()=>({ok:true,json:async()=>h.data});
   h.run('ensureTemperatureData=()=>pending;');const loading=h.run('loadTemperatures()');
   await new Promise(resolve=>setImmediate(resolve));assert.equal(draws,1);
-  assert(h.run('temperatureSeries.length')>0);release();await loading;assert.equal(draws,2);
+  assert(h.run('temperatureSeries.length')>0);release();await loading;assert.equal(draws,3);
+});
+
+test('Europe loads all grids and exact cities in one shared request, without provider requests',async()=>{
+  const h=harness();const specs=h.run('TEMP_GRID_SPECS.filter(s=>!s.shared)');
+  const sample=([lat,lon])=>({lat,lon,times:[h.time-3600,h.time+3600],temps:[2,4]});
+  h.c.europe={version:1,generatedAt:Date.now()/1000,grids:Object.fromEntries(Array.from(specs,s=>[s.id,{latitudes:Array.from(s.latitudes),longitudes:Array.from(s.longitudes),series:Array.from(s.points,sample)}])),cities:Array.from(h.run('TEMP_CITY_POINTS'),sample)};
+  h.c.localStorage.setItem=()=>{};let requests=0;
+  h.c.fetch=async url=>{requests++;assert.match(url,/^data\/temperature-europe-model.json/);return {ok:true,json:async()=>h.c.europe};};
+  await h.run('fetchAllTemperatureData()');assert.equal(requests,1);
+  assert.equal(h.run('temperatureCitySeries.length'),66);
+  assert.equal(h.run("temperatureGridData.get('scandinavia').length"),208);
+  h.c.europe.grids.baltics.series[0].lon=0;
+  await assert.rejects(h.run('loadEuropeTemperatureSnapshot()'),/Invalid European heatmap snapshot/);
+  assert.equal(h.run("temperatureGridData.get('scandinavia').length"),208);
+});
+
+
+test('European heatmap renders while Americas snapshot is still pending',async()=>{
+  const h=harness();let release,draws=0;
+  h.c.pending=new Promise(resolve=>release=resolve);h.c.frames=[{time:h.time}];
+  h.c.$=()=>({value:'0',checked:true});h.c.queueTemperatureRender=()=>draws++;
+  h.run('loadAmericasTemperatureData=()=>pending;ensureTemperatureData=async()=>{temperatureSeries=[data.grids.canada.series[0]];};');
+  const loading=h.run('loadTemperatures()');
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(draws,1);
+  release();await loading;
 });

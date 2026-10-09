@@ -79,10 +79,10 @@ let temperatureLoadPromise=null;
 let americasTemperaturePromise=null;
 let americasTemperatureLoadedAt=0;
 
-function validateAmericasTemperatureSnapshot(data){
+function validateTemperatureSnapshot(data,specs){
   if(data?.version!==1 || !Number.isFinite(data.generatedAt) ||
      data.generatedAt>Date.now()/1000+600 || Date.now()/1000-data.generatedAt>12*3600) return false;
-  return TEMP_GRID_SPECS.filter(spec=>spec.shared).every(spec=>{
+  return specs.every(spec=>{
     const grid=data.grids?.[spec.id];
     return grid && JSON.stringify(grid.latitudes)===JSON.stringify(spec.latitudes) &&
       JSON.stringify(grid.longitudes)===JSON.stringify(spec.longitudes) &&
@@ -92,6 +92,32 @@ function validateAmericasTemperatureSnapshot(data){
         Array.isArray(item.temps) && item.temps.length===item.times.length &&
         item.temps.every(t=>t===null||(Number.isFinite(t)&&t>-90&&t<60)) && item.temps.some(Number.isFinite) && (!item.wind || (Array.isArray(item.wind)&&item.wind.length===item.times.length&&item.wind.every(r=>Array.isArray(r)&&r.length===3&&r.every((v,k)=>v===null||(Number.isFinite(v)&&Math.abs(v)<=100&&(k<2||v>=0)))))));
   });
+}
+
+function validateAmericasTemperatureSnapshot(data){
+  return validateTemperatureSnapshot(data,TEMP_GRID_SPECS.filter(spec=>spec.shared));
+}
+
+async function loadEuropeTemperatureSnapshot(){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+  try{
+    const response=await fetch('data/temperature-europe-model.json?v='+Math.floor(Date.now()/(10*60*1000)),{cache:'no-store',signal:controller.signal});
+    if(!response.ok) throw new Error('European heatmap snapshot HTTP '+response.status);
+    const data=await response.json();
+    const specs=TEMP_GRID_SPECS.filter(spec=>!spec.shared);
+    if(!validateTemperatureSnapshot(data,specs)) throw new Error('Invalid European heatmap snapshot');
+    const cities=data.cities;
+    if(!Array.isArray(cities)||cities.length!==TEMP_CITY_POINTS.length||!cities.every((item,i)=>
+      item?.lat===TEMP_CITY_POINTS[i][0]&&item.lon===TEMP_CITY_POINTS[i][1]&&
+      Array.isArray(item.times)&&item.times.length>=2&&item.times.every((t,j)=>Number.isFinite(t)&&(!j||t>item.times[j-1]))&&
+      Array.isArray(item.temps)&&item.temps.length===item.times.length&&item.temps.every(t=>t===null||(Number.isFinite(t)&&t>-90&&t<60))&&item.temps.some(Number.isFinite))) throw new Error('Invalid European city samples');
+    for(const spec of specs) temperatureGridData.set(spec.id,data.grids[spec.id].series);
+    temperatureCitySeries=cities;
+    temperatureCityMap=new Map(cities.map(item=>[temperatureCoordKey(item.lat,item.lon),item]));
+    temperatureSeries=[...cities,...TEMP_GRID_SPECS.flatMap(spec=>(temperatureGridData.get(spec.id)||[]).filter(Boolean))];
+    temperatureLoadedAt=Date.now();temperatureUsingStaleCache=false;
+    temperatureImageCache.clear();temperatureStatsCache.clear();saveTemperatureState();
+  }finally{clearTimeout(timer);}
 }
 
 async function loadAmericasTemperatureData(force=false){
@@ -112,7 +138,7 @@ async function loadAmericasTemperatureData(force=false){
   try{await americasTemperaturePromise;}finally{americasTemperaturePromise=null;}
 }
 
-const TEMP_DATA_CACHE_KEY='balticWeatherTemperatureDataV812';
+const TEMP_DATA_CACHE_KEY='balticWeatherTemperatureDataV813';
 const TEMP_DATA_CACHE_MAX_AGE=30*60*1000;
 const TEMP_DATA_STALE_MAX_AGE=6*60*60*1000;
 const TEMP_REQUEST_GAP_MS=450;
@@ -836,7 +862,9 @@ async function fetchTemperatureSeries(points){
             '&cell_selection=land'+
             '&timezone=UTC';
 
-  const response=await fetch(url,{cache:'no-store'});
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+  let response;
+  try{response=await fetch(url,{cache:'no-store',signal:controller.signal});}finally{clearTimeout(timer);}
 
   if(response.status===429){
     const error=new Error('temperature API is temporarily rate limited');
@@ -878,6 +906,7 @@ async function fetchTemperatureChunks(points,chunkSize=110){
 }
 
 async function fetchAllTemperatureData(){
+  try{await loadEuropeTemperatureSnapshot();return;}catch(e){console.warn('Shared European heatmap unavailable; trying direct model data:',e);}
   for(const spec of TEMP_GRID_SPECS) if(!spec.shared) temperatureGridData.delete(spec.id);
 
   // Heatmap grids first. This critical path stays comfortably below the
@@ -910,7 +939,7 @@ async function fetchAllTemperatureData(){
 
   // Exact city-coordinate readings are a non-critical refinement. If the free
   // API is busy, the map keeps working with grid-interpolated labels.
-  try{
+  void (async()=>{try{
     await sleep(1200);
     const citySeries=await fetchTemperatureChunks(TEMP_CITY_POINTS,100);
     temperatureCitySeries=citySeries.filter(Boolean);
@@ -927,9 +956,11 @@ async function fetchAllTemperatureData(){
       )
     ];
     saveTemperatureState();
+    const frame=frames[Number($('timeline').value)];
+    if(frame&&temperatureEnabled()) queueTemperatureRender(frame.time,0);
   }catch(e){
     console.warn('Exact city temperature refinement skipped:',e);
-  }
+  }})();
 }
 
 async function ensureTemperatureData(force=false){
@@ -983,7 +1014,11 @@ async function loadTemperatures(force=false){
     const frame=frames[Number($('timeline').value)];
     if(frame && temperatureEnabled()) queueTemperatureRender(frame.time,0);
   });
-  const results=await Promise.allSettled([ensureTemperatureData(force),americas]);
+  const europe=ensureTemperatureData(force).then(()=>{
+    const frame=frames[Number($('timeline').value)];
+    if(frame && temperatureEnabled()) queueTemperatureRender(frame.time,0);
+  });
+  const results=await Promise.allSettled([europe,americas]);
   temperatureSeries=[...temperatureCitySeries,...TEMP_GRID_SPECS.flatMap(spec=>(temperatureGridData.get(spec.id)||[]).filter(Boolean))];
   if(!temperatureSeries.length) throw results.find(result=>result.status==='rejected')?.reason||new Error('Temperature data unavailable');
   for(const result of results) if(result.status==='rejected') console.warn('Regional temperature source:',result.reason);
