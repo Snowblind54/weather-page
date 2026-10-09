@@ -124,7 +124,7 @@ function restoreWind(){
     // Free the replaced model cache before storing the expanded shared field.
     localStorage.removeItem('balticWeatherWindV8');
     const data=JSON.parse(localStorage.getItem(WIND_CACHE_KEY));
-    if(validWindData(data) && Date.now()-data.savedAt<WIND_CACHE_MS) windData=data;
+    if(validWindData(data) && data.extraGrids?.some(g=>g.id==='hemisphere') && Date.now()-data.savedAt<WIND_CACHE_MS) windData=data;
   }catch(e){ /* Storage is optional, including in private browsing. */ }
 }
 restoreWind();
@@ -178,7 +178,7 @@ async function loadWind(){
   if(!windVisualEnabled())return;
 
   const requested=selectedWindTime();
-  if(windData && Date.now()-windData.savedAt<WIND_CACHE_MS &&
+  if(windData && Date.now()-windData.savedAt<(windData.extraGrids?.some(g=>g.id==='hemisphere')?WIND_CACHE_MS:60*1000) &&
       requested>=windData.times[0] && requested<=windData.times.at(-1)){
     if($('windOn').checked)renderWind(selectedWindTime());
     if($('windHeatmapOn').checked)renderWindHeatmap(selectedWindTime());

@@ -43,6 +43,28 @@ class NoaaWindTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.sample([(40,-100)],level=100)
 
+    def test_hrrr_projection_sampling_and_grid_relative_direction(self):
+        from pyproj import Proj
+        proj=Proj(proj='lcc',lat_1=38.5,lat_2=38.5,lon_0=-97.5,R=6371229)
+        x0,y0=proj(-100,35)
+        lat0,lon0=35,-100
+        keys={'units':'m s**-1','typeOfLevel':'heightAboveGround','level':10,
+              'jPointsAreConsecutive':0,'alternativeRowScanning':0,'Nx':4,'Ny':3,'missingValue':9999,
+              'iScansNegatively':0,'jScansPositively':1,'latitudeOfFirstGridPointInDegrees':lat0,
+              'longitudeOfFirstGridPointInDegrees':lon0,'gridType':'lambert','Latin1InDegrees':38.5,
+              'Latin2InDegrees':38.5,'LoVInDegrees':262.5,'radius':6371229,'DxInMetres':3000,
+              'DyInMetres':3000,'uvRelativeToGrid':1}
+        lon,lat=proj(x0+4500,y0+4500,inverse=True)
+        with mock.patch.object(wind.ec,'codes_new_from_message',return_value=1), \
+             mock.patch.object(wind.ec,'codes_get',side_effect=lambda _,k:keys[k]), \
+             mock.patch.object(wind.ec,'codes_get_values',return_value=np.arange(12.)), \
+             mock.patch.object(wind.ec,'codes_release'),mock.patch.object(wind,'valid_time',return_value=100):
+            values,angles=wind.sample_message(b'GRIB',[(lat,lon),(0,0)],100,'u')
+        self.assertAlmostEqual(values[0],7.5,places=6)
+        self.assertTrue(np.isnan(values[1]))
+        self.assertLess(angles[0],0)
+        self.assertAlmostEqual(angles[0],np.radians(proj.get_factors(lon,lat).meridian_convergence))
+
     def test_missing_values_remain_unavailable(self):
         self.assertTrue(np.isnan(self.sample([(0,0)],missingValue=8)[0]))
 

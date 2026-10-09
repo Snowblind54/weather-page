@@ -44,3 +44,8 @@ test('a recently downloaded snapshot is refreshed if it no longer covers the sel
  await h.run('loadWind()');assert.equal(h.calls.length,1);
  assert.equal(h.run('windData.times.at(-1)'),200);
 });
+
+test('a legacy snapshot is rechecked promptly while hemispheric coverage is being published',async()=>{
+ const h=harness();h.run('windData={version:3,savedAt:Date.now()-61000,times:[0,200],grids:[]};');
+ await h.run('loadWind()');assert.equal(h.calls.length,1);
+});
