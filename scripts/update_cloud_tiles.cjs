@@ -74,10 +74,22 @@ function retain(records,first){
  return records.filter(r=>r.time>=first||r===latest.get(r.key));
 }
 function observations(sources){return sources.map(s=>({id:s.id,day:s.day?s.dayTime:null,night:s.night?s.nightTime:null}));}
-async function main(){
- const now=Math.floor(Date.now()/1000),started=Date.now();fs.mkdirSync(DIR,{recursive:true});
+function phasePlan(phase,previous,wallTime){
+ if(!['all','latest','history'].includes(phase))throw Error('Unknown satellite phase: '+phase);
+ const history=phase==='history';
+ if(history&&(!Number.isFinite(previous.generated_at)||previous.metrics?.phase!=='latest'||!previous.products))throw Error('History requires a completed newest-frame snapshot');
+ const now=history?previous.generated_at:wallTime;
+ const times=Array.from({length:12},(_,i)=>Math.floor(now/600)*600-(i+1)*600);
+ return {now,times:phase==='latest'?[now]:history?times:[now,...times],limit:history?Math.max(0,MAX_NEW-previous.metrics.prepared_blocks):MAX_NEW};
+}
+async function main(phase='all'){
+ const started=Date.now();fs.mkdirSync(DIR,{recursive:true});
  const previous=fs.existsSync(OUT)?JSON.parse(fs.readFileSync(OUT)):{};
- const c=runtime(),{products,errors}=await metadata(c,previous,now);
+ const plan=phasePlan(phase,previous,Math.floor(Date.now()/1000)),now=plan.now;
+ const c=runtime();
+ // History uses the same source timestamps as the already published latest pass.
+ const {products,errors}=phase==='history'?{products:previous.products,errors:[...(previous.errors||[])]}:await metadata(c,previous,now);
+ Object.assign(vm.runInContext('cloudProducts',c),products);
  c.cloudImagePixels=async(url,size)=>new Uint8ClampedArray(await sharp(await download(url)).resize(size,size).ensureAlpha().raw().toBuffer());
  const old=(previous.records||[]).filter(r=>r.style===STYLE&&available(ROOT,r));
  const records=retain(old,now-KEEP),tasks=[];
@@ -85,7 +97,7 @@ async function main(){
   c.coords=coords;const ids=vm.runInContext('cloudTileSources(coords)',c);
   if(ids.some(id=>!products[id]?.latest?.[products[id].day]))continue;
   // Newest real observation first; backfill the two-hour timeline gradually.
-  for(const time of [now,...Array.from({length:12},(_,i)=>Math.floor(now/600)*600-(i+1)*600)]){
+  for(const time of plan.times){
    c.requested=time;let identity;
    try{identity=vm.runInContext("cloudTileSources(coords).map(id=>{const p=cloudProducts[id];return id+':'+cloudAvailableTime(p,p.day,requested)+':'+cloudAvailableTime(p,p.night,requested)}).join('|')",c);}catch{continue;}
    if(identity.includes('unavailable'))continue;
@@ -97,7 +109,7 @@ async function main(){
  tasks.sort((a,b)=>b.time-a.time);
  let cursor=0,prepared=0,bytes=archiveBytes(records);
  async function worker(){
-  while(cursor<tasks.length&&cursor<MAX_NEW&&Date.now()-started<12*60000){
+  while(cursor<tasks.length&&cursor<plan.limit&&Date.now()-started<12*60000){
    const t=tasks[cursor++];const local=runtime();
    Object.assign(vm.runInContext('cloudProducts',local),products);
    local.cloudImagePixels=c.cloudImagePixels;local.coords=t.coords;local.requested=t.time;
@@ -131,11 +143,11 @@ async function main(){
  if(!kept.length)throw Error('No successful satellite tiles; published data unchanged: '+errors.slice(0,5).join('; '));
  const uploadedArchives=packRecords(ROOT,DIR,kept);
  const activeBytes=archiveBytes(kept);if(activeBytes>MAX_BYTES)throw Error('Satellite archive budget reached');
- const result={version:1,generated_at:now,records:kept,products:Object.fromEntries(Object.entries(products).filter(([id])=>id!=='noaa')),errors:errors.slice(-100),metrics:{prepared_blocks:prepared,archive_bytes:activeBytes,uploaded_archives:uploadedArchives,processing_seconds:Math.round((Date.now()-started)/1000)},retention_seconds:KEEP};
+ const result={version:1,generated_at:now,records:kept,products:Object.fromEntries(Object.entries(products).filter(([id])=>id!=='noaa')),errors:errors.slice(-100),metrics:{phase,prepared_blocks:prepared,archive_bytes:activeBytes,uploaded_archives:uploadedArchives,processing_seconds:Math.round((Date.now()-started)/1000)},retention_seconds:KEEP};
  fs.writeFileSync(OUT+'.tmp',JSON.stringify(result));fs.renameSync(OUT+'.tmp',OUT);
  const protectedPaths=new Set(kept.flatMap(r=>r.archive?[r.archive.path]:r.paths).map(p=>path.basename(p)));
  for(const name of fs.readdirSync(DIR))if(!protectedPaths.has(name))fs.unlinkSync(path.join(DIR,name));
  console.log(JSON.stringify(result.metrics));
 }
-module.exports={runtime,coordinates,retain,selectRecord};
-if(require.main===module)main().catch(e=>{console.error(e.message);process.exitCode=1;});
+module.exports={runtime,coordinates,retain,selectRecord,phasePlan};
+if(require.main===module)main(process.argv[2]?.replace(/^--/,'')||'all').catch(e=>{console.error(e.message);process.exitCode=1;});

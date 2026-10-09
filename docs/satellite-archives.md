@@ -38,3 +38,13 @@ coverage/crops/times, whole/range/ignored-range downloads, memory budgets, inval
 responses and native recovery. Migration performs public CORS, whole download,
 partial download and byte-equality checks. Read savings depend on cache and view;
 archive packing primarily reduces Class A writes, not a guaranteed Class B total.
+
+## Newest-frame publication
+
+Each update prepares and publishes the newest available block for each covered
+coordinate before processing older timeline frames. The history pass reuses the
+first pass's observation window and provider metadata, retains its new archives,
+and shares the original 180-block-per-run limit. Both publications use the same
+verified R2/GitHub publisher. If history processing fails, the first publication
+remains available. Satellite availability and GitHub scheduling still determine
+when new observations can begin processing.

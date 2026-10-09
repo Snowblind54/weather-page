@@ -59,11 +59,14 @@ jobs:
       - name: Pack the existing verified satellite snapshot on migration
         if: github.event_name == 'push'
         run: node scripts/migrate_cloud_archives.cjs
-      - name: Prepare transparent clouds and preserve failed-provider frames
-        if: github.event_name != 'push'
-        run: node scripts/update_cloud_tiles.cjs
-      - name: Publish verified cloud images before their manifest
-        run: bash scripts/publish_generated_data.sh 'Refresh prepared satellite clouds' data/cloud-tiles.json data/cloud-tiles
+      - name: Prepare newest transparent clouds and preserve failed-provider frames
+        run: node scripts/update_cloud_tiles.cjs --latest
+      - name: Publish newest satellite frames immediately
+        run: bash scripts/publish_generated_data.sh 'Refresh newest satellite clouds' data/cloud-tiles.json data/cloud-tiles
+      - name: Backfill satellite history after newest frames are available
+        run: node scripts/update_cloud_tiles.cjs --history
+      - name: Publish completed satellite history
+        run: bash scripts/publish_generated_data.sh 'Refresh satellite cloud history' data/cloud-tiles.json data/cloud-tiles
       - name: Verify browser access and partial satellite downloads after migration
         if: github.event_name == 'push'
         run: python3 scripts/check_cloud_archives.py

@@ -53,3 +53,24 @@ test('archived cloud blocks preserve crops and times, with native recovery on ar
  assert(draws.some(a=>a.length===9&&a[1]===256&&a[2]===512&&a[3]===256));
  const bad=browser(true,true);await bad.ctx.cloudEnsureMetadata();assert.equal((await bad.ctx.cloudGetTile({z:6,x:33,y:18},110)).processor,'native');assert.equal(bad.promises.size,0);
 });
+
+test('Newest frames publish separately; history keeps source times and the shared block budget',()=>{
+ const latest=producer.phasePlan('latest',{},12345);
+ assert.deepEqual(latest.times,[12345]);
+ const snapshot={generated_at:12345,products:{eumet:{}},metrics:{phase:'latest',prepared_blocks:80}};
+ const history=producer.phasePlan('history',snapshot,14500);
+ assert.equal(history.now,12345,'do not switch model timestamps during history processing');
+ assert.equal(history.times.length,12);
+ assert.equal(history.times[0],11400);
+ assert(history.times.every(t=>t<latest.now));
+ assert.equal(history.limit,latest.limit-80,'two passes share the original operation budget');
+ assert.throws(()=>producer.phasePlan('history',{},14500),/completed newest-frame/);
+ assert.equal(producer.phasePlan('history',{...snapshot,metrics:{phase:'latest',prepared_blocks:180}},14500).limit,0);
+});
+test('The workflow publishes latest archives before history and keeps both fallback publication calls',()=>{
+ const workflow=fs.readFileSync('.github/workflows/update-cloud-tiles.yml','utf8');
+ const latest=workflow.indexOf('update_cloud_tiles.cjs --latest'),history=workflow.indexOf('update_cloud_tiles.cjs --history');
+ const firstPublish=workflow.indexOf('bash scripts/publish_generated_data.sh',latest);
+ const secondPublish=workflow.indexOf('bash scripts/publish_generated_data.sh',history);
+ assert(latest<firstPublish&&firstPublish<history&&history<secondPublish);
+});
