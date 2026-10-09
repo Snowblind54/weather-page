@@ -155,6 +155,6 @@ window.addEventListener('load',()=>{
   document.body.appendChild(temperatureHistoryScript);
 
   const freshnessScript=document.createElement('script');
-  freshnessScript.src='js/data-freshness.js?v=1';
+  freshnessScript.src='js/data-freshness.js?v=2';
   document.body.appendChild(freshnessScript);
 });

@@ -165,10 +165,10 @@
     if(!settings)return;
 
     const button=document.createElement('button');
-    button.id='dataFreshnessButton';button.className='utility-button freshness-button';button.type='button';
+    button.id='dataFreshnessButton';button.className='utility-button freshness-button clear-layers-button';button.type='button';
     button.setAttribute('aria-label','Data freshness');button.setAttribute('aria-controls','dataFreshnessPanel');button.setAttribute('aria-expanded','false');
-    button.title='Data freshness';
-    button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17h3l2-6 3 9 3-13 2 10h3"/><path d="M4 4v16h16"/></svg>';
+    button.setAttribute('aria-describedby','dataFreshnessTip');
+    button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17h3l2-6 3 9 3-13 2 10h3"/><path d="M4 4v16h16"/></svg><span id="dataFreshnessTip" class="clear-layers-tooltip" role="tooltip">Data freshness</span>';
     settings.parentNode.insertBefore(button,settings);
 
     const panel=document.createElement('div');
