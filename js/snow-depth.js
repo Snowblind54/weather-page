@@ -7,7 +7,9 @@ const snowDepthSources={
   LV:{name:'LVĢMC',url:'https://data.gov.lv/dati/dataset/hidrometeorologiskie-noverojumi'},
   LT:{name:'Lithuanian Hydrometeorological Service (LHMT)',url:'https://api.meteo.lt/'},
   NO:{name:'MET Norway',url:'https://seklima.met.no/'},
-  IS:{name:'Icelandic Meteorological Office',url:'https://www.vedur.is/vedur/athuganir/urkoma/'}
+  IS:{name:'Icelandic Meteorological Office',url:'https://www.vedur.is/vedur/athuganir/urkoma/'},
+  CA:{name:'Environment and Climate Change Canada / MSC',url:'https://eccc-msc.github.io/open-data/msc-data/obs_station/readme_obs_insitu_en/'},
+  GL:{name:'Danish Meteorological Institute (DMI)',url:'https://www.dmi.dk/friedata/'}
 };
 let snowDepthData=null,snowDepthLoadedAt=0,snowDepthRequest=null,snowDepthRenderTimer=null;
 const snowDepthMaxAge=7*24*3600;
@@ -19,7 +21,8 @@ function snowDepthEscape(value){
 }
 function snowDepthValid(s,now=Date.now()/1000){
   if(!s || !snowDepthSources[s.country] || !s.name || !Number.isFinite(s.lat) || !Number.isFinite(s.lon))return false;
-  if(s.lat<53 || s.lat>81 || s.lon<-25 || s.lon>33 || !Number.isFinite(s.time) || s.time>now || now-s.time>snowDepthMaxAge)return false;
+  const [south,north,west,east]=s.country==='CA'?[41,85,-142,-52]:s.country==='GL'?[59,85,-74,-10]:[53,81,-25,33];
+  if(s.lat<south || s.lat>north || s.lon<west || s.lon>east || !Number.isFinite(s.time) || s.time>now || now-s.time>snowDepthMaxAge)return false;
   if(['trace','patchy'].includes(s.state))return s.depthCm===null;
   return Number.isFinite(s.depthCm) && s.depthCm>=0 && s.depthCm<=1500;
 }
@@ -76,7 +79,7 @@ function renderSnowDepth(){
   const counts=Object.entries(snowDepthSources).map(([country,source])=>{
     const n=stations.filter(s=>s.country===country).length;
     const provider=snowDepthData.providers?.[country];
-    return country+': '+n+(provider?.status==='unavailable'?' (feed unavailable)':'');
+    return country+': '+n+(provider?.status==='no-data'?' (no recent measurements)':provider?.status==='unavailable'?' (feed unavailable)':'');
   });
   status.textContent=stations.length
     ?stations.length+' recent official stations · '+counts.join(' · ')+'. Zoom in for more labels. Dashed labels are older than 36 hours.'

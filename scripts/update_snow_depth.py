@@ -22,6 +22,8 @@ SOURCES = {
     'LT': {'name': 'Lithuanian Hydrometeorological Service (LHMT)', 'url': 'https://api.meteo.lt/', 'license': 'CC BY-SA 4.0'},
     'NO': {'name': 'MET Norway', 'url': 'https://seklima.met.no/', 'license': 'CC BY 3.0 NO'},
     'IS': {'name': 'Icelandic Meteorological Office', 'url': 'https://www.vedur.is/vedur/athuganir/urkoma/'},
+    'CA': {'name': 'Environment and Climate Change Canada / MSC', 'url': 'https://eccc-msc.github.io/open-data/msc-data/obs_station/readme_obs_insitu_en/'},
+    'GL': {'name': 'Danish Meteorological Institute (DMI)', 'url': 'https://www.dmi.dk/friedata/dokumentation/meteorological-observations-data'},
 }
 
 
@@ -65,6 +67,8 @@ def depth(value, country):
             return 0, 'bare', 'No snow'
         if n == 0:
             return 0, 'nearby', 'Station ground bare; snow observed nearby'
+    if country == 'GL' and n == -1:
+        return None, 'trace', 'Less than 0.5 cm (official DMI code)'
     if country == 'NO':
         if n == 0:
             return None, 'trace', 'Less than 0.5 cm (official zero code)'
@@ -84,7 +88,8 @@ def depth(value, country):
 def record(country, code, name, lat, lon, time, value, quality='', precision='day'):
     parsed = depth(value, country)
     lat, lon = number(lat), number(lon)
-    if parsed is None or lat is None or lon is None or not (53 <= lat <= 81 and -25 <= lon <= 33):
+    south, north, west, east = {'CA': (41, 85, -142, -52), 'GL': (59, 85, -74, -10)}.get(country, (53, 81, -25, 33))
+    if parsed is None or lat is None or lon is None or not (south <= lat <= north and west <= lon <= east):
         return None
     cm, state, note = parsed
     return {'country': country, 'code': str(code), 'name': str(name), 'lat': lat, 'lon': lon,
@@ -396,12 +401,111 @@ def load_iceland(now):
     return parse_iceland(raw, metadata)
 
 
+class NoRecentSnowData(ValueError):
+    """A reachable official service has no current measurements for this region."""
+
+
+def snow_features(base, params):
+    url = base+'?'+urllib.parse.urlencode(params)
+    for _ in range(12):
+        payload = download(url)
+        yield from payload.get('features') or []
+        next_url = next((link.get('href') for link in payload.get('links', []) if link.get('rel') == 'next'), None)
+        if not next_url:
+            return
+        if not next_url.startswith(base.split('/collections/')[0]+'/collections/'):
+            raise ValueError('Unexpected snow-depth pagination host')
+        url = next_url
+    raise ValueError('Snow-depth pagination exceeded bounded observation window')
+
+
+def parse_canada_snow(features, metadata):
+    records = []
+    for feature in features:
+        props = feature.get('properties') or {}
+        code = str(props.get('msc_id-value') or '')
+        coords = (feature.get('geometry') or {}).get('coordinates') or []
+        if code not in metadata or len(coords) < 2:
+            continue
+        for field in ('snw_dpth', 'avg_snw_dpth_pst5mts'):
+            if props.get(field+'-qa') != 100 or props.get(field+'-uom') != 'cm':
+                continue
+            value = number(props.get(field))
+            if value is None or not 0 <= value <= 1500:
+                continue
+            try:
+                item = record('CA', code, metadata[code].get('name') or props.get('stn_nam-value') or code,
+                              coords[1], coords[0], props['obs_date_tm'], value,
+                              'approved', 'instant')
+            except (ValueError, TypeError, KeyError):
+                continue
+            if item:
+                records.append(item)
+                break
+    return latest(records)
+
+
+def load_canada(now):
+    base = 'https://api.weather.gc.ca/collections/'
+    metadata = {}
+    for feature in snow_features(base+'swob-stations/items', {'f': 'json', 'limit': 10000}):
+        props = feature.get('properties') or {}
+        if props.get('data_provider') == 'MSC':
+            metadata[str(props.get('msc_id') or feature.get('id') or '')] = props
+    fields = ['msc_id-value', 'stn_nam-value', 'obs_date_tm']
+    for field in ('snw_dpth', 'avg_snw_dpth_pst5mts'):
+        fields.extend([field, field+'-qa', field+'-uom'])
+    params = {'f': 'json', 'limit': 10000, '_is-minutely_obs-value': 'false',
+              'datetime': (now-dt.timedelta(days=1)).isoformat()+'/'+now.isoformat(),
+              'sortby': '-obs_date_tm', 'properties': ','.join(fields)}
+    return parse_canada_snow(snow_features(base+'swob-realtime/items', params), metadata)
+
+
+def parse_greenland_snow(features, metadata):
+    records = []
+    for feature in features:
+        props = feature.get('properties') or {}
+        code = str(props.get('stationId') or '')
+        station = metadata.get(code)
+        if not station or props.get('parameterId') != 'snow_depth_man':
+            continue
+        coords = (feature.get('geometry') or {}).get('coordinates') or station['coords']
+        if len(coords) < 2:
+            continue
+        try:
+            item = record('GL', code, station['name'], coords[1], coords[0],
+                          props['observed'], props.get('value'), 'provisional', 'instant')
+        except (ValueError, TypeError, KeyError):
+            continue
+        if item:
+            records.append(item)
+    return latest(records)
+
+
+def load_greenland(now):
+    base = 'https://opendataapi.dmi.dk/v2/metObs/collections/'
+    metadata = {}
+    for feature in snow_features(base+'station/items', {'bbox': '-74,59,-10,85', 'limit': 1000, 'status': 'Active'}):
+        props = feature.get('properties') or {}
+        if props.get('country') != 'GRL' or props.get('validTo') or props.get('operationTo'):
+            continue
+        code = str(props.get('stationId') or '')
+        metadata[code] = {'name': props.get('name') or code,
+                          'coords': (feature.get('geometry') or {}).get('coordinates') or []}
+    params = {'parameterId': 'snow_depth_man', 'bbox': '-74,59,-10,85', 'limit': 10000,
+              'datetime': (now-dt.timedelta(days=7)).isoformat()+'/'+now.isoformat()}
+    rows = parse_greenland_snow(snow_features(base+'observation/items', params), metadata)
+    if not rows:
+        raise NoRecentSnowData('DMI publishes no recent Greenland snow-depth measurements; missing data is not zero snow.')
+    return rows
+
+
 def main():
     now = dt.datetime.now(dt.timezone.utc)
     previous = json.loads(OUTPUT.read_text()) if OUTPUT.exists() else {}
     providers, records = {}, []
     loaders = {'EE': load_estonia, 'FI': load_finland, 'SE': load_sweden,
-               'LV': load_latvia, 'LT': load_lithuania, 'NO': load_norway, 'IS': load_iceland}
+               'LV': load_latvia, 'LT': load_lithuania, 'NO': load_norway, 'IS': load_iceland, 'CA': load_canada, 'GL': load_greenland}
     with futures.ThreadPoolExecutor(max_workers=7) as pool:
         jobs = {country: pool.submit(load, now) for country, load in loaders.items()}
         for country, job in jobs.items():
@@ -413,7 +517,7 @@ def main():
             except Exception as error:
                 print(country, 'snow depth unavailable:', error, flush=True)
                 rows = [r for r in previous.get('stations', []) if r['country'] == country]
-                providers[country] = {'status': 'unavailable', 'error': str(error), 'count': len(rows)}
+                providers[country] = {'status': 'no-data' if isinstance(error, NoRecentSnowData) else 'unavailable', 'error': str(error), 'count': len(rows)}
             # Never relabel retained readings as newly observed; exclude >7 days.
             records += [s for s in rows if 0 <= now.timestamp()-s['time'] <= 7*24*3600]
             print(country, 'published snow stations:', sum(s['country'] == country for s in records), flush=True)

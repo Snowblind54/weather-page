@@ -1,6 +1,8 @@
 import importlib.util
 import pathlib
 import unittest
+from unittest import mock
+import datetime as dt
 
 spec = importlib.util.spec_from_file_location('snow', pathlib.Path(__file__).parents[1] / 'scripts/update_snow_depth.py')
 snow = importlib.util.module_from_spec(spec)
@@ -8,6 +10,70 @@ spec.loader.exec_module(snow)
 
 
 class SnowDepthTests(unittest.TestCase):
+    def canada_feature(self, **patch):
+        props = {'msc_id-value': 'A', 'obs_date_tm': '2026-10-09T12:00:00Z',
+                 'snw_dpth': 9, 'snw_dpth-qa': 100, 'snw_dpth-uom': 'cm'}
+        return {'properties': {**props, **patch}, 'geometry': {'coordinates': [-133.7, 68.3]}}
+
+    def test_canada_quality_units_missing_and_latest(self):
+        meta = {'A': {'name': 'Inuvik'}}
+        rows = snow.parse_canada_snow([
+            self.canada_feature(),
+            self.canada_feature(**{'obs_date_tm': '2026-10-09T13:00:00Z', 'snw_dpth': 0}),
+            self.canada_feature(**{'obs_date_tm': '2026-10-09T14:00:00Z', 'snw_dpth': None})], meta)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]['depthCm'], rows[0]['state'], rows[0]['quality']), (0, 'bare', 'approved'))
+        self.assertEqual(rows[0]['time'], snow.timestamp('2026-10-09T13:00:00Z'))
+        for patch in ({'snw_dpth-qa': 200}, {'snw_dpth-uom': 'm'}, {'snw_dpth': -999},
+                      {'msc_id-value': 'PRIVATE'}, {'obs_date_tm': 'invalid'}):
+            self.assertEqual(snow.parse_canada_snow([self.canada_feature(**patch)], meta), [])
+
+    def test_canada_sensor_fallback_does_not_override_valid_manual_depth(self):
+        sensor = {'avg_snw_dpth_pst5mts': 12, 'avg_snw_dpth_pst5mts-qa': 100,
+                  'avg_snw_dpth_pst5mts-uom': 'cm'}
+        meta = {'A': {'name': 'Inuvik'}}
+        self.assertEqual(snow.parse_canada_snow([self.canada_feature(**sensor)], meta)[0]['depthCm'], 9)
+        self.assertEqual(snow.parse_canada_snow([self.canada_feature(**{**sensor, 'snw_dpth': None})], meta)[0]['depthCm'], 12)
+
+    def test_canada_loader_excludes_partner_stations(self):
+        stations = [{'properties': {'msc_id': 'A', 'name': 'Official', 'data_provider': 'MSC'}},
+                    {'properties': {'msc_id': 'PRIVATE', 'data_provider': 'PARTNER'}}]
+        observations = [self.canada_feature(), self.canada_feature(**{'msc_id-value': 'PRIVATE'})]
+        with mock.patch.object(snow, 'snow_features', side_effect=[stations, observations]):
+            rows = snow.load_canada(dt.datetime(2026, 10, 9, tzinfo=dt.timezone.utc))
+        self.assertEqual([r['code'] for r in rows], ['A'])
+
+    def test_greenland_trace_and_missing_are_not_zero(self):
+        meta = {'04250': {'name': 'Nuuk', 'coords': [-51.7, 64.2]}}
+        props = {'stationId': '04250', 'parameterId': 'snow_depth_man',
+                 'observed': '2026-10-09T12:00:00Z', 'value': -1}
+        row = snow.parse_greenland_snow([{'properties': props}], meta)[0]
+        self.assertEqual((row['depthCm'], row['state'], row['quality']), (None, 'trace', 'provisional'))
+        self.assertEqual((row['lat'], row['lon']), (64.2, -51.7))
+        for patch in ({'value': None}, {'parameterId': 'snowfall'}, {'stationId': 'UNKNOWN'}):
+            self.assertEqual(snow.parse_greenland_snow([{'properties': {**props, **patch}}], meta), [])
+
+    def test_greenland_loader_reports_absence_without_inventing_zero(self):
+        with mock.patch.object(snow, 'snow_features', side_effect=[[], []]):
+            with self.assertRaises(snow.NoRecentSnowData):
+                snow.load_greenland(dt.datetime(2026, 10, 9, tzinfo=dt.timezone.utc))
+
+    def test_country_bounds_keep_existing_european_restrictions(self):
+        args = ('A', 'Station', 68.3, -133.7, 1791547200, 9)
+        self.assertIsNotNone(snow.record('CA', *args))
+        self.assertIsNone(snow.record('FI', *args))
+        self.assertIsNone(snow.record('CA', 'A', 'Station', 60, 20, 1791547200, 9))
+
+    def test_pagination_follows_pages_and_rejects_unexpected_host(self):
+        base = 'https://api.weather.gc.ca/collections/swob-realtime/items'
+        page = {'features': [{'id': 1}], 'links': [{'rel': 'next', 'href': base+'?offset=1'}]}
+        with mock.patch.object(snow, 'download', side_effect=[page, {'features': [{'id': 2}]}]):
+            self.assertEqual([r['id'] for r in snow.snow_features(base, {})], [1, 2])
+        page['links'][0]['href'] = 'https://example.com/items'
+        with mock.patch.object(snow, 'download', return_value=page):
+            with self.assertRaises(ValueError):
+                list(snow.snow_features(base, {}))
+
     def test_depth_units_missing_and_special_codes(self):
         self.assertEqual(snow.depth(.12, 'SE')[0], 12)
         self.assertEqual(snow.depth(-.01, 'SE')[1], 'trace')

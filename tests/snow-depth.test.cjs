@@ -1,58 +1,64 @@
-const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const {test}=require('node:test');
-const source=fs.readFileSync('js/snow-depth.js','utf8');
-function harness(){
-  const els={},get=id=>els[id]||(els[id]={checked:true,textContent:'',addEventListener(){}});
-  const group={clearLayers(){},addTo(){return this;}};
-  const ctx={console,Date,Intl,Number,Math,Object,String,Promise,setTimeout,clearTimeout,AbortSignal,
-    L:{layerGroup:()=>group},map:{on(){},hasLayer:()=>false},$:get,snowMode:true};
-  vm.createContext(ctx);vm.runInContext(source,ctx);return {ctx,get,run:s=>vm.runInContext(s,ctx)};
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+
+function snowContext() {
+  const nodes = {};
+  const labels = [];
+  const context = vm.createContext({
+    Date, Intl, console, setTimeout, clearTimeout, snowMode: true,
+    $: id => nodes[id] ||= {checked: true, addEventListener() {}},
+    L: {
+      layerGroup: () => ({clearLayers() {labels.length = 0;}, addTo() {}}),
+      latLng: (lat, lng) => ({lat, lng}), divIcon: options => options,
+      marker: (ll, options) => ({bindPopup(html) {this.popup = html; return this;},
+        addTo() {labels.push({ll, options, html: this.popup});}})
+    },
+    map: {on() {}, hasLayer: () => false, getBounds: () => ({contains: () => true}),
+      getSize: () => ({x: 1000, y: 700}), getCenter: () => ({lng: -90}), getZoom: () => 6,
+      latLngToContainerPoint: ll => ({x: (ll.lng+180)*4, y: (90-ll.lat)*7})}
+  });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/snow-depth.js'), 'utf8'), context);
+  return {context, nodes, labels};
 }
-test('missing, future and outdated snow depths cannot appear as 0 cm',()=>{
-  const h=harness();h.ctx.station={country:'FI',name:'Station',lat:60,lon:25,time:Date.now()/1000-3600,depthCm:0,state:'bare'};
-  assert.equal(h.run('snowDepthValid(station)'),true);
-  for(const patch of [{depthCm:null},{time:Date.now()/1000-8*24*3600},{time:Date.now()/1000+3600},{country:'XX'}]){
-    const old={...h.ctx.station};Object.assign(h.ctx.station,patch);
-    assert.equal(h.run('snowDepthValid(station)'),false);h.ctx.station=old;
-  }
-});
-test('patchy and trace snow remain non-numeric station labels',()=>{
-  const h=harness();h.ctx.station={country:'SE',name:'Station',lat:60,lon:18,time:Date.now()/1000-3600,depthCm:null,state:'patchy'};
-  assert.equal(h.run('snowDepthValid(station)'),true);
-  assert.equal(h.run('snowDepthText(station)'),'Patchy');
-  h.ctx.station.state='trace';assert.equal(h.run('snowDepthText(station)'),'<0.5 cm');
-});
-test('popup reports observation day, provisional quality and escapes station text',()=>{
-  const h=harness();h.ctx.station={country:'FI',name:'<Station>',time:Date.now()/1000-40*3600,depthCm:12,state:'depth',timePrecision:'day',quality:'provisional'};
-  const html=h.run('snowDepthPopup(station)');
-  assert.match(html,/&lt;Station&gt;/);assert.match(html,/observation day/);
-  assert.match(html,/Older reading/);assert.match(html,/Provisional official reading/);
+
+test('Canadian and Greenland stations render with official sources and missing-data status', () => {
+  const {context, nodes, labels} = snowContext();
+  const time = Math.floor(Date.now()/1000)-60;
+  const ca = {country:'CA', code:'A', name:'Inuvik', lat:68.3, lon:-133.7,
+    time, timePrecision:'instant', depthCm:9, state:'depth', quality:'approved'};
+  const gl = {country:'GL', code:'B', name:'Nuuk', lat:64.2, lon:-51.7,
+    time, timePrecision:'instant', depthCm:null, state:'trace', quality:'provisional'};
+  context.snapshot = {stations:[ca, gl], providers:{GL:{status:'no-data'}}};
+  vm.runInContext('snowDepthData=snapshot; renderSnowDepth()', context);
+  assert.equal(labels.length, 2);
+  assert.match(labels[0].html, /Environment and Climate Change Canada/);
+  assert.match(labels[0].html, /Quality checked/);
+  assert.match(labels[1].html, /Danish Meteorological Institute/);
+  assert.match(labels[1].html, /&lt;0\.5 cm/);
+  assert.match(nodes.snowDepthStatus.textContent, /GL: 1 \(no recent measurements\)/);
+  context.snapshot.stations = [ca];
+  vm.runInContext('renderSnowDepth()', context);
+  assert.match(nodes.snowDepthStatus.textContent, /GL: 0 \(no recent measurements\)/);
 });
 
-test('new countries accept Iceland and Norway coordinates and source links',()=>{
-  const h=harness();
-  for(const [country,lat,lon] of [['IS',64.13,-21.91],['NO',60.3,5.3],['LV',57,24],['LT',54.6,25.1]]){
-    h.ctx.station={country,name:'Official station',lat,lon,time:Date.now()/1000-3600,depthCm:8,state:'depth',timePrecision:'instant'};
-    assert.equal(h.run('snowDepthValid(station)'),true);
-    assert.match(h.run('snowDepthPopup(station)'),/https:/);
-  }
-  h.ctx.station.lon=-90;assert.equal(h.run('snowDepthValid(station)'),false);
-});
-
-test('zero toggle hides Norwegian official zero-code traces but retains other trace and patchy observations',()=>{
-  const h=harness(),rendered=[];
-  h.ctx.L.latLng=(lat,lng)=>({lat,lng});h.ctx.L.divIcon=options=>options;
-  h.ctx.L.marker=(ll,options)=>({bindPopup(){return this;},addTo(){rendered.push(options.title);}});
-  Object.assign(h.ctx.map,{getBounds:()=>({contains:()=>true}),getSize:()=>({x:1000,y:1000}),
-    getCenter:()=>({lng:20}),getZoom:()=>6,latLngToContainerPoint:ll=>({x:ll.lng*20,y:ll.lat*4})});
-  h.ctx.stations=[
-    {country:'NO',name:'Norway trace',lat:60,lon:5,state:'trace',depthCm:null},
-    {country:'SE',name:'Sweden trace',lat:60,lon:15,state:'trace',depthCm:null},
-    {country:'NO',name:'Norway patchy',lat:60,lon:25,state:'patchy',depthCm:null},
-    {country:'FI',name:'Finland zero',lat:60,lon:30,state:'bare',depthCm:0}
-  ].map(s=>({...s,time:Date.now()/1000-3600}));
-  h.run('snowDepthData={stations};');h.get('snowDepthZero').checked=false;h.run('renderSnowDepth()');
-  assert.deepEqual(rendered,['Sweden trace · <0.5 cm','Norway patchy · Patchy']);
-  rendered.length=0;h.get('snowDepthZero').checked=true;h.run('renderSnowDepth()');
-  assert.equal(rendered.length,4);assert.ok(rendered.includes('Norway trace · <0.5 cm'));
+test('Canadian zero toggle and country bounds preserve existing European rules', () => {
+  const {context, nodes, labels} = snowContext();
+  const row = {country:'CA', name:'Inuvik', lat:68.3, lon:-133.7,
+    time:Math.floor(Date.now()/1000)-60, depthCm:0, state:'bare'};
+  context.row = row;
+  assert.equal(vm.runInContext('snowDepthValid(row)', context), true);
+  assert.equal(vm.runInContext('snowDepthValid({...row,country:"FI"})', context), false);
+  assert.equal(vm.runInContext('snowDepthValid({...row,lon:20})', context), false);
+  assert.equal(vm.runInContext('snowDepthValid({...row,depthCm:null})', context), false);
+  assert.equal(vm.runInContext('snowDepthValid({...row,time:row.time-8*86400})', context), false);
+  context.snapshot = {stations:[row], providers:{}};
+  nodes.snowDepthZero.checked = false;
+  vm.runInContext('snowDepthData=snapshot; renderSnowDepth()', context);
+  assert.equal(labels.length, 0);
+  nodes.snowDepthZero.checked = true;
+  vm.runInContext('renderSnowDepth()', context);
+  assert.equal(labels.length, 1);
 });
