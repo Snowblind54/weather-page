@@ -5,6 +5,7 @@ import json
 import math
 import os
 import re
+import sys
 import threading
 import time
 import urllib.error
@@ -67,7 +68,9 @@ def usage(now, start):
         'Content-Type': 'application/json', 'User-Agent': 'NorthWeather-UsageGuard/1.0'})
     with urllib.request.urlopen(request, timeout=20) as response:
         result = json.load(response)
-    if result.get('errors'): raise ValueError('Cloudflare analytics rejected the query')
+    if result.get('errors'):
+        messages = '; '.join(str(error.get('message', 'Query rejected')) for error in result['errors'] if isinstance(error, dict))
+        raise ValueError('Cloudflare analytics rejected the query: '+messages)
     accounts = result['data']['viewer']['accounts']
     if len(accounts) != 1: raise ValueError('Cloudflare analytics did not return the account')
     rows = accounts[0]['r2OperationsAdaptiveGroups']
@@ -107,8 +110,14 @@ def decision(now=None, previous=None):
         return {'version':1,'enabled':True,'paused':paused,'reason':'operations_limit' if paused else 'within_limits',
             'period':key,'until':int(end.timestamp()) if paused else 0,
             'checkedAt':now.isoformat(),'limits':{'classA':A_LIMIT,'classB':B_LIMIT},**counts}
-    except Exception:
+    except Exception as exc:
         # No guessed usage or zero totals when an activated guard loses telemetry.
+        diagnostic = str(exc)
+        for secret in [os.environ.get('CLOUDFLARE_R2_ANALYTICS_TOKEN', ''), os.environ.get('R2_ENDPOINT', '')]:
+            if secret: diagnostic = diagnostic.replace(secret, '[redacted]')
+        diagnostic = re.sub(r'[a-fA-F0-9]{32}', '[account]', diagnostic)
+        diagnostic = re.sub(r'[\r\n]', ' ', diagnostic)[:500]
+        print('R2 guard verification failed ('+type(exc).__name__+'): '+diagnostic, file=sys.stderr, flush=True)
         return {'version':1,'enabled':True,'paused':True,'reason':'analytics_unavailable',
             'until':int(now.timestamp()+900),'checkedAt':now.isoformat()}
 
