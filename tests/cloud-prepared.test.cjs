@@ -75,23 +75,44 @@ test('The workflow publishes latest archives before history and keeps both fallb
  assert(latest<firstPublish&&firstPublish<history&&history<secondPublish);
 });
 
-test('Recent history uses a newer official scan instead of repeating an older prepared block',async()=>{
+test('Latest and historical views prefer prepared blocks while the provider is ahead',async()=>{
  const {ctx}=browser(false,true);
  ctx.cloudProducts.eumet={day:'visible',night:'ir',metadataAt:1,latest:{visible:120,ir:120},times:{visible:[100,120],ir:[100,120]}};
  ctx.cloudAvailableTime=(p,name,time)=>Math.max(...p.times[name].filter(t=>t<=time));
  await ctx.cloudEnsureMetadata();
  assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},110)).processor,'cdn','archive matches the selected historical observation');
- assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},130)).processor,'native','newer advertised scan must not be hidden by an old archive');
+ assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},130)).processor,'cdn','a newer provider scan must not start expensive direct processing');
  assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},90)).processor,'native','never use an archive from the future');
 });
-test('Automatic metadata discovery runs even when every visible tile already has an archive',async()=>{
+test('Automatic refresh checks prepared delivery without provider discovery when coverage is complete',async()=>{
  const {ctx}=browser(false,true);let discoveries=0;
  // Reload with an instrumented native metadata function.
  ctx.cloudEnsureMetadata=async force=>{if(force)discoveries++;};
  ctx.cloudVisibleTiles=()=>[{coords:{z:6,x:33,y:18}}];
  vm.runInContext(fs.readFileSync('js/cloud-prepared.js','utf8'),ctx);
  await ctx.cloudEnsureMetadata(true);
- assert.equal(discoveries,1);
+ assert.equal(discoveries,0);
  await ctx.cloudEnsureMetadata(false);
- assert.equal(discoveries,1,'ordinary archive loading does not add provider discovery calls');
+ assert.equal(discoveries,0,'ordinary archive loading does not add provider discovery calls');
+});
+
+test('A refreshed manifest advances prepared imagery and preserves the earlier history',async()=>{
+ const {ctx}=browser(false,true);
+ await ctx.cloudEnsureMetadata(true);
+ const first=await ctx.cloudGetTile({z:6,x:33,y:18},130);
+ const fetch=ctx.fetch;
+ ctx.fetch=async url=>{
+  const response=await fetch(url);
+  if(url.includes('.json')){
+   const old=await response.json();
+   return {ok:true,json:async()=>({...old,records:[...old.records,{...old.records[0],time:120,paths:['data/cloud-tiles/123456-256.webp','data/cloud-tiles/123456-512.webp','data/cloud-tiles/123456-1024.webp'],times:[{id:'eumet',night:120,day:null}]}]})};
+  }
+  return response;
+ };
+ await ctx.cloudEnsureMetadata(true);
+ const latest=await ctx.cloudGetTile({z:6,x:33,y:18},130);
+ assert.equal(first.times[0].night,100);
+ assert.equal(latest.processor,'cdn');assert.equal(latest.times[0].night,120);
+ assert.notEqual(latest.canvas,first.canvas);
+ assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},110)).times[0].night,100);
 });

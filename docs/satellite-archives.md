@@ -49,11 +49,11 @@ verified R2/GitHub publisher. If history processing fails, the first publication
 remains available. Satellite availability and GitHub scheduling still determine
 when new observations can begin processing.
 
-Freshness discovery uses a shared two-minute cache key on the official WMS
-capabilities request. The map checks official availability on activation and its
-existing automatic refresh, even when a prepared archive already covers the
-viewport. For each selected timeline time, a prepared block is accepted only if
-it does not lag a newer advertised observation in its source metadata; otherwise
-existing direct-provider delivery fills the gap until the prepared archive
-catches up. No future observation is substituted into history. Provider
-publication delays remain visible in the actual observation-time label.
+The producer discovers official availability with a shared two-minute WMS
+capabilities cache key. The map prefers the newest prepared block at or before
+the selected timeline time, including when a newer official scan exists. Its
+existing automatic refresh checks the manifest, then replaces displayed clouds
+when newer prepared blocks are ready. Complete prepared viewport coverage skips
+direct WMS discovery and processing. Missing blocks or failed archives retain
+the existing official-provider fallback. No future observation is substituted
+into history, and the displayed observation label reports actual source times.

@@ -24,13 +24,8 @@
   const key=`${z}/${Math.floor(coords.x/factor)}/${Math.floor(coords.y/factor)}`;
   const r=manifest.records.filter(r=>r.key===key&&r.time<=time).sort((a,b)=>b.time-a.time)[0];
   if(!r)return null;
-  // A cached composite must not hide a newer real observation at this timeline time.
-  for(const observation of r.times||[]){
-   const product=cloudProducts[observation.id];if(!product)continue;
-   for(const kind of ['day','night'])if(Number.isFinite(observation[kind])){
-    try{if(cloudAvailableTime(product,product[kind],time)>observation[kind])return null;}catch{/* Metadata can be unavailable for an older polar pass. */}
-   }
-  }
+  // Prefer the newest prepared observation at or before the selected time.
+  // A newer provider scan must not trigger expensive phone-side processing.
   const index=Math.min(r.paths.length-1,Math.max(0,coords.z-z));
   if(!/^data\/cloud-tiles\/[a-f0-9]+-(256|512|1024)\.webp$/.test(r.paths[index]))return null;
   if(r.archive&&(typeof validCloudArchive!=='function'||!validCloudArchive(r)))return null;
@@ -71,10 +66,10 @@
     }
    }
   }
-  // Automatic freshness checks discover newer official scans even when older
-  // prepared tiles exist. Ordinary archive/history loading stays CDN-first.
+  // Refresh the manifest on automatic checks, but use direct providers only
+  // when prepared coverage is missing. Keep already displayed clouds in place.
   const visible=cloudVisibleTiles();
-  if(!force&&visible.length&&visible.every(t=>selection(t.coords,cloudRequestedTime)))return;
+  if(manifest?.records.length&&(visible.length?visible.every(t=>selection(t.coords,cloudRequestedTime)):manifest.products&&Object.keys(manifest.products).length))return;
   return nativeMetadata(force||!visible.length);
  };
  cloudTileKey=function(coords,time){const s=selection(coords,time);return s?'prepared-cloud:'+s.path+':'+coords.z+'/'+coords.x+'/'+coords.y:nativeKey(coords,time);};
