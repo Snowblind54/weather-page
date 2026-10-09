@@ -8,8 +8,12 @@
   }
   if(typeof module!=='undefined')module.exports={popupPanOffset};
   if(typeof map==='undefined'||typeof document==='undefined')return;
-  let active=null,frame=null;
+  let active=null,frame=null,protectedSource=null;
   const original=new WeakMap();
+  function releaseSource(){
+    if(protectedSource)protectedSource.on('remove',protectedSource.closePopup);
+    protectedSource=null;
+  }
   function schedule(){
     if(frame!==null)cancelAnimationFrame(frame);
     frame=requestAnimationFrame(()=>{frame=requestAnimationFrame(adjust);});
@@ -35,11 +39,17 @@
     if(offset[0]||offset[1])map.panBy(offset,{animate:!root.matchMedia?.('(prefers-reduced-motion: reduce)').matches,duration:.25});
   }
   map.on('popupopen',event=>{
-    active?.off('contentupdate',schedule);active=event.popup;
+    active?.off('contentupdate',schedule);releaseSource();active=event.popup;
+    // Leaflet binds marker removal to closePopup. Viewport renderers replace
+    // station markers after a pan; keep their open popup until explicitly closed.
+    const source=active._source;
+    if(source?.closePopup&&source.getPopup?.()===active){
+      source.off('remove',source.closePopup);protectedSource=source;
+    }
     active.on('contentupdate',schedule);schedule();
   });
   map.on('popupclose',event=>{
-    if(event.popup!==active)return;active.off('contentupdate',schedule);active=null;
+    if(event.popup!==active)return;active.off('contentupdate',schedule);active=null;releaseSource();
     if(frame!==null)cancelAnimationFrame(frame);frame=null;
   });
   map.on('resize',schedule);
