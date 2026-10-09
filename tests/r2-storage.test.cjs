@@ -33,7 +33,9 @@ const address=input=>input instanceof Request?input.url:String(input);
  const retry=calls.find(([input])=>address(input).startsWith(GH+'data/'));assert.equal(retry[0].headers.get('Range'),'bytes=0-1023');
  ({window,calls}=setup({fail:true}));result=await window.fetch('data/radar-tiles.json');assert.equal(await result.text(),GH+'data/radar-tiles.json');
  assert(calls.some(([input])=>address(input).startsWith(GH+'data/radar-tiles')));
- assert.equal(window.weatherDataUrl('data/official-wind.json'),R2+'data/official-wind.json'); // Missing optional tiles alone must not divert all snapshots.
+ assert.equal(window.weatherDataUrl('data/radar-tiles/f/1.png'),GH+'data/radar-tiles/f/1.png'); // Mirrored manifest and native images use the same source.
+ ({window,calls}=setup({fail:true,failGithub:true}));await window.fetch('data/radar-tiles.json');
+ assert.equal(window.weatherDataUrl('data/official-wind.json'),R2+'data/official-wind.json'); // A tile missing from both sources alone must not divert other snapshots.
  ({window,calls}=setup({active:true}));
  for(const path of ['data/radar-tiles.json','data/radar-tiles/f/1.png','data/cloud-tiles.json','data/cloud-tiles/f/overview.webp']){
   result=await window.fetch(path);assert.equal(await result.text(),GH+path);

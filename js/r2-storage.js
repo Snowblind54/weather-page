@@ -69,7 +69,13 @@
     // If neither copy is available, their loaders still use official providers.
     try{
       const response=await nativeFetch(requestFor(github+path),remoteOptions);
-      if(response.ok||signal?.aborted)return response;
+      if(response.ok){
+        // A mirrored manifest must load its images from the same healthy
+        // source, including native Image requests outside the fetch wrapper.
+        fallbackUntil=Math.max(fallbackUntil,Date.now()+60000);
+        return response;
+      }
+      if(signal?.aborted)return response;
     }catch(error){if(signal?.aborted)throw error;}
     if(useGithub())return new Response('',{status:503});
     return nativeFetch(input,options);
