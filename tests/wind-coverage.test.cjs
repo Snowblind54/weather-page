@@ -56,3 +56,37 @@ test('North Atlantic and Iceland use denser grids before the broad fallback',()=
  assert.equal(h.run('(WIND_GRIDS[5].north-WIND_GRIDS[5].south)/(WIND_GRIDS[5].rows-1)'),0.5);
  assert.equal(h.run('(WIND_GRIDS[5].east-WIND_GRIDS[5].west)/(WIND_GRIDS[5].cols-1)'),0.5);
 });
+
+function withExtraGrids(){
+ const h=harness(),python=fs.readFileSync('scripts/update_model_wind.py','utf8');
+ const start=python.indexOf('WIND_EXTRA_GRIDS = [')+19;
+ const specs=JSON.parse(python.slice(start,python.indexOf('\n]\n',start)+2).replace(/,\s*]/g,']'));
+ h.c.specs=specs;
+ h.run('windData={...windData,extraGrids:specs.map((g,i)=>({...g,series:Array.from({length:g.rows*g.cols},()=>[[20+i,4,30+i],[20+i,4,40+i]])}))}');
+ return h;
+}
+test('equator, USA, offshore waters, Alaska and Hawaii use matching sustained and gust grids',()=>{
+ const h=withExtraGrids();assert(h.run('validWindData(windData)'));
+ for(const [lat,lon,expected] of [[0,0,20],[0,-180,20],[0,180,20],[10,175,20],[10,535,20],
+   [30,-100,21],[25,-80,21],[40,-70,21],[51,-170,22],[70,-150,22],[21,-157,23]]){
+  h.c.lat=lat;h.c.lon=lon;
+  assert.equal(h.run('windAt(lat,lon,windTimeSlice(150))[0]'),expected);
+  assert.equal(h.run('windGustAt(lat,lon,windTimeSlice(150))'),expected+20);
+ }
+ assert.equal(h.run('windAt(-0.01,-100,windTimeSlice(150))'),null);
+ assert.equal(h.run('windAt(85,20,windTimeSlice(150))'),null);
+ assert.equal(h.run('windAt(57,25,windTimeSlice(150))[0]'),7);
+ assert.equal(h.run('windAt(63.525,-22.143,windTimeSlice(150))[0]'),8);
+ assert.equal(h.run('windSamplingGrids()===windSamplingGrids()'),true);
+});
+test('missing USA cells fall back to existing coverage and invalid dimensions are rejected',()=>{
+ const h=withExtraGrids();
+ h.run('windData.extraGrids.find(g=>g.id==="usa").series.forEach(s=>s[0]=null)');
+ assert(Math.abs(h.run('windAt(30,-100,windTimeSlice(150))[0]')-20)<1e-10);
+ h.run('windData.extraGrids[0].series.pop()');
+ assert.equal(h.run('validWindData(windData)'),false);
+ h.run('windData.extraGrids=[null]');
+ assert.equal(h.run('validWindData(windData)'),false);
+ h.run('windData.times="invalid"');
+ assert.equal(h.run('validWindData(windData)'),false);
+});

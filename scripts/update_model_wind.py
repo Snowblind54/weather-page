@@ -9,6 +9,8 @@ centrally and publishes one small static snapshot for every visitor.
 from __future__ import annotations
 
 import json
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 import math
 import os
 import time
@@ -18,10 +20,16 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Keep importable in lightweight unit tests; NOAA dependencies load on collection.
+def collect_native(*args):
+    from noaa_model_wind import collect_native as collect
+    return collect(*args)
+
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data" / "model-wind.json"
 API = "https://api.open-meteo.com/v1/forecast"
 BATCH_SIZE = 50
+BATCH_WORKERS = 2
 
 # Two-degree North Atlantic sampling, with half-degree detail around Iceland.
 WIND_GRIDS = [
@@ -36,10 +44,10 @@ WIND_GRIDS = [
 # Keep the six legacy grids intact so already-open pages can use new snapshots.
 # Additional grids are self-describing and consumed by the extended client.
 WIND_EXTRA_GRIDS = [
-    {"id": "hemisphere", "model": "best_match", "south": 0, "north": 84, "west": -180, "east": 180, "rows": 22, "cols": 73},
-    {"id": "usa", "model": "gfs_seamless", "south": 18, "north": 54, "west": -132, "east": -55, "rows": 37, "cols": 78},
-    {"id": "alaska", "model": "gfs_seamless", "south": 50, "north": 74, "west": -180, "east": -130, "rows": 13, "cols": 26},
-    {"id": "hawaii", "model": "gfs_seamless", "south": 17, "north": 24, "west": -163, "east": -151, "rows": 8, "cols": 13},
+    {"id": "hemisphere", "model": "noaa_gfs", "gustTiming": "instant", "south": 0, "north": 84, "west": -180, "east": 180, "rows": 22, "cols": 73},
+    {"id": "usa", "model": "noaa_gfs_hrrr", "gustTiming": "instant", "south": 18, "north": 54, "west": -132, "east": -55, "rows": 37, "cols": 78},
+    {"id": "alaska", "model": "noaa_gfs", "gustTiming": "instant", "south": 50, "north": 74, "west": -180, "east": -130, "rows": 13, "cols": 26},
+    {"id": "hawaii", "model": "noaa_gfs", "gustTiming": "instant", "south": 17, "north": 24, "west": -163, "east": -151, "rows": 8, "cols": 13},
 ]
 
 
@@ -87,6 +95,8 @@ def request_json(url: str):
             last_error = exc
             if exc.code != 429 and exc.code < 500:
                 raise
+            if exc.code == 429:
+                raise RuntimeError("Regional point API quota reached") from exc
             retry_after = exc.headers.get("Retry-After")
             try:
                 delay = max(10, min(120, int(retry_after))) if retry_after else 15 * (2**attempt)
@@ -102,11 +112,8 @@ def request_json(url: str):
     raise RuntimeError(f"Open-Meteo wind request failed after retries: {last_error}")
 
 
-def collect_points(points, model, start_hour, end_hour, expected_times=None):
-    all_series = []
-    times = expected_times
-    for offset in range(0, len(points), BATCH_SIZE):
-        batch = points[offset : offset + BATCH_SIZE]
+def fetch_batches(points, model, start_hour, end_hour):
+    def fetch_batch(batch):
         params = urllib.parse.urlencode(
             {
                 "latitude": ",".join(f"{lat:.6f}" for lat, _ in batch),
@@ -121,11 +128,35 @@ def collect_points(points, model, start_hour, end_hour, expected_times=None):
                 "models": model,
             }
         )
-        payload = request_json(f"{API}?{params}")
+        try:
+            payload = request_json(f"{API}?{params}")
+        finally:
+            # Two workers, each paced even when an upstream response is fast.
+            time.sleep(20)
         items = payload if isinstance(payload, list) else [payload]
         if len(items) != len(batch):
             raise RuntimeError(f"Incomplete wind grid: expected {len(batch)} locations, got {len(items)}")
+        return items
 
+    batches = iter(points[offset:offset+BATCH_SIZE] for offset in range(0, len(points), BATCH_SIZE))
+    with ThreadPoolExecutor(max_workers=BATCH_WORKERS) as pool:
+        pending = deque()
+        for _ in range(BATCH_WORKERS):
+            batch = next(batches, None)
+            if batch is not None:
+                pending.append(pool.submit(fetch_batch, batch))
+        while pending:
+            # Consume in request order; responses can finish in either order.
+            yield pending.popleft().result()
+            batch = next(batches, None)
+            if batch is not None:
+                pending.append(pool.submit(fetch_batch, batch))
+
+
+def collect_points(points, model, start_hour, end_hour, expected_times=None):
+    all_series = []
+    times = expected_times
+    for items in fetch_batches(points, model, start_hour, end_hour):
         for item in items:
             hourly = item.get("hourly") or {}
             units = item.get("hourly_units") or {}
@@ -152,9 +183,7 @@ def collect_points(points, model, start_hour, end_hour, expected_times=None):
             ]
             all_series.append(series)
 
-        print(f"Fetched {min(offset + len(batch), len(points))}/{len(points)} {model} wind points", flush=True)
-        if offset + len(batch) < len(points):
-            time.sleep(1.5)
+        print(f"Fetched {len(all_series)}/{len(points)} {model} wind points", flush=True)
     return times, all_series
 
 
@@ -162,26 +191,37 @@ def build_snapshot(anchor):
     # Pin all regions/models to the same hours, even across an hourly boundary.
     start_hour = datetime.fromtimestamp(anchor - 4 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
     end_hour = datetime.fromtimestamp(anchor + 6 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
-    specs = [{**grid, "model": "best_match"} for grid in WIND_GRIDS] + WIND_EXTRA_GRIDS
-    keys = lambda grid: [(grid["model"], round(lat, 6), round(((lon+180) % 360)-180, 6)) for lat, lon in grid_points(grid)]
+    times = list(range(anchor - 4 * 3600, anchor + 6 * 3600 + 1, 3600))
+    specs = WIND_GRIDS + WIND_EXTRA_GRIDS
+    keys = lambda grid: [(round(lat, 6), round(((lon+180) % 360)-180, 6)) for lat, lon in grid_points(grid)]
     unique = list(dict.fromkeys(key for grid in specs for key in keys(grid)))
-    series_by_key = {}
-    times = None
-    for model in dict.fromkeys(key[0] for key in unique):
-        model_keys = [key for key in unique if key[0] == model]
-        times, series = collect_points([(lat, lon) for _, lat, lon in model_keys], model, start_hour, end_hour, times)
-        series_by_key.update(zip(model_keys, series))
+    usa_keys = set(key for grid in WIND_EXTRA_GRIDS if grid['id'] == 'usa' for key in keys(grid))
+    native, runs = collect_native(unique, [i for i, key in enumerate(unique) if key in usa_keys], times)
+    series_by_key = dict(zip(unique, native))
     grids = [[series_by_key[key] for key in keys(grid)] for grid in specs]
-    if not times or any(not any(sample for series in grid for sample in series) for grid in grids):
-        raise RuntimeError("No usable wind data returned for a region")
-    print(f"Collected {len(unique)} unique model locations; shared nodes fetched once", flush=True)
+    regional_source = 'Open-Meteo best match'
+    legacy_gust_timing = 'hour-ending'
+    # Do not multiply point API traffic to expand coverage. The existing regional
+    # queries stay the same size; NOAA supplies every additional location.
+    regional_keys = list(dict.fromkeys(key for grid in WIND_GRIDS for key in keys(grid)))
+    try:
+        _, regional = collect_points(regional_keys, 'best_match', start_hour, end_hour, times)
+        regional_by_key = dict(zip(regional_keys, regional))
+        grids[:len(WIND_GRIDS)] = [[regional_by_key[key] for key in keys(grid)] for grid in WIND_GRIDS]
+    except Exception as exc:
+        print(f'Regional point API unavailable; using current NOAA GFS/HRRR data: {exc}', flush=True)
+        regional_source = 'NOAA fallback (regional API unavailable)'
+        legacy_gust_timing = 'instant'
     return {
-        "version": 6,
-        "savedAt": int(time.time() * 1000),
-        "times": times,
-        "grids": grids[:len(WIND_GRIDS)],
-        "extraGrids": [{**spec, "series": series} for spec, series in zip(WIND_EXTRA_GRIDS, grids[len(WIND_GRIDS):])],
-        "source": "Open-Meteo best match; NOAA GFS/HRRR seamless over USA, Alaska and Hawaii · hourly 10 m wind",
+        'version': 6,
+        'savedAt': int(time.time() * 1000),
+        'times': times,
+        'grids': grids[:len(WIND_GRIDS)],
+        'legacyGustTiming': legacy_gust_timing,
+        'regionalSource': regional_source,
+        'modelRuns': runs,
+        'extraGrids': [{**spec, 'series': series} for spec, series in zip(WIND_EXTRA_GRIDS, grids[len(WIND_GRIDS):])],
+        'source': 'NOAA GFS global / HRRR mainland USA; ' + regional_source + ' · hourly 10 m wind',
     }
 
 

@@ -8,6 +8,8 @@ on:
     branches: [main]
     paths:
       - scripts/update_model_wind.py
+      - scripts/noaa_model_wind.py
+      - tests/test_noaa_model_wind.py
       - tests/test_model_wind.py
       - scripts/publish_generated_data.sh
       - .github/workflows/update-model-wind.yml
@@ -17,7 +19,7 @@ permissions:
 
 concurrency:
   group: shared-model-wind
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -39,7 +41,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install boto3==1.40.50
+      - run: pip install boto3==1.40.50 numpy==2.3.5 eccodes==2.46.0 pyproj==3.7.2
       - name: Restore cached updater inputs
         uses: actions/cache@v4
         with:
@@ -52,8 +54,9 @@ jobs:
       - name: Test wind collection and coverage
         run: |
           python3 -m unittest discover -s tests -p test_model_wind.py -v
+          python3 -m unittest discover -s tests -p test_noaa_model_wind.py -v
           node --test tests/wind-coverage.test.cjs tests/wind-source.test.cjs tests/wind-performance.test.cjs tests/wind-chill-americas.test.cjs
-      - name: Fetch shared Open-Meteo wind grid
+      - name: Fetch NOAA and regional shared wind grids
         run: python3 scripts/update_model_wind.py
       - name: Publish shared wind snapshot
         run: bash scripts/publish_generated_data.sh 'Refresh shared wind model snapshot' data/model-wind.json
