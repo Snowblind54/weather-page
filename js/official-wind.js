@@ -18,7 +18,7 @@ let officialWindHistoryData=null,officialWindHistoryPromise=null;
 const officialWindLabels=L.layerGroup();
 map.createPane('officialWindPane');map.getPane('officialWindPane').style.zIndex='625';
 let officialWindRenderKey='';
-if(typeof document!=='undefined'&&document.title)document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.125');
+if(typeof document!=='undefined'&&document.title)document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.126');
 function officialWindEnabled(){return $('officialWindSustained').checked||$('officialWindGusts').checked;}
 function officialWindNeeded(){return officialWindEnabled()||!!$('windHeatmapOn')?.checked;}
 function windFieldVisible(){return !!($('windOn')?.checked||$('windHeatmapOn')?.checked);}
