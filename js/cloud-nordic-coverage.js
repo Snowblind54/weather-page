@@ -24,11 +24,14 @@
 
           // Approximate the northern edge of the contiguous-US footprint. A
           // short feather avoids a visible source seam while ensuring Canadian
-          // pixels always retain a full-disk contribution.
+          // pixels always retain a full-disk contribution. Prepared overview
+          // blocks deliberately stay on full-disk GOES across the whole North
+          // American block so a z2-z4 tile never switches feed at the border.
           const conusNorth=lon<-95?49:lon<-74?42.25:45;
           const conus=(lon>=-125&&lon<=-66&&lat>=24)
             ?1-smoothstep(conusNorth-.75,conusNorth+.25,lat):0;
-          const fast=(1-east)*Math.max(0,Math.min(1,conus));
+          const preparedFullDisk=typeof globalThis!=='undefined'&&globalThis.cloudPreparedFullDisk===true;
+          const fast=preparedFullDisk?0:(1-east)*Math.max(0,Math.min(1,conus));
           const fullDisk=(1-east)*(1-fast);
 
           weights.eumet=east*limb(0);
@@ -53,11 +56,12 @@
           weights.metop=polar;
           if(Number.isFinite(weights.eumet))weights.eumet*=1-polar;
         }
-        // Canada and western Greenland: complement both full-disk GOES views
-        // with Metop-C at their high-latitude limb. NOAA normally contributes
-        // zero here, but include it in the complement for edge feathering.
-        if(metopReady && lat>=64 && lat<=85 && lon>=-170 && lon<=-32){
-          const polar=smoothstep(64,73,lat)*smoothstep(-170,-155,lon)*
+        // Canada and western Greenland: GOES retains a strong view through
+        // mid-Canada. Start the polar handoff farther north so a tiny Metop
+        // contribution cannot make a whole overview block depend on a patchy
+        // polar composite.
+        if(metopReady && lat>=70 && lat<=85 && lon>=-170 && lon<=-32){
+          const polar=smoothstep(70,79,lat)*smoothstep(-170,-155,lon)*
             (1-smoothstep(-40,-32,lon));
           weights.metop=polar;
           for(const id of ['gibs','west','noaa'])weights[id]=(weights[id]||0)*(1-polar);
