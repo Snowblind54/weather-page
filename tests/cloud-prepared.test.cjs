@@ -8,7 +8,7 @@ test('Coverage includes Europe, Canada, Greenland and the full USA cloud envelop
   assert.ok(rows.some(r=>r.z===z&&r.x===x&&r.y===y),`missing prepared coverage near ${lat},${lon}`);
  }
 });
-test('NOAA nowCOAST owns the USA and most of Canada before the Arctic handoff',()=>{
+test('Full-disk GOES owns the USA and Canada before the Arctic handoff',()=>{
  const c=producer.runtime();
  const weights=(lat,lon)=>{c.lat=lat;c.lon=lon;return vm.runInContext('cloudSourceWeights(lat,lon)',c);};
  const points={
@@ -26,19 +26,24 @@ test('NOAA nowCOAST owns the USA and most of Canada before the Arctic handoff',(
   yellowknife:weights(62.45,-114.37)
  };
  for(const [name,w] of Object.entries(points)){
-  assert.ok(w.noaa>.95 && w.gibs<.05 && w.west<.05,`${name} should use the fast NOAA GOES East/West mosaic`);
+  assert.equal(w.noaa,0,`${name} should not use the clipped nowCOAST mosaic`);
+  assert.ok(w.gibs+w.west>.95,`${name} should use full-disk GOES East/West`);
  }
  const transition=weights(69,-107);
- assert.ok(transition.noaa>0&&transition.metop>0,'central Canadian Arctic should blend fast GOES with polar coverage');
- assert.ok(transition.gibs+transition.west>0,'full-disk GOES should join the Arctic handoff');
+ assert.equal(transition.noaa,0);
+ assert.ok(transition.metop>0,'central Canadian Arctic should blend full-disk GOES with polar coverage');
+ assert.ok(transition.gibs+transition.west>0,'full-disk GOES should remain in the Arctic handoff');
  const arctic=weights(74,-107);
- assert.ok(arctic.noaa<.05&&arctic.metop>.9,'far northern Canada should hand off from the fast mosaic to polar coverage');
+ assert.equal(arctic.noaa,0);
+ assert.ok(arctic.metop>.9,'far northern Canada should hand off from full-disk GOES to polar coverage');
 });
-test('Prepared producer accepts NOAA nowCOAST and keeps its timestamps in the R2 manifest',()=>{
+test('Prepared producer accepts NASA GIBS full-disk GOES and keeps source timestamps in the R2 manifest',()=>{
  const source=fs.readFileSync('scripts/update_cloud_tiles.cjs','utf8');
- assert.match(source,/nowcoast\.noaa\.gov/);
+ const clouds=fs.readFileSync('js/clouds.js','utf8');
+ assert.match(source,/gibs\.earthdata\.nasa\.gov/);
+ assert.match(clouds,/GOES-East_ABI_GeoColor/);
+ assert.match(clouds,/GOES-West_ABI_GeoColor/);
  assert.match(source,/\['eumet','noaa','gibs','west','metop'\]/);
- assert.doesNotMatch(source,/id==='noaa'/);
  assert.match(source,/records:kept,products,errors:/);
 });
 test('Failed updates retain the last successful tile independently of other regions',()=>{
