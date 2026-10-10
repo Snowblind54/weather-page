@@ -293,6 +293,6 @@
   if(heatmapBadge)heatmapBadge.textContent='model + stations';
 
   if(typeof document!=='undefined'&&document.title){
-    document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.124');
+    document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.125');
   }
 })();
