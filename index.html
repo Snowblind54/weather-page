@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Northern Weather Map v8.128</title>
+<title>Northern Weather Map v8.135</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
@@ -252,8 +252,16 @@
 <script src="js/stations.js?v=8.103"></script>
 <script src="js/cloud-pixels.js?v=8.112"></script>
 <script src="js/clouds.js?v=8.112"></script>
+<script src="js/cloud-eumet-cleanup.js?v=8.135"></script>
+<script src="js/cloud-arctic-source.js?v=8.135"></script>
+<script src="js/cloud-nordic-coverage.js?v=8.135"></script>
+<script>
+if(typeof installEumetCleanClouds==='function')installEumetCleanClouds();
+if(typeof installArcticCloudSource==='function')installArcticCloudSource();
+if(typeof installNordicCloudCoverage==='function')installNordicCloudCoverage();
+</script>
 <script src="js/cloud-archive.js?v=1"></script>
-<script src="js/cloud-prepared.js?v=archives-3"></script>
+<script src="js/cloud-prepared.js?v=8.135"></script>
 <script src="js/radar.js?v=mobile-zoom-1"></script>
 <script src="js/radar-images.js?v=github-fallback-1"></script>
 <script src="js/radar-viewport.js?v=1"></script>
