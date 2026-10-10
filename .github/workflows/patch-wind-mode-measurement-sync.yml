@@ -23,26 +23,29 @@ jobs:
 
           path = Path('js/official-wind.js')
           text = path.read_text()
-          old = """function syncWindFieldToOfficial(id){
-  if(!windFieldVisible())return;const selected=$(id);if(!selected.checked)return;
-  const mode=id==='officialWindGusts'?'gust':'sustained';setOfficialWindMeasurement(mode);
-  if($('windMode').value!==mode){$('windMode').value=mode;$('windMode').dispatchEvent(new Event('change',{bubbles:true}));}
-}
-"""
-          new = """function syncWindFieldToOfficial(){
-  // Measured controls never change the modeled field. If the field is visible
-  // and measurements remain enabled, keep the measured layer aligned to the
-  // field's selected sustained/gust mode instead.
-  if(!windFieldVisible()||!officialWindEnabled())return;
-  syncOfficialWindToField();
-}
-$('windMode')?.addEventListener('change',syncOfficialWindToField);
-"""
+          old = (
+              "function syncWindFieldToOfficial(id){\n"
+              "  if(!windFieldVisible())return;const selected=$(id);if(!selected.checked)return;\n"
+              "  const mode=id==='officialWindGusts'?'gust':'sustained';setOfficialWindMeasurement(mode);\n"
+              "  if($('windMode').value!==mode){$('windMode').value=mode;$('windMode').dispatchEvent(new Event('change',{bubbles:true}));}\n"
+              "}\n"
+          )
+          new = (
+              "function syncWindFieldToOfficial(){\n"
+              "  // Measured controls never change the modeled field. If the field is visible\n"
+              "  // and measurements remain enabled, keep the measured layer aligned to the\n"
+              "  // field's selected sustained/gust mode instead.\n"
+              "  if(!windFieldVisible()||!officialWindEnabled())return;\n"
+              "  syncOfficialWindToField();\n"
+              "}\n"
+              "$('windMode')?.addEventListener('change',syncOfficialWindToField);\n"
+          )
           if old not in text:
               raise SystemExit('Expected wind sync block not found')
           text = text.replace(old, new, 1)
-          text = text.replace("'v8.126'", "'v8.127'", 1)
-          path.write_text(text)
+          if "'v8.126'" not in text:
+              raise SystemExit('Expected official wind version not found')
+          path.write_text(text.replace("'v8.126'", "'v8.127'", 1))
 
           path = Path('js/auto-refresh.js')
           text = path.read_text()
