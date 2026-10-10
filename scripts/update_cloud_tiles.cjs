@@ -6,7 +6,7 @@ const run=promisify(execFile);
 let sharp;try{sharp=require('./cloud-tiles/node_modules/sharp');}catch{sharp=require('sharp');}
 const ROOT=path.resolve(__dirname,'..'),OUT=path.join(ROOT,'data/cloud-tiles.json');
 const DIR=path.join(ROOT,'data/cloud-tiles'),KEEP=3*3600,MAX_BYTES=600*1024*1024;
-const STYLE=1;
+const STYLE=2;
 const MAX_NEW=Math.max(1,Math.min(180,Number(process.env.CLOUD_TILE_MAX_NEW)||180));
 function runtime(){
  const c=vm.createContext({console,URLSearchParams,URL,Date,Map,Set,Uint8ClampedArray,Float32Array,Promise,Math,document:{querySelector:()=>null}});
@@ -33,14 +33,7 @@ async function metadata(c,previous,now){
  for(const endpoint of [...new Set(['eumet','gibs','west','metop'].map(id=>products[id].endpoint))]){
   try{
    const xml=await download(endpoint+'?service=WMS&request=GetCapabilities&version=1.3.0&freshness='+Math.floor(now/120));
-   const parser=`import sys,json,xml.etree.ElementTree as E
-t=E.fromstring(sys.stdin.read());out={}
-for l in t.iter():
- if l.tag.split('}')[-1]!='Layer':continue
- name=next((n.text for n in l if n.tag.split('}')[-1]=='Name'),None)
- d=next((n for n in l if n.tag.split('}')[-1] in ['Dimension','Extent'] and n.get('name')=='time'),None)
- if name and d is not None:out[name]={'default':d.get('default'),'text':d.text or ''}
-print(json.dumps(out))`;
+   const parser=`import sys,json,xml.etree.ElementTree as E\nt=E.fromstring(sys.stdin.read());out={}\nfor l in t.iter():\n if l.tag.split('}')[-1]!='Layer':continue\n name=next((n.text for n in l if n.tag.split('}')[-1]=='Name'),None)\n d=next((n for n in l if n.tag.split('}')[-1] in ['Dimension','Extent'] and n.get('name')=='time'),None)\n if name and d is not None:out[name]={'default':d.get('default'),'text':d.text or ''}\nprint(json.dumps(out))`;
    const child=require('node:child_process').spawn('python3',['-c',parser]);let text='',err='';
    child.stdout.on('data',b=>text+=b);child.stderr.on('data',b=>err+=b);
    const finished=new Promise((resolve,reject)=>{child.on('error',reject);child.on('close',n=>n?reject(Error(err)):resolve());});

@@ -1,12 +1,22 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const producer=require('../scripts/update_cloud_tiles.cjs');
-test('Coverage includes Europe, Iceland, Canada and Greenland at original native detail',()=>{
+test('Coverage includes Europe, Canada, Greenland and the full USA cloud envelope',()=>{
  const c=producer.runtime(),rows=producer.coordinates(c);
- assert.ok(rows.length<100,'bounded central block count');
- for(const [lat,lon] of [[59,25],[65,-19],[52,-110],[70,-45]]){
+ assert.ok(rows.length<=105,'bounded central block count');
+ for(const [lat,lon] of [[59,25],[65,-19],[52,-110],[70,-45],[24.6,-81.5],[34,-118],[40.7,-74],[21.3,-157.8]]){
   const z=4,x=Math.floor((lon+180)/360*16),y=Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*16);
-  assert.ok(rows.some(r=>r.z===z&&r.x===x&&r.y===y));
+  assert.ok(rows.some(r=>r.z===z&&r.x===x&&r.y===y),`missing prepared coverage near ${lat},${lon}`);
  }
+});
+test('GOES-West and GOES-East hand off smoothly across the USA',()=>{
+ const c=producer.runtime();
+ const weights=(lat,lon)=>{c.lat=lat;c.lon=lon;return vm.runInContext('cloudSourceWeights(lat,lon)',c);};
+ const pacific=weights(39,-120),central=weights(39,-101.5),atlantic=weights(39,-80),hawaii=weights(21.3,-157.8),florida=weights(24.6,-81.5);
+ assert.ok(pacific.west>.95 && pacific.gibs<.05,'GOES-West should own the western USA');
+ assert.ok(central.west>.35 && central.gibs>.35,'central USA should blend both GOES views');
+ assert.ok(atlantic.gibs>.95 && atlantic.west<.05,'GOES-East should own the eastern USA');
+ assert.ok(hawaii.west>.9,'Hawaii should be inside GOES-West coverage');
+ assert.ok(florida.gibs>.9,'southern Florida should be inside GOES-East coverage');
 });
 test('Failed updates retain the last successful tile independently of other regions',()=>{
  const old={key:'4/8/4',time:10},newer={key:'4/8/4',time:100},polar={key:'4/1/0',time:5};
