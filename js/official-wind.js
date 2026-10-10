@@ -18,7 +18,7 @@ let officialWindHistoryData=null,officialWindHistoryPromise=null;
 const officialWindLabels=L.layerGroup();
 map.createPane('officialWindPane');map.getPane('officialWindPane').style.zIndex='625';
 let officialWindRenderKey='';
-if(typeof document!=='undefined'&&document.title)document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.120');
+if(typeof document!=='undefined'&&document.title)document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.125');
 function officialWindEnabled(){return $('officialWindSustained').checked||$('officialWindGusts').checked;}
 function officialWindNeeded(){return officialWindEnabled()||!!$('windHeatmapOn')?.checked;}
 function windFieldVisible(){return !!($('windOn')?.checked||$('windHeatmapOn')?.checked);}
@@ -90,8 +90,17 @@ async function loadOfficialWindHistory(){
   })();
   try{return await officialWindHistoryPromise;}finally{officialWindHistoryPromise=null;}
 }
+function officialWindHistoryStation(s){
+  return officialWindHistoryData?.stations?.find(item=>item.country===s.country&&item.code===s.code)||null;
+}
+function officialWindHistoryPanel(s,endUnix){
+  if(!officialWindHistoryData)return '<div class="wind-popup-meta" style="padding:10px 0 2px">Loading 24 h measured history…</div>';
+  const station=officialWindHistoryStation(s);
+  return station?officialWindHistoryGraph(station,endUnix):'<div class="wind-popup-meta" style="padding:10px 0 2px">24 h measured history is unavailable for this station.</div>';
+}
 async function loadOfficialWindPopupHistory(root,s,endUnix){
   const panel=root?.querySelector?.('.official-wind-history');if(!panel)return;
+  if(officialWindHistoryData){panel.innerHTML=officialWindHistoryPanel(s,endUnix);requestAnimationFrame(()=>map._popup?.update?.());return;}
   panel.innerHTML='<div class="wind-popup-meta" style="padding:10px 0 2px">Loading 24 h measured history…</div>';
   try{
     const data=await loadOfficialWindHistory(),station=data.stations.find(item=>item.country===s.country&&item.code===s.code);
@@ -102,12 +111,12 @@ async function loadOfficialWindPopupHistory(root,s,endUnix){
 function officialWindPopup(s,r){
   const source=officialWindData.sources[s.country],value=n=>n===null?'Unavailable':(globalThis.WeatherUnits?.windValue(n)??n).toFixed(1)+' <span>'+(globalThis.WeatherUnits?.windUnit()??'m/s')+'</span>';
   const direction=r[3]===null?'':`<div class="wind-popup-meta">Wind from ${Math.round(r[3])}°</div>`,old=officialWindTime()-r[0]>90*60;
-  const gustLabel=OFFICIAL_WIND_GUST_LABELS[s.country]||'Wind gusts',sourceLink=s.code.startsWith('NDBC-')?'https://www.ndbc.noaa.gov/':OFFICIAL_WIND_SOURCE_LINKS[s.country];
+  const gustLabel=OFFICIAL_WIND_GUST_LABELS[s.country]||'Wind gusts',sourceLink=s.code.startsWith('NDBC-')?'https://www.ndbc.noaa.gov/':OFFICIAL_WIND_SOURCE_LINKS[s.country],history=officialWindHistoryPanel(s,r[0]);
   return `<div class="wind-popup official-wind-popup"><div class="wind-popup-heading">${htmlEscape(s.name)}</div><div class="wind-popup-meta">Official station · ${OFFICIAL_WIND_COUNTRY_NAMES[s.country]}</div>
     <div class="wind-popup-readings"><div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${value(r[1])}</div></div><div><div class="wind-popup-label">${htmlEscape(gustLabel)}</div><div class="wind-popup-speed">${value(r[2])}</div></div></div>
     ${direction}<div class="wind-popup-meta">${source.timeKind==='feed'?'Source feed timestamp':'Observed'}: ${htmlEscape(fmt(r[0]))}${old?' · delayed reading':''}</div>
     <div class="wind-popup-meta">${htmlEscape(source.period||'Reported station measurements.')} Updated every 10 minutes on this map.</div>
-    <div class="official-wind-history"><div class="wind-popup-meta" style="padding:10px 0 2px">Loading 24 h measured history…</div></div>
+    <div class="official-wind-history">${history}</div>
     <div class="wind-popup-meta" style="margin-top:7px"><a href="${sourceLink}" target="_blank" rel="noopener">${htmlEscape(source.name)}</a></div></div>`;
 }
 function renderOfficialWind(){
@@ -132,7 +141,15 @@ function renderOfficialWind(){
       const title=s.name+' · '+(sustained&&r[1]!==null?'Sustained '+(globalThis.WeatherUnits?.wind(r[1],1)??r[1].toFixed(1)+' m/s')+' · ':'')+(gusts&&r[2]!==null?'Gust '+(globalThis.WeatherUnits?.wind(r[2],1)??r[2].toFixed(1)+' m/s')+' · ':'')+fmt(r[0])+(old?' · delayed':'');
       const marker=L.marker([s.lat,s.lon],{pane:'officialWindPane',title,keyboard:true,icon:L.divIcon({className:'official-wind-marker',iconSize:[width,24],iconAnchor:[width/2,12],popupAnchor:[0,-12],html:`<span class="official-wind-label${old?' official-wind-delayed':''}">${parts.join(' <span class="official-wind-separator">/</span> ')} <small>${globalThis.WeatherUnits?.windUnit()??'m/s'}</small>${old?' ◷':''}</span>`})})
         .bindPopup(officialWindPopup(s,r),{className:'official-wind-popup-container',maxWidth:360,autoPan:false,keepInView:false});
-      marker.on('popupopen',e=>{const root=e.popup.getElement();if(root){L.DomEvent.disableClickPropagation(root);L.DomEvent.disableScrollPropagation(root);loadOfficialWindPopupHistory(root,s,r[0]);}});marker.addTo(officialWindLabels);
+      marker.on('popupopen',e=>{
+        const attach=(attempt=0)=>{
+          const root=e.popup.getElement();
+          if(!root){if(attempt<4)setTimeout(()=>attach(attempt+1),0);return;}
+          L.DomEvent.disableClickPropagation(root);L.DomEvent.disableScrollPropagation(root);
+          loadOfficialWindPopupHistory(root,s,r[0]);
+        };
+        requestAnimationFrame(()=>attach());
+      });marker.addTo(officialWindLabels);
     }
     if(!map.hasLayer(officialWindLabels))officialWindLabels.addTo(map);officialWindRenderKey=key;
   }
@@ -145,7 +162,11 @@ function renderOfficialWind(){
 }
 async function loadOfficialWind(force=false){
   if(!officialWindNeeded())return;if(officialWindPromise)return officialWindPromise;
-  if(!force&&Date.now()-officialWindLoadedAt<OFFICIAL_WIND_CHECK_MS){renderOfficialWind();if($('windHeatmapOn')?.checked)windHeatmapLayer?.scheduleReset();return;}
+  if(!force&&Date.now()-officialWindLoadedAt<OFFICIAL_WIND_CHECK_MS){
+    renderOfficialWind();if($('windHeatmapOn')?.checked)windHeatmapLayer?.scheduleReset();
+    if(!officialWindHistoryData&&!officialWindHistoryPromise)loadOfficialWindHistory().catch(error=>console.warn('Official wind history preload failed',error.message));
+    return;
+  }
   if(Date.now()<officialWindRetryAt){renderOfficialWind();return;}officialWindRetryAt=Date.now()+60000;
   officialWindPromise=(async()=>{
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
@@ -153,6 +174,7 @@ async function loadOfficialWind(force=false){
       const r=await fetch('data/official-wind.json',{cache:'no-cache',signal:controller.signal});if(!r.ok)throw new Error('HTTP '+r.status);
       const next=validateOfficialWind(await r.json());if(officialWindHistoryData&&officialWindHistoryData.generatedAt<next.generatedAt-60)officialWindHistoryData=null;
       officialWindData=next;officialWindLoadedAt=Date.now();officialWindFailed=false;officialWindRenderKey='';if($('windHeatmapOn')?.checked)windHeatmapLayer?.scheduleReset();
+      loadOfficialWindHistory().catch(error=>console.warn('Official wind history preload failed',error.message));
     }catch(e){officialWindFailed=true;console.warn('Official station wind unavailable',e.message);}
     finally{clearTimeout(timer);renderOfficialWind();if($('windHeatmapOn')?.checked)windHeatmapLayer?.scheduleReset();}
   })();
