@@ -17,20 +17,25 @@ test('both Canadian coasts, central Canada and Arctic islands have source covera
   for(const [lat,lon] of [[49.3,-123.1],[51,-114],[60,-110],[45.5,-73.6],[63.75,-68.5],[82.5,-62.3]]){
     assert(h.run(`Object.values(cloudSourceWeights(${lat},${lon})).reduce((a,b)=>a+b,0)`)>.9,`${lat},${lon}`);
   }
-  assert(h.run('cloudSourceWeights(55,-130).west')>.99);
-  assert(h.run('cloudSourceWeights(55,-70).gibs')>.99);
+  assert(h.run('cloudSourceWeights(55,-130).noaa')>.99);
+  assert(h.run('cloudSourceWeights(55,-70).noaa')>.99);
   assert(h.run('cloudSourceWeights(82.5,-62.3).metop')>.99);
 });
-test('central Canadian handoff is complementary and leaves European sources unchanged',()=>{
+test('fast Canadian GOES handoff is complementary and leaves European sources unchanged',()=>{
   const h=harness();
-  const w=h.run('cloudSourceWeights(55,-107)');
-  assert(w.west>0&&w.gibs>0);assert(Math.abs(w.west+w.gibs-1)<1e-9);
+  const south=h.run('cloudSourceWeights(55,-107)');
+  assert(south.noaa>.99);assert.equal(south.gibs,0);assert.equal(south.west,0);
+  const transition=h.run('cloudSourceWeights(69,-107)');
+  assert(transition.noaa>0&&transition.metop>0);
+  assert(transition.gibs+transition.west>0);
+  assert(Math.abs(Object.values(transition).reduce((a,b)=>a+b,0)-1)<1e-9);
   assert.equal(h.run('cloudSourceWeights(57,25).eumet'),1);
   assert.equal(h.run('cloudSourceWeights(57,25).west'),0);
+  assert.equal(h.run('cloudSourceWeights(57,25).noaa'),0);
 });
 test('timeline keys change with GOES frames while a held polar composite reuses cache',()=>{
   const h=harness();
-  h.run(`for(const id of ['gibs','west']){const p=cloudProducts[id];p.times={[p.day]:[1000,1600],[p.night]:[1000,1600]};}
+  h.run(`for(const id of ['noaa','gibs','west']){const p=cloudProducts[id];p.times={[p.day]:[1000,1600],[p.night]:[1000,1600]};}
     cloudProducts.metop.times={'eps:m03_ir108':[900]};`);
   assert.notEqual(h.run('cloudTileKey({z:6,x:9,y:20},1200)'),h.run('cloudTileKey({z:6,x:9,y:20},1700)'));
   assert.equal(h.run('cloudTileKey({z:6,x:19,y:5},1200)'),h.run('cloudTileKey({z:6,x:19,y:5},1700)'));
@@ -61,13 +66,14 @@ test('West infrared uses the same thermal palette as East and polar IR is daylig
   assert.equal(h.run('cloudExtractPixel(source,0,0,75,0).alpha'),h.run('cloudExtractPixel(source,0,0,75,-180).alpha'));
 });
 
-test('southern Canada and neighbouring US use the same GOES products across the former seam',()=>{
+test('USA and most of Canada share the fast GOES mosaic across the former border seam',()=>{
   const h=harness();
   for(const lon of [-125,-105,-80,-65]){
-    for(const lat of [40,43,45,48,49,49.7,50.3,52]){
+    for(const lat of [40,43,45,48,49,49.7,50.3,52,55,60,64]){
       const w=h.run(`cloudSourceWeights(${lat},${lon})`);
-      assert.equal(w.noaa,0);
-      assert(Math.abs(w.gibs+w.west-1)<1e-9,`${lat},${lon}`);
+      assert(w.noaa>.99,`${lat},${lon} should use NOAA GOES East/West`);
+      assert.equal(w.gibs,0);assert.equal(w.west,0);
     }
   }
+  assert(h.run('cloudSourceWeights(47.56,-52.71).noaa')>.99,'St. John’s should stay on fast GOES before the Atlantic handoff');
 });
