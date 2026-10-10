@@ -18,7 +18,7 @@ let officialWindHistoryData=null,officialWindHistoryPromise=null;
 const officialWindLabels=L.layerGroup();
 map.createPane('officialWindPane');map.getPane('officialWindPane').style.zIndex='625';
 let officialWindRenderKey='';
-if(typeof document!=='undefined'&&document.title)document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.126');
+if(typeof document!=='undefined'&&document.title)document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.127');
 function officialWindEnabled(){return $('officialWindSustained').checked||$('officialWindGusts').checked;}
 function officialWindNeeded(){return officialWindEnabled()||!!$('windHeatmapOn')?.checked;}
 function windFieldVisible(){return !!($('windOn')?.checked||$('windHeatmapOn')?.checked);}
@@ -26,11 +26,14 @@ function setOfficialWindMeasurement(mode){
   const gust=mode==='gust';$('officialWindSustained').checked=!gust;$('officialWindGusts').checked=gust;officialWindRenderKey='';
 }
 function syncOfficialWindToField(){if(!windFieldVisible()||!officialWindEnabled())return;setOfficialWindMeasurement($('windMode').value==='gust'?'gust':'sustained');renderOfficialWind();}
-function syncWindFieldToOfficial(id){
-  if(!windFieldVisible())return;const selected=$(id);if(!selected.checked)return;
-  const mode=id==='officialWindGusts'?'gust':'sustained';setOfficialWindMeasurement(mode);
-  if($('windMode').value!==mode){$('windMode').value=mode;$('windMode').dispatchEvent(new Event('change',{bubbles:true}));}
+function syncWindFieldToOfficial(){
+  // Measured controls never change the modeled field. If the field is visible
+  // and measurements remain enabled, keep the measured layer aligned to the
+  // field's selected sustained/gust mode instead.
+  if(!windFieldVisible()||!officialWindEnabled())return;
+  syncOfficialWindToField();
 }
+$('windMode')?.addEventListener('change',syncOfficialWindToField);
 function officialWindTime(){
   if(Number($('timeline').value)===Number($('timeline').max))return Math.floor(Date.now()/1000);
   return frames[Number($('timeline').value)]?.time||Math.floor(Date.now()/1000);
