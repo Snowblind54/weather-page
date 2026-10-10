@@ -76,11 +76,11 @@ function browser(failed=false,archived=false){
  const draws=[],calls=[],cache=new Map(),promises=new Map();
  const record={key:'4/8/4',time:100,paths:['data/cloud-tiles/abcdef-256.webp','data/cloud-tiles/abcdef-512.webp','data/cloud-tiles/abcdef-1024.webp'],times:[{id:'eumet',night:100,day:null}]};
  if(archived)record.archive={version:1,path:'data/cloud-tiles/pack-0123456789abcdef.bin'};
- const ctx={console,Date,Map,Set,Promise,URL,AbortController,setTimeout,clearTimeout,cloudSession:1,cloudControllers:new Set(),cloudProducts:{},cloudRequestedTime:100,
+ const ctx={console,Date,Map,Set,Promise,URL,AbortController,setTimeout,clearTimeout,frames:[{time:100}],cloudSession:1,cloudControllers:new Set(),cloudProducts:{},cloudRequestedTime:100,
   cloudEnsureMetadata:async()=>{},cloudGetTile:async()=>({processor:'native'}),cloudTileKey:()=> 'native',cloudVisibleTiles:()=>[],cloudTileResolution:()=>256,
   cloudTileCache:cache,cloudTilePromises:promises,CLOUD_TILE_CACHE_LIMIT:768,CLOUD_CACHE_BYTES:48*1024*1024,cloudCacheBytes:()=>cache.size*256*256*4,
   map:{on:()=>{}},$:()=>({addEventListener:()=>{},checked:true}),createImageBitmap:async()=>({width:1024,height:1024,close(){}}),
-  document:{title:'Northern Weather Map v8.133',createElement:()=>({width:0,height:0,getContext:()=>({drawImage:(...a)=>draws.push(a)})})},
+  document:{title:'Northern Weather Map v8.134',createElement:()=>({width:0,height:0,getContext:()=>({drawImage:(...a)=>draws.push(a)})})},
   validCloudArchive:()=>true,cloudArchiveBlob:async()=>{if(failed)throw Error('archive unavailable');calls.push('archive-block');return {};},
   fetch:async url=>{calls.push(url);return url.split('?')[0].endsWith('.json')?{ok:true,json:async()=>({version:1,records:[record]})}:{ok:!failed,blob:async()=>({})};}
  };
@@ -93,6 +93,17 @@ test('CDN images are cropped at zoom 6, reuse one download and preserve exact ob
  assert.equal(calls.filter(c=>c.endsWith('.webp')).length,1);
  assert.ok(draws.some(a=>a.length===9&&a[1]===256&&a[2]===512&&a[3]===256));
  const before=await ctx.cloudGetTile({z:6,x:33,y:18},90);assert.equal(before.processor,'native');
+});
+test('Latest uses the newest satellite block even when it is newer than the radar timeline time',async()=>{
+ const {ctx}=browser();
+ ctx.frames=[{time:80},{time:90}];
+ await ctx.cloudEnsureMetadata();
+ const latest=await ctx.cloudGetTile({z:6,x:33,y:18},90);
+ assert.equal(latest.processor,'cdn');
+ assert.equal(latest.times[0].night,100,'Latest should accept the newer satellite observation');
+ ctx.frames=[{time:80},{time:90},{time:110}];
+ const historical=await ctx.cloudGetTile({z:6,x:33,y:18},90);
+ assert.equal(historical.processor,'native','historical positions must never borrow a future satellite observation');
 });
 test('A missing CDN tile falls back without a self-referencing pending promise',async()=>{
  const {ctx,promises}=browser(true);await ctx.cloudEnsureMetadata();
