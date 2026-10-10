@@ -86,6 +86,10 @@ async function main(phase='all'){
  const previous=fs.existsSync(OUT)?JSON.parse(fs.readFileSync(OUT)):{};
  const plan=phasePlan(phase,previous,Math.floor(Date.now()/1000)),now=plan.now;
  const c=runtime();
+ // Prepared z2-z4 overview blocks use a single continuous full-disk GOES
+ // mosaic across North America. Close browser fallback may still use the fast
+ // CONUS mosaic, but it must never split one large prepared Canada/US block.
+ c.cloudPreparedFullDisk=true;
  // History uses the same source timestamps as the already published latest pass.
  const {products,errors}=phase==='history'?{products:previous.products,errors:[...(previous.errors||[])]}:await metadata(c,previous,now);
  Object.assign(vm.runInContext('cloudProducts',c),products);
@@ -114,13 +118,35 @@ async function main(phase='all'){
  async function worker(){
   while(cursor<tasks.length&&cursor<plan.limit&&Date.now()-started<12*60000){
    const t=tasks[cursor++];const local=runtime();
+   local.cloudPreparedFullDisk=true;
    Object.assign(vm.runInContext('cloudProducts',local),products);
    local.cloudImagePixels=c.cloudImagePixels;local.coords=t.coords;local.requested=t.time;
    const size=processingSize(t.coords);
    vm.runInContext(`cloudTileResolution=()=>${size};`,local);
    try{
     const ids=vm.runInContext('cloudTileSources(coords)',local);
-    const sources=await Promise.all(ids.map(id=>{local.sourceId=id;return vm.runInContext('cloudLoadSource(sourceId,coords,requested)',local);}));
+    const settled=await Promise.allSettled(ids.map(id=>{local.sourceId=id;return vm.runInContext('cloudLoadSource(sourceId,coords,requested)',local);}));
+    const sources=settled.filter(r=>r.status==='fulfilled').map(r=>r.value);
+    const failedIds=settled.flatMap((r,i)=>r.status==='rejected'?[ids[i]]:[]);
+    if(!sources.length)throw Error('All satellite sources failed: '+failedIds.join(','));
+    if(failedIds.length){
+      // One intermittent provider must not erase a whole 22.5-degree block.
+      // Renormalize the surviving overlapping satellites for this block only.
+      local.availableCloudSourceIds=new Set(sources.map(s=>s.id));
+      vm.runInContext(`
+        const cloudWeightsBeforePreparedFallback=cloudSourceWeights;
+        cloudSourceWeights=(lat,lon)=>{
+          const weights=cloudWeightsBeforePreparedFallback(lat,lon);let total=0;
+          for(const id of Object.keys(weights)){
+            if(!availableCloudSourceIds.has(id))weights[id]=0;
+            total+=weights[id]||0;
+          }
+          if(total>0)for(const id of Object.keys(weights))weights[id]=(weights[id]||0)/total;
+          return weights;
+        };
+      `,local);
+      errors.push(t.key+': recovered without '+failedIds.join(','));
+    }
     // Keep the smoothing neighbourhood tied to native browser pixels. z2/z3
     // process at 512px internally and are then downsampled to 256px, removing
     // coarse rectangular seams without increasing client download size.
@@ -139,7 +165,7 @@ async function main(phase='all'){
     const times=observations(sources);const actual=Math.max(...times.flatMap(s=>[s.day,s.night].filter(Number.isFinite)));
     records.push({...t,coords:undefined,time:actual,paths:names,times,bytes:amount,style:STYLE});bytes+=amount;prepared++;
     console.log('Prepared satellite block',t.key,new Date(actual*1000).toISOString(),amount);
-   }catch(e){errors.push(t.key+': '+e.message);}
+   }catch(e){const message=t.key+': '+e.message;errors.push(message);console.warn('Satellite block failed',message);}
   }
  }
  await Promise.all(Array.from({length:3},worker));
