@@ -13,7 +13,7 @@ const OFFICIAL_WIND_GUST_LABELS={
   DK:'Max 3-sec mean · 10 min',
   GL:'Max 3-sec mean · 10 min',
   CA:'Instantaneous wind max · 10 min',
-  US:'Reported gust · preceding 10 min',
+  US:'Measured gust',
   PL:'Gust max · 10 min'
 };
 const OFFICIAL_WIND_SOURCE_LINKS={
@@ -116,20 +116,20 @@ function officialWindHistoryGraph(s,endUnix){
   }
   const sustained=path(1),gust=path(2),timeLabel=t=>new Date(t*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   const mid=(start+end)/2;
-  return `<div style="margin-top:9px;border-top:1px solid rgba(255,255,255,.12);padding-top:9px">
-    <div class="wind-popup-meta" style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px"><strong style="color:#eaf7fb">Measured history · 24 h</strong><span>${rows.length} obs</span></div>
-    <div class="wind-popup-meta" style="display:flex;gap:12px;margin-bottom:3px"><span><i style="display:inline-block;width:12px;height:2px;background:#71d8ff;vertical-align:middle;margin-right:4px"></i>Sustained</span><span><i style="display:inline-block;width:12px;height:2px;background:#ffb45c;vertical-align:middle;margin-right:4px"></i>Gust</span></div>
+  return `<div style="margin-top:9px;border-top:1px solid #d7dfe5;padding-top:9px">
+    <div class="wind-popup-meta" style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px"><strong style="color:#17202b">Measured history · 24 h</strong><span>${rows.length} obs</span></div>
+    <div class="wind-popup-meta" style="display:flex;gap:12px;margin-bottom:3px"><span><i style="display:inline-block;width:12px;height:2px;background:#1689b5;vertical-align:middle;margin-right:4px"></i>Sustained</span><span><i style="display:inline-block;width:12px;height:2px;background:#d66b18;vertical-align:middle;margin-right:4px"></i>Gust</span></div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" height="154" role="img" aria-label="24 hour measured wind history for ${htmlEscape(s.name)}">
-      <g stroke="rgba(255,255,255,.13)" stroke-width="1">
+      <g stroke="#d9e0e5" stroke-width="1">
         <line x1="${L}" y1="${T}" x2="${W-R}" y2="${T}"/><line x1="${L}" y1="${T+plotH/2}" x2="${W-R}" y2="${T+plotH/2}"/><line x1="${L}" y1="${T+plotH}" x2="${W-R}" y2="${T+plotH}"/>
       </g>
-      <g fill="rgba(225,239,244,.72)" font-size="9" font-family="system-ui,sans-serif">
+      <g fill="#65727e" font-size="9" font-family="system-ui,sans-serif">
         <text x="${L-5}" y="${T+3}" text-anchor="end">${(globalThis.WeatherUnits?.windValue(yMax)??yMax).toFixed(0)}</text><text x="${L-5}" y="${T+plotH/2+3}" text-anchor="end">${(globalThis.WeatherUnits?.windValue((yMax/2))??(yMax/2)).toFixed(yMax<4?1:0)}</text><text x="${L-5}" y="${T+plotH+3}" text-anchor="end">0</text>
         <text x="${L}" y="${H-7}">${timeLabel(start)}</text><text x="${L+plotW/2}" y="${H-7}" text-anchor="middle">${timeLabel(mid)}</text><text x="${W-R}" y="${H-7}" text-anchor="end">${timeLabel(end)}</text>
         <text x="4" y="9">${globalThis.WeatherUnits?.windUnit()??'m/s'}</text>
       </g>
-      ${sustained?`<path d="${sustained}" fill="none" stroke="#71d8ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
-      ${gust?`<path d="${gust}" fill="none" stroke="#ffb45c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+      ${sustained?`<path d="${sustained}" fill="none" stroke="#1689b5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+      ${gust?`<path d="${gust}" fill="none" stroke="#d66b18" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
     </svg>
   </div>`;
 }
@@ -162,12 +162,13 @@ function officialWindPopup(s,r){
   const direction=r[3]===null?'':`<div class="wind-popup-meta">Wind from ${Math.round(r[3])}°</div>`;
   const old=officialWindTime()-r[0]>90*60;
   const gustLabel=OFFICIAL_WIND_GUST_LABELS[s.country]||'Wind gusts';
+  const sourceLink=s.code.startsWith('NDBC-')?'https://www.ndbc.noaa.gov/':OFFICIAL_WIND_SOURCE_LINKS[s.country];
   return `<div class="wind-popup official-wind-popup"><div class="wind-popup-heading">${htmlEscape(s.name)}</div><div class="wind-popup-meta">Official station · ${OFFICIAL_WIND_COUNTRY_NAMES[s.country]}</div>
     <div class="wind-popup-readings"><div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${value(r[1])}</div></div><div><div class="wind-popup-label">${htmlEscape(gustLabel)}</div><div class="wind-popup-speed">${value(r[2])}</div></div></div>
     ${direction}<div class="wind-popup-meta">${source.timeKind==='feed'?'Source feed timestamp':'Observed'}: ${htmlEscape(fmt(r[0]))}${old?' · delayed reading':''}</div>
     <div class="wind-popup-meta">${htmlEscape(source.period||'Reported station measurements.')} Updated every 10 minutes on this map.</div>
     ${officialWindHistoryGraph(s,r[0])}
-    <div class="wind-popup-meta" style="margin-top:7px"><a href="${OFFICIAL_WIND_SOURCE_LINKS[s.country]}" target="_blank" rel="noopener">${htmlEscape(source.name)}</a></div></div>`;
+    <div class="wind-popup-meta" style="margin-top:7px"><a href="${sourceLink}" target="_blank" rel="noopener">${htmlEscape(source.name)}</a></div></div>`;
 }
 function renderOfficialWind(){
   if(!officialWindEnabled()){
@@ -218,14 +219,3 @@ async function loadOfficialWind(force=false){
   })();
   try{await officialWindPromise;}finally{officialWindPromise=null;}
 }
-for(const id of ['officialWindSustained','officialWindGusts'])$(id).addEventListener('change',()=>{
-  syncWindFieldToOfficial(id);
-  renderOfficialWind();if(officialWindEnabled())loadOfficialWind();
-});
-$('windMode').addEventListener('change',syncOfficialWindToField);
-for(const id of ['windOn','windHeatmapOn'])$(id).addEventListener('change',()=>{
-  if($(id).checked)syncOfficialWindToField();
-});
-map.on('moveend zoomend',renderOfficialWind);
-setInterval(()=>{if(officialWindNeeded()&&!document.hidden)loadOfficialWind();},OFFICIAL_WIND_CHECK_MS);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&officialWindNeeded()){renderOfficialWind();loadOfficialWind();}});
