@@ -17,19 +17,19 @@ test('both Canadian coasts, central Canada and Arctic islands have source covera
   for(const [lat,lon] of [[49.3,-123.1],[51,-114],[60,-110],[45.5,-73.6],[63.75,-68.5],[82.5,-62.3]]){
     assert(h.run(`Object.values(cloudSourceWeights(${lat},${lon})).reduce((a,b)=>a+b,0)`)>.9,`${lat},${lon}`);
   }
-  for(const [lat,lon] of [[55,-130],[55,-70]]){
+  for(const [lat,lon] of [[55,-130],[55,-70],[43.65,-79.38],[49.9,-97.1]]){
     const w=h.run(`cloudSourceWeights(${lat},${lon})`);
-    assert(w.noaa>.99,`${lat},${lon} should use the fresh NOAA GOES mosaic`);
-    assert(w.gibs+w.west<.01,`${lat},${lon} should not use lagged full-disk imagery below the Arctic handoff`);
+    assert(w.noaa<.05,`${lat},${lon} must not use the CONUS-limited nowCOAST mosaic`);
+    assert(w.gibs+w.west>.9,`${lat},${lon} should use full-disk GOES imagery`);
   }
   assert(h.run('cloudSourceWeights(82.5,-62.3).metop')>.99);
 });
-test('Canadian GOES-to-Arctic handoff is complementary and leaves European sources unchanged',()=>{
+test('Canadian full-disk-to-Arctic handoff is complementary and leaves European sources unchanged',()=>{
   const h=harness();
   const south=h.run('cloudSourceWeights(55,-107)');
-  assert(south.noaa>.99);assert(south.gibs+south.west<.01);
+  assert(south.noaa<.05);assert(south.gibs+south.west>.9);
   const transition=h.run('cloudSourceWeights(69,-107)');
-  assert(transition.noaa>0);assert(transition.metop>0);
+  assert.equal(transition.noaa,0);assert(transition.metop>0);
   assert(transition.gibs+transition.west>0);
   assert(Math.abs(Object.values(transition).reduce((a,b)=>a+b,0)-1)<1e-9);
   assert.equal(h.run('cloudSourceWeights(57,25).eumet'),1);
@@ -69,18 +69,18 @@ test('West infrared uses the same thermal palette as East and polar IR is daylig
   assert.equal(h.run('cloudExtractPixel(source,0,0,75,0).alpha'),h.run('cloudExtractPixel(source,0,0,75,-180).alpha'));
 });
 
-test('USA and populated Canada share the fresh GOES mosaic across the border',()=>{
+test('CONUS keeps the fast mosaic while Canada, Alaska and Hawaii use full-disk GOES',()=>{
   const h=harness();
-  for(const lon of [-125,-105,-80,-65]){
-    for(const lat of [40,43,45,48,49,49.7,50.3,52,55,60,64]){
-      const w=h.run(`cloudSourceWeights(${lat},${lon})`);
-      assert(w.noaa>.95,`${lat},${lon} should use the fresh NOAA GOES mosaic`);
-      assert(w.gibs+w.west<.05,`${lat},${lon} should not switch source at the US/Canada border`);
-    }
+  for(const [lat,lon] of [[34,-118],[39,-101.5],[40.7,-74],[24.6,-81.5],[47.6,-122.3]]){
+    const w=h.run(`cloudSourceWeights(${lat},${lon})`);
+    assert(w.noaa>.95,`${lat},${lon} should use the fast CONUS GOES mosaic`);
   }
-  const stJohns=h.run('cloudSourceWeights(47.56,-52.71)');
-  assert(stJohns.noaa>.99,'St. John’s should stay on GOES before the Atlantic handoff');
+  for(const [lat,lon] of [[49.3,-123.1],[51.05,-114.1],[49.9,-97.1],[43.65,-79.38],[45.5,-73.6],[47.56,-52.71],[61.2,-149.9],[21.3,-157.8]]){
+    const w=h.run(`cloudSourceWeights(${lat},${lon})`);
+    assert(w.noaa<.05,`${lat},${lon} should not use nowCOAST outside its reliable footprint`);
+    assert(w.gibs+w.west>.85,`${lat},${lon} should retain full-disk GOES coverage`);
+  }
   const arctic=h.run('cloudSourceWeights(74,-107)');
-  assert.equal(arctic.noaa,0,'far northern Canada should leave the fast mosaic');
+  assert.equal(arctic.noaa,0,'far northern Canada should stay off the CONUS mosaic');
   assert(arctic.metop>.9,'far northern Canada should be primarily polar imagery');
 });
