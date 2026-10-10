@@ -5,9 +5,9 @@
   const enabled=id=>!!$(id)?.checked;
   function add(name,period,needed,run){jobs.push({name,period,needed,run,last:Date.now(),busy:false});}
 
-  // Measured wind must react immediately to its own controls. The shared
-  // snapshot is deliberately lightweight; the 24 h history remains lazy and
-  // is fetched only by the station popup in official-wind.js.
+  // Measured wind must react immediately to its own controls. The current
+  // snapshot stays lightweight, while the 24 h history is preloaded in
+  // parallel so station graphs are already in memory when a popup opens.
   function updateMeasuredWind(id){
     if(typeof syncWindFieldToOfficial==='function')syncWindFieldToOfficial(id);
     if(typeof renderOfficialWind==='function')renderOfficialWind();
@@ -69,6 +69,7 @@
   const baseOfficialWindNeeded=typeof officialWindNeeded==='function'?officialWindNeeded:null;
   const baseLoadWind=typeof loadWind==='function'?loadWind:null;
   const baseLoadOfficialWind=typeof loadOfficialWind==='function'?loadOfficialWind:null;
+  const baseLoadOfficialWindHistory=typeof loadOfficialWindHistory==='function'?loadOfficialWindHistory:null;
   const baseRenderWind=typeof renderWind==='function'?renderWind:null;
   const baseHeatmapReset=typeof WindHeatmapLayer!=='undefined'?WindHeatmapLayer.prototype.reset:null;
   const correctionCache=new Map();
@@ -207,7 +208,23 @@
   if(baseLoadOfficialWind){
     loadOfficialWind=async function(force=false){
       const before=officialWindData?.generatedAt||0;
+      // Start the 24 h snapshot immediately instead of waiting for a station click.
+      // If an older cached history returns first, verify it again after the
+      // current snapshot is known and refresh it if necessary.
+      let historyPrefetch=null;
+      if(baseLoadOfficialWindHistory){
+        historyPrefetch=Promise.resolve(baseLoadOfficialWindHistory()).catch(error=>{
+          console.warn('Measured wind history preload:',error.message);
+          return null;
+        });
+      }
       const result=await baseLoadOfficialWind(force);
+      if(historyPrefetch)await historyPrefetch;
+      if(baseLoadOfficialWindHistory&&officialWindData&&
+         (!officialWindHistoryData||officialWindHistoryData.generatedAt<officialWindData.generatedAt-60)){
+        try{await baseLoadOfficialWindHistory();}
+        catch(error){console.warn('Measured wind history refresh:',error.message);}
+      }
       const after=officialWindData?.generatedAt||0;
       if(after&&after!==before)refreshFieldFromObservations();
       return result;
@@ -216,7 +233,7 @@
 
   if(baseLoadWind){
     loadWind=async function(){
-      // Do not hold up the model field while the small station snapshot arrives.
+      // Do not hold up the model field while the station snapshots arrive.
       if(typeof loadOfficialWind==='function'&&officialWindNeeded()){
         Promise.resolve(loadOfficialWind(false)).catch(error=>console.warn('Wind observation blend:',error.message));
       }
@@ -276,6 +293,6 @@
   if(heatmapBadge)heatmapBadge.textContent='model + stations';
 
   if(typeof document!=='undefined'&&document.title){
-    document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.123');
+    document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.124');
   }
 })();
