@@ -1,7 +1,7 @@
 // Prefer centrally extracted cloud imagery; preserve direct-provider fallback.
 (() => {
  if(typeof document!=='undefined'&&typeof document.title==='string')
-  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.134');
+  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.135');
  const nativeMetadata=cloudEnsureMetadata,nativeTile=cloudGetTile,nativeKey=cloudTileKey;
  let manifest=null,checkedAt=0,pending=null;
  const images=new Map(),downloads=new Map();
@@ -20,14 +20,26 @@
    finally{checkedAt=Date.now();pending=null;}
   })();return pending;
  }
+ function latestTimelineTime(){
+  if(typeof frames==='undefined'||!Array.isArray(frames)||!frames.length)return null;
+  const value=Number(frames[frames.length-1]?.time);
+  return Number.isFinite(value)?value:null;
+ }
  function selection(coords,time){
   if(!manifest)return null;
   const z=Math.min(4,coords.z),factor=2**(coords.z-z);
   const key=`${z}/${Math.floor(coords.x/factor)}/${Math.floor(coords.y/factor)}`;
-  const r=manifest.records.filter(r=>r.key===key&&r.time<=time).sort((a,b)=>b.time-a.time)[0];
+  const candidates=manifest.records.filter(r=>r.key===key);
+  const latest=latestTimelineTime();
+  // The shared timeline is normally keyed to radar observations. At its Latest
+  // position the newest satellite scan can legitimately be several minutes
+  // newer than that radar timestamp. Use each tile's newest satellite record
+  // there, otherwise Canadian GOES blocks disappear in a checkerboard pattern.
+  // Historical positions remain strict and never borrow imagery from the future.
+  const eligible=Number.isFinite(latest)&&Math.abs(Number(time)-latest)<1
+    ?candidates:candidates.filter(r=>r.time<=time);
+  const r=eligible.sort((a,b)=>b.time-a.time)[0];
   if(!r)return null;
-  // Prefer the newest prepared observation at or before the selected time.
-  // A newer provider scan must not trigger expensive phone-side processing.
   const index=Math.min(r.paths.length-1,Math.max(0,coords.z-z));
   if(!/^data\/cloud-tiles\/[a-f0-9]+-(256|512|1024)\.webp$/.test(r.paths[index]))return null;
   if(r.archive&&(typeof validCloudArchive!=='function'||!validCloudArchive(r)))return null;
