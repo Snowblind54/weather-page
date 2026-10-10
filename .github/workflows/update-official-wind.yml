@@ -8,6 +8,7 @@ on:
     paths:
       - scripts/official_wind_americas.py
       - scripts/update_official_wind.py
+      - scripts/add_florida_coastal_wind.py
       - scripts/split_official_wind.py
       - scripts/publish_generated_data.sh
       - tests/test_official_wind.py
@@ -61,6 +62,8 @@ jobs:
         run: node --test tests/official-wind.test.cjs tests/test_wind_observation_blend.js
       - name: Fetch measured station wind
         run: python3 scripts/update_official_wind.py
+      - name: Add Florida NOAA coastal stations
+        run: python3 scripts/add_florida_coastal_wind.py
       - name: Split operational readings from 24 h history
         run: python3 scripts/split_official_wind.py
       - name: Save official wind snapshots
