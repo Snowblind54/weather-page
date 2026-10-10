@@ -1,0 +1,58 @@
+name: One-time cloud browser cache bump
+
+on:
+  push:
+    paths:
+      - '.github/workflows/one-time-cloud-cache-bump.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Align browser cloud bootstrap and bust cache
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              '<title>Northern Weather Map v8.128</title>',
+              '<title>Northern Weather Map v8.135</title>',
+          )
+          text = text.replace(
+              '<script src="js/cloud-prepared.js?v=archives-3"></script>',
+              '<script src="js/cloud-prepared.js?v=8.135"></script>',
+          )
+          anchor = '<script src="js/clouds.js?v=8.112"></script>\n'
+          bootstrap = (
+              anchor
+              + '<script src="js/cloud-eumet-cleanup.js?v=8.135"></script>\n'
+              + '<script src="js/cloud-arctic-source.js?v=8.135"></script>\n'
+              + '<script src="js/cloud-nordic-coverage.js?v=8.135"></script>\n'
+              + '<script>\n'
+              + "if(typeof installEumetCleanClouds==='function')installEumetCleanClouds();\n"
+              + "if(typeof installArcticCloudSource==='function')installArcticCloudSource();\n"
+              + "if(typeof installNordicCloudCoverage==='function')installNordicCloudCoverage();\n"
+              + '</script>\n'
+          )
+          if 'js/cloud-nordic-coverage.js?v=8.135' not in text:
+              if anchor not in text:
+                  raise SystemExit('cloud bootstrap anchor not found')
+              text = text.replace(anchor, bootstrap, 1)
+          if 'js/cloud-prepared.js?v=8.135' not in text:
+              raise SystemExit('cloud-prepared cache bump failed')
+          path.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Bust browser cache for Canada cloud fix'
+          git push
