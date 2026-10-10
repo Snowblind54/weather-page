@@ -1,7 +1,7 @@
 // Prefer centrally extracted cloud imagery; preserve direct-provider fallback.
 (() => {
  if(typeof document!=='undefined'&&typeof document.title==='string')
-  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.132');
+  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.133');
  const nativeMetadata=cloudEnsureMetadata,nativeTile=cloudGetTile,nativeKey=cloudTileKey;
  let manifest=null,checkedAt=0,pending=null;
  const images=new Map(),downloads=new Map();
