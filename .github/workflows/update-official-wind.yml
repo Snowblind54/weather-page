@@ -8,6 +8,7 @@ on:
     paths:
       - scripts/official_wind_americas.py
       - scripts/update_official_wind.py
+      - scripts/split_official_wind.py
       - scripts/publish_generated_data.sh
       - tests/test_official_wind.py
       - tests/official-wind.test.cjs
@@ -44,16 +45,24 @@ jobs:
         with:
           path: |
             data/official-wind.json
+            data/official-wind-history.json
           key: r2-input-${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: r2-input-${{ github.workflow }}-
       - name: Restore verified last successful R2 data
-        run: python3 scripts/hydrate_r2_data.py data/official-wind.json
+        run: python3 scripts/hydrate_r2_data.py data/official-wind.json data/official-wind-history.json --allow-empty
+      - name: Restore full history for the updater merge
+        run: |
+          if [[ -f data/official-wind-history.json ]]; then
+            cp data/official-wind-history.json data/official-wind.json
+          fi
       - name: Check official wind adapters
         run: python3 -m unittest discover -s tests -p test_official_wind.py -v
       - name: Check measured wind labels
         run: node --test tests/official-wind.test.cjs tests/test_wind_observation_blend.js
       - name: Fetch measured station wind
         run: python3 scripts/update_official_wind.py
-      - name: Save official wind snapshot
+      - name: Split operational readings from 24 h history
+        run: python3 scripts/split_official_wind.py
+      - name: Save official wind snapshots
         if: ${{ !cancelled() }}
-        run: bash scripts/publish_generated_data.sh 'Refresh official Northern Europe wind observations' data/official-wind.json
+        run: bash scripts/publish_generated_data.sh 'Refresh official Northern Europe wind observations' data/official-wind.json data/official-wind-history.json
