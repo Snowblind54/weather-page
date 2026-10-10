@@ -69,6 +69,7 @@
   const baseOfficialWindNeeded=typeof officialWindNeeded==='function'?officialWindNeeded:null;
   const baseLoadWind=typeof loadWind==='function'?loadWind:null;
   const baseLoadOfficialWind=typeof loadOfficialWind==='function'?loadOfficialWind:null;
+  const baseRenderWind=typeof renderWind==='function'?renderWind:null;
   const baseHeatmapReset=typeof WindHeatmapLayer!=='undefined'?WindHeatmapLayer.prototype.reset:null;
   const correctionCache=new Map();
   let suppressIntegratedBlend=false;
@@ -223,6 +224,26 @@
     };
   }
 
+  if(baseRenderWind){
+    renderWind=function(unix){
+      const visible=baseRenderWind.apply(this,arguments);
+      if(!visible)return visible;
+      const slice=windTimeSlice(unix),mode=currentWindMode();
+      if(!slice)return visible;
+      const count=correctionsFor(unix,slice,mode).corrections.length;
+      if(count){
+        const status=$('windStatus');
+        if(mode==='gust')status.textContent=status.textContent.replace(
+          '10 m model gust estimates',`10 m gust field · model + ${count} fresh official readings`
+        );
+        else status.textContent=status.textContent.replace(
+          '10 m model sustained wind',`10 m sustained wind · model + ${count} fresh official readings`
+        );
+      }
+      return visible;
+    };
+  }
+
   if(typeof windPopupContent==='function'){
     const baseWindPopupContent=windPopupContent;
     windPopupContent=function(point,unix){
@@ -245,7 +266,16 @@
     };
   }
 
+  const sourceCard=$('windSection-sources');
+  if(sourceCard){
+    sourceCard.innerHTML=sourceCard.innerHTML
+      .replace('NOAA/NWS Aviation Weather Center for Florida airport stations.','NOAA/NWS Aviation Weather Center plus NOAA/NDBC for Florida airport and coastal stations.')
+      .replace('The particle animation remains model-only.','The particle animation and wind heatmap are locally corrected toward fresh official station observations for sustained wind and gusts.');
+  }
+  const heatmapBadge=$('windHeatmapOn')?.closest('.row')?.querySelector('.badge');
+  if(heatmapBadge)heatmapBadge.textContent='model + stations';
+
   if(typeof document!=='undefined'&&document.title){
-    document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.122');
+    document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.123');
   }
 })();
