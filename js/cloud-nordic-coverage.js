@@ -1,5 +1,6 @@
 // Keep cloud extraction complete north of the legacy MSG cloud-mask footprint.
-// Use NOAA's faster GOES mosaic across the USA, then hand off to full-disk GOES farther north.
+// Use NOAA's fast GOES-19 / GOES-18 mosaic across the USA and most of Canada,
+// then hand off smoothly to full-disk GOES and polar imagery in the far Arctic.
 (function(root){
   function installNordicCloudCoverage(){
     let changed=false;
@@ -10,21 +11,26 @@
         const weights=baseWeights(lat,lon);
 
         // The original cloud envelope started at 25N, which clipped the
-        // Florida Keys and Hawaii. Rebuild the source blend from 18N northward
-        // while keeping the same Meteosat handoff east of the Atlantic.
+        // Florida Keys and Hawaii. Rebuild the North American blend from 18N
+        // northward. NOAA nowCOAST's GOES East/West mosaic is the fast primary
+        // source across the USA and most of Canada; only the high Arctic fades
+        // back to the full-disk GOES views where the polar supplement takes over.
         if(lat>=18 && lat<=85 && lon>=-170 && lon<=-32){
-          const east=smoothstep(-56,-51,lon);
+          // Keep Newfoundland and Labrador on GOES before handing the North
+          // Atlantic to Meteosat farther east.
+          const east=smoothstep(-50,-44,lon);
           const limb=(satLon)=>smoothstep(.151,.22,
             Math.cos(lat*Math.PI/180)*Math.cos((lon-satLon)*Math.PI/180));
-          // nowCOAST's GOES East/West mosaic is the fast primary source across
-          // the USA. Fade it out across the border, then use the same full-disk
-          // GOES-West / GOES-East blend that continues through Canada.
-          const usa=1-smoothstep(49.3,51.2,lat);
+          // Fast five-minute NOAA mosaic remains primary through populated and
+          // central Canada. Fade it out only from 66N to 72N, where geostationary
+          // viewing becomes shallow and Metop-C becomes increasingly useful.
+          const fastNorth=1-smoothstep(66,72,lat);
           const western=1-smoothstep(-108,-95,lon);
+          const fullDisk=(1-east)*(1-fastNorth);
           weights.eumet=east*limb(0);
-          weights.noaa=(1-east)*usa;
-          weights.gibs=(1-east)*(1-usa)*(1-western)*limb(-75);
-          weights.west=(1-east)*(1-usa)*western*limb(-137);
+          weights.noaa=(1-east)*fastNorth;
+          weights.gibs=fullDisk*(1-western)*limb(-75);
+          weights.west=fullDisk*western*limb(-137);
         }
         weights.metop=0;
 
@@ -44,8 +50,10 @@
           weights.metop=polar;
           if(Number.isFinite(weights.eumet))weights.eumet*=1-polar;
         }
-        // Canada and western Greenland: complement both GOES views at their
-        // high-latitude limb. The same rule runs in the worker and page.
+        // Canada and western Greenland: complement the fast GOES mosaic and
+        // both full-disk GOES views with Metop-C at their high-latitude limb.
+        // Multiplying every geostationary contribution by (1-polar) keeps the
+        // total blend complementary instead of making Arctic clouds too milky.
         if(metopReady && lat>=64 && lat<=85 && lon>=-170 && lon<=-32){
           const polar=smoothstep(64,73,lat)*smoothstep(-170,-155,lon)*
             (1-smoothstep(-40,-32,lon));
@@ -93,12 +101,26 @@
       changed=true;
     }
 
+    // The underlying NOAA product is a GOES-19 / GOES-18 mosaic, not a US-only
+    // satellite. Keep the live status wording accurate when that source is used
+    // over Canada as well.
+    if(typeof cloudTimeDescription==='function' && !cloudTimeDescription._canadaFastGoes){
+      const baseTimeDescription=cloudTimeDescription;
+      const wrapped=function(results){
+        return baseTimeDescription(results).replace(/GOES US/g,'GOES East/West');
+      };
+      wrapped._canadaFastGoes=true;
+      cloudTimeDescription=wrapped;
+    }
+
     // Keep the visible version and source description in step with the map.
     if(typeof document!=='undefined'){
-      if(/Northern Weather Map v8\.(128|129)\b/.test(document.title||''))
-        document.title=document.title.replace(/v8\.(128|129)/,'v8.130');
+      if(/Northern Weather Map v8\.(128|129|130)\b/.test(document.title||''))
+        document.title=document.title.replace(/v8\.(128|129|130)/,'v8.131');
+      const intro=document.querySelector?.('#cloudSection-sources p');
+      if(intro)intro.textContent='EUMETSAT Meteosat GeoColour / FCI IR10.5 and cloud mask; NOAA nowCOAST GOES-19 / GOES-18 visible and longwave infrared mosaic over the USA and most of Canada; NASA GIBS full-disk GOES-East / GOES-West for the high-Arctic handoff; EUMETSAT Metop-C AVHRR IR10.8 over the Arctic. Local daylight selects visible imagery; darkness selects infrared. Actual source observation times appear in the layer status.';
       const info=document.querySelector?.('#cloudSection-sources .small');
-      if(info)info.textContent='Transparent satellite clouds across the USA, Canada, Greenland, the Atlantic and Europe (170°W–42°E, 18–85°N). NOAA nowCOAST\'s frequently updated GOES East/West mosaic is primary across the USA, including Hawaii and Florida. Around the Canadian border it fades smoothly into NASA GIBS full-disk GOES-West / GOES-East imagery, which continues north through Canada; Metop-C fills the far northern viewing gap and Meteosat covers the Atlantic and Europe. Visible imagery is used in local daylight and infrared at night. The prepared cloud system still publishes the same shared R2 tiles and two-hour timeline, and actual observation times appear below. Missing imagery remains transparent. Snow, ice and warm low cloud can be difficult to separate in this visual cloud overlay.';
+      if(info)info.textContent='Transparent satellite clouds across the USA, Canada, Greenland, the Atlantic and Europe (170°W–42°E, 18–85°N). NOAA nowCOAST’s frequently updated GOES-19 / GOES-18 mosaic is primary from the USA through most of Canada, including British Columbia, the Prairies, Ontario, Quebec, Atlantic Canada, Hawaii and Florida. From about 66–72°N it fades smoothly into NASA GIBS full-disk GOES-West / GOES-East while Metop-C increasingly fills the shallow geostationary viewing angle; Meteosat covers the North Atlantic and Europe. Visible imagery is used in local daylight and infrared at night. The prepared cloud system still publishes the same shared R2 tiles and two-hour timeline, and actual observation times appear below. Missing imagery remains transparent. Snow, ice and warm low cloud can be difficult to separate in this visual cloud overlay.';
       const canada=document.getElementById?.('cloudCanadaView');
       if(canada && !document.getElementById('cloudUsView')){
         const usa=document.createElement('button');usa.id='cloudUsView';usa.type='button';usa.textContent='View USA';
