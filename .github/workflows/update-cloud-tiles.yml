@@ -1,7 +1,11 @@
 name: Prepare satellite cloud tiles
 on:
   schedule:
-    - cron: '9,19,29,39,49,59 * * * *'
+    # Keep newest clouds on a 10-minute cadence, but only do the expensive
+    # two-hour history backfill on every other scheduled run so the queue
+    # cannot drift progressively behind real time.
+    - cron: '9,29,49 * * * *'
+    - cron: '19,39,59 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -11,6 +15,7 @@ on:
       - scripts/migrate_cloud_archives.cjs
       - scripts/check_cloud_archives.py
       - tests/cloud-archive.test.cjs
+      - tests/cloud-prepared.test.cjs
       - scripts/cloud-tiles/**
       - js/cloud-pixels.js
       - js/cloud-arctic-source.js
@@ -64,8 +69,10 @@ jobs:
       - name: Publish newest satellite frames immediately
         run: bash scripts/publish_generated_data.sh 'Refresh newest satellite clouds' data/cloud-tiles.json data/cloud-tiles
       - name: Backfill satellite history after newest frames are available
+        if: github.event_name != 'schedule' || github.event.schedule == '19,39,59 * * * *'
         run: node scripts/update_cloud_tiles.cjs --history
       - name: Publish completed satellite history
+        if: github.event_name != 'schedule' || github.event.schedule == '19,39,59 * * * *'
         run: bash scripts/publish_generated_data.sh 'Refresh satellite cloud history' data/cloud-tiles.json data/cloud-tiles
       - name: Verify browser access and partial satellite downloads after migration
         if: github.event_name == 'push'

@@ -1,5 +1,5 @@
 // Keep cloud extraction complete north of the legacy MSG cloud-mask footprint.
-// Also extend the shared GOES-East/West blend across the full US latitude range.
+// Use NOAA's faster GOES mosaic across the USA, then hand off to full-disk GOES farther north.
 (function(root){
   function installNordicCloudCoverage(){
     let changed=false;
@@ -10,19 +10,21 @@
         const weights=baseWeights(lat,lon);
 
         // The original cloud envelope started at 25N, which clipped the
-        // Florida Keys and Hawaii. Rebuild the GOES part from 18N northward
+        // Florida Keys and Hawaii. Rebuild the source blend from 18N northward
         // while keeping the same Meteosat handoff east of the Atlantic.
         if(lat>=18 && lat<=85 && lon>=-170 && lon<=-32){
           const east=smoothstep(-56,-51,lon);
           const limb=(satLon)=>smoothstep(.151,.22,
             Math.cos(lat*Math.PI/180)*Math.cos((lon-satLon)*Math.PI/180));
-          // GOES-West is primary west of 108W, GOES-East east of 95W, with a
-          // broad complementary blend between them to avoid a visible seam.
+          // nowCOAST's GOES East/West mosaic is the fast primary source across
+          // the USA. Fade it out across the border, then use the same full-disk
+          // GOES-West / GOES-East blend that continues through Canada.
+          const usa=1-smoothstep(49.3,51.2,lat);
           const western=1-smoothstep(-108,-95,lon);
           weights.eumet=east*limb(0);
-          weights.gibs=(1-east)*(1-western)*limb(-75);
-          weights.west=(1-east)*western*limb(-137);
-          weights.noaa=0;
+          weights.noaa=(1-east)*usa;
+          weights.gibs=(1-east)*(1-usa)*(1-western)*limb(-75);
+          weights.west=(1-east)*(1-usa)*western*limb(-137);
         }
         weights.metop=0;
 
@@ -93,10 +95,10 @@
 
     // Keep the visible version and source description in step with the map.
     if(typeof document!=='undefined'){
-      if(/Northern Weather Map v8\.128\b/.test(document.title||''))
-        document.title=document.title.replace('v8.128','v8.129');
+      if(/Northern Weather Map v8\.(128|129)\b/.test(document.title||''))
+        document.title=document.title.replace(/v8\.(128|129)/,'v8.130');
       const info=document.querySelector?.('#cloudSection-sources .small');
-      if(info)info.textContent='Transparent satellite clouds across the USA, Canada, Greenland, the Atlantic and Europe (170°W–42°E, 18–85°N). GOES-18 / GOES-West is primary over the western USA and GOES-19 / GOES-East over the eastern USA, with a smooth blend across the central states. The same full-disk GOES products continue north through Canada; Metop-C fills the far northern viewing gap. GeoColour / visible imagery is used in local daylight and infrared at night. Only visible tiles load. Wide views use lighter tiles; zoom 5 and closer keep full cloud detail. The timeline selects available images at or before the selected time and actual observation times appear below. Missing imagery remains transparent. Snow, ice and warm low cloud can be difficult to separate in this visual cloud overlay.';
+      if(info)info.textContent='Transparent satellite clouds across the USA, Canada, Greenland, the Atlantic and Europe (170°W–42°E, 18–85°N). NOAA nowCOAST\'s frequently updated GOES East/West mosaic is primary across the USA, including Hawaii and Florida. Around the Canadian border it fades smoothly into NASA GIBS full-disk GOES-West / GOES-East imagery, which continues north through Canada; Metop-C fills the far northern viewing gap and Meteosat covers the Atlantic and Europe. Visible imagery is used in local daylight and infrared at night. The prepared cloud system still publishes the same shared R2 tiles and two-hour timeline, and actual observation times appear below. Missing imagery remains transparent. Snow, ice and warm low cloud can be difficult to separate in this visual cloud overlay.';
       const canada=document.getElementById?.('cloudCanadaView');
       if(canada && !document.getElementById('cloudUsView')){
         const usa=document.createElement('button');usa.id='cloudUsView';usa.type='button';usa.textContent='View USA';

@@ -23,14 +23,14 @@ function runtime(){
 }
 async function download(url){
  const u=new URL(url);
- if(u.protocol!=='https:'||!['view.eumetsat.int','gibs.earthdata.nasa.gov'].includes(u.hostname))throw Error('Unapproved satellite host');
+ if(u.protocol!=='https:'||!['view.eumetsat.int','gibs.earthdata.nasa.gov','nowcoast.noaa.gov'].includes(u.hostname))throw Error('Unapproved satellite host');
  // Do not follow redirects to unapproved hosts. WMS errors are rejected by image decoding.
  const {stdout}=await run('curl',['--fail','--silent','--show-error','--max-time','30',url],{encoding:'buffer',maxBuffer:64*1024*1024});
  return stdout;
 }
 async function metadata(c,previous,now){
  const products=vm.runInContext('cloudProducts',c),errors=[];
- for(const endpoint of [...new Set(['eumet','gibs','west','metop'].map(id=>products[id].endpoint))]){
+ for(const endpoint of [...new Set(['eumet','noaa','gibs','west','metop'].map(id=>products[id].endpoint))]){
   try{
    const xml=await download(endpoint+'?service=WMS&request=GetCapabilities&version=1.3.0&freshness='+Math.floor(now/120));
    const parser=`import sys,json,xml.etree.ElementTree as E
@@ -46,7 +46,7 @@ print(json.dumps(out))`;
    const finished=new Promise((resolve,reject)=>{child.on('error',reject);child.on('close',n=>n?reject(Error(err)):resolve());});
    child.stdin.end(xml);await finished;const layers=JSON.parse(text);
    for(const [id,p] of Object.entries(products)){
-    if(p.endpoint!==endpoint||id==='noaa')continue;p.latest={};p.times={};
+    if(p.endpoint!==endpoint)continue;p.latest={};p.times={};
     for(const name of new Set([p.day,p.night])){
      const d=layers[name];if(!d)throw Error('Missing '+name);
      const latest=Date.parse(d.default)/1000;
@@ -143,7 +143,7 @@ async function main(phase='all'){
  if(!kept.length)throw Error('No successful satellite tiles; published data unchanged: '+errors.slice(0,5).join('; '));
  const uploadedArchives=packRecords(ROOT,DIR,kept);
  const activeBytes=archiveBytes(kept);if(activeBytes>MAX_BYTES)throw Error('Satellite archive budget reached');
- const result={version:1,generated_at:now,records:kept,products:Object.fromEntries(Object.entries(products).filter(([id])=>id!=='noaa')),errors:errors.slice(-100),metrics:{phase,prepared_blocks:prepared,archive_bytes:activeBytes,uploaded_archives:uploadedArchives,processing_seconds:Math.round((Date.now()-started)/1000)},retention_seconds:KEEP};
+ const result={version:1,generated_at:now,records:kept,products,errors:errors.slice(-100),metrics:{phase,prepared_blocks:prepared,archive_bytes:activeBytes,uploaded_archives:uploadedArchives,processing_seconds:Math.round((Date.now()-started)/1000)},retention_seconds:KEEP};
  fs.writeFileSync(OUT+'.tmp',JSON.stringify(result));fs.renameSync(OUT+'.tmp',OUT);
  const protectedPaths=new Set(kept.flatMap(r=>r.archive?[r.archive.path]:r.paths).map(p=>path.basename(p)));
  for(const name of fs.readdirSync(DIR))if(!protectedPaths.has(name))fs.unlinkSync(path.join(DIR,name));

@@ -8,15 +8,23 @@ test('Coverage includes Europe, Canada, Greenland and the full USA cloud envelop
   assert.ok(rows.some(r=>r.z===z&&r.x===x&&r.y===y),`missing prepared coverage near ${lat},${lon}`);
  }
 });
-test('GOES-West and GOES-East hand off smoothly across the USA',()=>{
+test('NOAA nowCOAST owns the USA and full-disk GOES takes over into Canada',()=>{
  const c=producer.runtime();
  const weights=(lat,lon)=>{c.lat=lat;c.lon=lon;return vm.runInContext('cloudSourceWeights(lat,lon)',c);};
  const pacific=weights(39,-120),central=weights(39,-101.5),atlantic=weights(39,-80),hawaii=weights(21.3,-157.8),florida=weights(24.6,-81.5);
- assert.ok(pacific.west>.95 && pacific.gibs<.05,'GOES-West should own the western USA');
- assert.ok(central.west>.35 && central.gibs>.35,'central USA should blend both GOES views');
- assert.ok(atlantic.gibs>.95 && atlantic.west<.05,'GOES-East should own the eastern USA');
- assert.ok(hawaii.west>.9,'Hawaii should be inside GOES-West coverage');
- assert.ok(florida.gibs>.9,'southern Florida should be inside GOES-East coverage');
+ const canadaWest=weights(55,-120),canadaEast=weights(55,-80);
+ for(const [name,w] of Object.entries({pacific,central,atlantic,hawaii,florida})){
+  assert.ok(w.noaa>.95 && w.gibs<.05 && w.west<.05,`${name} should use the fast NOAA GOES mosaic`);
+ }
+ assert.ok(canadaWest.west>.9 && canadaWest.noaa<.05,'GOES-West should take over north of the western border');
+ assert.ok(canadaEast.gibs>.9 && canadaEast.noaa<.05,'GOES-East should take over north of the eastern border');
+});
+test('Prepared producer accepts NOAA nowCOAST and keeps its timestamps in the R2 manifest',()=>{
+ const source=fs.readFileSync('scripts/update_cloud_tiles.cjs','utf8');
+ assert.match(source,/nowcoast\.noaa\.gov/);
+ assert.match(source,/\['eumet','noaa','gibs','west','metop'\]/);
+ assert.doesNotMatch(source,/id==='noaa'/);
+ assert.match(source,/records:kept,products,errors:/);
 });
 test('Failed updates retain the last successful tile independently of other regions',()=>{
  const old={key:'4/8/4',time:10},newer={key:'4/8/4',time:100},polar={key:'4/1/0',time:5};
@@ -77,12 +85,15 @@ test('Newest frames publish separately; history keeps source times and the share
  assert.throws(()=>producer.phasePlan('history',{},14500),/completed newest-frame/);
  assert.equal(producer.phasePlan('history',{...snapshot,metrics:{phase:'latest',prepared_blocks:180}},14500).limit,0);
 });
-test('The workflow publishes latest archives before history and keeps both fallback publication calls',()=>{
+test('The workflow publishes latest archives first and prevents history from building a queue',()=>{
  const workflow=fs.readFileSync('.github/workflows/update-cloud-tiles.yml','utf8');
  const latest=workflow.indexOf('update_cloud_tiles.cjs --latest'),history=workflow.indexOf('update_cloud_tiles.cjs --history');
  const firstPublish=workflow.indexOf('bash scripts/publish_generated_data.sh',latest);
  const secondPublish=workflow.indexOf('bash scripts/publish_generated_data.sh',history);
  assert(latest<firstPublish&&firstPublish<history&&history<secondPublish);
+ assert.match(workflow,/cron: '9,29,49 \* \* \* \*'/);
+ assert.match(workflow,/cron: '19,39,59 \* \* \* \*'/);
+ assert.match(workflow,/github\.event\.schedule == '19,39,59 \* \* \* \*'/);
 });
 
 test('Latest and historical views prefer prepared blocks while the provider is ahead',async()=>{
