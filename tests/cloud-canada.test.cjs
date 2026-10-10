@@ -19,17 +19,17 @@ test('both Canadian coasts, central Canada and Arctic islands have source covera
   }
   for(const [lat,lon] of [[55,-130],[55,-70]]){
     const w=h.run(`cloudSourceWeights(${lat},${lon})`);
-    assert.equal(w.noaa,0);
-    assert(w.gibs+w.west>.99,`${lat},${lon} should use full-disk GOES`);
+    assert(w.noaa>.99,`${lat},${lon} should use the fresh NOAA GOES mosaic`);
+    assert(w.gibs+w.west<.01,`${lat},${lon} should not use lagged full-disk imagery below the Arctic handoff`);
   }
   assert(h.run('cloudSourceWeights(82.5,-62.3).metop')>.99);
 });
-test('full-disk Canadian GOES handoff is complementary and leaves European sources unchanged',()=>{
+test('Canadian GOES-to-Arctic handoff is complementary and leaves European sources unchanged',()=>{
   const h=harness();
   const south=h.run('cloudSourceWeights(55,-107)');
-  assert.equal(south.noaa,0);assert(south.gibs+south.west>.99);
+  assert(south.noaa>.99);assert(south.gibs+south.west<.01);
   const transition=h.run('cloudSourceWeights(69,-107)');
-  assert.equal(transition.noaa,0);assert(transition.metop>0);
+  assert(transition.noaa>0);assert(transition.metop>0);
   assert(transition.gibs+transition.west>0);
   assert(Math.abs(Object.values(transition).reduce((a,b)=>a+b,0)-1)<1e-9);
   assert.equal(h.run('cloudSourceWeights(57,25).eumet'),1);
@@ -69,16 +69,18 @@ test('West infrared uses the same thermal palette as East and polar IR is daylig
   assert.equal(h.run('cloudExtractPixel(source,0,0,75,0).alpha'),h.run('cloudExtractPixel(source,0,0,75,-180).alpha'));
 });
 
-test('USA and Canada share full-disk GOES across the former border seam',()=>{
+test('USA and populated Canada share the fresh GOES mosaic across the border',()=>{
   const h=harness();
   for(const lon of [-125,-105,-80,-65]){
     for(const lat of [40,43,45,48,49,49.7,50.3,52,55,60,64]){
       const w=h.run(`cloudSourceWeights(${lat},${lon})`);
-      assert.equal(w.noaa,0,`${lat},${lon} should not use the clipped nowCOAST mosaic`);
-      assert(w.gibs+w.west>.9,`${lat},${lon} should use full-disk GOES East/West`);
+      assert(w.noaa>.95,`${lat},${lon} should use the fresh NOAA GOES mosaic`);
+      assert(w.gibs+w.west<.05,`${lat},${lon} should not switch source at the US/Canada border`);
     }
   }
   const stJohns=h.run('cloudSourceWeights(47.56,-52.71)');
-  assert.equal(stJohns.noaa,0);
-  assert(stJohns.gibs+stJohns.west>.99,'St. John’s should stay on full-disk GOES before the Atlantic handoff');
+  assert(stJohns.noaa>.99,'St. John’s should stay on GOES before the Atlantic handoff');
+  const arctic=h.run('cloudSourceWeights(74,-107)');
+  assert.equal(arctic.noaa,0,'far northern Canada should leave the fast mosaic');
+  assert(arctic.metop>.9,'far northern Canada should be primarily polar imagery');
 });
