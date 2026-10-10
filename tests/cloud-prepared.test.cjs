@@ -8,15 +8,21 @@ test('Coverage includes Europe, Canada, Greenland and the full USA cloud envelop
   assert.ok(rows.some(r=>r.z===z&&r.x===x&&r.y===y),`missing prepared coverage near ${lat},${lon}`);
  }
 });
-test('Fresh GOES mosaic owns the USA and populated Canada before the Arctic handoff',()=>{
+test('CONUS uses the fast mosaic while Canada, Alaska and Hawaii use full-disk GOES',()=>{
  const c=producer.runtime();
  const weights=(lat,lon)=>{c.lat=lat;c.lon=lon;return vm.runInContext('cloudSourceWeights(lat,lon)',c);};
- const points={
+ const conus={
   california:weights(39,-120),
   centralUs:weights(39,-101.5),
   newYork:weights(40.7,-74),
+  florida:weights(24.6,-81.5)
+ };
+ for(const [name,w] of Object.entries(conus)){
+  assert.ok(w.noaa>.95,`${name} should use the fresh NOAA CONUS GOES mosaic`);
+ }
+ const fullDisk={
   hawaii:weights(21.3,-157.8),
-  florida:weights(24.6,-81.5),
+  anchorage:weights(61.2,-149.9),
   vancouver:weights(49.3,-123.1),
   calgary:weights(51.05,-114.1),
   winnipeg:weights(49.9,-97.1),
@@ -25,19 +31,19 @@ test('Fresh GOES mosaic owns the USA and populated Canada before the Arctic hand
   stJohns:weights(47.56,-52.71),
   yellowknife:weights(62.45,-114.37)
  };
- for(const [name,w] of Object.entries(points)){
-  assert.ok(w.noaa>.95,`${name} should use the fresh NOAA GOES mosaic`);
-  assert.ok(w.gibs+w.west<.05,`${name} should not use lagged GIBS below the Arctic handoff`);
+ for(const [name,w] of Object.entries(fullDisk)){
+  assert.ok(w.noaa<.05,`${name} should not use the CONUS-limited nowCOAST mosaic`);
+  assert.ok(w.gibs+w.west>.85,`${name} should use full-disk GOES imagery`);
  }
  const transition=weights(69,-107);
- assert.ok(transition.noaa>0,'central Canadian Arctic should still retain some fresh mosaic contribution');
+ assert.equal(transition.noaa,0,'central Canadian Arctic should stay off the CONUS mosaic');
  assert.ok(transition.metop>0,'central Canadian Arctic should blend with polar coverage');
- assert.ok(transition.gibs+transition.west>0,'full-disk GOES should enter the Arctic handoff');
+ assert.ok(transition.gibs+transition.west>0,'full-disk GOES should remain in the Arctic handoff');
  const arctic=weights(74,-107);
  assert.equal(arctic.noaa,0);
  assert.ok(arctic.metop>.9,'far northern Canada should hand off to polar coverage');
 });
-test('Prepared producer accepts NOAA nowCOAST plus high-Arctic GIBS and keeps source timestamps',()=>{
+test('Prepared producer accepts NOAA nowCOAST for CONUS plus full-disk GIBS and keeps source timestamps',()=>{
  const source=fs.readFileSync('scripts/update_cloud_tiles.cjs','utf8');
  const clouds=fs.readFileSync('js/clouds.js','utf8');
  assert.match(source,/nowcoast\.noaa\.gov/);
@@ -54,7 +60,7 @@ test('Overview blocks process at higher resolution without increasing their deli
  const source=fs.readFileSync('scripts/update_cloud_tiles.cjs','utf8');
  assert.match(source,/t\.coords\.z===4\?\[256,512,1024\]:\[256\]/);
 });
-test('A stale fast GOES feed is rejected instead of replacing a newer Canadian tile',()=>{
+test('A stale fast CONUS GOES feed is rejected without affecting full-disk sources',()=>{
  const now=10_000;
  assert.equal(producer.sourceFreshEnough('noaa',{latest:{day:now-600,night:now-300}},now),true);
  assert.equal(producer.sourceFreshEnough('noaa',{latest:{day:now-3600,night:now-3500}},now),false);
@@ -74,7 +80,7 @@ function browser(failed=false,archived=false){
   cloudEnsureMetadata:async()=>{},cloudGetTile:async()=>({processor:'native'}),cloudTileKey:()=> 'native',cloudVisibleTiles:()=>[],cloudTileResolution:()=>256,
   cloudTileCache:cache,cloudTilePromises:promises,CLOUD_TILE_CACHE_LIMIT:768,CLOUD_CACHE_BYTES:48*1024*1024,cloudCacheBytes:()=>cache.size*256*256*4,
   map:{on:()=>{}},$:()=>({addEventListener:()=>{},checked:true}),createImageBitmap:async()=>({width:1024,height:1024,close(){}}),
-  document:{title:'Northern Weather Map v8.132',createElement:()=>({width:0,height:0,getContext:()=>({drawImage:(...a)=>draws.push(a)})})},
+  document:{title:'Northern Weather Map v8.133',createElement:()=>({width:0,height:0,getContext:()=>({drawImage:(...a)=>draws.push(a)})})},
   validCloudArchive:()=>true,cloudArchiveBlob:async()=>{if(failed)throw Error('archive unavailable');calls.push('archive-block');return {};},
   fetch:async url=>{calls.push(url);return url.split('?')[0].endsWith('.json')?{ok:true,json:async()=>({version:1,records:[record]})}:{ok:!failed,blob:async()=>({})};}
  };
