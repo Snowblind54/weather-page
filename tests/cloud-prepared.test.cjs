@@ -8,7 +8,7 @@ test('Coverage includes Europe, Canada, Greenland and the full USA cloud envelop
   assert.ok(rows.some(r=>r.z===z&&r.x===x&&r.y===y),`missing prepared coverage near ${lat},${lon}`);
  }
 });
-test('Full-disk GOES owns the USA and Canada before the Arctic handoff',()=>{
+test('Fresh GOES mosaic owns the USA and populated Canada before the Arctic handoff',()=>{
  const c=producer.runtime();
  const weights=(lat,lon)=>{c.lat=lat;c.lon=lon;return vm.runInContext('cloudSourceWeights(lat,lon)',c);};
  const points={
@@ -26,25 +26,39 @@ test('Full-disk GOES owns the USA and Canada before the Arctic handoff',()=>{
   yellowknife:weights(62.45,-114.37)
  };
  for(const [name,w] of Object.entries(points)){
-  assert.equal(w.noaa,0,`${name} should not use the clipped nowCOAST mosaic`);
-  assert.ok(w.gibs+w.west>.95,`${name} should use full-disk GOES East/West`);
+  assert.ok(w.noaa>.95,`${name} should use the fresh NOAA GOES mosaic`);
+  assert.ok(w.gibs+w.west<.05,`${name} should not use lagged GIBS below the Arctic handoff`);
  }
  const transition=weights(69,-107);
- assert.equal(transition.noaa,0);
- assert.ok(transition.metop>0,'central Canadian Arctic should blend full-disk GOES with polar coverage');
- assert.ok(transition.gibs+transition.west>0,'full-disk GOES should remain in the Arctic handoff');
+ assert.ok(transition.noaa>0,'central Canadian Arctic should still retain some fresh mosaic contribution');
+ assert.ok(transition.metop>0,'central Canadian Arctic should blend with polar coverage');
+ assert.ok(transition.gibs+transition.west>0,'full-disk GOES should enter the Arctic handoff');
  const arctic=weights(74,-107);
  assert.equal(arctic.noaa,0);
- assert.ok(arctic.metop>.9,'far northern Canada should hand off from full-disk GOES to polar coverage');
+ assert.ok(arctic.metop>.9,'far northern Canada should hand off to polar coverage');
 });
-test('Prepared producer accepts NASA GIBS full-disk GOES and keeps source timestamps in the R2 manifest',()=>{
+test('Prepared producer accepts NOAA nowCOAST plus high-Arctic GIBS and keeps source timestamps',()=>{
  const source=fs.readFileSync('scripts/update_cloud_tiles.cjs','utf8');
  const clouds=fs.readFileSync('js/clouds.js','utf8');
+ assert.match(source,/nowcoast\.noaa\.gov/);
  assert.match(source,/gibs\.earthdata\.nasa\.gov/);
+ assert.match(clouds,/goes_visible_imagery/);
  assert.match(clouds,/GOES-East_ABI_GeoColor/);
  assert.match(clouds,/GOES-West_ABI_GeoColor/);
- assert.match(source,/\['eumet','noaa','gibs','west','metop'\]/);
  assert.match(source,/records:kept,products,errors:/);
+});
+test('Overview blocks process at higher resolution without increasing their delivered size',()=>{
+ assert.equal(producer.processingSize({z:2}),512);
+ assert.equal(producer.processingSize({z:3}),512);
+ assert.equal(producer.processingSize({z:4}),1024);
+ const source=fs.readFileSync('scripts/update_cloud_tiles.cjs','utf8');
+ assert.match(source,/t\.coords\.z===4\?\[256,512,1024\]:\[256\]/);
+});
+test('A stale fast GOES feed is rejected instead of replacing a newer Canadian tile',()=>{
+ const now=10_000;
+ assert.equal(producer.sourceFreshEnough('noaa',{latest:{day:now-600,night:now-300}},now),true);
+ assert.equal(producer.sourceFreshEnough('noaa',{latest:{day:now-3600,night:now-3500}},now),false);
+ assert.equal(producer.sourceFreshEnough('gibs',{latest:{day:0}},now),true);
 });
 test('Failed updates retain the last successful tile independently of other regions',()=>{
  const old={key:'4/8/4',time:10},newer={key:'4/8/4',time:100},polar={key:'4/1/0',time:5};
@@ -60,7 +74,7 @@ function browser(failed=false,archived=false){
   cloudEnsureMetadata:async()=>{},cloudGetTile:async()=>({processor:'native'}),cloudTileKey:()=> 'native',cloudVisibleTiles:()=>[],cloudTileResolution:()=>256,
   cloudTileCache:cache,cloudTilePromises:promises,CLOUD_TILE_CACHE_LIMIT:768,CLOUD_CACHE_BYTES:48*1024*1024,cloudCacheBytes:()=>cache.size*256*256*4,
   map:{on:()=>{}},$:()=>({addEventListener:()=>{},checked:true}),createImageBitmap:async()=>({width:1024,height:1024,close(){}}),
-  document:{createElement:()=>({width:0,height:0,getContext:()=>({drawImage:(...a)=>draws.push(a)})})},
+  document:{title:'Northern Weather Map v8.132',createElement:()=>({width:0,height:0,getContext:()=>({drawImage:(...a)=>draws.push(a)})})},
   validCloudArchive:()=>true,cloudArchiveBlob:async()=>{if(failed)throw Error('archive unavailable');calls.push('archive-block');return {};},
   fetch:async url=>{calls.push(url);return url.split('?')[0].endsWith('.json')?{ok:true,json:async()=>({version:1,records:[record]})}:{ok:!failed,blob:async()=>({})};}
  };
@@ -127,7 +141,6 @@ test('Latest and historical views prefer prepared blocks while the provider is a
 });
 test('Automatic refresh checks prepared delivery without provider discovery when coverage is complete',async()=>{
  const {ctx}=browser(false,true);let discoveries=0;
- // Reload with an instrumented native metadata function.
  ctx.cloudEnsureMetadata=async force=>{if(force)discoveries++;};
  ctx.cloudVisibleTiles=()=>[{coords:{z:6,x:33,y:18}}];
  vm.runInContext(fs.readFileSync('js/cloud-prepared.js','utf8'),ctx);

@@ -33,14 +33,7 @@ async function metadata(c,previous,now){
  for(const endpoint of [...new Set(['eumet','noaa','gibs','west','metop'].map(id=>products[id].endpoint))]){
   try{
    const xml=await download(endpoint+'?service=WMS&request=GetCapabilities&version=1.3.0&freshness='+Math.floor(now/120));
-   const parser=`import sys,json,xml.etree.ElementTree as E
-t=E.fromstring(sys.stdin.read());out={}
-for l in t.iter():
- if l.tag.split('}')[-1]!='Layer':continue
- name=next((n.text for n in l if n.tag.split('}')[-1]=='Name'),None)
- d=next((n for n in l if n.tag.split('}')[-1] in ['Dimension','Extent'] and n.get('name')=='time'),None)
- if name and d is not None:out[name]={'default':d.get('default'),'text':d.text or ''}
-print(json.dumps(out))`;
+   const parser=`import sys,json,xml.etree.ElementTree as E\nt=E.fromstring(sys.stdin.read());out={}\nfor l in t.iter():\n if l.tag.split('}')[-1]!='Layer':continue\n name=next((n.text for n in l if n.tag.split('}')[-1]=='Name'),None)\n d=next((n for n in l if n.tag.split('}')[-1] in ['Dimension','Extent'] and n.get('name')=='time'),None)\n if name and d is not None:out[name]={'default':d.get('default'),'text':d.text or ''}\nprint(json.dumps(out))`;
    const child=require('node:child_process').spawn('python3',['-c',parser]);let text='',err='';
    child.stdout.on('data',b=>text+=b);child.stderr.on('data',b=>err+=b);
    const finished=new Promise((resolve,reject)=>{child.on('error',reject);child.on('close',n=>n?reject(Error(err)):resolve());});
@@ -74,6 +67,12 @@ function retain(records,first){
  return records.filter(r=>r.time>=first||r===latest.get(r.key));
 }
 function observations(sources){return sources.map(s=>({id:s.id,day:s.day?s.dayTime:null,night:s.night?s.nightTime:null}));}
+function processingSize(coords){return coords.z===4?1024:512;}
+function sourceFreshEnough(id,product,now){
+ if(id!=='noaa')return true;
+ const latest=Math.max(...Object.values(product?.latest||{}).filter(Number.isFinite));
+ return Number.isFinite(latest)&&now-latest<=45*60;
+}
 function phasePlan(phase,previous,wallTime){
  if(!['all','latest','history'].includes(phase))throw Error('Unknown satellite phase: '+phase);
  const history=phase==='history';
@@ -96,6 +95,10 @@ async function main(phase='all'){
  for(const coords of coordinates(c)){
   c.coords=coords;const ids=vm.runInContext('cloudTileSources(coords)',c);
   if(ids.some(id=>!products[id]?.latest?.[products[id].day]))continue;
+  if(phase!=='history'){
+   const stale=ids.find(id=>!sourceFreshEnough(id,products[id],now));
+   if(stale){errors.push(`${coords.z}/${coords.x}/${coords.y}: ${stale} latest imagery is stale; retaining previous tile`);continue;}
+  }
   // Newest real observation first; backfill the two-hour timeline gradually.
   for(const time of plan.times){
    c.requested=time;let identity;
@@ -113,18 +116,19 @@ async function main(phase='all'){
    const t=tasks[cursor++];const local=runtime();
    Object.assign(vm.runInContext('cloudProducts',local),products);
    local.cloudImagePixels=c.cloudImagePixels;local.coords=t.coords;local.requested=t.time;
-   const size=t.coords.z===4?1024:256;
+   const size=processingSize(t.coords);
    vm.runInContext(`cloudTileResolution=()=>${size};`,local);
    try{
     const ids=vm.runInContext('cloudTileSources(coords)',local);
     const sources=await Promise.all(ids.map(id=>{local.sourceId=id;return vm.runInContext('cloudLoadSource(sourceId,coords,requested)',local);}));
-    // A four-tile block must use the same native-pixel neighbourhood as
-    // individual browser tiles, rather than four times broader smoothing.
+    // Keep the smoothing neighbourhood tied to native browser pixels. z2/z3
+    // process at 512px internally and are then downsampled to 256px, removing
+    // coarse rectangular seams without increasing client download size.
     sources.forEach(s=>{s.blockScale=size/256;});local.sources=sources;
     const pixels=vm.runInContext(`cloudProcessPixels(coords,sources,${size})`,local);
     const digest=require('node:crypto').createHash('sha256').update(t.identity).update(pixels).digest('hex').slice(0,16);
     const names=[],buffers=[];
-    for(const resolution of (size===1024?[256,512,1024]:[256])){
+    for(const resolution of (t.coords.z===4?[256,512,1024]:[256])){
      const name=`data/cloud-tiles/${digest}-${resolution}.webp`;
      buffers.push(await sharp(Buffer.from(pixels),{raw:{width:size,height:size,channels:4}}).resize(resolution,resolution).webp({quality:92,alphaQuality:100}).toBuffer());names.push(name);
     }
@@ -149,5 +153,5 @@ async function main(phase='all'){
  for(const name of fs.readdirSync(DIR))if(!protectedPaths.has(name))fs.unlinkSync(path.join(DIR,name));
  console.log(JSON.stringify(result.metrics));
 }
-module.exports={runtime,coordinates,retain,selectRecord,phasePlan};
+module.exports={runtime,coordinates,retain,selectRecord,processingSize,sourceFreshEnough,phasePlan};
 if(require.main===module)main(process.argv[2]?.replace(/^--/,'')||'all').catch(e=>{console.error(e.message);process.exitCode=1;});
