@@ -8,16 +8,31 @@ test('Coverage includes Europe, Canada, Greenland and the full USA cloud envelop
   assert.ok(rows.some(r=>r.z===z&&r.x===x&&r.y===y),`missing prepared coverage near ${lat},${lon}`);
  }
 });
-test('NOAA nowCOAST owns the USA and full-disk GOES takes over into Canada',()=>{
+test('NOAA nowCOAST owns the USA and most of Canada before the Arctic handoff',()=>{
  const c=producer.runtime();
  const weights=(lat,lon)=>{c.lat=lat;c.lon=lon;return vm.runInContext('cloudSourceWeights(lat,lon)',c);};
- const pacific=weights(39,-120),central=weights(39,-101.5),atlantic=weights(39,-80),hawaii=weights(21.3,-157.8),florida=weights(24.6,-81.5);
- const canadaWest=weights(55,-120),canadaEast=weights(55,-80);
- for(const [name,w] of Object.entries({pacific,central,atlantic,hawaii,florida})){
-  assert.ok(w.noaa>.95 && w.gibs<.05 && w.west<.05,`${name} should use the fast NOAA GOES mosaic`);
+ const points={
+  california:weights(39,-120),
+  centralUs:weights(39,-101.5),
+  newYork:weights(40.7,-74),
+  hawaii:weights(21.3,-157.8),
+  florida:weights(24.6,-81.5),
+  vancouver:weights(49.3,-123.1),
+  calgary:weights(51.05,-114.1),
+  winnipeg:weights(49.9,-97.1),
+  toronto:weights(43.65,-79.38),
+  montreal:weights(45.5,-73.6),
+  stJohns:weights(47.56,-52.71),
+  yellowknife:weights(62.45,-114.37)
+ };
+ for(const [name,w] of Object.entries(points)){
+  assert.ok(w.noaa>.95 && w.gibs<.05 && w.west<.05,`${name} should use the fast NOAA GOES East/West mosaic`);
  }
- assert.ok(canadaWest.west>.9 && canadaWest.noaa<.05,'GOES-West should take over north of the western border');
- assert.ok(canadaEast.gibs>.9 && canadaEast.noaa<.05,'GOES-East should take over north of the eastern border');
+ const transition=weights(69,-107);
+ assert.ok(transition.noaa>0&&transition.metop>0,'central Canadian Arctic should blend fast GOES with polar coverage');
+ assert.ok(transition.gibs+transition.west>0,'full-disk GOES should join the Arctic handoff');
+ const arctic=weights(74,-107);
+ assert.ok(arctic.noaa<.05&&arctic.metop>.9,'far northern Canada should hand off from the fast mosaic to polar coverage');
 });
 test('Prepared producer accepts NOAA nowCOAST and keeps its timestamps in the R2 manifest',()=>{
  const source=fs.readFileSync('scripts/update_cloud_tiles.cjs','utf8');
