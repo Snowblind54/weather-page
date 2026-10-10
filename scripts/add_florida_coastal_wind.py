@@ -1,10 +1,11 @@
 """Add official NOAA/NDBC coastal wind stations to the shared Florida wind snapshot.
 
 The main Florida adapter uses Aviation Weather METAR/SPECI stations. This small
-post-processor adds a curated set of official NOAA coastal stations from NDBC's
-standard-meteorological realtime feed. NDBC publishes WDIR/WSPD/GST in degrees
-true and m/s, so no wind-unit conversion is needed.
+post-processor adds official NOAA/NDBC and NOAA/NOS coastal stations from
+NDBC's standard-meteorological realtime feed. The feed publishes WDIR/WSPD/GST
+in degrees true and m/s, so no wind-unit conversion is needed.
 """
+import concurrent.futures as futures
 import datetime as dt
 import json
 import pathlib
@@ -14,12 +15,40 @@ import urllib.request
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'data/official-wind.json'
 NDBC_BASE = 'https://www.ndbc.noaa.gov/data/realtime2/'
+
+# Active Florida coastal/C-MAN/NOS stations whose NDBC realtime2 feeds expose
+# standard meteorological wind speed and gust fields. Keep this curated rather
+# than adding inactive historical stations that no longer report.
 STATIONS = {
+    # Florida Panhandle / northeast Gulf
+    'PCLF1': ('Pensacola', 30.404, -87.211),
+    'PCBF1': ('Panama City Beach', 30.213, -85.880),
+    'PACF1': ('Panama City', 30.150, -85.664),
+    'APCF1': ('Apalachicola', 29.724, -84.980),
     'CDRF1': ('Cedar Key', 29.136, -83.029),
     'KTNF1': ('Keaton Beach', 29.819, -83.593),
-    'LONF1': ('Long Key', 24.844, -80.864),
-    'SAUF1': ('St. Augustine', 29.857, -81.264),
+
+    # Tampa Bay / southwest Florida
     'VENF1': ('Venice', 27.072, -82.453),
+    'TPAF1': ('Tampa Cruise Terminal 2', 27.933, -82.433),
+    'OPTF1': ('Old Port Tampa', 27.858, -82.553),
+    'SAPF1': ('St. Petersburg', 27.761, -82.627),
+    'FMRF1': ('Fort Myers', 26.647, -81.871),
+
+    # Florida Keys / southeast Florida
+    'SANF1': ('Sand Key', 24.456, -81.877),
+    'KYWF1': ('Key West', 24.556, -81.808),
+    'SMKF1': ('Sombrero Key', 24.628, -81.109),
+    'LONF1': ('Long Key', 24.844, -80.864),
+    'VAKF1': ('Virginia Key', 25.731, -80.162),
+    'PEGF1': ('Port Everglades', 26.086, -80.116),
+    'LKWF1': ('Lake Worth Pier', 26.613, -80.034),
+
+    # Atlantic coast
+    'TRDF1': ('Trident Pier', 28.416, -80.593),
+    'SAUF1': ('St. Augustine', 29.857, -81.264),
+    'MYPF1': ('Mayport', 30.398, -81.428),
+    'FRDF1': ('Fernandina Beach', 30.675, -81.465),
 }
 
 
@@ -63,7 +92,7 @@ def parse_ndbc(text, now):
 def fetch_station(code, now):
     request = urllib.request.Request(
         NDBC_BASE + code + '.txt',
-        headers={'User-Agent': 'NorthernWeather/8.121 (github.com/Snowblind54/weather-page)'},
+        headers={'User-Agent': 'NorthernWeather/8.127 (github.com/Snowblind54/weather-page)'},
     )
     with urllib.request.urlopen(request, timeout=25) as response:
         text = response.read(2 * 1024 * 1024 + 1).decode('ascii', errors='replace')
@@ -86,17 +115,26 @@ def main():
     stations = {(s['country'], s['code']): s for s in snapshot.get('stations', [])}
     fresh = 0
 
-    for code, (name, lat, lon) in STATIONS.items():
+    def collect(item):
+        code, meta = item
+        try:
+            return code, meta, fetch_station(code, now), None
+        except Exception as error:
+            return code, meta, [], error
+
+    # These are independent NOAA files. Fetching them concurrently keeps the
+    # 10-minute updater quick even as the curated Florida coastal set grows.
+    with futures.ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(collect, STATIONS.items()))
+
+    for code, (name, lat, lon), rows, error in results:
         station_code = 'NDBC-' + code
         key = ('US', station_code)
         old = stations.get(key, {}).get('rows', [])
-        try:
-            rows = fetch_station(code, now)
-            if rows:
-                fresh += 1
-        except Exception as error:
+        if error is not None:
             print('NDBC', code, 'unavailable:', str(error)[:160], flush=True)
-            rows = []
+        if rows:
+            fresh += 1
         merged = merge_rows(old, rows, now)
         if merged:
             stations[key] = {
@@ -106,10 +144,10 @@ def main():
 
     source = snapshot.setdefault('sources', {}).setdefault('US', {})
     source.update({
-        'name': 'NOAA / NWS Aviation Weather Center + NOAA/NDBC',
+        'name': 'NOAA / NWS Aviation Weather Center + NOAA/NDBC/NOS',
         'url': 'https://www.ndbc.noaa.gov/',
         'timeKind': 'observation',
-        'period': ('Florida official observations: METAR/SPECI airport wind plus NOAA/NDBC '
+        'period': ('Florida official observations: METAR/SPECI airport wind plus NOAA/NDBC/NOS '
                    'coastal-station wind speed, direction and gust. NDBC standard meteorological '
                    'wind values are reported in m/s.'),
     })
@@ -123,9 +161,9 @@ def main():
         handle.write('\n')
         temporary = pathlib.Path(handle.name)
     temporary.replace(OUTPUT)
-    print('Florida NOAA/NDBC coastal stations available:',
+    print('Florida NOAA/NDBC/NOS coastal stations available:',
           sum(1 for code in STATIONS if ('US', 'NDBC-' + code) in stations),
-          'fresh this run:', fresh, flush=True)
+          'of', len(STATIONS), 'configured; fresh this run:', fresh, flush=True)
 
 
 if __name__ == '__main__':
