@@ -191,9 +191,7 @@ $('timeline').addEventListener('input',()=>{
 });
 function settleTimelineSelection(){
   clearTimeout(timelineDebounceTimer);timelineDebounceTimer=null;
-  const frame=cloudTimelineFrame(frames[Number($('timeline').value)]);
-  if($('cloudOn').checked && frame)drawCloud(frame,{scrub:true}).catch(console.error);
-  applyFrame({skipCloud:true}).catch(console.error);
+  applyFrame({cloudScrub:true}).catch(console.error);
 }
 // Mouse/touch release and keyboard commits settle without waiting for debounce.
 $('timeline').addEventListener('change',settleTimelineSelection);

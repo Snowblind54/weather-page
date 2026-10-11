@@ -249,7 +249,7 @@ async function applyFrame(options={}){
     queueTemperatureRender(frame.time,55);
   }
 
-  const cloudTask=options.skipCloud?Promise.resolve():drawCloud(frame,{readyOnly:!!options.cloudReadyOnly}).catch(console.error);
+  const cloudTask=options.skipCloud?Promise.resolve():drawCloud(frame,{readyOnly:!!options.cloudReadyOnly,scrub:!!options.cloudScrub}).catch(console.error);
   if(options.awaitCloud) await cloudTask;
   const radarSelection=typeof beginRadarSelectedFrame==='function'&&$('radarOn').checked?beginRadarSelectedFrame(frame.time):null;
   // Every regional source starts independently; KAIA latency cannot block it.
