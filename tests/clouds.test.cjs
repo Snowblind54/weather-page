@@ -284,6 +284,8 @@ test('delayed Canadian GOES playback spans observation history without borrowing
  assert.equal(h.run('cloudAvailableTime(cloudProducts.gibs,cloudProducts.gibs.night,cloudTimelineFrame(frames[2]).time)'),8200);
  h.elements.radarOn.checked=true;
  assert.equal(h.run('cloudTimelineFrame(frames[2]).time'),11200,'combined radar retains its real shared clock');
+ h.elements.radarOn.checked=false;h.elements.cloudOn.checked=false;
+ assert.equal(h.run('cloudTimelineFrame(frames[2]).time'),11200,'turning clouds off restores the normal clock');
 });
 test('a held polar composite does not drag the satellite timeline back to its orbit time',()=>{
  const h=harness();h.run("cloudViewportSources=()=>['gibs','metop'];cloudProducts.metop={latest:{ir:1000}};cloudProducts.gibs.latest={ir:10000}");

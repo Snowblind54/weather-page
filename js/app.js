@@ -139,6 +139,7 @@ $('cloudOpacity').addEventListener('input',()=>{
 $('cloudOn').addEventListener('change',async()=>{
   if(!$('cloudOn').checked){
     await drawCloud(null,-1);
+    await applyFrame({skipCloud:true});
     return;
   }
   await applyFrame();
