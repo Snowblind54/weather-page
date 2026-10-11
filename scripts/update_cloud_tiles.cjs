@@ -95,6 +95,22 @@ function historyTimes(ids,products,plan){
  // Match satellite-only browser playback and retain its actual two-hour history.
  return plan.times.map(time=>time-(Math.floor(plan.now/600)*600-Math.floor(end/600)*600));
 }
+function orderHistoryTasks(tasks){
+ // Interleave regions within each relative history step. Delayed GOES dates
+ // must not sort behind every newer European observation and miss the quota.
+ const groups=new Map();
+ for(const task of tasks){
+  const order=task.historyOrder||0;
+  if(!groups.has(order))groups.set(order,[[],[]]);
+  groups.get(order)[task.northAmerica?0:1].push(task);
+ }
+ const ordered=[];
+ for(const [,buckets] of [...groups].sort((a,b)=>a[0]-b[0])){
+  for(let i=0;i<Math.max(...buckets.map(b=>b.length));i++)
+   for(const bucket of buckets)if(bucket[i])ordered.push(bucket[i]);
+ }
+ return ordered;
+}
 async function main(phase='all'){
  const started=Date.now();fs.mkdirSync(DIR,{recursive:true});
  const previous=fs.existsSync(OUT)?JSON.parse(fs.readFileSync(OUT)):{};
@@ -118,16 +134,18 @@ async function main(phase='all'){
    if(stale){errors.push(`${coords.z}/${coords.x}/${coords.y}: ${stale} latest imagery is stale; retaining previous tile`);continue;}
   }
   // Newest real observation first; backfill the two-hour timeline gradually.
-  for(const time of (phase==='history'?historyTimes(ids,products,plan):plan.times)){
+  const requestedTimes=phase==='history'?historyTimes(ids,products,plan):plan.times;
+  for(const [historyOrder,time] of requestedTimes.entries()){
    c.requested=time;let identity;
    try{identity=vm.runInContext("cloudTileSources(coords).map(id=>{const p=cloudProducts[id];return id+':'+cloudAvailableTime(p,p.day,requested)+':'+cloudAvailableTime(p,p.night,requested)}).join('|')",c);}catch{continue;}
    if(identity.includes('unavailable'))continue;
    const key=`${coords.z}/${coords.x}/${coords.y}`;
    if(records.some(r=>r.key===key&&r.identity===identity)||tasks.some(r=>r.key===key&&r.identity===identity))continue;
-   tasks.push({coords,time,key,identity});
+   tasks.push({coords,time,key,identity,historyOrder,northAmerica:ids.some(id=>['gibs','west','noaa'].includes(id))});
   }
  }
- tasks.sort((a,b)=>b.time-a.time);
+ if(phase==='history'){const ordered=orderHistoryTasks(tasks);tasks.splice(0,tasks.length,...ordered);}
+ else tasks.sort((a,b)=>b.time-a.time);
  let cursor=0,prepared=0,bytes=archiveBytes(records);
  async function worker(){
   while(cursor<tasks.length&&cursor<plan.limit&&Date.now()-started<12*60000){
@@ -193,5 +211,5 @@ async function main(phase='all'){
  for(const name of fs.readdirSync(DIR))if(!protectedPaths.has(name))fs.unlinkSync(path.join(DIR,name));
  console.log(JSON.stringify(result.metrics));
 }
-module.exports={runtime,coordinates,retain,selectRecord,processingSize,sourceFreshEnough,phasePlan,historyTimes};
+module.exports={runtime,coordinates,retain,selectRecord,processingSize,sourceFreshEnough,phasePlan,historyTimes,orderHistoryTasks};
 if(require.main===module)main(process.argv[2]?.replace(/^--/,'')||'all').catch(e=>{console.error(e.message);process.exitCode=1;});

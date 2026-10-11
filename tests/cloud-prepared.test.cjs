@@ -224,11 +224,11 @@ test('central history follows delayed GOES observation times instead of repeatin
  assert.deepEqual(producer.historyTimes(['metop'],products,plan),plan.times);
 });
 
-test('USA fast mosaic is not overridden by a delayed prepared full-disk archive',async()=>{
+test('USA uses available prepared GOES blocks instead of costly direct mosaic processing',async()=>{
  const h=browser();h.ctx.cloudTileSources=()=>['noaa'];
  await h.ctx.cloudEnsureMetadata();
  const tile=await h.ctx.cloudGetTile({z:6,x:33,y:18},110);
- assert.equal(tile.processor,'native');
+ assert.equal(tile.processor,'cdn');
 });
 test('retention keeps real GOES history within its observation window without retaining ancient history',()=>{
  const now=100000,latest={key:'west',time:now-7200,times:[{id:'west'}]};
@@ -237,4 +237,33 @@ test('retention keeps real GOES history within its observation window without re
  assert.deepEqual(producer.retain([expired,historical,latest],now-10800),[historical,latest]);
  const ancient={...latest,time:100};
  assert.deepEqual(producer.retain([{...historical,time:50},ancient],now-10800),[ancient]);
+});
+
+
+test('newer Canadian provider metadata does not bypass a fresh prepared block',async()=>{
+ const h=browser(false,true),fetch=h.ctx.fetch;
+ h.ctx.fetch=async url=>{const response=await fetch(url);if(!url.includes('.json'))return response;
+  const manifest=await response.json();manifest.records[0].times=[{id:'gibs',day:100,night:100}];return {ok:true,json:async()=>manifest};};
+ h.ctx.cloudProducts.gibs={day:'visible',night:'ir',times:{visible:[100,120],ir:[100,120]},latest:{visible:120,ir:120},metadataAt:1};
+ h.ctx.cloudAvailableTime=()=>120;
+ await h.ctx.cloudEnsureMetadata();
+ assert.equal((await h.ctx.cloudGetTile({z:6,x:33,y:18},130)).processor,'cdn');
+});
+test('prepared playback clock follows visible published GOES and preserves radar clock',async()=>{
+ const h=browser(false,true),fetch=h.ctx.fetch;
+ h.ctx.cloudTimelineEnd=()=>130;
+ h.ctx.cloudVisibleTiles=()=>[{coords:{z:6,x:33,y:18}}];
+ h.ctx.fetch=async url=>{const response=await fetch(url);if(!url.includes('.json'))return response;
+  const manifest=await response.json();manifest.records[0].times=[{id:'gibs',day:100,night:100}];return {ok:true,json:async()=>manifest};};
+ vm.runInContext(fs.readFileSync('js/cloud-prepared.js','utf8'),h.ctx);
+ await h.ctx.cloudEnsureMetadata();assert.equal(h.ctx.cloudTimelineEnd(),100);
+ h.ctx.Date={now:()=>20_000_000};assert.equal(h.ctx.cloudTimelineEnd(),130,'stale coverage restores direct discovery');
+});
+test('history quotas interleave North America and Europe despite GOES delay',()=>{
+ const tasks=[{id:'eu0',time:200,historyOrder:0},{id:'eu1',time:190,historyOrder:1},
+  {id:'us0',time:100,historyOrder:0,northAmerica:true},{id:'ca0',time:100,historyOrder:0,northAmerica:true},
+  {id:'us1',time:90,historyOrder:1,northAmerica:true}];
+ const ordered=producer.orderHistoryTasks(tasks);
+ assert.deepEqual(ordered.map(t=>t.id),['us0','eu0','ca0','us1','eu1']);
+ assert.equal(ordered.length,tasks.length);
 });

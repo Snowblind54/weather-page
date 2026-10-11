@@ -70,11 +70,10 @@ test('historical frames never select a future observation; availability changes 
   h.run("cloudProducts.eumet.latest={'mtg_fd:rgb_geocolour':9600,'mtg_fd:ir105_hrfi':9600}");
   assert.notEqual(old,h.run('cloudTileKey({z:6,x:36,y:19},10000)'));
 });
-test('initial cloud view does not preload history; manual/play activation buffers just one visible frame',()=>{
+test('initial cloud view preloads a bounded neighbouring frame without waiting for Play',()=>{
   const h=harness();
   h.run('cloudLayer={_tileZoom:6,_tiles:{one:{current:true,coords:{z:6,x:36,y:19}}}};calls=[];cloudGetTile=(c,t,p)=>{calls.push({t,p});return Promise.resolve({});}');
-  h.run('scheduleCloudPrecache()');assert.equal(h.timeouts.length,0);
-  h.run('requestCloudHistory();scheduleCloudPrecache()');assert.equal(h.timeouts.length,1);
+  h.run('scheduleCloudPrecache()');assert.equal(h.timeouts.length,1);
   h.timeouts[0].fn();assert.equal(h.run('calls.length'),1);assert.equal(h.run('calls[0].t'),10300);assert.equal(h.run('calls[0].p'),1);
 });
 test('tile jobs are deduplicated, concurrency is bounded and cache memory is limited',async()=>{

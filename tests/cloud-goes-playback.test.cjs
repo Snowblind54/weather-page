@@ -7,10 +7,11 @@ function prepared(){
  cloudAvailableTime:(p,n,t)=>Math.max(...p.times[n].filter(v=>v<=t)),fetch:async()=>({ok:true,json:async()=>({version:1,records:[record]})})};
  vm.createContext(ctx);vm.runInContext(fs.readFileSync('js/cloud-prepared.js','utf8'),ctx);return ctx;
 }
-test('newly advertised GOES scans replace a held prepared image instead of freezing playback',async()=>{
+test('GOES uses published prepared images until the central manifest advances',async()=>{
  const c=prepared();await c.cloudEnsureMetadata();
  assert.match(c.cloudTileKey({z:4,x:8,y:4},110),/^prepared-cloud:/);
- assert.equal(c.cloudTileKey({z:4,x:8,y:4},120),'native');
+ assert.match(c.cloudTileKey({z:4,x:8,y:4},120),/^prepared-cloud:/);
+ c.Date={now:()=>20_000_000};assert.equal(c.cloudTileKey({z:4,x:8,y:4},120),'native','stalled archives recover through providers');
 });
 test('satellite-aligned Latest never borrows a newer archive from another satellite clock',async()=>{
  const c=prepared();c.frames=[{time:90}];c.cloudTimelineEnd=()=>90;

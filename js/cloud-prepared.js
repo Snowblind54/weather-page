@@ -1,7 +1,7 @@
 // Prefer centrally extracted cloud imagery; preserve direct-provider fallback.
 (() => {
  if(typeof document!=='undefined'&&typeof document.title==='string')
-  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.138');
+  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.140');
  const nativeMetadata=cloudEnsureMetadata,nativeTile=cloudGetTile,nativeKey=cloudTileKey;
  let manifest=null,checkedAt=0,pending=null;
  const images=new Map(),downloads=new Map();
@@ -26,7 +26,7 @@
   const value=Number((typeof cloudTimelineFrame==='function'?cloudTimelineFrame(frame):frame)?.time);
   return Number.isFinite(value)?value:null;
  }
- // Fast geostationary feeds should not freeze the map on yesterday's archive.
+ // Prepared GOES may arrive later; reject genuinely stale archives.
  // GIBS can arrive later; polar composites deliberately remain valid between orbits.
  function maxAge(id){return id==='gibs'||id==='west'?3*3600:45*60;}
  function observationsFresh(times,requested){
@@ -37,10 +37,31 @@
    return Number.isFinite(stamp)&&requested-stamp<=maxAge(s.id);
   });
  }
+ function blockKey(coords){
+  const z=Math.min(4,coords.z),factor=2**(coords.z-z);
+  return `${z}/${Math.floor(coords.x/factor)}/${Math.floor(coords.y/factor)}`;
+ }
+ // Satellite-only playback follows the images actually published for this view.
+ // Direct providers can advertise a newer scan before the central job finishes.
+ if(typeof cloudTimelineEnd==='function'){
+  const directTimelineEnd=cloudTimelineEnd;
+  cloudTimelineEnd=function(){
+   const direct=directTimelineEnd();
+   if(!Number.isFinite(direct)||!manifest)return direct;
+   const tiles=cloudVisibleTiles();if(!tiles.length)return direct;
+   const ends=[];
+   for(const tile of tiles){
+    const rows=manifest.records.filter(r=>r.key===blockKey(tile.coords)).sort((a,b)=>b.time-a.time);
+    const latest=rows[0];
+    if(!latest||!observationsFresh(latest.times,Date.now()/1000))return direct;
+    const scans=(latest.times||[]).filter(s=>s.id!=='metop');
+    if(scans.length)ends.push(latest.time);
+   }
+   return ends.length?Math.max(...ends):direct;
+  };
+ }
  function selection(coords,time){
   if(!manifest)return null;
-  // Inside CONUS, use the fast NOAA mosaic instead of a delayed full-disk block.
-  if(cloudTileSources(coords).includes('noaa'))return null;
   const z=Math.min(4,coords.z),factor=2**(coords.z-z);
   const key=`${z}/${Math.floor(coords.x/factor)}/${Math.floor(coords.y/factor)}`;
   const candidates=manifest.records.filter(r=>r.key===key);
@@ -58,17 +79,6 @@
   const requested=Number.isFinite(latest)&&Math.abs(Number(time)-latest)<1
     ?Math.max(Number(time),Date.now()/1000):Number(time);
   if(!observationsFresh(r.times,requested))return null;
-  // A fresh metadata discovery may advertise scans absent from the archive.
-  // Load that selected scan directly instead of holding an older prepared image.
-  for(const observation of r.times||[]){
-    if(!['gibs','west'].includes(observation.id))continue;
-    const product=cloudProducts[observation.id];
-    for(const mode of ['day','night']){
-      if(!product?.[mode]||!Number.isFinite(observation[mode]))continue;
-      try{if(cloudAvailableTime(product,product[mode],Number(time))>observation[mode])return null;}
-      catch{return null;}
-    }
-  }
   const index=Math.min(r.paths.length-1,Math.max(0,coords.z-z));
   if(!/^data\/cloud-tiles\/[a-f0-9]+-(256|512|1024)\.webp$/.test(r.paths[index]))return null;
   if(r.archive&&(typeof validCloudArchive!=='function'||!validCloudArchive(r)))return null;
