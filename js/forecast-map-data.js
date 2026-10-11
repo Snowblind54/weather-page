@@ -49,11 +49,15 @@
       try{assetUrl(manifest,kind,t);return true;}catch{return false;}
     }));
   }
+  function regionalTimes(regions,now=Date.now()){
+    const end=Math.floor(now/HOUR)*HOUR+72*HOUR;
+    return [...new Set(regions.flatMap(region=>cachedTimes(region,now)))].filter(t=>t<=end).sort((a,b)=>a-b);
+  }
   function visibleRegions(regions,bounds,kind,time){
     return regions.filter(region=>!(bounds.getEast()<region.bounds[0]||bounds.getWest()>region.bounds[2]||bounds.getNorth()<region.bounds[1]||bounds.getSouth()>region.bounds[3])).filter(region=>{
       try{assetUrl(region,kind,time);return true;}catch{return false;}
     });
   }
-  const api={layers,expandTimes,runs,reference,availableTimes,params,assetUrl,cachedTimes,visibleRegions};
+  const api={layers,expandTimes,runs,reference,availableTimes,params,assetUrl,cachedTimes,regionalTimes,visibleRegions};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ForecastMapData=api;
 })(typeof window==='undefined'?{}:window);

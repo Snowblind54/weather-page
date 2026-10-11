@@ -177,11 +177,33 @@ def render(grid, lat, lon, kind, palette, destination, exclusion=None):
         pixels[first:first+64] = rgba
     Image.fromarray(pixels).save(destination,format='WEBP',lossless=True,method=4)
 
+def ensure_nordic_inputs(nordic, root, restore=None):
+    """Hydrate just the domain mask and palettes referenced by this manifest.
+
+    Nordic images live in R2 (or the GitHub fallback), not the source checkout.
+    Resolve dependencies before downloading a full ECMWF run.
+    """
+    paths = [next(iter(nordic['images']['temperature'].values())),
+             *(nordic['legends'][kind] for kind in FIELDS)]
+    for path in paths:
+        if not (root / path).resolve().is_relative_to((root / 'data/forecast-cache').resolve()):
+            raise ValueError('Nordic rendering input escapes forecast cache')
+    if any(not (root / path).is_file() for path in paths):
+        if restore is None:
+            from hydrate_r2_data import restore_inputs
+            restore = restore_inputs
+        restore(paths)
+    for path in paths:
+        with Image.open(root / path) as image:
+            image.verify()
+    return root / paths[0]
+
 def main():
     data = Path(__file__).resolve().parents[1]/'data'
     nordic = json.loads((data/'forecast-map.json').read_text())
     previous_path = data/'forecast-iceland.json'
     previous = json.loads(previous_path.read_text()) if previous_path.exists() else {}
+    coverage_path = ensure_nordic_inputs(nordic, data.parent)
     now = datetime.now(timezone.utc)
     candidate = (now-timedelta(hours=5)).replace(minute=0,second=0,microsecond=0)
     candidate = candidate.replace(hour=candidate.hour//6*6)
@@ -225,7 +247,6 @@ def main():
         write_gust_grid(frames,run,stage/GUST_FILE)
         # Temperature alpha describes the model domain. Rain alpha also marks
         # dry pixels, so it cannot be used to decide which model has priority.
-        coverage_path=data.parent/next(iter(nordic['images']['temperature'].values()))
         with Image.open(coverage_path) as im:
             exclusion=nordic_exclusion(np.array(im.convert('RGBA'))[:,:,3],nordic['bounds'])
         palettes = {}

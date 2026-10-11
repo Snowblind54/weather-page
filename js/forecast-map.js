@@ -29,7 +29,7 @@
         if(!response.ok)throw Error('Forecast map index unavailable');
         const next=await response.json();
         if(next.delivery!=='static-regional-images'||!Array.isArray(next.bounds)||next.bounds.length!==4||!next.bounds.every(Number.isFinite))throw Error('Invalid map index');
-        const times=D.cachedTimes(next);
+        let times=D.cachedTimes(next);
         if(!times.length||!Number.isFinite(Date.parse(next.reference_time)))throw Error('No current forecast grid available');
         for(const [kind,l] of Object.entries(D.layers))if(next.layers?.[kind]){if(next.layers[kind]!==l.name)throw Error('Unexpected forecast variable');D.assetUrl(next,kind);}
         let iceland=null;
@@ -37,8 +37,10 @@
           const r=await fetch('data/forecast-iceland.json?v='+Math.floor(Date.now()/900000),{signal:abort.signal,cache:'no-cache'});
           if(r.ok){const candidate=await r.json();if(candidate.asset_root!=='forecast-iceland-cache'||candidate.delivery!=='static-regional-images'||!Array.isArray(candidate.bounds)||candidate.bounds.length!==4||!candidate.bounds.every(Number.isFinite)||!D.cachedTimes(candidate).length)throw Error('Invalid Iceland map index');for(const kind of Object.keys(candidate.layers)){if(candidate.layers[kind]!==D.layers[kind]?.name)throw Error('Invalid Iceland quantity');D.assetUrl(candidate,kind);}iceland=candidate;}
         }catch(error){console.warn('Iceland forecast cache unavailable',error);}
+        const regions=[{...next,region:'Nordics'},...(iceland?[{...iceland,region:'Iceland'}]:[])];
+        times=D.regionalTimes(regions);
         const followCurrent=meta&&selectedTime===meta.times[0];
-        meta={...next,times,regions:[{...next,region:'Nordics'},...(iceland?[{...iceland,region:'Iceland'}]:[])]};metaChecked=Date.now();
+        meta={...next,times,regions};metaChecked=Date.now();
         if(followCurrent&&selectedTime!==times[0]){selectedTime=times[0];document.dispatchEvent(new CustomEvent('forecast-map-time',{detail:{time:selectedTime}}));}
         return meta;
       }finally{clearTimeout(timer);}

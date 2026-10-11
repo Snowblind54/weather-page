@@ -12,6 +12,29 @@ spec=importlib.util.spec_from_file_location('iceland',Path(__file__).resolve().p
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
 class IcelandForecastTests(unittest.TestCase):
+    def test_missing_nordic_dependencies_restore_only_six_referenced_assets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            paths=['data/forecast-cache/current/temperature.webp',
+                   *(f'data/forecast-cache/current/{kind}-legend.webp' for kind in m.FIELDS)]
+            manifest={'images':{'temperature':{'now':paths[0]}},
+                      'legends':dict(zip(m.FIELDS,paths[1:]))}
+            calls=[]
+            def restore(selected):
+                calls.append(selected)
+                for name in selected:
+                    path=root/name;path.parent.mkdir(parents=True,exist_ok=True)
+                    Image.new('RGBA',(2,2),(0,0,0,255)).save(path,format='WEBP')
+            self.assertEqual(m.ensure_nordic_inputs(manifest,root,restore),root/paths[0])
+            self.assertEqual(calls,[paths])
+            m.ensure_nordic_inputs(manifest,root,restore)
+            self.assertEqual(len(calls),1)
+            (root/paths[0]).unlink()
+            with self.assertRaises(FileNotFoundError):
+                m.ensure_nordic_inputs(manifest,root,lambda paths:None)
+            manifest['images']['temperature']['now']='../outside.webp'
+            with self.assertRaises(ValueError):m.ensure_nordic_inputs(manifest,root,restore)
+
     def test_numeric_gust_grid_keeps_coordinates_zero_and_native_maximum_interval(self):
         lat=np.array([60.75,61.,61.25,69.,69.25]);lon=np.array([-28.25,-28.,-27.75,-12.,-11.75])
         values=np.arange(25,dtype=float).reshape(5,5);values[1,1]=0

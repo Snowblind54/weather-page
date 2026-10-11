@@ -49,7 +49,7 @@ function harness({iceland=false,wide=false}={}){
   }
   for(const id of ['forecastSection','forecastLocation','nav-forecastSection','forecastRetry'])ids[id]=new Element();ids.forecastSection.hidden=true;
   const body=new Element(),c={document:{body,hidden:false,createElement:()=>new Element(),addEventListener:(k,f)=>listeners[k]=f,dispatchEvent:e=>listeners[e.type]?.(e)},window:{},$:id=>ids[id],
-    ForecastMapData:{...D,cachedTimes:meta=>D.cachedTimes(meta,now)},Date:class extends Date{static now(){return now;}},URLSearchParams,AbortController,CustomEvent:class{constructor(type,o){this.type=type;this.detail=o.detail;}},console:{warn(){}},
+    ForecastMapData:{...D,cachedTimes:meta=>D.cachedTimes(meta,now),regionalTimes:regions=>D.regionalTimes(regions,now)},Date:class extends Date{static now(){return now;}},URLSearchParams,AbortController,CustomEvent:class{constructor(type,o){this.type=type;this.detail=o.detail;}},console:{warn(){}},
     setTimeout:(f,n)=>{const id=++tid;timers.set(id,{f,n});return id;},clearTimeout:id=>timers.delete(id),setInterval(){},
     MutationObserver:class{constructor(f){observer=f;}observe(){}},fetch:async url=>({ok:true,json:async()=>url.includes('forecast-iceland')&&iceland?iceManifest:manifest}),
     Image:class{constructor(){images.push(this);this.dataset={};}set src(v){this.url=v;}cloneNode(){return {dataset:{},url:this.url};}},
@@ -116,4 +116,18 @@ test('failure of both forecast stores stops retrying and clears the layer',async
  const h=harness();h.c.window.weatherGithubDataUrl=url=>'https://backup.example/'+url;
  h.open();await h.run();h.images[0].onerror();h.images[0].onerror();await flush();
  assert.equal(h.overlays.filter(l=>l.active).length,0);assert.match(h.ids.forecastMapStatus.textContent,/unavailable/);
+});
+
+test('Iceland extends the shared slider to 72 hours without inventing Nordic frames',()=>{
+  const ice=structuredClone(iceManifest);
+  for(let hour=58;hour<=90;hour++){
+    const time=first+hour*3600000,key=new Date(time).toISOString();ice.cached_times.push(key);
+    for(const kind of Object.keys(ice.layers))ice.images[kind][key]='data/forecast-iceland-cache/20261007T21Z/'+kind+'-'+key.replace(/[-:]/g,'').slice(0,11)+'Z.webp';
+  }
+  const times=D.regionalTimes([manifest,ice],now);
+  assert.equal(times.at(-1),first+72*3600000);
+  const bounds={getEast:()=>30,getWest:()=>-30,getNorth:()=>74,getSouth:()=>52};
+  assert.deepEqual(D.visibleRegions([manifest,ice],bounds,'wind',times.at(-1)),[ice]);
+  delete ice.images.clouds[new Date(times.at(-1)).toISOString()];
+  assert.equal(D.regionalTimes([manifest,ice],now).at(-1),first+71*3600000);
 });
