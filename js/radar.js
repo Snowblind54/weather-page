@@ -229,6 +229,10 @@ async function applyFrame(options={}){
   let frame=frames[i];
   if(!frame)return;
   if($('cloudOn').checked && typeof cloudTimelineFrame==='function'){
+    const preview=cloudTimelineFrame(frame);
+    $('timeLabel').textContent=fmt(preview.time)+(i===frames.length-1?' · latest':'');
+    if(typeof renderTimelineTicks==='function')renderTimelineTicks();
+    if(!options.skipCloud)cloudStatus('Loading satellite clouds…');
     cloudRequestedTime=frame.time;
     await cloudEnsureMetadata();
     if(i!==Number($('timeline').value))return;
