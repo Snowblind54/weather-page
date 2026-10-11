@@ -203,6 +203,12 @@ function setEstoniaRadarPriorityMask(layer,enabled){
     if(layer===nordicRadarLayers.get('dk:dk'))holes.push(...radarDomainInCoverage(SWEDEN_RADAR_DOMAIN,nordicRadarLayers.get('se:se')));
     if(layer===nordicRadarLayers.get('se:se'))holes.push(...radarDomainInCoverage(DENMARK_RADAR_DOMAIN,nordicRadarLayers.get('dk:dk')));
   }
+  if(typeof layer.setPriorityPolygons==='function'){
+    element.style.maskImage=element.style.webkitMaskImage='';
+    element.style.maskRepeat=element.style.webkitMaskRepeat='';
+    element.style.maskSize=element.style.webkitMaskSize='';
+    layer.setPriorityPolygons(holes);return;
+  }
   const mask=radarPriorityMask(bounds,holes);
   element.style.maskImage=mask;element.style.webkitMaskImage=mask;
   element.style.maskRepeat=mask?'no-repeat':'';element.style.webkitMaskRepeat=mask?'no-repeat':'';

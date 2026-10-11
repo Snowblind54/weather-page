@@ -23,6 +23,12 @@ function radarViewportLayer(frame,opacity=.84,filter=''){
       this._canvas.style.width=size.x+'px';this._canvas.style.height=size.y+'px';
       L.DomUtil.setPosition(this._canvas,this._map.containerPointToLayerPoint(L.point(0,0)));
       this._bounds=this._map.getBounds();
+      this._paint();
+      if(typeof queueEstoniaRadarPrioritySync==='function')queueEstoniaRadarPrioritySync();
+    },
+    _paint(){
+      const size=this._map.getSize(),width=this._canvas.width,height=this._canvas.height;
+      const scale=width/size.x,scaleY=height/size.y;
       const context=this._canvas.getContext('2d');context.clearRect(0,0,width,height);
       const image=frame.canvas||frame.image,iw=image?.naturalWidth||image?.width,ih=image?.naturalHeight||image?.height;
       if(iw&&ih){
@@ -32,11 +38,28 @@ function radarViewportLayer(frame,opacity=.84,filter=''){
         if(fullWidth>0&&fullHeight>0&&right>left&&lower>upper){
           context.drawImage(image,(left-top.x)/fullWidth*iw,(upper-top.y)/fullHeight*ih,
             (right-left)/fullWidth*iw,(lower-upper)/fullHeight*ih,
-            left*scale,upper*scale,(right-left)*scale,(lower-upper)*scale);
+            left*scale,upper*scaleY,(right-left)*scale,(lower-upper)*scaleY);
         }
       }
-      // Masks use the displayed viewport bounds, preserving coastline seams.
-      if(typeof queueEstoniaRadarPrioritySync==='function')queueEstoniaRadarPrioritySync();
+      // Erase geographic overlap regions in the same paint as the radar. CSS
+      // masks on transformed image surfaces can leave stale compositor pixels.
+      if(this._priorityPolygons?.length){
+        context.save();context.globalCompositeOperation='destination-out';
+        for(const polygon of this._priorityPolygons){
+          context.beginPath();
+          polygon.forEach(([lon,lat],index)=>{
+            const p=this._map.latLngToContainerPoint([lat,lon]);
+            context[index?'lineTo':'moveTo'](p.x*scale,p.y*scaleY);
+          });
+          context.closePath();context.fill();
+        }
+        context.restore();
+      }
+    },
+    setPriorityPolygons(polygons){
+      const key=JSON.stringify(polygons);if(key===this._priorityKey)return;
+      this._priorityKey=key;this._priorityPolygons=polygons;
+      if(this._canvas?.width)this._paint();
     },
     getBounds(){return this._bounds||L.latLngBounds(frame.bounds);},
     getElement(){return this._canvas;},
@@ -45,7 +68,8 @@ function radarViewportLayer(frame,opacity=.84,filter=''){
   });return new Layer();
 }
 function radarImageOverlay(image,bounds,options={}){
-  if(!(typeof radarLightMode==='function'&&radarLightMode()))return L.imageOverlay(image,bounds,options);
+  // Keep native images screen-sized on desktop too; very large masked image
+  // surfaces are prone to frozen fragments after repeated zooms.
   if(typeof image!=='string')return radarViewportLayer({image,bounds},options.opacity??1);
   const element=new Image();element.decoding='async';
   const layer=radarViewportLayer({image:element,bounds},options.opacity??1);

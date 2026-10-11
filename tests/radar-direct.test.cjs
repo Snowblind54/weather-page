@@ -62,3 +62,13 @@ test('Danish mobile viewport crop stays within service bounds and includes a pan
  assert.equal(cropped.bounds,bounds);
  c.map.getZoom=()=>4;assert.equal(vm.runInContext('radarDmiViewportBounds()',c),null);
 });
+
+test('viewport overlap masks use geographic canvas cutouts and remove old CSS masks',()=>{
+ const c=harness();c.radarMercatorY=lat=>lat;
+ const bounds={getSouth:()=>52,getWest:()=>2,getNorth:()=>61,getEast:()=>32};
+ c.element={style:{maskImage:'old',webkitMaskImage:'old',maskSize:'100% 100%'}};
+ c.layer={getElement:()=>c.element,getBounds:()=>bounds,setPriorityPolygons(p){c.polygons=p;}};
+ vm.runInContext('setEstoniaRadarPriorityMask(layer,true)',c);assert.equal(c.polygons.length,3);
+ assert.equal(c.element.style.maskImage,'');assert.equal(c.element.style.webkitMaskImage,'');
+ vm.runInContext('setEstoniaRadarPriorityMask(layer,false)',c);assert.equal(c.polygons.length,0);
+});
