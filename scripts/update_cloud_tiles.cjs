@@ -116,10 +116,9 @@ async function main(phase='all'){
  const previous=fs.existsSync(OUT)?JSON.parse(fs.readFileSync(OUT)):{};
  const plan=phasePlan(phase,previous,Math.floor(Date.now()/1000)),now=plan.now;
  const c=runtime();
- // Prepared z2-z4 overview blocks use a single continuous full-disk GOES
- // mosaic across North America. Close browser fallback may still use the fast
- // CONUS mosaic, but it must never split one large prepared Canada/US block.
- c.cloudPreparedFullDisk=true;
+ // Keep the native coverage weights: fresh NOAA over CONUS, full-disk
+ // GOES across Canada/Alaska/Hawaii, and polar coverage farther north.
+ // The central job blends these sources once instead of each visitor doing it.
  // History uses the same source timestamps as the already published latest pass.
  const {products,errors}=phase==='history'?{products:previous.products,errors:[...(previous.errors||[])]}:await metadata(c,previous,now);
  Object.assign(vm.runInContext('cloudProducts',c),products);
@@ -150,7 +149,6 @@ async function main(phase='all'){
  async function worker(){
   while(cursor<tasks.length&&cursor<plan.limit&&Date.now()-started<12*60000){
    const t=tasks[cursor++];const local=runtime();
-   local.cloudPreparedFullDisk=true;
    Object.assign(vm.runInContext('cloudProducts',local),products);
    local.cloudImagePixels=c.cloudImagePixels;local.coords=t.coords;local.requested=t.time;
    const size=processingSize(t.coords);
