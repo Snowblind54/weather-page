@@ -28,7 +28,8 @@ test('Canadian full-disk-to-Arctic handoff is complementary and leaves European 
   const h=harness();
   const south=h.run('cloudSourceWeights(55,-107)');
   assert(south.noaa<.05);assert(south.gibs+south.west>.9);
-  const transition=h.run('cloudSourceWeights(69,-107)');
+  assert.equal(h.run('cloudSourceWeights(69,-107).metop'),0,'mid-Canada stays on full-disk imagery');
+  const transition=h.run('cloudSourceWeights(74,-107)');
   assert.equal(transition.noaa,0);assert(transition.metop>0);
   assert(transition.gibs+transition.west>0);
   assert(Math.abs(Object.values(transition).reduce((a,b)=>a+b,0)-1)<1e-9);
@@ -80,7 +81,7 @@ test('CONUS keeps the fast mosaic while Canada, Alaska and Hawaii use full-disk 
     assert(w.noaa<.05,`${lat},${lon} should not use nowCOAST outside its reliable footprint`);
     assert(w.gibs+w.west>.85,`${lat},${lon} should retain full-disk GOES coverage`);
   }
-  const arctic=h.run('cloudSourceWeights(74,-107)');
+  const arctic=h.run('cloudSourceWeights(80,-107)');
   assert.equal(arctic.noaa,0,'far northern Canada should stay off the CONUS mosaic');
   assert(arctic.metop>.9,'far northern Canada should be primarily polar imagery');
 });

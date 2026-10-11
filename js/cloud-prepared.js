@@ -1,7 +1,7 @@
 // Prefer centrally extracted cloud imagery; preserve direct-provider fallback.
 (() => {
  if(typeof document!=='undefined'&&typeof document.title==='string')
-  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.135');
+  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.136');
  const nativeMetadata=cloudEnsureMetadata,nativeTile=cloudGetTile,nativeKey=cloudTileKey;
  let manifest=null,checkedAt=0,pending=null;
  const images=new Map(),downloads=new Map();
@@ -25,6 +25,17 @@
   const value=Number(frames[frames.length-1]?.time);
   return Number.isFinite(value)?value:null;
  }
+ // Fast geostationary feeds should not freeze the map on yesterday's archive.
+ // GIBS can arrive later; polar composites deliberately remain valid between orbits.
+ function maxAge(id){return id==='gibs'||id==='west'?3*3600:45*60;}
+ function observationsFresh(times,requested){
+  if(!Array.isArray(times)||!times.length)return false;
+  const scans=(times||[]).filter(s=>s.id!=='metop');
+  return scans.every(s=>{
+   const stamp=Math.max(...[s.day,s.night].filter(Number.isFinite));
+   return Number.isFinite(stamp)&&requested-stamp<=maxAge(s.id);
+  });
+ }
  function selection(coords,time){
   if(!manifest)return null;
   const z=Math.min(4,coords.z),factor=2**(coords.z-z);
@@ -40,6 +51,9 @@
     ?candidates:candidates.filter(r=>r.time<=time);
   const r=eligible.sort((a,b)=>b.time-a.time)[0];
   if(!r)return null;
+  const requested=Number.isFinite(latest)&&Math.abs(Number(time)-latest)<1
+    ?Math.max(Number(time),Date.now()/1000):Number(time);
+  if(!observationsFresh(r.times,requested))return null;
   const index=Math.min(r.paths.length-1,Math.max(0,coords.z-z));
   if(!/^data\/cloud-tiles\/[a-f0-9]+-(256|512|1024)\.webp$/.test(r.paths[index]))return null;
   if(r.archive&&(typeof validCloudArchive!=='function'||!validCloudArchive(r)))return null;
@@ -73,7 +87,8 @@
   await refresh(force);
   // Seed metadata for archive-only loading, without overwriting a newer direct discovery.
   if(manifest?.products){
-   for(const [id,p] of Object.entries(manifest.products))if(cloudProducts[id]){
+   for(const [id,p] of Object.entries(manifest.products))if(cloudProducts[id]&&
+     (id==='metop'||observationsFresh([{id,day:Math.max(...Object.values(p.latest||{}))}],Date.now()/1000))){
     const current=cloudProducts[id];
     if(!current.metadataAt||Math.max(...Object.values(p.latest||{}))>Math.max(...Object.values(current.latest||{}))){
      current.times=p.times;current.latest=p.latest;current.metadataAt=Date.now();

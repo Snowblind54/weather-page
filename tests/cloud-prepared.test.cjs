@@ -35,11 +35,11 @@ test('CONUS uses the fast mosaic while Canada, Alaska and Hawaii use full-disk G
   assert.ok(w.noaa<.05,`${name} should not use the CONUS-limited nowCOAST mosaic`);
   assert.ok(w.gibs+w.west>.85,`${name} should use full-disk GOES imagery`);
  }
- const transition=weights(69,-107);
+ const transition=weights(74,-107);
  assert.equal(transition.noaa,0,'central Canadian Arctic should stay off the CONUS mosaic');
  assert.ok(transition.metop>0,'central Canadian Arctic should blend with polar coverage');
  assert.ok(transition.gibs+transition.west>0,'full-disk GOES should remain in the Arctic handoff');
- const arctic=weights(74,-107);
+ const arctic=weights(80,-107);
  assert.equal(arctic.noaa,0);
  assert.ok(arctic.metop>.9,'far northern Canada should hand off to polar coverage');
 });
@@ -76,7 +76,7 @@ function browser(failed=false,archived=false){
  const draws=[],calls=[],cache=new Map(),promises=new Map();
  const record={key:'4/8/4',time:100,paths:['data/cloud-tiles/abcdef-256.webp','data/cloud-tiles/abcdef-512.webp','data/cloud-tiles/abcdef-1024.webp'],times:[{id:'eumet',night:100,day:null}]};
  if(archived)record.archive={version:1,path:'data/cloud-tiles/pack-0123456789abcdef.bin'};
- const ctx={console,Date,Map,Set,Promise,URL,AbortController,setTimeout,clearTimeout,frames:[{time:100}],cloudSession:1,cloudControllers:new Set(),cloudProducts:{},cloudRequestedTime:100,
+ const ctx={console,Date:{now:()=>130000},Map,Set,Promise,URL,AbortController,setTimeout,clearTimeout,frames:[{time:100}],cloudSession:1,cloudControllers:new Set(),cloudProducts:{},cloudRequestedTime:100,
   cloudEnsureMetadata:async()=>{},cloudGetTile:async()=>({processor:'native'}),cloudTileKey:()=> 'native',cloudVisibleTiles:()=>[],cloudTileResolution:()=>256,
   cloudTileCache:cache,cloudTilePromises:promises,CLOUD_TILE_CACHE_LIMIT:768,CLOUD_CACHE_BYTES:48*1024*1024,cloudCacheBytes:()=>cache.size*256*256*4,
   map:{on:()=>{}},$:()=>({addEventListener:()=>{},checked:true}),createImageBitmap:async()=>({width:1024,height:1024,close(){}}),
@@ -186,4 +186,32 @@ test('A refreshed manifest advances prepared imagery and preserves the earlier h
  assert.equal(latest.processor,'cdn');assert.equal(latest.times[0].night,120);
  assert.notEqual(latest.canvas,first.canvas);
  assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},110)).times[0].night,100);
+});
+
+test('Yesterday’s prepared clouds cannot freeze Latest or suppress fresh provider metadata',async()=>{
+ const {ctx}=browser(false,true);
+ ctx.frames=[{time:4500}];ctx.cloudRequestedTime=4500;ctx.Date={now:()=>4500000};
+ ctx.cloudProducts.eumet={day:'visible',night:'ir',metadataAt:0};
+ const original=ctx.fetch;
+ ctx.fetch=async url=>{
+  const response=await original(url);if(!url.includes('.json'))return response;
+  const manifest=await response.json();
+  return {ok:true,json:async()=>({...manifest,products:{eumet:{latest:{visible:100,ir:100},times:{visible:[100],ir:[100]}}}})};
+ };
+ await ctx.cloudEnsureMetadata();
+ assert.equal(ctx.cloudProducts.eumet.metadataAt,0,'old archive metadata must not be marked freshly discovered');
+ assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},4500)).processor,'native','use official sources during a stuck updater');
+ assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},110)).processor,'cdn','matching historical archives remain usable');
+});
+test('Slow polar composites stay usable while expired full-disk GOES archives recover through providers',async()=>{
+ for(const id of ['metop','gibs']){
+  const {ctx}=browser(false,true);ctx.frames=[{time:20000}];ctx.Date={now:()=>20000000};
+  const original=ctx.fetch;ctx.fetch=async url=>{
+   const response=await original(url);if(!url.includes('.json'))return response;
+   const manifest=await response.json();manifest.records[0].times=[{id,day:null,night:100}];
+   return {ok:true,json:async()=>manifest};
+  };
+  await ctx.cloudEnsureMetadata();
+  assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},20000)).processor,id==='metop'?'cdn':'native');
+ }
 });
