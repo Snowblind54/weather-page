@@ -1,7 +1,7 @@
 // Prefer centrally extracted cloud imagery; preserve direct-provider fallback.
 (() => {
  if(typeof document!=='undefined'&&typeof document.title==='string')
-  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.137');
+  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.138');
  const nativeMetadata=cloudEnsureMetadata,nativeTile=cloudGetTile,nativeKey=cloudTileKey;
  let manifest=null,checkedAt=0,pending=null;
  const images=new Map(),downloads=new Map();
@@ -50,13 +50,25 @@
   // newer than that radar timestamp. Use each tile's newest satellite record
   // there, otherwise Canadian GOES blocks disappear in a checkerboard pattern.
   // Historical positions remain strict and never borrow imagery from the future.
-  const eligible=Number.isFinite(latest)&&Math.abs(Number(time)-latest)<1
+  const aligned=typeof cloudTimelineEnd==='function'&&Number.isFinite(cloudTimelineEnd());
+  const eligible=!aligned&&Number.isFinite(latest)&&Math.abs(Number(time)-latest)<1
     ?candidates:candidates.filter(r=>r.time<=time);
   const r=eligible.sort((a,b)=>b.time-a.time)[0];
   if(!r)return null;
   const requested=Number.isFinite(latest)&&Math.abs(Number(time)-latest)<1
     ?Math.max(Number(time),Date.now()/1000):Number(time);
   if(!observationsFresh(r.times,requested))return null;
+  // A fresh metadata discovery may advertise scans absent from the archive.
+  // Load that selected scan directly instead of holding an older prepared image.
+  for(const observation of r.times||[]){
+    if(!['gibs','west'].includes(observation.id))continue;
+    const product=cloudProducts[observation.id];
+    for(const mode of ['day','night']){
+      if(!product?.[mode]||!Number.isFinite(observation[mode]))continue;
+      try{if(cloudAvailableTime(product,product[mode],Number(time))>observation[mode])return null;}
+      catch{return null;}
+    }
+  }
   const index=Math.min(r.paths.length-1,Math.max(0,coords.z-z));
   if(!/^data\/cloud-tiles\/[a-f0-9]+-(256|512|1024)\.webp$/.test(r.paths[index]))return null;
   if(r.archive&&(typeof validCloudArchive!=='function'||!validCloudArchive(r)))return null;
