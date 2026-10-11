@@ -145,6 +145,7 @@ test('The workflow publishes latest archives first and prevents history from bui
  assert.match(workflow,/cron: '9,29,49 \* \* \* \*'/);
  assert.match(workflow,/cron: '19,39,59 \* \* \* \*'/);
  assert.match(workflow,/github\.event\.schedule == '19,39,59 \* \* \* \*'/);
+ assert.match(workflow,/cancel-in-progress: \$\{\{ github\.event_name == 'push' \}\}/,'scheduled ticks must let the current publication finish');
 });
 
 test('Latest and historical views prefer prepared blocks while the provider is ahead',async()=>{

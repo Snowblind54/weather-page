@@ -27,9 +27,10 @@ permissions:
   contents: write
 concurrency:
   group: update-cloud-tiles
-  # Satellite data is time-sensitive. Never make a new source/routing fix wait
-  # behind an obsolete build; the next run restores the last published archive.
-  cancel-in-progress: true
+  # Source fixes supersede obsolete builds. Scheduled ticks wait for publication
+  # rather than repeatedly killing a newest-frame pass before it can upload.
+  # GitHub keeps only the most recent pending tick in this concurrency group.
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   R2_PAUSED: ${{ vars.R2_PAUSED }}
