@@ -16,6 +16,7 @@ function harness(){
   context.window=context;
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/cloud-pixels.js'),'utf8'),context);
   vm.runInContext(source,context);
+  vm.runInContext("cloudViewportSources=()=>[]",context);
   vm.runInContext(`for(const p of Object.values(cloudProducts))p.latest={[p.day]:9000,[p.night]:9000,'msg_fes:clm':9000}`,context);
   return {context,elements,layers,events,timeouts,run:s=>vm.runInContext(s,context)};
 }
@@ -273,4 +274,18 @@ test('Nordic radar playback waits for the observation before advancing and stop 
   resolvers.shift()();await new Promise(resolve=>setImmediate(resolve));assert.equal(h.timeouts.at(-1).delay,900);
   h.timeouts.at(-1).fn();assert.equal(h.elements.timeline.value,1);h.run('stop()');const count=h.timeouts.length;
   resolvers.shift()();await new Promise(resolve=>setImmediate(resolve));assert.equal(h.timeouts.length,count);
+});
+
+test('delayed Canadian GOES playback spans observation history without borrowing future scans',()=>{
+ const h=harness();
+ h.run("cloudViewportSources=()=>['gibs','west'];frames=[{time:10000},{time:10600},{time:11200}];cloudProducts.gibs.latest={[cloudProducts.gibs.day]:7600,[cloudProducts.gibs.night]:8200};cloudProducts.west.latest={[cloudProducts.west.day]:8200,[cloudProducts.west.night]:8800};cloudProducts.gibs.times={[cloudProducts.gibs.day]:[6400,7000,7600],[cloudProducts.gibs.night]:[7000,7600,8200]};");
+ assert.deepEqual(Array.from(h.run('frames.map(f=>cloudTimelineFrame(f).time)')),[7000,7600,8200]);
+ assert.equal(h.run('cloudAvailableTime(cloudProducts.gibs,cloudProducts.gibs.night,cloudTimelineFrame(frames[0]).time)'),7000);
+ assert.equal(h.run('cloudAvailableTime(cloudProducts.gibs,cloudProducts.gibs.night,cloudTimelineFrame(frames[2]).time)'),8200);
+ h.elements.radarOn.checked=true;
+ assert.equal(h.run('cloudTimelineFrame(frames[2]).time'),11200,'combined radar retains its real shared clock');
+});
+test('a held polar composite does not drag the satellite timeline back to its orbit time',()=>{
+ const h=harness();h.run("cloudViewportSources=()=>['gibs','metop'];cloudProducts.metop={latest:{ir:1000}};cloudProducts.gibs.latest={ir:10000}");
+ assert.equal(h.run('cloudTimelineEnd()'),10000);
 });

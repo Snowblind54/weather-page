@@ -171,7 +171,7 @@ $('timeline').addEventListener('input',()=>{
   stop();requestCloudHistory();
 
   const i=Number($('timeline').value);
-  const frame=frames[i];
+  const frame=cloudTimelineFrame(frames[i]);
 
   if(frame){
     $('timeLabel').textContent=
@@ -191,7 +191,7 @@ $('timeline').addEventListener('input',()=>{
 });
 function settleTimelineSelection(){
   clearTimeout(timelineDebounceTimer);timelineDebounceTimer=null;
-  const frame=frames[Number($('timeline').value)];
+  const frame=cloudTimelineFrame(frames[Number($('timeline').value)]);
   if($('cloudOn').checked && frame)drawCloud(frame,{scrub:true}).catch(console.error);
   applyFrame({skipCloud:true}).catch(console.error);
 }

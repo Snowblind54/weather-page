@@ -76,7 +76,7 @@ function browser(failed=false,archived=false){
  const draws=[],calls=[],cache=new Map(),promises=new Map();
  const record={key:'4/8/4',time:100,paths:['data/cloud-tiles/abcdef-256.webp','data/cloud-tiles/abcdef-512.webp','data/cloud-tiles/abcdef-1024.webp'],times:[{id:'eumet',night:100,day:null}]};
  if(archived)record.archive={version:1,path:'data/cloud-tiles/pack-0123456789abcdef.bin'};
- const ctx={console,Date:{now:()=>130000},Map,Set,Promise,URL,AbortController,setTimeout,clearTimeout,frames:[{time:100}],cloudSession:1,cloudControllers:new Set(),cloudProducts:{},cloudRequestedTime:100,
+ const ctx={console,cloudTileSources:()=>[],Date:{now:()=>130000},Map,Set,Promise,URL,AbortController,setTimeout,clearTimeout,frames:[{time:100}],cloudSession:1,cloudControllers:new Set(),cloudProducts:{},cloudRequestedTime:100,
   cloudEnsureMetadata:async()=>{},cloudGetTile:async()=>({processor:'native'}),cloudTileKey:()=> 'native',cloudVisibleTiles:()=>[],cloudTileResolution:()=>256,
   cloudTileCache:cache,cloudTilePromises:promises,CLOUD_TILE_CACHE_LIMIT:768,CLOUD_CACHE_BYTES:48*1024*1024,cloudCacheBytes:()=>cache.size*256*256*4,
   map:{on:()=>{}},$:()=>({addEventListener:()=>{},checked:true}),createImageBitmap:async()=>({width:1024,height:1024,close(){}}),
@@ -215,4 +215,26 @@ test('Slow polar composites stay usable while expired full-disk GOES archives re
   await ctx.cloudEnsureMetadata();
   assert.equal((await ctx.cloudGetTile({z:6,x:33,y:18},20000)).processor,id==='metop'?'cdn':'native');
  }
+});
+
+test('central history follows delayed GOES observation times instead of repeating the newest scan',()=>{
+ const plan={now:15000,times:[14400,13800,13200]};
+ const products={gibs:{latest:{day:7800,night:8400}},west:{latest:{night:9000}},metop:{latest:{ir:100}}};
+ assert.deepEqual(producer.historyTimes(['gibs','west','metop'],products,plan),[7800,7200,6600]);
+ assert.deepEqual(producer.historyTimes(['metop'],products,plan),plan.times);
+});
+
+test('USA fast mosaic is not overridden by a delayed prepared full-disk archive',async()=>{
+ const h=browser();h.ctx.cloudTileSources=()=>['noaa'];
+ await h.ctx.cloudEnsureMetadata();
+ const tile=await h.ctx.cloudGetTile({z:6,x:33,y:18},110);
+ assert.equal(tile.processor,'native');
+});
+test('retention keeps real GOES history within its observation window without retaining ancient history',()=>{
+ const now=100000,latest={key:'west',time:now-7200,times:[{id:'west'}]};
+ const historical={key:'west',time:latest.time-7200,times:[{id:'west'}]};
+ const expired={key:'west',time:latest.time-14400,times:[{id:'west'}]};
+ assert.deepEqual(producer.retain([expired,historical,latest],now-10800),[historical,latest]);
+ const ancient={...latest,time:100};
+ assert.deepEqual(producer.retain([{...historical,time:50},ancient],now-10800),[ancient]);
 });

@@ -64,7 +64,14 @@ function coordinates(c){
 function selectRecord(records,time){return records.filter(r=>r.time<=time).sort((a,b)=>b.time-a.time)[0];}
 function retain(records,first){
  const latest=new Map();for(const r of records)if(!latest.has(r.key)||r.time>latest.get(r.key).time)latest.set(r.key,r);
- return records.filter(r=>r.time>=first||r===latest.get(r.key));
+ return records.filter(r=>{
+  const last=latest.get(r.key);
+  const delayed=r.times?.some(s=>s.id==='gibs'||s.id==='west');
+  // Keep three hours of real GOES observations, rather than pruning the
+  // two-hour playback history just because the upstream feed arrives late.
+  const cutoff=delayed&&last.time>=first-KEEP?Math.min(first,last.time-KEEP):first;
+  return r.time>=cutoff||r===last;
+ });
 }
 function observations(sources){return sources.map(s=>({id:s.id,day:s.day?s.dayTime:null,night:s.night?s.nightTime:null}));}
 function processingSize(coords){return coords.z===4?1024:512;}
@@ -80,6 +87,13 @@ function phasePlan(phase,previous,wallTime){
  const now=history?previous.generated_at:wallTime;
  const times=Array.from({length:12},(_,i)=>Math.floor(now/600)*600-(i+1)*600);
  return {now,times:phase==='latest'?[now]:history?times:[now,...times],limit:history?Math.max(0,MAX_NEW-previous.metrics.prepared_blocks):MAX_NEW};
+}
+function historyTimes(ids,products,plan){
+ const latest=ids.filter(id=>id!=='metop').map(id=>
+   Math.max(...Object.values(products[id]?.latest||{}).filter(Number.isFinite))).filter(Number.isFinite);
+ const end=latest.length?Math.min(plan.now,...latest):plan.now;
+ // Match satellite-only browser playback and retain its actual two-hour history.
+ return plan.times.map(time=>time-(Math.floor(plan.now/600)*600-Math.floor(end/600)*600));
 }
 async function main(phase='all'){
  const started=Date.now();fs.mkdirSync(DIR,{recursive:true});
@@ -104,7 +118,7 @@ async function main(phase='all'){
    if(stale){errors.push(`${coords.z}/${coords.x}/${coords.y}: ${stale} latest imagery is stale; retaining previous tile`);continue;}
   }
   // Newest real observation first; backfill the two-hour timeline gradually.
-  for(const time of plan.times){
+  for(const time of (phase==='history'?historyTimes(ids,products,plan):plan.times)){
    c.requested=time;let identity;
    try{identity=vm.runInContext("cloudTileSources(coords).map(id=>{const p=cloudProducts[id];return id+':'+cloudAvailableTime(p,p.day,requested)+':'+cloudAvailableTime(p,p.night,requested)}).join('|')",c);}catch{continue;}
    if(identity.includes('unavailable'))continue;
@@ -179,5 +193,5 @@ async function main(phase='all'){
  for(const name of fs.readdirSync(DIR))if(!protectedPaths.has(name))fs.unlinkSync(path.join(DIR,name));
  console.log(JSON.stringify(result.metrics));
 }
-module.exports={runtime,coordinates,retain,selectRecord,processingSize,sourceFreshEnough,phasePlan};
+module.exports={runtime,coordinates,retain,selectRecord,processingSize,sourceFreshEnough,phasePlan,historyTimes};
 if(require.main===module)main(process.argv[2]?.replace(/^--/,'')||'all').catch(e=>{console.error(e.message);process.exitCode=1;});

@@ -1,7 +1,7 @@
 // Prefer centrally extracted cloud imagery; preserve direct-provider fallback.
 (() => {
  if(typeof document!=='undefined'&&typeof document.title==='string')
-  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.136');
+  document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.137');
  const nativeMetadata=cloudEnsureMetadata,nativeTile=cloudGetTile,nativeKey=cloudTileKey;
  let manifest=null,checkedAt=0,pending=null;
  const images=new Map(),downloads=new Map();
@@ -22,7 +22,8 @@
  }
  function latestTimelineTime(){
   if(typeof frames==='undefined'||!Array.isArray(frames)||!frames.length)return null;
-  const value=Number(frames[frames.length-1]?.time);
+  const frame=frames[frames.length-1];
+  const value=Number((typeof cloudTimelineFrame==='function'?cloudTimelineFrame(frame):frame)?.time);
   return Number.isFinite(value)?value:null;
  }
  // Fast geostationary feeds should not freeze the map on yesterday's archive.
@@ -38,6 +39,8 @@
  }
  function selection(coords,time){
   if(!manifest)return null;
+  // Inside CONUS, use the fast NOAA mosaic instead of a delayed full-disk block.
+  if(cloudTileSources(coords).includes('noaa'))return null;
   const z=Math.min(4,coords.z),factor=2**(coords.z-z);
   const key=`${z}/${Math.floor(coords.x/factor)}/${Math.floor(coords.y/factor)}`;
   const candidates=manifest.records.filter(r=>r.key===key);

@@ -36,7 +36,7 @@
     await cloudEnsureMetadata(true);
     // A user may have selected history or switched clouds off during discovery.
     if(document.hidden||!enabled('cloudOn')||!latest())return;
-    await drawCloud({time:Math.floor(Date.now()/1000)});
+    await applyFrame({awaitCloud:true});
   });
   add('temperature',300000,()=>temperatureEnabled(),()=>loadTemperatures(false));
   add('wind',300000,()=>windVisualEnabled(),()=>loadWind());

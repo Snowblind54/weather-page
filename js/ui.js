@@ -92,7 +92,8 @@ function renderTimelineTicks(){
   for(let n=0;n<count;n++){
     const index=count===1?0:Math.round(n*(frames.length-1)/(count-1));
     const label=document.createElement('span');
-    label.textContent=new Date(frames[index].time*1000).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',hour12:false});
+    const frame=typeof cloudTimelineFrame==='function'?cloudTimelineFrame(frames[index]):frames[index];
+    label.textContent=new Date(frame.time*1000).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',hour12:false});
     ticks.append(label);
   }
 }

@@ -226,9 +226,16 @@ function clearDirectNationalRadars(){
 
 async function applyFrame(options={}){
   const i=Number($('timeline').value);
-  const frame=frames[i];
+  let frame=frames[i];
   if(!frame)return;
+  if($('cloudOn').checked && typeof cloudTimelineFrame==='function'){
+    cloudRequestedTime=frame.time;
+    await cloudEnsureMetadata();
+    if(i!==Number($('timeline').value))return;
+    frame=cloudTimelineFrame(frame);
+  }
 
+  if(typeof renderTimelineTicks==='function')renderTimelineTicks();
   $('timeLabel').textContent=fmt(frame.time)+(i===frames.length-1?' · latest':'');
   if($('windOn').checked) renderWind(frame.time);
   if(typeof renderOfficialWind==='function')renderOfficialWind();

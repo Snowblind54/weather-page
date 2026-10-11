@@ -126,6 +126,21 @@ function cloudViewportSources(){
   for(let y=nw.y;y<=se.y;y++)for(let x=nw.x;x<=se.x;x++)cloudTileSources({z,x,y}).forEach(id=>ids.add(id));
   return [...ids];
 }
+// Satellite-only playback follows the newest observation available in this
+// viewport, rather than repeating a delayed GOES scan along the radar clock.
+function cloudTimelineEnd(){
+  if(!$('cloudOn')?.checked || $('radarOn')?.checked || typeof frames==='undefined' || !frames.length)return null;
+  const latest=cloudViewportSources().filter(id=>id!=='metop').map(id=>
+    Math.max(...Object.values(cloudProducts[id]?.latest||{}).filter(Number.isFinite))).filter(Number.isFinite);
+  if(!latest.length)return null;
+  return Math.min(frames[frames.length-1].time,...latest);
+}
+function cloudTimelineFrame(frame){
+  if(!frame)return frame;
+  const end=cloudTimelineEnd();
+  if(!Number.isFinite(end))return frame;
+  return {...frame,time:frame.time-(frames[frames.length-1].time-end)};
+}
 async function cloudEnsureMetadata(force=false){
   const documents=new Map();
   await Promise.all(cloudViewportSources().map(async id=>{
@@ -463,7 +478,7 @@ function cloudUpcomingFrames(){
   const count=Math.min(2,Math.max(0,capacity-1),Math.max(0,frames.length-1));
   return Array.from({length:count},(_,n)=>{
     const offset=playing?n+1:(n%2===0?1:-1)*Math.ceil((n+1)/2);
-    return frames[(i+offset+frames.length)%frames.length];
+    return cloudTimelineFrame(frames[(i+offset+frames.length)%frames.length]);
   });
 }
 function cloudBufferUpcoming(){
@@ -490,6 +505,6 @@ map.on('movestart zoomstart',()=>{
 map.on('moveend zoomend',()=>{
   if($('cloudOn').checked && cloudRequestedTime!==null){
     // GridLayer handles newly visible tiles; render the selected frame after it updates.
-    setTimeout(()=>drawCloud({time:cloudRequestedTime}).catch(console.error),0);
+    setTimeout(()=>applyFrame().catch(console.error),0);
   }
 });
