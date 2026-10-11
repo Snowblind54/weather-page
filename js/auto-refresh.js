@@ -292,7 +292,4 @@
   const heatmapBadge=$('windHeatmapOn')?.closest('.row')?.querySelector('.badge');
   if(heatmapBadge)heatmapBadge.textContent='model + stations';
 
-  if(typeof document!=='undefined'&&document.title){
-    document.title=document.title.replace(/v\d+(?:\.\d+)*/, 'v8.128');
-  }
 })();
