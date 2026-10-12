@@ -59,6 +59,27 @@ def accounted(store, files=None, total=None, now=None):
 
 
 class StorageSafety(unittest.TestCase):
+    def test_breakdown_reconciles_active_retired_pending_and_foreign_bytes(self):
+        now = datetime.now(timezone.utc)
+        active = 'weather/data/cloud-tiles/current.pmtiles'
+        retired = 'weather/data/cloud-tiles/previous.pmtiles'
+        pending = 'weather/data/forecast-cache/new.webp'
+        objects = {active: {'Size': 50, 'LastModified': now - timedelta(days=3)},
+            retired: {'Size': 20, 'LastModified': now},
+            pending: {'Size': 30, 'LastModified': now},
+            'private-other-name': {'Size': 10, 'LastModified': now},
+            '_weather/control/registry.json': {'Size': 5, 'LastModified': now}}
+        report = r2.storage_breakdown(objects, {active, pending}, {pending}, now)
+        self.assertEqual(sum(row['bytes'] for row in report.values()), 115)
+        self.assertEqual(report['cloud-tiles']['activeBytes'], 50)
+        self.assertEqual(report['cloud-tiles']['retiredBytes'], 20)
+        self.assertEqual(report['cloud-tiles']['protectedPastExpiryBytes'], 50)
+        self.assertEqual(report['forecast-cache']['pendingBytes'], 30)
+        self.assertEqual(report['outside-managed-data']['bytes'], 10)
+        self.assertNotIn('private-other-name', json.dumps(report))
+        for row in report.values():
+            self.assertEqual(row['bytes'], row['activeBytes'] + row['pendingBytes'] + row['retiredBytes'])
+
     def test_expiry_keeps_active_last_good_and_foreign_objects(self):
         now = datetime.now(timezone.utc)
         old = {'Size': 10, 'LastModified': now - timedelta(days=30)}

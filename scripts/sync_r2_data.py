@@ -49,6 +49,30 @@ def plan_peak(total, changes):
     return total + sum(size for _, size, _ in changes)
 
 
+def storage_breakdown(objects, protected, pending, now):
+    """Describe the existing audit inventory without extra R2 requests."""
+    groups = {}
+    for key, obj in objects.items():
+        if key.startswith(PREFIX + 'data/'):
+            relative = key[len(PREFIX + 'data/'):]
+            group = relative.split('/', 1)[0] if '/' in relative else 'shared-snapshots'
+        elif key.startswith('_weather/control/'):
+            group = 'storage-control'
+        else:
+            group = 'outside-managed-data'
+        row = groups.setdefault(group, {'bytes': 0, 'files': 0,
+            'activeBytes': 0, 'pendingBytes': 0, 'retiredBytes': 0,
+            'protectedPastExpiryBytes': 0})
+        size = obj['Size']
+        row['bytes'] += size
+        row['files'] += 1
+        state = 'pendingBytes' if key in pending else 'activeBytes' if key in protected else 'retiredBytes'
+        row[state] += size
+        if key in protected and key.startswith(PREFIX + 'data/') and obj['LastModified'] < now - timedelta(days=expiry_days(key)):
+            row['protectedPastExpiryBytes'] += size
+    return dict(sorted(groups.items(), key=lambda item: (-item[1]['bytes'], item[0])))
+
+
 def generation(path):
     if path.suffix != '.json' or path.parent.name != 'data':
         return None
@@ -79,6 +103,7 @@ def audit_cleanup(client, bucket, registry, now, root, lease):
     protected = {k for k, v in entries.items() if v.get('protected')} | set(registry.get('pending', []))
     objects = inventory(client, bucket)
     expired = expired_keys(objects, protected, now)
+    expired_bytes = sum(objects[key]['Size'] for key in expired)
     for start in range(0, len(expired), 1000):
         if lease: lease.check()
         result = client.delete_objects(Bucket=bucket, Delete={
@@ -107,7 +132,9 @@ def audit_cleanup(client, bucket, registry, now, root, lease):
     save_registry(client, bucket, updated, lease)
     report = {'generatedAt': now.isoformat(), 'budgetBytes': BUDGET,
               'bucketBytes': total, 'managedFiles': len(entries), 'uploadedFiles': 0,
-              'expiredFiles': len(expired), 'inventoryScans': 1, 'status': 'audited'}
+              'expiredFiles': len(expired), 'expiredBytes': expired_bytes,
+              'storageBreakdown': storage_breakdown(objects, protected, set(registry.get('pending', [])), now),
+              'inventoryScans': 1, 'status': 'audited'}
     (root / 'r2-storage-report.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report), flush=True)
     if total + INDEX_RESERVE > BUDGET:
