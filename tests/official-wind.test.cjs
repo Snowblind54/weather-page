@@ -32,7 +32,7 @@ test('validation rejects future snapshots, negative speeds, duplicate station id
   const h=harness();h.run('validateOfficialWind(fixture)');h.fixture.generatedAt=h.now+1000;assert.throws(()=>h.run('validateOfficialWind(fixture)'));h.fixture.generatedAt=h.now;h.fixture.stations[0].rows[0][1]=-1;assert.throws(()=>h.run('validateOfficialWind(fixture)'));h.fixture.stations[0].rows[0][1]=1;h.fixture.stations.push(h.fixture.stations[0]);assert.throws(()=>h.run('validateOfficialWind(fixture)'));
 });
 test('snapshot fetch is shared and disabling during a load cannot resurrect labels',async()=>{
-  const h=harness();h.elements.officialWindSustained.checked=true;let resolve,calls=0;h.context.fetch=()=>{calls++;return new Promise(r=>resolve=r);};const pending=h.run('loadOfficialWind()');h.run('loadOfficialWind()');assert.equal(calls,1);h.elements.officialWindSustained.checked=false;h.run('renderOfficialWind()');resolve({ok:true,json:async()=>h.fixture});await pending;assert.equal(h.layers.size,0);assert.equal(h.group.children.length,0);
+  const h=harness();h.elements.officialWindSustained.checked=true;let resolve,calls=0;h.context.fetch=()=>{calls++;return new Promise(r=>resolve=r);};const pending=h.run('loadOfficialWind()');h.run('loadOfficialWind()');assert.equal(calls,1);h.elements.officialWindSustained.checked=false;h.run('renderOfficialWind()');resolve({ok:true,json:async()=>h.fixture});await pending;assert.equal(calls,1,'24 h history waits for a station popup');assert.equal(h.layers.size,0);assert.equal(h.group.children.length,0);
 });
 
 test('Florida stations validate and display NOAA observations with missing gusts intact',()=>{
@@ -42,10 +42,23 @@ test('Florida stations validate and display NOAA observations with missing gusts
   h.run('officialWindData=validateOfficialWind(fixture)');
   h.elements.officialWindSustained.checked=true;h.run('renderOfficialWind()');
   assert.equal(h.group.children.length,1);
-  assert.match(h.group.children[0].popup,/Florida, USA/);
+  assert.match(h.group.children[0].popup,/Official station · USA/);
   assert.match(h.group.children[0].popup,/NOAA/);
   assert.match(h.group.children[0].popup,/Unavailable/);
   h.elements.officialWindSustained.checked=false;h.elements.officialWindGusts.checked=true;h.run('renderOfficialWind()');
   assert.equal(h.group.children.length,0);
-  h.fixture.stations[0].lat=40;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+  h.fixture.stations[0].lat=10;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+});
+
+
+
+test('US validation covers mainland, Alaska, Hawaii and the Aleutian date line without changing European bounds',()=>{
+ const h=harness();h.fixture.sources.US={status:'ok',timeKind:'observation',name:'NOAA'};
+ h.fixture.stations=[['KJFK',40.6,-73.8],['PANC',61.2,-150],['PHNL',21.3,-157.9],['PASY',52.7,174.1]].map(([code,lat,lon])=>({country:'US',code,name:code,lat,lon,rows:[[h.now-60,5.14,10.29,90]]}));
+ h.run('validateOfficialWind(fixture)');h.fixture.stations[0].country='EE';assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+});
+test('the shared snapshot accepts a nationwide station count and still enforces a bounded maximum',()=>{
+ const h=harness();h.fixture.sources.US={status:'ok',timeKind:'observation',name:'NOAA'};
+ h.fixture.stations=Array.from({length:4500},(_,i)=>({country:'US',code:'US'+i,name:'US Station',lat:40,lon:-100,rows:[[h.now-60,0,null,null]]}));
+ h.run('validateOfficialWind(fixture)');h.fixture.stations=Array.from({length:10001},()=>h.fixture.stations[0]);assert.throws(()=>h.run('validateOfficialWind(fixture)'));
 });

@@ -26,3 +26,19 @@ test('missing shared winds remain unavailable instead of borrowing a distant mod
  const h=setup();h.run("temperatureGridData.get('greenland').forEach(p=>p.wind=[[null,null,null],[null,null,null]])");
  assert(h.run('Number.isNaN(modelWindSpeedAt(64,-51,time))'));
 });
+
+
+
+test('matching US station IDs avoids a nationwide scan and still enforces wind age and time alignment',()=>{
+ const c={Map,Number,Math,reads:0};vm.createContext(c);
+ vm.runInContext(`const WIND_CHILL_PAIR_RADIUS_KM=25,WIND_CHILL_PAIR_TIME_SEC=2700,WIND_CHILL_EXACT_STATION_TIME_SEC=4500,WIND_CHILL_MAX_AGE_SEC=5700;
+ var officialWindData={stations:Array.from({length:2500},(_,i)=>({country:'US',code:'K'+i,rows:[[10000,5,null,90]]}))};
+ function officialWindReading(s){reads++;return s.rows.at(-1);}
+ function distanceKm(){return 30;}`,c);
+ const source=fs.readFileSync('js/wind-chill.js','utf8');vm.runInContext(source.slice(source.indexOf('  let pairingDataset='),source.indexOf('  function officialWindChillStations(')),c);
+ assert.equal(vm.runInContext("officialWindForTemperatureStation({country:'US',code:'K2499',time:10000},10000).station.code",c),'K2499');assert.equal(c.reads,1);
+ vm.runInContext("officialWindData={stations:[{country:'US',code:'K2499',rows:[[1000,5,null,90]]}]}",c);
+ assert.equal(vm.runInContext("officialWindForTemperatureStation({country:'US',code:'K2499',time:10000},10000)",c),null);
+ vm.runInContext("officialWindData={stations:[{country:'US',code:'K2499',rows:[[10000,null,20,90]]}]}",c);
+ assert.equal(vm.runInContext("officialWindForTemperatureStation({country:'US',code:'K2499',time:10000},10000)",c),null,'gusts cannot substitute for sustained wind');
+});

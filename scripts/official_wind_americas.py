@@ -143,5 +143,6 @@ core.load_florida=load_florida
 core.SOURCES['US'].update(
     name='NOAA / National Weather Service / National Data Buoy Center',
     url='https://www.ndbc.noaa.gov/',
-    period='Florida official observations: METAR/SPECI airport winds plus NOAA/NDBC C-MAN coastal stations. NDBC shore stations report measured wind and gusts in m/s; the map retains the latest 24 hours without filling missing values.'
+    period='USA official observations: METAR/SPECI airport winds nationwide plus NOAA/NDBC C-MAN coastal stations in Florida. NDBC shore stations report measured wind and gusts in m/s; the map retains the latest 24 hours without filling missing values.'
 )
+

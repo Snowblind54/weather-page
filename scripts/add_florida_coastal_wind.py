@@ -147,8 +147,8 @@ def main():
         'name': 'NOAA / NWS Aviation Weather Center + NOAA/NDBC/NOS',
         'url': 'https://www.ndbc.noaa.gov/',
         'timeKind': 'observation',
-        'period': ('Florida official observations: METAR/SPECI airport wind plus NOAA/NDBC/NOS '
-                   'coastal-station wind speed, direction and gust. NDBC standard meteorological '
+        'period': ('USA official observations: METAR/SPECI airport wind nationwide, including Alaska and Hawaii, plus NOAA/NDBC/NOS '
+                   'coastal-station wind speed, direction and gust in Florida. Airport sustained wind is a 2-minute mean; gusts are reported from the preceding 10 minutes and remain unavailable when absent. NDBC standard meteorological '
                    'wind values are reported in m/s.'),
     })
     if fresh:
@@ -168,3 +168,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

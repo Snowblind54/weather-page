@@ -159,7 +159,7 @@ class FloridaWindTests(unittest.TestCase):
         self.assertEqual(w.parse_florida([{**base, 'obsTime':None}], metadata), [])
         self.assertEqual(w.parse_florida([{**base, 'metarType':'TAF'}], metadata), [])
         self.assertEqual(w.parse_florida([base], []), [])
-        with self.assertRaises(ValueError): w.station('US','X','Wrong state',40,-80,[(STAMP,3,5,90)])
+        with self.assertRaises(ValueError): w.station('US','X','Outside USA coverage',0,-80,[(STAMP,3,5,90)])
         with self.assertRaises(ValueError): w.parse_florida([base]*400, metadata)
 
     def test_special_reports_are_sorted_and_keep_latest_timestamp(self):
@@ -169,3 +169,4 @@ class FloridaWindTests(unittest.TestCase):
         self.assertEqual([r[0] for r in result['rows']], [STAMP,STAMP+600])
         self.assertEqual(result['rows'][0][2], None)
         self.assertEqual(result['rows'][1][2], 10.29)
+

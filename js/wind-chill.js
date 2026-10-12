@@ -33,22 +33,40 @@
     return temperatureObservationDistanceKm(a.lat,a.lon,b.lat,b.lon);
   }
 
+  let pairingDataset=null,pairingStations=null;
+  const windStationsByCode=new Map(),windStationsByCountry=new Map();
   function officialWindForTemperatureStation(tempStation,unix){
     if(!officialWindData?.stations?.length)return null;
-    let best=null,bestDistance=Infinity;
-    for(const windStation of officialWindData.stations){
-      if(windStation.country!==tempStation.country)continue;
+    // US temperature and wind airports share ICAO station IDs. Index the
+    // dataset once rather than scanning thousands of winds for every label.
+    if(pairingDataset!==officialWindData||pairingStations!==officialWindData.stations){
+      pairingDataset=officialWindData;pairingStations=officialWindData.stations;
+      windStationsByCode.clear();windStationsByCountry.clear();
+      for(const s of pairingStations){
+        windStationsByCode.set(s.country+'/'+s.code,s);
+        if(!windStationsByCountry.has(s.country))windStationsByCountry.set(s.country,[]);
+        windStationsByCountry.get(s.country).push(s);
+      }
+    }
+    function pair(windStation){
+      if(!windStation)return null;
       const reading=officialWindReading(windStation,unix);
-      if(!reading||!Number.isFinite(reading[1]))continue;
-
+      if(!reading||!Number.isFinite(reading[1]))return null;
       const exactStation=!!(tempStation.code&&windStation.code&&String(tempStation.code)===String(windStation.code));
-      const tempTime=Number(tempStation.time),windTime=Number(reading[0]);
       const maxTimeDifference=exactStation?WIND_CHILL_EXACT_STATION_TIME_SEC:WIND_CHILL_PAIR_TIME_SEC;
-      if(Number.isFinite(tempTime)&&Math.abs(tempTime-windTime)>maxTimeDifference)continue;
-      if(unix-windTime>WIND_CHILL_MAX_AGE_SEC)continue;
-
-      let d=exactStation?0:distanceKm(tempStation,windStation);
-      if(d<=WIND_CHILL_PAIR_RADIUS_KM&&d<bestDistance){bestDistance=d;best={station:windStation,reading,distance:d,exactStation};}
+      const tempTime=Number(tempStation.time);
+      if(Number.isFinite(tempTime)&&Math.abs(tempTime-reading[0])>maxTimeDifference)return null;
+      if(unix-reading[0]>WIND_CHILL_MAX_AGE_SEC)return null;
+      const d=exactStation?0:distanceKm(tempStation,windStation);
+      return d<=WIND_CHILL_PAIR_RADIUS_KM?{station:windStation,reading,distance:d,exactStation}:null;
+    }
+    const exact=windStationsByCode.get(tempStation.country+'/'+tempStation.code),exactPair=pair(exact);
+    if(exactPair)return exactPair;
+    let best=null;
+    for(const s of windStationsByCountry.get(tempStation.country)||[]){
+      if(s===exact)continue;
+      const candidate=pair(s);
+      if(candidate&&(!best||candidate.distance<best.distance))best=candidate;
     }
     return best;
   }
@@ -334,3 +352,4 @@
     }
   }
 })();
+

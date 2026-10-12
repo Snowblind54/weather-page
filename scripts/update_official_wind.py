@@ -25,7 +25,7 @@ LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
     'US': dict(name='NOAA / National Weather Service Aviation Weather Center',
                url='https://aviationweather.gov/data/metar/', timeKind='observation',
-               period='Florida METAR/SPECI airport observations: 2-minute mean wind and reported instantaneous gust maximum from the preceding 10 minutes. Missing gust reports remain unavailable.'),
+               period='USA METAR/SPECI airport observations: 2-minute mean wind and reported gusts from the preceding 10 minutes. Missing gust reports remain unavailable.'),
     'CA': dict(name='Environment and Climate Change Canada / MSC',url='https://eccc-msc.github.io/open-data/msc-data/obs_station/readme_obs_insitu_en/',timeKind='observation',period='Quality-checked 10-minute mean wind and measured instantaneous wind maximum over 10 minutes; missing maxima remain unavailable.'),
     'GL': dict(name='Danish Meteorological Institute (DMI)',url='https://www.dmi.dk/friedata/',timeKind='observation',period='10-minute mean wind and highest 3-second mean wind in the latest 10 minutes.'),
     'EE': dict(name='Estonian Environment Agency / Keskkonnaagentuur', url='https://www.ilmateenistus.ee/',
@@ -101,7 +101,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(24,31,-88,-79)}.get(country,(48.5,72.5,-26,33))
+    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180)}.get(country,(48.5,72.5,-26,33))
     if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
@@ -504,6 +504,7 @@ def merge(previous, current, now):
 
 def main():
     from official_wind_americas import load_canada, load_greenland
+    from official_wind_us import load_usa
     now = dt.datetime.now(dt.timezone.utc)
     try:
         previous = json.loads(OUTPUT.read_text())
@@ -513,7 +514,7 @@ def main():
     results, sources = [], {}
     loaders = [('EE', load_estonia), ('FI', load_finland), ('SE', load_sweden), ('NO', load_norway),
                ('IS', load_iceland), ('LV', load_latvia), ('LT', load_lithuania), ('PL', load_poland),
-               ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_florida)]
+               ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_usa)]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):
@@ -545,3 +546,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
