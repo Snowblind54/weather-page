@@ -338,7 +338,8 @@ test('Canadian nearby-station index matches full interpolation at southern and A
   h.context.testWindow={rows:Array.from({length:100},(_,i)=>({station:{lat:lat+(i%10-5)*.3,lon:-100+(Math.floor(i/10)-5)*1.5},value:i/10})),end:h.context.frameTime,source:'ECCC'};
   h.context.probeLat=lat;
   const indexed=h.run('officialRainAt(probeLat,-100,24,rainWindowEnd(),"CA")');
-  const full=h.run('officialRainAt(probeLat,-100,24,rainWindowEnd(),"NO")');
-  assert.equal(indexed.value,full.value);assert.equal(indexed.count,full.count);
+  const neighbours=h.context.testWindow.rows.map(r=>({...r,d2:((r.station.lat-lat)*111.2)**2+((r.station.lon+100)*111.2*Math.cos(lat*Math.PI/180))**2})).filter(r=>r.d2<=100**2).sort((a,b)=>a.d2-b.d2).slice(0,6);
+  const nearest=neighbours[0],full=nearest.d2<=.01?nearest.value:neighbours.reduce((s,r)=>s+r.value/Math.max(.01,r.d2),0)/neighbours.reduce((s,r)=>s+1/Math.max(.01,r.d2),0);
+  assert(Math.abs(indexed.value-full)<1e-12);assert.equal(indexed.count,neighbours.length);
  }
 });

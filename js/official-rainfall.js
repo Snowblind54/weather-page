@@ -70,8 +70,8 @@ function officialRainWindow(country,hours,end){
   return result;
 }
 
-function canadianRainCandidates(window,lat,lon){
-  // Keep Canadian raster work local instead of scanning 500+ gauges per pixel.
+function nearbyRainCandidates(window,lat,lon){
+  // Keep raster work local instead of scanning every national gauge per pixel.
   if(!window.buckets){
     window.buckets=new Map();
     for(const row of window.rows){
@@ -92,7 +92,7 @@ function officialRainAt(lat,lon,hours,end,country){
   const window=officialRainWindow(country,hours,end);
   if(!window) return null;
   const neighbours=[],cos=Math.cos(lat*Math.PI/180);
-  for(const row of country==='CA'?canadianRainCandidates(window,lat,lon):window.rows){
+  for(const row of nearbyRainCandidates(window,lat,lon)){
     const s=row.station;
     const dy=(s.lat-lat)*111.2,dx=(s.lon-lon)*111.2*cos,d2=dx*dx+dy*dy;
     if(d2>OFFICIAL_RAIN_RADIUS_KM**2) continue;
