@@ -76,11 +76,11 @@ function updateCategoryIndicators(){
       (section==='windSection' && ['windHeatmapOn','officialWindSustained','officialWindGusts'].some(id=>$(id).checked)) ||
       (section==='tempSection' && $('heatmapOn').checked) ||
       (section==='radarSection' && ['rain1h','rain24h','rain48h'].some(id=>$(id).checked)) ||
-      (section==='spaceWeatherSection' && $('auroraViewingOn').checked);
+      (section==='spaceWeatherSection' && ($('auroraViewingOn').checked||$('daylightOn').checked));
     $('nav-'+section).classList.toggle('layer-active',active);
   }
 }
-for(const id of [...weatherCategories.map(c=>c[1]),'rain1h','rain24h','rain48h','heatmapOn','windHeatmapOn','officialWindSustained','officialWindGusts','auroraViewingOn']){
+for(const id of [...weatherCategories.map(c=>c[1]),'rain1h','rain24h','rain48h','heatmapOn','windHeatmapOn','officialWindSustained','officialWindGusts','auroraViewingOn','daylightOn']){
   $(id).addEventListener('change',updateCategoryIndicators);
 }
 updateCategoryIndicators();
@@ -137,7 +137,7 @@ $('clearLayers').addEventListener('click',()=>{
     'tempOn','heatmapOn','windOn','windHeatmapOn',
     'officialWindSustained','officialWindGusts','cloudOn','radarOn',
     'rain1h','rain24h','rain48h','cycloneOn','warningOn',
-    'auroraOn','auroraViewingOn','snowOn','snowDepthOn'
+    'auroraOn','auroraViewingOn','daylightOn','snowOn','snowDepthOn'
   ];
   // Switch all state off first: handlers must never briefly enable another layer.
   const enabled=layerIds.map(id=>$(id)).filter(input=>input?.checked);

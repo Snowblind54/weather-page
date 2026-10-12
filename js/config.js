@@ -36,14 +36,22 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
   panel.setAttribute('aria-labelledby','spaceWeatherSection-title');
   panel.innerHTML=`
     <div class="panel-heading">
-      <div><div class="eyebrow">SPACE WEATHER</div><h2 id="spaceWeatherSection-title">Northern Lights</h2><p>Aurora forecast &amp; viewing conditions</p></div>
+      <div><div class="eyebrow">SPACE WEATHER</div><h2 id="spaceWeatherSection-title">Northern Lights</h2><p>Aurora, daylight &amp; viewing conditions</p></div>
       <div class="panel-actions"><button class="info-button" data-info="spaceWeatherSection-sources" aria-controls="spaceWeatherSection-sources" aria-expanded="false" aria-label="Space weather sources">i</button><button class="close-panel" aria-label="Close Space Weather menu">×</button></div>
     </div>
     <div id="spaceWeatherSection-sources" class="source-card" hidden>
-      <h3>Sources &amp; attribution</h3>
+      <h3>Sources &amp; attribution</h3><p>Daylight and sunrise/sunset are calculated locally with SunCalc. Times assume a clear, level horizon.</p>
       <p>NOAA Space Weather Prediction Center (SWPC): OVATION short-term aurora forecast, northern hemispheric auroral power, observed planetary Kp and real-time solar-wind measurements. ECMWF IFS Open Data supplies total cloud cover on a 0.25° global grid. Viewing conditions are a Northern Weather derived layer combining NOAA OVATION, astronomical darkness and ECMWF total cloud cover.</p>
       <div class="source-links"><a href="https://www.spaceweather.gov/products/aurora-30-minute-forecast" target="_blank" rel="noopener">NOAA Aurora ↗</a><a href="https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt" target="_blank" rel="noopener">NOAA Aurora Power ↗</a><a href="https://www.spaceweather.gov/products/solar-wind" target="_blank" rel="noopener">NOAA Solar Wind ↗</a><a href="https://www.ecmwf.int/en/forecasts/datasets/open-data" target="_blank" rel="noopener">ECMWF Open Data ↗</a></div>
       <div class="small">OVATION is a forecast, not an observation of visible aurora. Hemispheric power is the modeled total auroral energy input over the northern hemisphere, not a local viewing percentage. The viewing layer reduces visibility for daylight/twilight and modelled cloud cover. Local light pollution, terrain, haze and horizon obstructions are not modelled.</div>
+    </div>
+
+    <div class="section space-layer-section">
+      <div class="space-section-title"><div><div class="label">Sunrise &amp; sunset</div><div class="small">Live daylight around the world</div></div></div>
+      <div class="row"><label class="label"><input id="daylightOn" type="checkbox"> Daylight / night</label><span class="badge">live</span></div>
+      <div class="sun-layer-legend" aria-label="Daylight and night shading"><span><i class="day"></i>Daylight · clear</span><span><i class="twilight"></i>Twilight</span><span><i class="night"></i>Night</span></div>
+      <div class="small space-weather-help">Click any map location for its next sunrise and sunset. The boundary updates every minute. Popup times use your device’s time zone.</div>
+      <div id="daylightStatus" class="status" role="status">Daylight / night layer is off.</div>
     </div>
 
     <div class="section space-layer-section">

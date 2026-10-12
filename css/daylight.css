@@ -1,0 +1,9 @@
+.sun-layer-legend{display:flex;gap:16px;flex-wrap:wrap;margin:9px 0;color:var(--muted,#bacbd5);font-size:12px}
+.sun-layer-legend span{display:flex;align-items:center;gap:6px}
+.sun-layer-legend i{width:13px;height:13px;border-radius:50%;border:1px solid #8295a2}
+.sun-layer-legend .day{background:#f6d682}.sun-layer-legend .twilight{background:#d99a55}.sun-layer-legend .night{background:#14213a}
+.sun-popup-container .leaflet-popup-content-wrapper,.sun-popup-container .leaflet-popup-tip{background:#112331;color:#e5f1f8}
+.sun-popup{line-height:1.45}.sun-popup>strong{font-size:16px}.sun-popup p{margin:8px 0;color:#c5d8e3}
+.sun-events{display:grid;gap:10px;margin:12px 0}.sun-events div{padding:10px;border:1px solid #385363;border-radius:10px;background:#1b3343}
+.sun-events span,.sun-events b{display:block}.sun-events span{font-size:11px;color:#b1c7d5}.sun-events b{margin-top:3px;font-size:14px}
+.sun-popup small{display:block;font-size:11px;color:#b1c7d5}.sun-popup .sun-polar{color:#f2d697}
