@@ -270,8 +270,8 @@ if('requestIdleCallback' in window){
 // Compact hover/focus help for every checkbox toggle. The longer explanatory
 // copy lives here instead of permanently taking space below the controls.
 const TOGGLE_HELP={
-  tempOn:'Shows temperature values across Northern Europe. Official station observations are used where available; model values fill gaps and areas without a recent station observation.',
-  heatmapOn:'Shows the terrain-aware temperature heatmap. Fresh official station observations locally correct the model field; corrections fade with distance and age, and the layer stays clipped to land and coastlines.',
+  tempOn:'Shows official measured temperatures across Northern Europe, Iceland, Greenland, Canada and the USA. Click a reading for its station, source, observation time and retained temperature history.',
+  heatmapOn:'Shows temperature shading clipped to land and coastlines. Europe, Canada and Greenland use a terrain-aware model corrected by fresh official stations. USA, Alaska and Hawaii shading estimates temperatures between NOAA stations within 125 km; missing coverage stays transparent and mountain elevation between stations is not modelled.',
   windOn:'Shows animated 10 m wind particles across the Atlantic and Europe. The animation follows the selected timeline time and the selected sustained-wind or gust field.',
   windHeatmapOn:'Fresh official station differences correct the nearby model field. Influence fades smoothly to zero by about 70 km and by 3 hours of observation age. Where no usable station is nearby, the heatmap remains pure model.',
   officialWindSustained:'Shows measured sustained wind in your selected wind units at official weather stations. Readings follow the selected timeline time; observations older than 3 hours are hidden. The shared snapshot refreshes every 10 minutes.',
