@@ -12,6 +12,19 @@ spec=importlib.util.spec_from_file_location('iceland',Path(__file__).resolve().p
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
 class IcelandForecastTests(unittest.TestCase):
+    def test_extended_bounds_cover_europe_svalbard_and_northeast_greenland(self):
+        west,south,east,north=m.BOUNDS
+        self.assertEqual(west,-30)
+        for lat,lon in [(78.2,15.6),(82.,-25.),(40.4,-3.7),(41.9,12.5),(55.8,37.6),(30.,31.2)]:
+            self.assertTrue(west<=lon<=east and south<=lat<=north)
+        self.assertEqual(m.ASSET_VERSION,'euroatlantic-v2')
+
+    def test_ecmwf_fills_the_nordic_domain_when_its_forecast_has_ended(self):
+        exclusion=np.ones((16,16),dtype=bool)
+        nordic={'images':{'temperature':{'2026-10-07T21:00:00.000Z':'temperature.webp'}}}
+        self.assertIs(m.nordic_exclusion_for_time(nordic,'2026-10-07T21:00:00.000Z',exclusion),exclusion)
+        self.assertIsNone(m.nordic_exclusion_for_time(nordic,'2026-10-10T21:00:00.000Z',exclusion))
+
     def test_missing_nordic_dependencies_restore_only_six_referenced_assets(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
@@ -86,13 +99,13 @@ class IcelandForecastTests(unittest.TestCase):
             mask=m.nordic_exclusion(alpha,m.BOUNDS)
             self.assertTrue(mask[0].all())
             self.assertFalse(mask[-1].any())
-            east=m.nordic_exclusion(np.full((2,2),255),[0,54,16,76])
+            east=m.nordic_exclusion(np.full((2,2),255),[30,18,60,84])
             self.assertFalse(east[:,:3].any())
             self.assertTrue(east[:,-1].all())
 
     def test_all_fields_leave_nordic_pixels_clear_even_when_ecmwf_rains(self):
         palette=np.full((64,4),255,dtype=np.uint8)
-        lat=np.array([54.,76.]);lon=np.array([-30.,16.])
+        lat=np.array([m.BOUNDS[1],m.BOUNDS[3]]);lon=np.array([m.BOUNDS[0],m.BOUNDS[2]])
         with tempfile.TemporaryDirectory() as directory,patch.object(m,'SIZE',16):
             exclusion=np.zeros((16,16),dtype=bool);exclusion[:,8:]=True
             for kind in m.FIELDS:
@@ -104,3 +117,4 @@ class IcelandForecastTests(unittest.TestCase):
                     self.assertEqual(im.getpixel((12,4))[3],0)
 
 if __name__=='__main__':unittest.main()
+

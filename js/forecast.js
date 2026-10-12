@@ -85,8 +85,8 @@
         const response=await fetch('data/forecast-iceland.json?v='+Math.floor(Date.now()/900000),{signal:abort.signal,cache:'no-cache'});
         if(!response.ok)throw Error('Iceland gust index unavailable');
         const meta=await response.json(),run=Date.parse(meta.reference_time);
-        if(!Number.isFinite(run)||meta.asset_root!=='forecast-iceland-cache'||meta.asset_version!=='atlantic-v1')throw Error('Invalid gust index');
-        const cycle=new Date(run).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z-atlantic-v1';
+        if(!Number.isFinite(run)||meta.asset_root!=='forecast-iceland-cache'||!['atlantic-v1','euroatlantic-v2'].includes(meta.asset_version))throw Error('Invalid gust index');
+        const cycle=new Date(run).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z-'+meta.asset_version;
         const path='data/forecast-iceland-cache/'+cycle+'/gust-grid-v1.json';
         if(meta.gust_grid?.path!==path||meta.gust_grid.units!=='m/s')throw Error('No shared Iceland gust grid');
         const reply=await fetch(path,{signal:abort.signal,cache:'force-cache'});

@@ -51,7 +51,9 @@ jobs:
         run: python3 scripts/hydrate_r2_data.py data/forecast-map.json data/forecast-iceland.json data/forecast-iceland-cache
       - name: Install GRIB decoder and image renderer
         run: python3 -m pip install numpy==2.3.5 scipy==1.17.0 eccodes==2.46.0 Pillow==11.3.0
-      - name: Generate shared Iceland forecast maps
+      - name: Verify ECMWF rendering and shared decoder
+        run: python3 -m unittest discover -s tests -p '*forecast*.py' -v
+      - name: Generate shared Europe and Arctic forecast maps
         run: python3 scripts/update_iceland_forecast.py
-      - name: Publish complete Iceland cache
-        run: bash scripts/publish_generated_data.sh 'Refresh ECMWF Iceland forecast maps' data/forecast-iceland.json data/forecast-iceland-cache
+      - name: Publish complete Europe and Arctic cache
+        run: bash scripts/publish_generated_data.sh 'Refresh ECMWF Europe and Arctic forecast maps' data/forecast-iceland.json data/forecast-iceland-cache

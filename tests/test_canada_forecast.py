@@ -57,7 +57,7 @@ class NorthAmericaCoverage(unittest.TestCase):
    if lon>170:lon-=360
    self.assertTrue(canada.BOUNDS[0]<=lon<=canada.BOUNDS[2] and canada.BOUNDS[1]<=lat<=canada.BOUNDS[3])
    self.assertTrue(any(west<=lon<=east and south<=lat<=north for west,south,east,north in canada.GUST_AREAS))
-  self.assertEqual(canada.BOUNDS[2],ifs.BOUNDS[0]);self.assertLess(canada.BOUNDS[1],ifs.BOUNDS[1]);self.assertGreater(canada.BOUNDS[3],ifs.BOUNDS[3])
+  self.assertEqual(canada.BOUNDS[2],ifs.BOUNDS[0]);self.assertEqual(canada.BOUNDS[1],ifs.BOUNDS[1]);self.assertEqual(canada.BOUNDS[3],ifs.BOUNDS[3])
  def test_decoder_unwraps_alaska_and_keeps_atlantic_edge_in_one_continuous_grid(self):
   raw_lon=np.array([169.75,170,179.75,180,180.25,329.75,330,330.25]);lat=np.repeat([18.,18.25],len(raw_lon));lon=np.tile(raw_lon,2);values=np.arange(len(lat),dtype=float)
   keys={'validityDate':20261012,'validityTime':1800,'dataDate':20261012,'dataTime':600,'units':'K','startStep':0,'endStep':12,'packingError':0.001}

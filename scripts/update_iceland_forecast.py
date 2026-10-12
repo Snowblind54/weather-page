@@ -1,4 +1,4 @@
-"""ECMWF IFS open-data Iceland maps, with explicit native three-hour periods.
+"""ECMWF IFS open-data Europe and Arctic maps, with native three-hour periods.
 
 Only selected GRIB messages are fetched by range. Hourly instantaneous fields
 are interpolated numerically, not by blending coloured images. Precipitation
@@ -20,8 +20,8 @@ from PIL import Image
 from scipy.interpolate import RegularGridInterpolator
 
 ROOT = 'https://data.ecmwf.int/forecasts/'
-BOUNDS = [-30, 54, 16, 76]
-ASSET_VERSION = 'atlantic-v1'
+BOUNDS = [-30, 18, 60, 84]
+ASSET_VERSION = 'euroatlantic-v2'
 POINT_BOUNDS = [-28, 61, -12, 69]
 GUST_FILE = 'gust-grid-v1.json'
 SIZE = 2048
@@ -161,6 +161,10 @@ def nordic_exclusion(alpha, bounds):
     coverage=alpha[np.ix_(rows,cols)]>0
     return coverage & inside_y[:,None] & inside_x[None,:]
 
+def nordic_exclusion_for_time(nordic, key, exclusion):
+    # Beyond the Nordic forecast horizon ECMWF must fill its former footprint.
+    return exclusion if key in nordic.get('images', {}).get('temperature', {}) else None
+
 def render(grid, lat, lon, kind, palette, destination, exclusion=None, bounds=None, size=None):
     bounds = BOUNDS if bounds is None else bounds
     size = SIZE if size is None else size
@@ -276,16 +280,17 @@ def main():
                             'gust_sample_time':iso(run+timedelta(hours=gust_step))}
             for kind,grid in fields.items():
                 filename = kind+'-'+valid.strftime('%Y%m%dT%HZ')+'.webp'
-                render(grid,frames[lower]['lat'],frames[lower]['lon'],kind,palettes[kind],stage/filename,exclusion)
+                render(grid,frames[lower]['lat'],frames[lower]['lon'],kind,palettes[kind],stage/filename,
+                       nordic_exclusion_for_time(nordic,key,exclusion))
                 images[kind][key] = f'data/forecast-iceland-cache/{cycle}/{filename}'
             if hour%6==0: print('Rendered hourly Iceland maps:',hour,'/ 90',flush=True)
         size = sum(p.stat().st_size for p in stage.iterdir())
-        if size>150*1024*1024: raise ValueError('Iceland cache exceeds 150 MiB')
+        if size>200*1024*1024: raise ValueError('Europe and Arctic cache exceeds 200 MiB')
         target=root/cycle
         if target.exists(): shutil.rmtree(target)
         stage.rename(target)
         manifest = {'delivery':'static-regional-images','asset_root':'forecast-iceland-cache',
-                    'asset_version':ASSET_VERSION,'source':'ECMWF IFS open data · Iceland and North Atlantic','reference_time':run.isoformat(),
+                    'asset_version':ASSET_VERSION,'source':'ECMWF IFS open data · Europe, Iceland and Arctic','reference_time':run.isoformat(),
                     'generated_at':datetime.now(timezone.utc).isoformat(),'bounds':BOUNDS,'layers':FIELDS,
                     'images':images,'cached_times':times,'periods':periods,'image_size':[SIZE,SIZE],
                     'legends':{k:f'data/forecast-iceland-cache/{cycle}/{k}-legend.webp' for k in FIELDS},
@@ -297,9 +302,11 @@ def main():
                                        'method':'Nordic temperature-domain alpha excludes ECMWF under every layer, including dry rain pixels.'},
                     'processing':'Hourly temperature, wind components and cloud cover are linearly interpolated. Rain is a native three-hour mean rate; gusts use the nearest native forecast and retain its maximum interval.'}
         temp=data/'forecast-iceland.json.tmp';temp.write_text(json.dumps(manifest,indent=2)+'\n');temp.replace(previous_path)
-        cycles=sorted(p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-atlantic-v1)?',p.name))
-        for old in cycles[:-2]: shutil.rmtree(old)
-        print('Published Iceland:',len(times),'hours;',round(size/1024/1024,2),'MiB',flush=True)
+        # Mirror only the complete current cycle; retired R2 assets expire centrally.
+        cycles=[p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-(?:atlantic-v1|euroatlantic-v2))?',p.name)]
+        for old in cycles:
+            if old!=target: shutil.rmtree(old)
+        print('Published Europe and Arctic:',len(times),'hours;',round(size/1024/1024,2),'MiB',flush=True)
     finally:
         if stage.exists(): shutil.rmtree(stage)
 

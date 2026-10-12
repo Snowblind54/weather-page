@@ -93,6 +93,12 @@ test('closing the panel cancels work and prevents a late result from being shown
   h.reply(0);await flush();assert.equal(h.ids.forecastContent.hidden,true);
 });
 const gustMeta={reference_time:'2026-10-07T18:00:00Z',asset_root:'forecast-iceland-cache',asset_version:'atlantic-v1',gust_grid:{path:'data/forecast-iceland-cache/20261007T18Z-atlantic-v1/gust-grid-v1.json',units:'m/s'}};
+test('The expanded Europe source keeps Iceland numeric gusts working',async()=>{
+  const meta=structuredClone(gustMeta);meta.asset_version='euroatlantic-v2';meta.gust_grid.path=meta.gust_grid.path.replace('atlantic-v1','euroatlantic-v2');
+  const h=harness();h.open();h.choose(65.05,-19.2);h.runDebounce();h.reply(0);await flush();h.replyJson(1,meta);await flush();
+  assert.equal(h.requests[2].url,meta.gust_grid.path);h.replyJson(2,gustGrid());await flush();
+  assert.equal(h.ids.forecastSelected.children[1].children[1].children[1].textContent,'0.0 m/s');assert.equal(h.ids.forecastGustAttribution.hidden,false);
+});
 test('Iceland panel loads shared numeric gusts, labels the native interval, and reuses the grid',async()=>{
   const h=harness();h.open();h.choose(65.05,-19.2);h.runDebounce();h.reply(0);await flush();
   assert(h.requests[1].url.startsWith('data/forecast-iceland.json'));h.replyJson(1,gustMeta);await flush();
