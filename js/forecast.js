@@ -201,10 +201,10 @@
   function choose(latlng){
     requestId++;controller?.abort();controller=null;payload=null;refreshAfter=0;
     const longitude=((latlng.lng+180)%360+360)%360-180;
-    point={lat:Math.max(-90,Math.min(90,latlng.lat)).toFixed(3),lon:longitude.toFixed(3)};
+    point={lat:Math.max(-90,Math.min(90,latlng.lat)).toFixed(3),lon:longitude.toFixed(3),markerLon:Number(longitude.toFixed(3))+Math.round((latlng.lng-longitude)/360)*360};
     $('forecastLocation').textContent=point.lat+'°, '+point.lon+'°';$('forecastContent').hidden=true;$('forecastIssued').textContent='Forecast update time will appear here.';
     if(marker)map.removeLayer(marker);
-    marker=L.marker([Number(point.lat),Number(point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
+    marker=L.marker([Number(point.lat),Number(point.markerLon??point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
     clearTimeout(choose.timer);choose.timer=setTimeout(loadForecast,350);
   }
   $('forecastCenter').addEventListener('click',()=>choose(map.getCenter()));
@@ -234,7 +234,7 @@
     else{
       if(typeof stop==='function')stop();
       if(!point)choose(map.getCenter());
-      else{if(!marker)marker=L.marker([Number(point.lat),Number(point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);loadForecast();}
+      else{if(!marker)marker=L.marker([Number(point.lat),Number(point.markerLon??point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);loadForecast();}
     }
   }).observe(panel,{attributes:true,attributeFilter:['hidden']});
   setInterval(()=>{if(!document.hidden&&!panel.hidden){if(Date.now()>=refreshAfter)loadForecast();else if(payload&&Date.now()-(inCanada(point)?canadaChecked:gustChecked)>=15*60000)loadGusts();}},60000);

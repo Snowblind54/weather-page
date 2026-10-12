@@ -62,9 +62,9 @@ function harness(){
     replaceChildren(...nodes){this.children=nodes;}setAttribute(k,v){this[k]=v;}addEventListener(k,f){this.events[k]=f;}focus(){}
   }
   const nav=new Element(),body=new Element();body.appendChild=e=>{body.append(e);ids[e.id]=e;};
-  const listeners={};const map={createPane(){},getPane:()=>({style:{}}),getCenter:()=>({lat:59.437,lng:24.7536}),on:(k,f)=>listeners[k]=f,removeLayer(){},closePopup(){}};
+  const markers=[],listeners={};const map={createPane(){},getPane:()=>({style:{}}),getCenter:()=>({lat:59.437,lng:24.7536}),on:(k,f)=>listeners[k]=f,removeLayer(){},closePopup(){}};
   const c={document:{body,hidden:false,querySelector:()=>nav,createElement:()=>new Element(),addEventListener(){}},window:{addEventListener(){}},$:id=>ids[id],map,
-    L:{DomEvent:{disableClickPropagation(){},disableScrollPropagation(){}},divIcon:x=>x,marker:()=>({addTo(){return this;}})},
+    L:{DomEvent:{disableClickPropagation(){},disableScrollPropagation(){}},divIcon:x=>x,marker:coords=>{markers.push(coords);return {addTo(){return this;}};}},
     MetForecastData:{...forecast,rows:d=>forecast.rows(d,now)},Intl,Date:class extends Date{static now(){return now;}},AbortController,URLSearchParams,
     MutationObserver:class{constructor(f){observer=f;}observe(){}},
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},
@@ -76,7 +76,7 @@ function harness(){
   const runDebounce=()=>{for(const [id,t]of timers)if(t.n===350){timers.delete(id);t.f();}};
   const reply=(i,temp=5)=>requests[i].resolve({ok:true,status:200,headers:{get:()=>new Date(now+3600000).toUTCString()},json:async()=>payload([item('2026-10-07T20:00:00Z',{air_temperature:temp},period(0))])});
   const replyJson=(i,data)=>requests[i].resolve({ok:true,json:async()=>data});
-  return {ids,requests,open,choose,runDebounce,reply,replyJson,tick,close:()=>{ids.forecastSection.hidden=true;observer();}};
+  return {ids,requests,markers,open,choose,runDebounce,reply,replyJson,tick,close:()=>{ids.forecastSection.hidden=true;observer();}};
 }
 test('repeated updates reuse cache and in-flight requests; API URL identifies rounded coordinates',async()=>{
   const h=harness();h.open();h.runDebounce();h.ids.forecastRetry.events.click();assert.equal(h.requests.length,1);
@@ -131,3 +131,5 @@ test('USA point forecasts load their local gust grid with the new source version
 test('Native gust samples work on both sides of the Alaska date line and reject invented grid detail',()=>{
  const grid=americaGustGrid(52,-187);forecast.validateGustGrid(grid,grid.reference_time,'North America');assert.equal(forecast.gustSample(grid,52,173,Date.parse('2026-10-07T21:00:00Z')).value,0);assert.equal(forecast.gustSample(grid,52,-187,Date.parse('2026-10-07T21:00:00Z')).value,0);assert.equal(forecast.gustSample(grid,52,172,Date.parse('2026-10-07T21:00:00Z')),null);grid.longitudes=[-187,-186.9];assert.throws(()=>forecast.validateGustGrid(grid,grid.reference_time,'North America'));
 });
+
+test('Date-line point pins stay on the clicked world copy while the forecast API uses canonical longitude',()=>{const h=harness();h.open();h.choose(52,-187);h.runDebounce();assert.match(h.requests[0].url,/lon=173.000/);assert.equal(h.markers.at(-1)[1],-187);h.close();h.open();assert.equal(h.markers.at(-1)[1],-187);});
