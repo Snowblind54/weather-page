@@ -20,6 +20,7 @@ OUTPUT = pathlib.Path(__file__).resolve().parents[1] / "data/official-temperatur
 HISTORY_SEC = 24 * 60 * 60
 FUTURE_TOLERANCE_SEC = 10 * 60
 NORWAY_REFRESH_SEC = 55 * 60
+US_REFRESH_SEC = 30 * 60
 BOUNDS = (48.5, 72.5, -26.0, 33.0)
 COUNTRY_BOUNDS = {"GL": (59.0, 84.0, -74.0, -10.0), "CA": (41.0, 84.0, -142.0, -52.0)}
 USER_AGENT = "NorthernWeather/8.71 (github.com/Snowblind54/weather-page)"
@@ -396,6 +397,16 @@ def main():
     stations, states = [], {}
     loaders = dict(LOADERS)
 
+    # NOAA bulk observations refresh twice an hour within the shared 10-minute
+    # updater. Keep the previous US rows between fetches and during outages.
+    us_state = (previous.get('sources') or {}).get('US') or {}
+    us_touch = max((us_state.get(k) or 0) for k in ('lastFetch', 'lastAttempt'))
+    if 'US' in loaders and now-us_touch < US_REFRESH_SEC:
+        loaders.pop('US')
+        cached = previous_country_stations(previous, 'US', cutoff, now)
+        stations.extend(cached)
+        states['US'] = {**us_state, 'count': len(cached), 'cached': True}
+
     # Norway publishes the temperature series hourly, so do not hit RIM every
     # 10-minute snapshot run. Reuse the last official rows between refreshes.
     if not norway_refresh_due(previous, now):
@@ -421,15 +432,15 @@ def main():
                     station_item["rows"] = [r for r in station_item["rows"] if cutoff <= r[0] <= now + FUTURE_TOLERANCE_SEC]
                     if station_item["rows"]:
                         trimmed.append(station_item)
-                if code == "NO" and not trimmed:
-                    raise ValueError("No current Norwegian temperature observations")
+                if code in ('NO', 'US') and not trimmed:
+                    raise ValueError('No current '+code+' temperature observations')
                 # Some providers (especially Estonia) expose only their current
                 # observation. Merge it with prior official snapshots so the
                 # two-hour map timeline still has real measured station history.
                 trimmed = merge_country_history(previous, code, trimmed, cutoff, now)
                 stations.extend(trimmed)
                 state = {"ok": True, "count": len(trimmed)}
-                if code == "NO":
+                if code in ('NO', 'US'):
                     state.update({"lastFetch": now, "lastAttempt": now})
                 states[code] = state
             except Exception as exc:
@@ -451,6 +462,10 @@ def main():
                         "ok": False, "count": len(cached), "error": str(exc)[:180],
                         "cached": bool(cached),
                     }
+                    if code == 'US':
+                        states[code]['lastAttempt'] = now
+                        if us_state.get('lastFetch'):
+                            states[code]['lastFetch'] = us_state['lastFetch']
 
     stations.sort(key=lambda s: (s["country"], s["name"], s["code"]))
     if not stations:
@@ -472,3 +487,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

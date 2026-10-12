@@ -37,6 +37,7 @@ test('official station bounds accept the new countries without relaxing European
   const h=harness();const s=fs.readFileSync(path.join(__dirname,'../js/stations.js'),'utf8');
   h.run(s.slice(s.indexOf('function officialTempValid('),s.indexOf('function officialTempRecord(')));
   assert(h.run("officialTempValid(64,-51,-12,'GL')"));assert(h.run("officialTempValid(49,-123,7,'CA')"));
+  assert(h.run("officialTempValid(28,-81,21,'US')"));assert(h.run("officialTempValid(61,-150,-15,'US')"));assert(h.run("officialTempValid(21,-158,27,'US')"));
   assert(!h.run("officialTempValid(49,-123,7,'EE')"));assert(!h.run("officialTempValid(20,-123,7,'CA')"));
   assert(!h.run("officialTempValid(64,-51,null,'GL')"));
 });
@@ -75,3 +76,4 @@ test('European heatmap renders while Americas snapshot is still pending',async()
   await new Promise(resolve=>setImmediate(resolve));assert.equal(draws,1);
   release();await loading;
 });
+

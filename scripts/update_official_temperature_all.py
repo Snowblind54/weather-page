@@ -11,6 +11,7 @@ import urllib.parse
 
 import update_official_temperature as core
 import update_north_america_temperature
+import update_us_temperature
 
 LATVIA_DATASTORE = "https://data.gov.lv/dati/api/3/action/datastore_search?"
 LATVIA_STATIONS_RESOURCE = "c32c7afd-0d05-44fd-8b24-1de85b4bf11d"
@@ -80,3 +81,4 @@ core.LOADERS["LV"] = parse_latvia
 
 if __name__ == "__main__":
     core.main()
+

@@ -7,7 +7,8 @@ const TEMP_REGIONS=[
   {id:'poland',bounds:[[48.80,14.00],[55.00,24.50]],w:320,h:260},
   {id:'denmark',bounds:[[54.40,7.80],[57.90,15.30]],w:320,h:220},
   {id:'canada',bounds:[[41,-142],[84,-52]],w:580,h:400},
-  {id:'greenland',bounds:[[59,-74],[84,-10]],w:350,h:390}
+  {id:'greenland',bounds:[[59,-74],[84,-10]],w:350,h:390},
+  ...(globalThis.NorthernUSTemperature?.regions||[])
 ];
 
 function mercatorY(lat){
@@ -228,7 +229,11 @@ const TEMP_REGION_COUNTRY_IDS={
   poland:new Set(['616']),                  // Poland
   denmark:new Set(['208']),                 // Denmark, including its islands
   canada:new Set(['124']),
-  greenland:new Set(['304'])
+  greenland:new Set(['304']),
+  usa:new Set(['840']),
+  'usa-alaska':new Set(['840']),
+  'usa-hawaii':new Set(['840']),
+  'usa-aleutians':new Set(['840'])
 };
 let temperatureCountryFeaturesPromise=null;
 
@@ -592,6 +597,7 @@ function temperatureHeatmapCorrections(unix){
   const corrections=[];
   for(const station of officialStationsNearTime(unix)){
     if(!Number.isFinite(station?.time) || !Number.isFinite(station?.temp)) continue;
+    if(station.country==='US')continue; // US shading uses measurements directly.
     const model=interpolateTemp(station.lat,station.lon,unix);
     if(!Number.isFinite(model)) continue;
     const ageWeight=temperatureObservationAgeWeight(Math.abs(station.time-unix));
@@ -672,15 +678,16 @@ async function createTemperatureImage(unix, token){
   // Never display rectangular heatmap tiles over the sea if the mask fails.
   const countryFeatures=await loadTemperatureCountryFeatures();
 
+  const usStations=globalThis.NorthernUSTemperature?.stations(unix)||[];
   for(const region of TEMP_REGIONS){
     const spec=TEMP_GRID_SPECS.find(item=>item.id===region.id);
     const sourceSeries=temperatureGridData.get(region.id);
-    if(!spec || !sourceSeries?.length) continue;
+    if(region.stationBased?!usStations.length:(!spec||!sourceSeries?.length))continue;
 
     // Sample the model timeline only once per source point for this frame.
     // Pixel interpolation below is then just four-number bilinear blending.
-    const gridValues=sourceSeries.map(item=>sampleTemperatureGridPoint(spec,item,cacheKey));
-    const cols=spec.longitudes.length;
+    const gridValues=region.stationBased?null:sourceSeries.map(item=>sampleTemperatureGridPoint(spec,item,cacheKey));
+    const cols=spec?.longitudes.length;
 
     const W=region.w,H=region.h;
     const canvas=document.createElement('canvas');
@@ -694,18 +701,20 @@ async function createTemperatureImage(unix, token){
 
     // Pixel coordinates and model brackets are fixed for this raster.
     const lonValues=Array.from({length:W},(_,x)=>west+(x/(W-1))*(east-west));
-    const lonLookup=lonValues.map(lon=>axisBracket(spec.longitudes,lon));
+    const lonLookup=region.stationBased?null:lonValues.map(lon=>axisBracket(spec.longitudes,lon));
     const latValues=Array.from({length:H},(_,y)=>rasterLatitudeForRow(region,y,H));
-    const latLookup=latValues.map(lat=>axisBracket(spec.latitudes,lat));
-    const correctionRaster=buildTemperatureCorrectionRaster(region,W,H,corrections,latValues,lonValues);
+    const latLookup=region.stationBased?null:latValues.map(lat=>axisBracket(spec.latitudes,lat));
+    const correctionRaster=region.stationBased?null:buildTemperatureCorrectionRaster(region,W,H,corrections,latValues,lonValues);
+    const stationRaster=region.stationBased?await globalThis.NorthernUSTemperature.raster(region,usStations,cacheKey,()=>token===temperatureRenderToken,()=>new Promise(requestAnimationFrame)):null;
+    if(region.stationBased&&!stationRaster)return null;
 
     for(let y=0;y<H;y++){
       if(token!==temperatureRenderToken) return null;
 
-      const latB=latLookup[y];
+      const latB=latLookup?.[y];
 
       for(let x=0;x<W;x++){
-        let value=bilinearValue(gridValues,cols,latB,lonLookup[x]);
+        let value=region.stationBased?stationRaster.values[y*W+x]:bilinearValue(gridValues,cols,latB,lonLookup[x]);
         const i=(y*W+x)*4;
 
         if(!Number.isFinite(value)){
@@ -713,7 +722,7 @@ async function createTemperatureImage(unix, token){
           continue;
         }
 
-        if(corrections.length){
+        if(correctionRaster&&corrections.length){
           const pixelIndex=y*W+x;
           value=temperatureAdjustedFromRaster(
             value,pixelIndex,correctionRaster.weightedBias,correctionRaster.weightTotal
@@ -723,7 +732,7 @@ async function createTemperatureImage(unix, token){
         globalMin=Math.min(globalMin,value);
         globalMax=Math.max(globalMax,value);
         const c=tempColor(value);
-        d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=205;
+        d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=stationRaster?stationRaster.alpha[y*W+x]:205;
       }
 
       // Keep the UI responsive while large rasters are generated.
@@ -738,6 +747,7 @@ async function createTemperatureImage(unix, token){
       id:region.id,
       bounds:region.bounds,
       coastlineClipped,
+      stationBased:!!region.stationBased,
       dataUrl:canvas.toDataURL('image/png')
     });
   }
@@ -756,7 +766,7 @@ async function createTemperatureImage(unix, token){
 }
 
 async function buildTemperatureOverlay(unix,{precache=false}={}){
-  if(!temperatureEnabled() || !temperatureSeries.length) return;
+  if(!temperatureEnabled() || (!temperatureSeries.length&&!globalThis.NorthernUSTemperature?.stations(unix).length))return;
 
   // Station readings do not depend on loading or rendering a heatmap.
   if(!$('heatmapOn')?.checked){
@@ -796,10 +806,11 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   // Numeric readings stay visible even when the heatmap is switched off.
   renderTemperatureLabels(unix);
 
+  const usNote=result.regions.some(r=>r.stationBased)?' · USA: NOAA station heatmap':'';
   const observationNote=result.correctionCount?` + ${result.correctionCount} fresh official station corrections`:'';
   if($('tempStatus').dataset)$('tempStatus').dataset.unitRange=JSON.stringify([result.minT,result.maxT]);
   $('tempStatus').textContent=
-    `Temperature: terrain-aware hourly model${observationNote} + fast bilinear heatmap${$('heatmapOn')?.checked?' · coastline clipped':''}${temperatureUsingStaleCache?' · cached fallback':''} · ${(globalThis.WeatherUnits?.temperature(result.minT,1)??result.minT.toFixed(1)+'°C')} to ${(globalThis.WeatherUnits?.temperature(result.maxT,1)??result.maxT.toFixed(1)+'°C')} · ${fmt(unix)}`;
+    `Temperature: terrain-aware hourly model${observationNote} + fast bilinear heatmap${usNote}${$('heatmapOn')?.checked?' · coastline clipped':''}${temperatureUsingStaleCache?' · cached fallback':''} · ${(globalThis.WeatherUnits?.temperature(result.minT,1)??result.minT.toFixed(1)+'°C')} to ${(globalThis.WeatherUnits?.temperature(result.maxT,1)??result.maxT.toFixed(1)+'°C')} · ${fmt(unix)}`;
   $('tempStatus').className='status ok';
   weatherFront();
 }
@@ -1051,4 +1062,5 @@ map.on('moveend',()=>{
   const frame=frames[Number($('timeline').value)];
   if(frame && $('tempOn').checked) renderTemperatureLabels(frame.time);
 });
+
 

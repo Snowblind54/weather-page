@@ -29,7 +29,7 @@ class NorwayTemperatureFallbackTests(unittest.TestCase):
             "stations": [
                 {"country": "NO", "code": "A", "name": "A", "lat": 60, "lon": 10,
                  "source": "MET Norway / Seklima",
-                 "rows": [[now - 4 * 3600, 1.0], [now - 3600, 2.0]]},
+                 "rows": [[now - (mod.HISTORY_SEC + 3600), 1.0], [now - 3600, 2.0]]},
                 {"country": "FI", "code": "B", "name": "B", "lat": 61, "lon": 25,
                  "source": "FMI", "rows": [[now - 3600, 3.0]]},
             ]
@@ -42,3 +42,4 @@ class NorwayTemperatureFallbackTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

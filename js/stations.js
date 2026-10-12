@@ -115,10 +115,10 @@ function officialTempCoord(record){
 }
 
 function officialTempValid(lat,lon,temp,country){
-  const bounds=country==='GL'?[59,84,-74,-10]:country==='CA'?[41,84,-142,-52]:[48.5,72.5,-26,33];
+  const bounds=country==='GL'?[59,84,-74,-10]:country==='CA'?[41,84,-142,-52]:country==='US'?[18,72,-180,180]:[48.5,72.5,-26,33];
   return Number.isFinite(lat) && Number.isFinite(lon) &&
     lat>=bounds[0] && lat<=bounds[1] && lon>=bounds[2] && lon<=bounds[3] &&
-    Number.isFinite(temp) && temp>(country==='GL'||country==='CA'?-90:-70) && temp<55;
+    Number.isFinite(temp) && temp>(country==='GL'||country==='CA'||country==='US'?-90:-70) && temp<55;
 }
 
 function officialTempRecord({country,code,name,lat,lon,temp,time,source}){
@@ -483,7 +483,8 @@ const OFFICIAL_TEMP_LOADERS=[
   ['DK',loadDenmarkOfficialTemperature],
   // Collected centrally in the shared snapshot; never queried per visitor.
   ['GL',null],
-  ['CA',null]
+  ['CA',null],
+  ['US',null]
 ];
 
 async function loadOfficialTemperatureStations(force=false){
@@ -609,7 +610,7 @@ renderTemperatureLabels=function(unix){
   if(map.hasLayer(temperatureLabels)) map.removeLayer(temperatureLabels);
   temperatureLabels.clearLayers();
 
-  if(!$('tempOn').checked || !temperatureSeries.length) return;
+  if(!$('tempOn').checked)return;
 
   const majorPoints=[
     [59.44,24.75],[56.95,24.11],[54.69,25.28],[60.17,24.94],
@@ -686,10 +687,13 @@ const loadTemperaturesModelOnly=loadTemperatures;
 loadTemperatures=async function(force=false){
   const results=await Promise.allSettled([
     loadTemperaturesModelOnly(force),
-    temperatureEnabled()?loadOfficialTemperatureStations(force):Promise.resolve()
+    temperatureEnabled()?loadOfficialTemperatureStations(force).then(()=>{
+      const frame=frames[Number($('timeline').value)];
+      if(frame&&temperatureEnabled())queueTemperatureRender(frame.time,0);
+    }):Promise.resolve()
   ]);
 
-  if(results[0].status==='rejected') throw results[0].reason;
+  if(results[0].status==='rejected'&&!officialTemperatureStations.length)throw results[0].reason;
 
   const frame=frames[Number($('timeline').value)];
   if(frame && temperatureEnabled()) queueTemperatureRender(frame.time,0);
@@ -710,3 +714,4 @@ buildTemperatureOverlay=async function(unix,options={}){
   }
   return result;
 };
+
