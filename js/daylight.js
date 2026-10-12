@@ -40,13 +40,13 @@
   function popupContent(location,now=new Date()){
     const lat=location.lat,lon=math.longitude(location.lng),events=math.nextEvents(now,lat,lon);
     const current=math.state(math.elevation(math.solarVector(now),lat,lon));
-    const formatter=new Intl.DateTimeFormat(undefined,{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false,timeZoneName:'short'});
-    const zone=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const zone=tzlookup(lat,lon);
+    const formatter=new Intl.DateTimeFormat(undefined,{timeZone:zone,weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false,timeZoneName:'short'});
     const time=value=>value?formatter.format(value):'No event found in the next year';
     const polar=events.polar?'<p class="sun-polar">'+(current==='Daylight'?'Polar day — the sun stays above the horizon today.':'Polar night — the sun does not rise today.')+'</p>':'';
     return '<div class="sun-popup"><strong>Sunrise &amp; sunset</strong><p>'+lat.toFixed(3)+'°, '+lon.toFixed(3)+'° · '+current+' now</p>'+polar+
       '<div class="sun-events"><div><span>Next sunset</span><b>'+time(events.sunset)+'</b></div><div><span>Next sunrise</span><b>'+time(events.sunrise)+'</b></div></div>'+
-      '<small>Times in '+zone+'. Estimated for a clear, level horizon; terrain and clouds can change what you see.</small></div>';
+      '<small>Local time · '+zone+'. Estimated for a clear, level horizon; terrain and clouds can change what you see.</small></div>';
   }
   function showPopup(location){
     point=location;
@@ -63,11 +63,33 @@
     if(toggle.checked){if(!layer)layer=new DaylightLayer().addTo(map);refresh();}
     else{if(layer)map.removeLayer(layer);layer=null;if(popup&&map.hasLayer(popup))map.removeLayer(popup);point=null;status.textContent='Daylight / night layer is off.';}
   });
-  // While enabled, a map tap has a single purpose even over another weather
-  // layer. Controls and popup buttons retain their normal interaction.
-  map.getContainer().addEventListener('click',event=>{
+  // Capture clicks so this layer takes priority over other weather popups,
+  // but do not bypass Leaflet's drag protection: browsers also click after a pan.
+  const container=map.getContainer(),pointers=new Set();
+  let gesture=null;
+  const moved=event=>{
+    if(gesture&&pointers.has(event.pointerId)&&
+       Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>6)gesture.dragged=true;
+  };
+  container.addEventListener('pointerdown',event=>{
+    if(!toggle.checked||event.target.closest('.leaflet-control,.leaflet-popup')||event.button!==0)return;
+    pointers.add(event.pointerId);
+    if(pointers.size===1)gesture={x:event.clientX,y:event.clientY,dragged:false};
+    else if(gesture)gesture.dragged=true;
+  },true);
+  document.addEventListener('pointermove',moved,true);
+  document.addEventListener('pointerup',event=>{moved(event);pointers.delete(event.pointerId);},true);
+  document.addEventListener('pointercancel',event=>{
+    if(pointers.delete(event.pointerId)&&gesture)gesture.dragged=true;
+  },true);
+  map.on('dragstart',()=>{if(gesture)gesture.dragged=true;});
+  toggle.addEventListener('change',()=>{pointers.clear();gesture=null;});
+  container.addEventListener('click',event=>{
     if(!toggle.checked||event.target.closest('.leaflet-control,.leaflet-popup')||(!event.detail&&!event.clientX&&!event.clientY))return;
-    event.stopPropagation();showPopup(map.mouseEventToLatLng(event));
+    const deliberate=gesture&&!gesture.dragged&&!pointers.size;
+    gesture=null;
+    event.stopPropagation();
+    if(deliberate)showPopup(map.mouseEventToLatLng(event));
   },true);
   document.addEventListener('visibilitychange',refresh);
   setInterval(refresh,60000);

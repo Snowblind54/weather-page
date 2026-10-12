@@ -50,7 +50,7 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
       <div class="space-section-title"><div><div class="label">Sunrise &amp; sunset</div><div class="small">Live daylight around the world</div></div></div>
       <div class="row"><label class="label"><input id="daylightOn" type="checkbox"> Daylight / night</label><span class="badge">live</span></div>
       <div class="sun-layer-legend" aria-label="Daylight and night shading"><span><i class="day"></i>Daylight · clear</span><span><i class="twilight"></i>Twilight</span><span><i class="night"></i>Night</span></div>
-      <div class="small space-weather-help">Click any map location for its next sunrise and sunset. The boundary updates every minute. Popup times use your device’s time zone.</div>
+      <div class="small space-weather-help">Click any map location for its next sunrise and sunset. The boundary updates every minute. Popup times use the selected location’s local time zone.</div>
       <div id="daylightStatus" class="status" role="status">Daylight / night layer is off.</div>
     </div>
 
