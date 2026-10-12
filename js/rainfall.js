@@ -2,7 +2,7 @@
 // Rainfall retains its existing coverage independently of temperature expansion.
 const RAIN_REGION_IDS=new Set(['baltics','scandinavia','iceland','poland','denmark']);
 const RAIN_GRID_SPECS=TEMP_GRID_SPECS.filter(spec=>RAIN_REGION_IDS.has(spec.id));
-const RAIN_REGIONS=TEMP_REGIONS.filter(region=>RAIN_REGION_IDS.has(region.id));
+const RAIN_REGIONS=TEMP_REGIONS.filter(region=>RAIN_REGION_IDS.has(region.id)||region.id==='canada');
 const RAIN_CACHE_KEY='balticWeatherRainAccumulationV814';
 const RAIN_CACHE_TTL=30*60*1000;
 const RAIN_PERIODS=[1,24,48];
@@ -120,6 +120,13 @@ async function loadRainfall(force=false){
   await loadOfficialRainfall(force);
   // Station numbers are usable before the slower model grid has loaded.
   renderOfficialRainLabels();
+  // Canadian shading uses the shared gauge snapshot and can appear before
+  // unrelated European model requests finish. No Canadian model requests.
+  if(officialRainData?.stations?.some(s=>s.country==='CA')){
+    if(!rainData) rainData={version:0,grids:Object.fromEntries(RAIN_GRID_SPECS.map(spec=>[spec.id,
+      spec.points.map(([lat,lon])=>({lat,lon,times:[],amounts:[]}))]))};
+    queueRainfallRender(0);
+  }
   const end=rainWindowEnd();
   if(!force && validRainData(rainData,end)) return queueRainfallRender(0);
   if(!force){
@@ -237,9 +244,9 @@ async function createRainfallImages(hours,end,generation){
   rainCountryFeatures=features;
   const rendered=[];
   for(const region of RAIN_REGIONS){
-    const spec=RAIN_GRID_SPECS.find(s=>s.id===region.id);
-    const series=rainData?.grids[region.id];
-    if(!series || ![...TEMP_REGION_COUNTRY_IDS[region.id]].every(id=>features.some(f=>String(f.id)===id))){
+    const officialOnly=region.id==='canada',spec=TEMP_GRID_SPECS.find(s=>s.id===region.id);
+    const series=rainData?.grids[region.id]||[];
+    if((!officialOnly&&!rainData?.grids[region.id]) || ![...TEMP_REGION_COUNTRY_IDS[region.id]].every(id=>features.some(f=>String(f.id)===id))){
       throw new Error('Rainfall coverage/coastline missing for '+region.id);
     }
     const values=series.map(s=>rollingRainTotal(s,end,hours));
@@ -248,19 +255,19 @@ async function createRainfallImages(hours,end,generation){
     const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
     const ctx=canvas.getContext('2d',{alpha:true}),image=ctx.createImageData(W,H);
     const west=region.bounds[0][1],east=region.bounds[1][1];
-    const lonLookup=Array.from({length:W},(_,x)=>axisBracket(spec.longitudes,west+x/(W-1)*(east-west)));
+    const lonLookup=officialOnly?[]:Array.from({length:W},(_,x)=>axisBracket(spec.longitudes,west+x/(W-1)*(east-west)));
     for(let y=0;y<H;y++){
       if(generation!==rainRenderGeneration) return null;
-      const lat=rasterLatitudeForRow(region,y,H),latB=axisBracket(spec.latitudes,lat);
+      const lat=rasterLatitudeForRow(region,y,H),latB=officialOnly?null:axisBracket(spec.latitudes,lat);
       for(let x=0;x<W;x++){
         const lonB=lonLookup[x],index=(y*W+x)*4;
-        if(!latB||!lonB) continue;
-        const indices=[latB.i0*cols+lonB.i0,latB.i0*cols+lonB.i1,latB.i1*cols+lonB.i0,latB.i1*cols+lonB.i1];
-        const weights=[(1-latB.f)*(1-lonB.f),(1-latB.f)*lonB.f,latB.f*(1-lonB.f),latB.f*lonB.f];
+        if(!officialOnly&&(!latB||!lonB)) continue;
+        const indices=officialOnly?[]:[latB.i0*cols+lonB.i0,latB.i0*cols+lonB.i1,latB.i1*cols+lonB.i0,latB.i1*cols+lonB.i1];
+        const weights=officialOnly?[]:[(1-latB.f)*(1-lonB.f),(1-latB.f)*lonB.f,latB.f*(1-lonB.f),latB.f*lonB.f];
         const countryId=countryMask?.ids[countryMask.pixels[index]-1];
         const lon=west+x/(W-1)*(east-west);
         const official=officialRainAt(lat,lon,hours,end,RAIN_COUNTRY_CODES[countryId]);
-        if(!official && indices.some((i,j)=>weights[j]>1e-10&&!Number.isFinite(values[i]))) continue;
+        if(!official && (officialOnly||indices.some((i,j)=>weights[j]>1e-10&&!Number.isFinite(values[i])))) continue;
         const value=official?official.value:bilinearValue(values,cols,latB,lonB);
         if(!Number.isFinite(value) || value<0.05) continue; // Dry land is transparent.
         const colour=rainColour(value);
@@ -347,7 +354,7 @@ function rainfallPopupContent(point,end){
   const wind=$('windOn').checked?'<hr>'+windPopupContent(point,selectedWindTime()):'';
   return '<div class="rain-popup"><b>'+(point.station?htmlEscape(point.station.name)+' · measured precipitation':'Accumulated rainfall / precipitation')+'</b>'+readings+
     '<div class="rain-popup-meta">'+point.lat.toFixed(3)+'°, '+point.lng.toFixed(3)+'°'+gauge+
-    '<br>'+note+'<br>'+(country==='CA'?'Canadian station totals remain unavailable when hours are missing.':'Between gauges: interpolated estimate. Model fallback beyond 100 km or when a period is incomplete.')+'</div></div>'+wind;
+    '<br>'+note+'<br>'+(country==='CA'?'Canadian shading estimates between gauges within 100 km. Station totals require complete measured hours.':'Between gauges: interpolated estimate. Model fallback beyond 100 km or when a period is incomplete.')+'</div></div>'+wind;
 }
 
 function updateAccumulationPopup(){

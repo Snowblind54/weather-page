@@ -103,11 +103,11 @@ test('coverage and click totals use the same masks, including islands and holes'
   assert(h.run('rainfallPopupContent({lat:52,lng:19},rainWindowEnd()).includes("Unavailable")'));
 });
 
-test('renderer masks all five regions, leaves dry pixels transparent and cancels obsolete renders',async()=>{
+test('renderer masks European and Canadian regions, leaves dry pixels transparent and cancels obsolete renders',async()=>{
   const h=harness();h.seed();h.elements.rain24h.checked=true;
   await h.run('renderRainfall()');
   assert.equal(h.layers.size,1);
-  const group=[...h.layers][0];assert.equal(group.children.length,5);
+  const group=[...h.layers][0];assert.equal(group.children.length,6);
   assert(h.canvases.every(c=>c.maskFills===1),'all regional country masks applied');
   assert(h.canvases.some(c=>c.pixels.some((v,i)=>i%4===3&&v>0)),'wet pixels coloured');
   assert.equal(group.children[0].options.pane,'rainAccumulationPane');
@@ -218,7 +218,7 @@ test('stale snapshot cannot reuse a cached official heatmap',async()=>{
   const h=harness();h.seed();h.elements.rain24h.checked=true;
   h.run(`officialRainData={generatedAt:Date.now()/1000-4*3600};rainImageCache.set('24|'+rainWindowEnd()+'|'+officialRainData.generatedAt,[{dataUrl:'stale'}]);`);
   const images=await h.run('createRainfallImages(24,rainWindowEnd(),rainRenderGeneration)');
-  assert.equal(images.length,5);assert.notEqual(images[0].dataUrl,'stale');
+  assert.equal(images.length,6);assert.notEqual(images[0].dataUrl,'stale');
 });
 
 function seedGauge(h,{lag=0,amount=2}={}){
@@ -310,4 +310,35 @@ test('Canadian station totals validate, render and retain missing hours without 
  assert(popup.includes('ECCC / MSC'));assert(popup.includes('24.0'));
  h.run('officialRainData.stations[0].times.splice(10,1);officialRainData.stations[0].amounts.splice(10,1)');
  assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],48,rainWindowEnd())'),null);
+});
+
+test('Canadian heatmap uses official totals, stays transparent beyond gauges and ignores Canadian model data',async()=>{
+ const h=harness();h.seed();h.elements.rain24h.checked=true;
+ h.run(`const caRegion=TEMP_REGIONS.find(r=>r.id==='canada');
+ const caLat=rasterLatitudeForRow(caRegion,3,caRegion.h),caLon=-142+3/7*90;
+ officialRainData={version:1,generatedAt:Date.now()/1000,sources:{CA:{name:'ECCC'}},stations:[0,.1,.2].map((offset,i)=>({
+ country:'CA',code:String(i),name:'Gauge '+i,lat:caLat,lon:caLon+offset,
+ times:Array.from({length:49},(_,i)=>rainWindowEnd()-(48-i)*3600),amounts:Array(49).fill(.5)}))};
+ rainCountryMask=region=>({ids:[...TEMP_REGION_COUNTRY_IDS[region.id]],pixels:new Uint8ClampedArray(region.w*region.h*4).fill(1)});
+ rainData.grids.canada.forEach(s=>s.amounts.fill(999));`);
+ await h.run('renderRainfall()');
+ const image=h.canvases.find(c=>c.pixels&&c.pixels[(3*8+3)*4+3]>0&&c.pixels[3]===0);
+ assert(image,'Canadian rain is shaded near its gauges with distant corners transparent');
+ assert.equal(h.run('officialRainAt(caLat,caLon,24,rainWindowEnd(),"CA").value'),12);
+ assert.equal(h.run('officialRainAt(42,-140,24,rainWindowEnd(),"CA")'),null);
+ assert.equal(h.run('RAIN_GRID_SPECS.some(s=>s.id==="canada")'),false,'no additional visitor model requests');
+ h.run('officialRainData.generatedAt-=4*3600;rainImageCache.clear()');h.canvases.length=0;
+ await h.run('renderRainfall()');
+ assert(!h.canvases.at(-1).pixels.some((v,i)=>i%4===3&&v>0),'stale Canadian observations never become model shading');
+});
+test('Canadian nearby-station index matches full interpolation at southern and Arctic latitudes',()=>{
+ const h=harness();
+ h.run(`officialRainWindow=()=>testWindow;`);
+ for(const lat of [45,60,83]){
+  h.context.testWindow={rows:Array.from({length:100},(_,i)=>({station:{lat:lat+(i%10-5)*.3,lon:-100+(Math.floor(i/10)-5)*1.5},value:i/10})),end:h.context.frameTime,source:'ECCC'};
+  h.context.probeLat=lat;
+  const indexed=h.run('officialRainAt(probeLat,-100,24,rainWindowEnd(),"CA")');
+  const full=h.run('officialRainAt(probeLat,-100,24,rainWindowEnd(),"NO")');
+  assert.equal(indexed.value,full.value);assert.equal(indexed.count,full.count);
+ }
 });
