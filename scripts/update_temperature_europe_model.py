@@ -6,8 +6,10 @@ never replace the previous successful snapshot.
 import datetime as dt
 import json
 import math
+import os
 import pathlib
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from update_temperature_americas_model import axis
@@ -15,6 +17,77 @@ from update_temperature_americas_model import axis
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'data/temperature-europe-model.json'
 CONFIG = ROOT / 'scripts/temperature_europe_points.json'
+
+
+class ProviderUnavailable(RuntimeError):
+    """The provider is temporarily unreachable, rather than a code/data error."""
+
+
+def fetch_samples(request):
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=75) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code not in (408, 429, 500, 502, 503, 504):
+                raise
+            delay = 20 * (attempt + 1)
+            retry_after = error.headers.get('Retry-After') if error.headers else None
+            if retry_after and retry_after.isdigit():
+                delay = max(delay, min(120, int(retry_after)))
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+            delay = 20 * (attempt + 1)
+        if attempt == 2:
+            raise ProviderUnavailable('Temperature provider unavailable after three attempts')
+        print('Temperature provider temporarily unavailable; retrying in', delay, 'seconds', flush=True)
+        time.sleep(delay)
+
+
+def valid_previous_snapshot(path):
+    """Only a complete, usable snapshot may turn an outage into a safe skip."""
+    try:
+        data = json.loads(path.read_text())
+        config = json.loads(CONFIG.read_text())
+        generated = data['generatedAt']
+        if (data['version'] != 1 or not isinstance(generated, int) or
+                isinstance(generated, bool) or generated <= 0 or generated > time.time() + 300 or
+                set(data['grids']) != set(config['grids'])):
+            return False
+        groups = []
+        for name, (sw, ne, lat_step, lon_step) in config['grids'].items():
+            grid = data['grids'][name]
+            lats, lons = axis(sw[0], ne[0], lat_step), axis(sw[1], ne[1], lon_step)
+            if grid['latitudes'] != lats or grid['longitudes'] != lons:
+                return False
+            groups.append((grid['series'], [(lat, lon) for lat in lats for lon in lons]))
+        groups.append((data['cities'], config['cities']))
+        for series, points in groups:
+            if len(series) != len(points):
+                return False
+            for item, point in zip(series, points):
+                times, temps = item['times'], item['temps']
+                if ((item['lat'], item['lon']) != tuple(point) or len(times) < 2 or
+                        len(times) != len(temps) or any(
+                            not isinstance(t, (int, float)) or isinstance(t, bool) or
+                            not math.isfinite(t) or (i and t <= times[i-1])
+                            for i, t in enumerate(times)) or any(
+                                t is not None and (not isinstance(t, (int, float)) or isinstance(t, bool) or
+                                not math.isfinite(t) or not -90 < t < 60) for t in temps) or not any(
+                                isinstance(t, (int, float)) and not isinstance(t, bool) and
+                                math.isfinite(t) and -90 < t < 60 for t in temps)):
+                    return False
+        return True
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+
+
+def workflow_result(updated, message):
+    if os.environ.get('GITHUB_OUTPUT'):
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+            stream.write('updated=' + str(updated).lower() + '\n')
+    if os.environ.get('GITHUB_STEP_SUMMARY'):
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as stream:
+            stream.write(message + '\n')
 
 
 def collect():
@@ -37,8 +110,7 @@ def collect():
             request = urllib.request.Request(
                 'https://api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(params),
                 headers={'User-Agent': 'NorthernWeather (github.com/Snowblind54/weather-page)'})
-            with urllib.request.urlopen(request, timeout=50) as response:
-                payload = json.load(response)
+            payload = fetch_samples(request)
             items = payload if isinstance(payload, list) else [payload]
             if len(items) != len(chunk):
                 raise ValueError('Incomplete temperature samples')
@@ -69,10 +141,23 @@ def collect():
             'grids': grids, 'cities': samples(config['cities'])}
 
 
-if __name__ == '__main__':
-    data = collect()
+def main():
+    try:
+        data = collect()
+    except ProviderUnavailable:
+        if not valid_previous_snapshot(OUTPUT):
+            raise
+        message = 'Temperature provider temporarily unavailable. Kept the last valid European heatmap; its original data timestamp is unchanged.'
+        print('::warning::' + message)
+        workflow_result(False, message)
+        return
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     temporary = OUTPUT.with_suffix('.tmp')
     temporary.write_text(json.dumps(data, separators=(',', ':'))+'\n')
     temporary.replace(OUTPUT)
     print('Shared European grid samples:', sum(len(g['series']) for g in data['grids'].values()))
+    workflow_result(True, 'Generated fresh European heatmap samples.')
+
+
+if __name__ == '__main__':
+    main()

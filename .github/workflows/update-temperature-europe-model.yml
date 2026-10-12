@@ -35,6 +35,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install boto3==1.40.50
+      - name: Test heatmap updater recovery
+        run: python3 -m unittest discover -s tests -p test_temperature_europe_model.py
       - name: Restore cached updater inputs
         uses: actions/cache@v4
         with:
@@ -45,6 +47,8 @@ jobs:
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py --allow-empty data/temperature-europe-model.json
       - name: Build shared hourly temperature grid
+        id: collect
         run: python3 scripts/update_temperature_europe_model.py
       - name: Publish shared heatmap samples
+        if: steps.collect.outputs.updated == 'true'
         run: bash scripts/publish_generated_data.sh 'Refresh European temperature heatmap' data/temperature-europe-model.json
