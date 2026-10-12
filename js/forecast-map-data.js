@@ -36,9 +36,9 @@
     const name=time===undefined?kind+'-legend.webp':kind+'-'+new Date(time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z.webp';
     const path=time===undefined?manifest.legends?.[kind]:manifest.images?.[kind]?.[new Date(time).toISOString()];
     let cycle=new Date(manifest.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z';
-    if(manifest.asset_version!==undefined){if(manifest.asset_root!=='forecast-iceland-cache'||manifest.asset_version!=='atlantic-v1')throw Error('Invalid forecast asset version');cycle+='-'+manifest.asset_version;}
+    if(manifest.asset_version!==undefined){if(!((manifest.asset_root==='forecast-iceland-cache'&&manifest.asset_version==='atlantic-v1')||(manifest.asset_root==='forecast-canada-cache'&&manifest.asset_version==='canada-v1')))throw Error('Invalid forecast asset version');cycle+='-'+manifest.asset_version;}
     const assetRoot=manifest.asset_root||'forecast-cache';
-    if(!['forecast-cache','forecast-iceland-cache'].includes(assetRoot))throw Error('Invalid forecast asset root');
+    if(!['forecast-cache','forecast-iceland-cache','forecast-canada-cache'].includes(assetRoot))throw Error('Invalid forecast asset root');
     if(typeof path!=='string'||!path.startsWith('data/'+assetRoot+'/'+cycle+'/')||path.split('/').length!==4||path.split('/').at(-1)!==name)throw Error('Invalid shared forecast image');
     return typeof root.weatherDataUrl==='function'?root.weatherDataUrl(path):path;
   }
@@ -61,3 +61,4 @@
   const api={layers,expandTimes,runs,reference,availableTimes,params,assetUrl,cachedTimes,regionalTimes,visibleRegions};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ForecastMapData=api;
 })(typeof window==='undefined'?{}:window);
+

@@ -23,6 +23,7 @@ BACKUP_SCOPES = ['data/'+name for name in (
     'model-wind.json', 'official-rainfall.json', 'official-snow-depth.json',
     'iceland-snow-stations.json', 'snow-history.json', 'snow-history',
     'forecast-map.json', 'forecast-cache', 'forecast-iceland.json', 'forecast-iceland-cache',
+    'forecast-canada.json', 'forecast-canada-cache',
     'estonia-warnings.json', 'latvia-warnings.json', 'national-warnings.json',
     'cyclones.json', 'fronts.json', 'cyclone-ensemble.json', 'space-weather.json',
     'aurora-cloud.json', 'nordic-radar-cache.json', 'radar-cache',
@@ -206,3 +207,4 @@ if __name__ == '__main__':
         publish(BACKUP_SCOPES, active=decision()['paused'])
     else:
         publish(args.paths)
+

@@ -39,8 +39,10 @@ test('timeline only exposes complete shared frames and does not discard the fina
 const iceManifest=structuredClone(manifest);iceManifest.asset_root='forecast-iceland-cache';iceManifest.bounds=[-28,61,-12,69];iceManifest.periods={};
 for(const kind of Object.keys(D.layers)){iceManifest.legends[kind]=iceManifest.legends[kind].replace('forecast-cache','forecast-iceland-cache');for(const time of iceManifest.cached_times)iceManifest.images[kind][time]=iceManifest.images[kind][time].replace('forecast-cache','forecast-iceland-cache');}
 for(const time of iceManifest.cached_times)iceManifest.periods[time]={start:time,end:new Date(Date.parse(time)+3*3600000).toISOString(),interpolated:false};
+const canadaManifest=structuredClone(iceManifest);canadaManifest.asset_root='forecast-canada-cache';canadaManifest.asset_version='canada-v1';canadaManifest.bounds=[-142,40,-50,84];
+for(const kind of Object.keys(D.layers)){canadaManifest.legends[kind]=canadaManifest.legends[kind].replace('forecast-iceland-cache/20261007T21Z/','forecast-canada-cache/20261007T21Z-canada-v1/');for(const time of canadaManifest.cached_times)canadaManifest.images[kind][time]=canadaManifest.images[kind][time].replace('forecast-iceland-cache/20261007T21Z/','forecast-canada-cache/20261007T21Z-canada-v1/');}
 const flush=()=>new Promise(r=>setImmediate(r));
-function harness({iceland=false,wide=false}={}){
+function harness({iceland=false,wide=false,canada=false,canadaView=false,nordicMissing=false}={}){
   const ids={},classes=new Set(),images=[],overlays=[],timers=new Map(),listeners={};let tid=0,observer;
   class Element{
     constructor(){this.children=[];this.options=[];this.value='0';this.events={};this.hidden=false;this.dataset={};this.classList={toggle:(name,on)=>on?classes.add(name):classes.delete(name)};}
@@ -51,13 +53,13 @@ function harness({iceland=false,wide=false}={}){
   const body=new Element(),c={document:{body,hidden:false,createElement:()=>new Element(),addEventListener:(k,f)=>listeners[k]=f,dispatchEvent:e=>listeners[e.type]?.(e)},window:{},$:id=>ids[id],
     ForecastMapData:{...D,cachedTimes:meta=>D.cachedTimes(meta,now),regionalTimes:regions=>D.regionalTimes(regions,now)},Date:class extends Date{static now(){return now;}},URLSearchParams,AbortController,CustomEvent:class{constructor(type,o){this.type=type;this.detail=o.detail;}},console:{warn(){}},
     setTimeout:(f,n)=>{const id=++tid;timers.set(id,{f,n});return id;},clearTimeout:id=>timers.delete(id),setInterval(){},
-    MutationObserver:class{constructor(f){observer=f;}observe(){}},fetch:async url=>({ok:true,json:async()=>url.includes('forecast-iceland')&&iceland?iceManifest:manifest}),
+    MutationObserver:class{constructor(f){observer=f;}observe(){}},fetch:async url=>({ok:!(url.includes('forecast-map.json')&&nordicMissing),json:async()=>url.includes('forecast-canada')&&canada?canadaManifest:url.includes('forecast-iceland')&&iceland?iceManifest:manifest}),
     Image:class{constructor(){images.push(this);this.dataset={};}set src(v){this.url=v;}cloneNode(){return {dataset:{},url:this.url};}},
     L:{DomEvent:{disableClickPropagation(){},disableScrollPropagation(){}},latLng:(lat,lng)=>({lat,lng}),CRS:{EPSG3857:{project:p=>({x:p.lng*100000,y:p.lat*100000})}},imageOverlay:(img,bounds,options)=>{const l={img,bounds,options,active:false,setOpacity(){},addTo(){this.active=true;img.attached=true;overlays.push(this);return this;}};return l;}},
-    map:{createPane(){},getPane:()=>({style:{}}),getBounds:()=>({getEast:()=>30,getWest:()=>wide?-30:10,getNorth:()=>wide?74:62,getSouth:()=>52}),getSize:()=>({x:800,y:600}),removeLayer:l=>{l.active=false;l.img.attached=false;},on(events,f){for(const name of events.split(' '))listeners['map:'+name]=f;}}};
+    map:{createPane(){},getPane:()=>({style:{}}),getBounds:()=>({getEast:()=>canadaView?-52:30,getWest:()=>canadaView?-140:wide?-30:10,getNorth:()=>canadaView?84:wide?74:62,getSouth:()=>canadaView?40:52}),getSize:()=>({x:800,y:600}),removeLayer:l=>{l.active=false;l.img.attached=false;},on(events,f){for(const name of events.split(' '))listeners['map:'+name]=f;}}};
   vm.createContext(c);vm.runInContext(fs.readFileSync(__dirname+'/../js/forecast-map.js','utf8'),c);
   const run=async()=>{for(const[id,t]of [...timers])if(t.n<1000){timers.delete(id);t.f();}await flush();};
-  return {c,ids,classes,images,overlays,run,view:value=>{wide=value;listeners['map:moveend']();},open:()=>{ids.forecastSection.hidden=false;observer();},close:()=>{ids.forecastSection.hidden=true;observer();},time:t=>c.window.NorthernForecastMap.setTime(t),loaded:async i=>{images[i].onload();await flush();}};
+  return {c,ids,classes,images,overlays,run,view:value=>{wide=value;listeners['map:moveend']();},canadaView:()=>{canadaView=true;listeners['map:moveend']();},open:()=>{ids.forecastSection.hidden=false;observer();},close:()=>{ids.forecastSection.hidden=true;observer();},time:t=>c.window.NorthernForecastMap.setTime(t),loaded:async i=>{images[i].onload();await flush();}};
 }
 test('late old map images cannot replace a newer forecast selection',async()=>{
   const h=harness();h.open();await h.run();h.time(first+3600000);await h.run();assert.equal(h.images.length,2);await h.loaded(1);await h.loaded(0);const active=h.overlays.filter(l=>l.active);assert.equal(active.length,1);assert.equal(active[0].img.dataset.forecastTime,'2026-10-07T22:00:00.000Z');
@@ -131,3 +133,13 @@ test('Iceland extends the shared slider to 72 hours without inventing Nordic fra
   delete ice.images.clouds[new Date(times.at(-1)).toISOString()];
   assert.equal(D.regionalTimes([manifest,ice],now).at(-1),first+71*3600000);
 });
+
+
+test('Canada uses the existing layers and timeline and only downloads frames in view',async()=>{
+ const h=harness({canada:true});h.open();await h.run();assert.equal(h.images.length,1);await h.loaded(0);h.canadaView();await h.run();assert.equal(h.images.length,2);assert.match(h.images[1].url,/forecast-canada-cache/);await h.loaded(1);const current=h.overlays.filter(l=>l.active);assert.equal(current.length,1);assert.equal(current[0].img.dataset.forecastRegion,'Canada');assert.equal(current[0].img.dataset.forecastTime,new Date(first).toISOString());assert.match(h.ids.forecastMapVisibleTime.textContent,/Canada: valid/);
+ h.ids.forecastMapLayer.value='rain';h.ids.forecastMapLayer.events.change();await h.run();await h.loaded(2);assert.match(h.ids.forecastMapVisibleTime.textContent,/Canada: three-hour mean precipitation rate/);
+});
+test('Canada maps still work if the Nordic manifest is unavailable',async()=>{
+ const h=harness({canada:true,canadaView:true,nordicMissing:true});h.open();await h.run();assert.equal(h.images.length,1);assert.match(h.images[0].url,/forecast-canada-cache/);await h.loaded(0);assert.equal(h.overlays.filter(l=>l.active).length,1);
+});
+test('Canada assets reject incorrect or escaped cycle versions',()=>{assert.match(D.assetUrl(canadaManifest,'gusts',first),/canada-v1/);const bad=structuredClone(canadaManifest);bad.asset_version='atlantic-v1';assert.throws(()=>D.assetUrl(bad,'gusts',first));bad.asset_version='canada-v1';bad.images.gusts[new Date(first).toISOString()]='data/forecast-canada-cache/../../wrong.webp';assert.throws(()=>D.assetUrl(bad,'gusts',first));});

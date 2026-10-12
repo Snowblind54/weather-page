@@ -107,3 +107,17 @@ test('a late Iceland grid cannot replace another location or a closed forecast p
   assert.equal(h.ids.forecastSelected.children[0].children[0].textContent,'9.0°');assert.equal(h.ids.forecastSelected.children[1].children[1].children[1].textContent,'Unavailable');assert.equal(h.ids.forecastGustAttribution.hidden,true);
   const other=harness();other.open();other.choose(65.05,-19.2);other.runDebounce();other.reply(0);await flush();other.close();other.replyJson(1,gustMeta);await flush();other.replyJson(2,gustGrid());await flush();assert.equal(other.ids.forecastGustAttribution.hidden,true);
 });
+
+
+test('Canada gust grid retains native spacing, valid zero gusts and refuses points outside its longitude band',()=>{
+ const grid=gustGrid();grid.region='Canada';grid.latitudes=[50,50.25];grid.longitudes=[-100,-99.75];forecast.validateGustGrid(grid,grid.reference_time,'Canada');const rows=forecast.addGusts([{time:Date.parse('2026-10-07T21:00:00Z'),gust:null}],grid,50.05,-100);assert.equal(rows[0].gust,0);assert.equal(rows[0].gustSource,'ECMWF IFS');assert.equal(forecast.gustSample(grid,50,-110,Date.parse('2026-10-07T21:00:00Z')),null);assert.throws(()=>forecast.validateGustGrid(grid,grid.reference_time));grid.samples[0].values[0]=Infinity;assert.throws(()=>forecast.validateGustGrid(grid,grid.reference_time,'Canada'));
+});
+
+const canadaGustMeta={reference_time:'2026-10-07T18:00:00Z',asset_root:'forecast-canada-cache',asset_version:'canada-v1',gust_grids:[[-142,-110],[-110,-80],[-80,-50]].map(([west,east],i)=>({bounds:[west,40,east,84],path:'data/forecast-canada-cache/20261007T18Z-canada-v1/gust-grid-'+i+'-v1.json',units:'m/s'}))};
+const canadaGustGrid=()=>({...gustGrid(),region:'Canada',latitudes:[50,50.25],longitudes:[-100,-99.75]});
+test('Canada point forecast downloads only its gust band and reuses it for nearby points',async()=>{
+ const h=harness();h.open();h.choose(50.05,-100);h.runDebounce();h.reply(0);await flush();assert(h.requests[1].url.startsWith('data/forecast-canada.json'));h.replyJson(1,canadaGustMeta);await flush();assert.equal(h.requests[2].url,canadaGustMeta.gust_grids[1].path);h.replyJson(2,canadaGustGrid());await flush();assert.equal(h.ids.forecastSelected.children[1].children[1].children[1].textContent,'0.0 m/s');assert.equal(h.ids.forecastGustAttribution.hidden,false);h.choose(50.1,-99.9);h.runDebounce();h.reply(3);await flush();assert.equal(h.requests.length,4);
+});
+test('Late Canada gust data cannot replace another location',async()=>{
+ const h=harness();h.open();h.choose(50.05,-100);h.runDebounce();h.reply(0);await flush();h.replyJson(1,canadaGustMeta);await flush();h.choose(59,25);h.runDebounce();h.reply(3,9);await flush();h.replyJson(2,canadaGustGrid());await flush();assert.equal(h.ids.forecastSelected.children[0].children[0].textContent,'9.0°');assert.equal(h.ids.forecastGustAttribution.hidden,true);
+});

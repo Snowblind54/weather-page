@@ -13,7 +13,7 @@
   panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','forecastSection-title');
   panel.innerHTML=`
     <div class="panel-heading"><div><div class="eyebrow" id="forecastProvider">MET NORWAY</div><h2 id="forecastSection-title">Forecast</h2><p>Choose a place on the map</p></div><div class="panel-actions"><button class="info-button" data-info="forecastSection-sources" aria-controls="forecastSection-sources" aria-expanded="false" aria-label="Forecast sources">i</button><button class="close-panel" aria-label="Close Forecast menu">×</button></div></div>
-    <div id="forecastSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Weather forecast data from MET Norway, Locationforecast 2.0, under CC BY 4.0. Nordic short-range forecasts use MEPS with local post-processing; other regions and longer ranges use the models described by MET Norway. These are automatic model forecasts, not measured conditions.</p><div class="source-links"><a href="https://api.met.no/doc/locationforecast/datamodel" target="_blank" rel="noopener">Forecast models ↗</a><a href="https://api.met.no/doc/License" target="_blank" rel="noopener">MET Norway licence ↗</a><a href="https://github.com/Snowblind54/weather-page" target="_blank" rel="noopener">Northern Weather project ↗</a></div><p>Forecast times and quantities retain their original intervals. Rain/snow is liquid-water equivalent in mm, not snow depth. Missing Iceland gusts are supplemented from cached ECMWF IFS open-data grids (CC BY 4.0). These use the nearest 0.25° grid point and nearest native forecast within 90 minutes; each reading retains its actual maximum-gust period and model run. Daily gust maxima use available samples. Other missing gusts and probabilities are shown as unavailable. Location forecasts do not change the observation layers.</p></div>
+    <div id="forecastSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Weather forecast data from MET Norway, Locationforecast 2.0, under CC BY 4.0. Nordic short-range forecasts use MEPS with local post-processing; other regions and longer ranges use the models described by MET Norway. These are automatic model forecasts, not measured conditions.</p><div class="source-links"><a href="https://api.met.no/doc/locationforecast/datamodel" target="_blank" rel="noopener">Forecast models ↗</a><a href="https://api.met.no/doc/License" target="_blank" rel="noopener">MET Norway licence ↗</a><a href="https://github.com/Snowblind54/weather-page" target="_blank" rel="noopener">Northern Weather project ↗</a></div><p>Forecast times and quantities retain their original intervals. Rain/snow is liquid-water equivalent in mm, not snow depth. Missing Iceland and Canada gusts are supplemented from cached ECMWF IFS open-data grids (CC BY 4.0). These use the nearest 0.25° grid point and nearest native forecast within 90 minutes; each reading retains its actual maximum-gust period and model run. Daily gust maxima use available samples. Other missing gusts and probabilities are shown as unavailable. Location forecasts do not change the observation layers.</p></div>
     <div class="forecast-location" id="forecastLocation">Choose a location</div>
     <div class="forecast-actions"><button type="button" id="forecastCenter">Use map centre</button><button type="button" id="forecastRetry">Check for updates</button></div>
     <div id="forecastStatus" class="status" role="status" aria-live="polite">Open Forecast to load this map location.</div>
@@ -28,7 +28,7 @@
       </div>
       <div id="forecastDaily" role="tabpanel" aria-labelledby="forecastDailyTab" hidden><div id="forecastDays" class="forecast-days"></div><p class="forecast-note">Temperature ranges use available forecast times. ≥ marks a partial rain/snow total: periods crossing midnight are excluded rather than split. Today covers the remaining forecast period. Gusts may be unavailable later in the forecast.</p></div>
     </div>
-    <div class="forecast-attribution"><a href="https://api.met.no/" target="_blank" rel="noopener">Data from MET Norway</a><span id="forecastGustAttribution" hidden> · Iceland gusts © <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data" target="_blank" rel="noopener">ECMWF</a></span> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> · Summaries by Northern Weather<br><span id="forecastIssued">Forecast update time will appear here.</span><br><span id="forecastZone"></span></div>`;
+    <div class="forecast-attribution"><a href="https://api.met.no/" target="_blank" rel="noopener">Data from MET Norway</a><span id="forecastGustAttribution" hidden> · Shared gusts © <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data" target="_blank" rel="noopener">ECMWF</a></span> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> · Summaries by Northern Weather<br><span id="forecastIssued">Forecast update time will appear here.</span><br><span id="forecastZone"></span></div>`;
   document.body.appendChild(panel);
   L.DomEvent.disableClickPropagation(panel);L.DomEvent.disableScrollPropagation(panel);
 
@@ -40,6 +40,42 @@
   let point=null,marker=null,payload=null,forecastRows=[],selectedTime=null,requestId=0,controller=null,refreshAfter=0,view='hourly';
   let gustGrid=null,gustChecked=0,gustPromise=null;
   const inIceland=p=>p&&Number(p.lat)>=61&&Number(p.lat)<=69&&Number(p.lon)>=-28&&Number(p.lon)<=-12;
+  const inCanada=p=>p&&Number(p.lat)>=40&&Number(p.lat)<=84&&Number(p.lon)>=-142&&Number(p.lon)<=-50;
+  const canadaGrids=new Map();
+  let canadaMeta=null,canadaChecked=0,canadaPromise=null;
+  async function getCanadaGustGrid(location){
+    if(!canadaMeta||Date.now()-canadaChecked>=15*60000){
+      if(!canadaPromise)canadaPromise=(async()=>{
+        const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),15000);
+        try{
+          const response=await fetch('data/forecast-canada.json?v='+Math.floor(Date.now()/900000),{signal:abort.signal,cache:'no-cache'});
+          if(!response.ok)throw Error('Canada gust index unavailable');
+          const next=await response.json();
+          if(next.asset_root!=='forecast-canada-cache'||next.asset_version!=='canada-v1'||!Number.isFinite(Date.parse(next.reference_time))||!Array.isArray(next.gust_grids)||next.gust_grids.length!==3)throw Error('Invalid Canada gust index');
+          if(canadaMeta?.reference_time!==next.reference_time)canadaGrids.clear();
+          canadaMeta=next;canadaChecked=Date.now();
+        }finally{clearTimeout(timer);}
+      })().finally(()=>{canadaPromise=null;});
+      try{await canadaPromise;}catch(error){console.warn('Canada forecast gusts unavailable',error);}
+    }
+    if(!canadaMeta)return null;
+    const lat=Number(location.lat),lon=Number(location.lon);
+    const band=canadaMeta.gust_grids.findIndex(g=>Array.isArray(g.bounds)&&g.bounds.length===4&&lon>=g.bounds[0]&&lon<=g.bounds[2]&&lat>=g.bounds[1]&&lat<=g.bounds[3]);
+    if(band<0)return null;
+    const cycle=new Date(canadaMeta.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z-canada-v1';
+    const path='data/forecast-canada-cache/'+cycle+'/gust-grid-'+band+'-v1.json';
+    if(canadaMeta.gust_grids[band].path!==path||canadaMeta.gust_grids[band].units!=='m/s')return null;
+    if(canadaGrids.has(path))return canadaGrids.get(path);
+    const reference=canadaMeta.reference_time,abort=new AbortController(),timer=setTimeout(()=>abort.abort(),20000);
+    try{
+      const response=await fetch(path,{signal:abort.signal,cache:'force-cache'});
+      if(!response.ok)return null;
+      const grid=MetForecastData.validateGustGrid(await response.json(),reference,'Canada');
+      if(canadaMeta.reference_time===reference)canadaGrids.set(path,grid);
+      return grid;
+    }catch(error){console.warn('Canada gust grid unavailable',error);return null;}
+    finally{clearTimeout(timer);}
+  }
   async function getGustGrid(){
     if(gustGrid&&Date.now()-gustChecked<15*60000)return gustGrid;
     if(gustPromise)return gustPromise;
@@ -63,11 +99,11 @@
     return gustPromise;
   }
   async function loadGusts(){
-    if(panel.hidden||!payload||!inIceland(point))return;
+    if(panel.hidden||!payload||(!inIceland(point)&&!inCanada(point)))return;
     const id=requestId,key=point.lat+','+point.lon;
-    const grid=await getGustGrid();
+    const grid=inCanada(point)?await getCanadaGustGrid({...point}):await getGustGrid();
     if(!grid||id!==requestId||panel.hidden||!payload||point.lat+','+point.lon!==key)return;
-    const wanted=selectedTime;render(payload,false);selectedTime=wanted;
+    const wanted=selectedTime;render(payload,false,grid);selectedTime=wanted;
   }
   const cache=new Map();
   const storageKey='northern-weather-met-forecast-v1';
@@ -106,9 +142,9 @@
     for(const tr of $('forecastHours').children)tr.setAttribute('aria-current',String(Number(tr.dataset.index)===index));
     if(syncMap!==false)window.NorthernForecastMap?.setTime(row.time);
   }
-  function render(data,syncMap=true){
+  function render(data,syncMap=true,sharedGustGrid=null){
     payload=data;
-    const original=MetForecastData.rows(data),all=MetForecastData.addGusts(original,gustGrid,Number(point?.lat),Number(point?.lon)),end=Date.now()+72*3600000;
+    const original=MetForecastData.rows(data),all=MetForecastData.addGusts(original,sharedGustGrid||(inCanada(point)?[...canadaGrids.values()].find(g=>MetForecastData.gustSample(g,Number(point.lat),Number(point.lon),original[0]?.time)):gustGrid),Number(point?.lat),Number(point?.lon)),end=Date.now()+72*3600000;
     forecastRows=all.filter(r=>r.time<=end);
     let index=0;if(selectedTime!==null)index=forecastRows.reduce((best,row,i)=>Math.abs(row.time-selectedTime)<Math.abs(forecastRows[best].time-selectedTime)?i:best,0);
     $('forecastTimeline').max=String(forecastRows.length-1);$('forecastTimeline').value=String(index);
@@ -172,7 +208,7 @@
     clearTimeout(choose.timer);choose.timer=setTimeout(loadForecast,350);
   }
   $('forecastCenter').addEventListener('click',()=>choose(map.getCenter()));
-  $('forecastRetry').addEventListener('click',()=>{gustChecked=0;loadForecast();});
+  $('forecastRetry').addEventListener('click',()=>{gustChecked=0;canadaChecked=0;loadForecast();});
   $('forecastTimeline').addEventListener('input',renderSelected);
   function switchView(next){
     view=next;
@@ -201,7 +237,7 @@
       else{if(!marker)marker=L.marker([Number(point.lat),Number(point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);loadForecast();}
     }
   }).observe(panel,{attributes:true,attributeFilter:['hidden']});
-  setInterval(()=>{if(!document.hidden&&!panel.hidden){if(Date.now()>=refreshAfter)loadForecast();else if(payload&&Date.now()-gustChecked>=15*60000)loadGusts();}},60000);
+  setInterval(()=>{if(!document.hidden&&!panel.hidden){if(Date.now()>=refreshAfter)loadForecast();else if(payload&&Date.now()-(inCanada(point)?canadaChecked:gustChecked)>=15*60000)loadGusts();}},60000);
   document.addEventListener('weather-units-change',()=>{if(payload)render(payload,false);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!panel.hidden)loadForecast();});
   window.addEventListener('online',()=>{if(!panel.hidden)loadForecast();});
@@ -212,3 +248,4 @@
     $('forecastTimeline').value=String(i);renderSelected(false);selectedTime=wanted;
   });
 })();
+

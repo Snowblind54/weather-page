@@ -56,7 +56,8 @@ def index(run, step):
     if not required <= selected.keys(): raise ValueError('Missing ECMWF surface fields')
     return selected
 
-def decode(raw, run, step):
+def decode(raw, run, step, bounds=None):
+    bounds = BOUNDS if bounds is None else bounds
     g = ec.codes_new_from_message(raw)
     try:
         valid = datetime.strptime(str(ec.codes_get(g,'validityDate'))+f"{ec.codes_get(g,'validityTime'):04d}",'%Y%m%d%H%M').replace(tzinfo=timezone.utc)
@@ -65,7 +66,7 @@ def decode(raw, run, step):
         lats = ec.codes_get_array(g,'latitudes')
         lons = (ec.codes_get_array(g,'longitudes')+180)%360-180
         values = ec.codes_get_values(g)
-        mask = (lats>=BOUNDS[1]-.25)&(lats<=BOUNDS[3]+.25)&(lons>=BOUNDS[0]-.25)&(lons<=BOUNDS[2]+.25)
+        mask = (lats>=bounds[1]-.25)&(lats<=bounds[3]+.25)&(lons>=bounds[0]-.25)&(lons<=bounds[2]+.25)
         lat, lon = np.unique(lats[mask]), np.unique(lons[mask])
         grid = np.full((len(lat),len(lon)),np.nan)
         grid[np.searchsorted(lat,lats[mask]),np.searchsorted(lon,lons[mask])] = values[mask]
@@ -73,14 +74,14 @@ def decode(raw, run, step):
         return lat,lon,grid,ec.codes_get(g,'units'),int(ec.codes_get(g,'startStep')),int(ec.codes_get(g,'endStep')),float(ec.codes_get(g,'packingError'))
     finally: ec.codes_release(g)
 
-def read_step(run, step, rows=None):
+def read_step(run, step, rows=None, bounds=None):
     result = {}
     for name, row in (rows or index(run,step)).items():
         if step==0 and name=='10fg': continue
         offset,length = int(row['_offset']),int(row['_length'])
         if not 0 < length < 8*1024*1024: raise ValueError('Unexpected GRIB size')
         raw = request(url(run,step,'grib2'),offset,length)
-        lat,lon,grid,unit,start,end,packing_error = decode(raw,run,step)
+        lat,lon,grid,unit,start,end,packing_error = decode(raw,run,step,bounds)
         expected = {'2t':{'K'},'10u':{'m s**-1'},'10v':{'m s**-1'},'tp':{'m'},
                     'tcc':{'(0 - 1)','1'},'10fg':{'m s**-1'}}[name]
         if unit not in expected: raise ValueError(f'Unexpected {name} units: {unit}')
@@ -157,17 +158,19 @@ def nordic_exclusion(alpha, bounds):
     coverage=alpha[np.ix_(rows,cols)]>0
     return coverage & inside_y[:,None] & inside_x[None,:]
 
-def render(grid, lat, lon, kind, palette, destination, exclusion=None):
+def render(grid, lat, lon, kind, palette, destination, exclusion=None, bounds=None, size=None):
+    bounds = BOUNDS if bounds is None else bounds
+    size = SIZE if size is None else size
     # Equal spacing in Mercator y is essential for Leaflet imageOverlay.
     merc = lambda v: math.log(math.tan(math.pi/4+math.radians(v)/2))
-    y = np.linspace(merc(BOUNDS[3]),merc(BOUNDS[1]),SIZE)
-    sample_lat = np.degrees(2*np.arctan(np.exp(y))-math.pi/2)
-    sample_lon = np.linspace(BOUNDS[0],BOUNDS[2],SIZE)
+    y = np.linspace(merc(bounds[3]),merc(bounds[1]),size)
+    sample_lat = np.clip(np.degrees(2*np.arctan(np.exp(y))-math.pi/2),bounds[1],bounds[3])
+    sample_lon = np.linspace(bounds[0],bounds[2],size)
     lo,hi = RANGES[kind]
     sampler = RegularGridInterpolator((lat,lon),grid,bounds_error=True)
-    pixels = np.empty((SIZE,SIZE,4),dtype=np.uint8)
+    pixels = np.empty((size,size,4),dtype=np.uint8)
     # Small row blocks avoid a large 2048² coordinate array on the runner.
-    for first in range(0,SIZE,64):
+    for first in range(0,size,64):
         la,ln = np.meshgrid(sample_lat[first:first+64],sample_lon,indexing='ij')
         values = sampler(np.stack((la,ln),axis=-1))
         bins = np.clip(np.floor((values-lo)/(hi-lo)*64),0,63).astype(int)
@@ -298,3 +301,4 @@ def main():
         if stage.exists(): shutil.rmtree(stage)
 
 if __name__=='__main__': main()
+
