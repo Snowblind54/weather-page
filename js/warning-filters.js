@@ -13,7 +13,8 @@ const WARNING_COUNTRY_TIMEZONES={
   Poland:'Europe/Warsaw',
   Denmark:'Europe/Copenhagen',
   Greenland:'America/Nuuk',
-  Canada:'UTC'
+  Canada:'UTC',
+  USA:'UTC'
 };
 
 function warningCountry(record){
@@ -66,7 +67,7 @@ function warningIsTodayOrTomorrow(record){
   const messageEnd=Date.parse(record?.messageExpires||'');
   if(Number.isFinite(messageEnd) && messageEnd<=Date.now()) return false;
   // Snapshot age describes update health; validity decides visibility.
-  if(['Latvia','Poland','Denmark','Greenland','Canada'].includes(country) && !Number.isFinite(endMs)) return false;
+  if(['Latvia','Poland','Denmark','Greenland','Canada','USA'].includes(country) && !Number.isFinite(endMs)) return false;
   const timeZone=record?.timeZone || WARNING_COUNTRY_TIMEZONES[country] || 'Europe/Tallinn';
   const today=warningDateKey(new Date(),timeZone);
   const tomorrow=warningAddDays(today,1);
@@ -121,6 +122,7 @@ renderLithuaniaWarnings=async function(){
 };
 
 function isFinnishMarineWarning(record){
+  if(record?.country==='USA')return record.marine===true;
   if(record?.country!=='Finland') return false;
 
   const text=normalizeWarningArea([
@@ -235,13 +237,16 @@ renderNordicWarnings=async function(){
 
     card.innerHTML=
       `<div class="warning-title">${htmlEscape(record.flag+' '+(record.headline||record.event))}</div>`+
-      `<div class="warning-meta">${htmlEscape(record.alertType?record.alertType+' · '+sev.name:sev.name)} · until ${htmlEscape(end)}</div>`+
+      `<div class="warning-meta">${htmlEscape(record.alertType?record.alertType+' · '+(record.country==='USA'?record.officialSeverity||sev.name:sev.name):sev.name)} · until ${htmlEscape(end)}</div>`+
       `<div class="warning-area">${htmlEscape(record.area)}</div>`+
       (record.description
         ? `<div class="warning-meta" style="margin-top:4px">${htmlEscape(record.description)}</div>`
         : '')+
       (marine
         ? '<div class="warning-meta" style="margin-top:4px">Marine warning · dashed outline applies to the sea area only.</div>'
+        : '')+
+      (record.geometryIncomplete && firstLayer
+        ? '<div class="warning-meta" style="margin-top:4px">Some official boundaries are unavailable; mapped area is incomplete.</div>'
         : '')+
       (!firstLayer
         ? '<div class="warning-meta" style="margin-top:4px">Warning loaded, but no usable map geometry was available from the source.</div>'
@@ -268,7 +273,7 @@ renderNordicWarnings=async function(){
 function overdueWarningCountries(){
   const updates=new Map();
   for(const record of nordicWarnings){
-    if(['Latvia','Poland','Denmark','Greenland','Canada'].includes(warningCountry(record))) updates.set(warningCountry(record),record.sourceUpdatedAt);
+    if(['Latvia','Poland','Denmark','Greenland','Canada','USA'].includes(warningCountry(record))) updates.set(warningCountry(record),record.sourceUpdatedAt);
   }
   if(latviaWarningSnapshotUpdatedAt) updates.set('Latvia',latviaWarningSnapshotUpdatedAt);
   for(const country of Object.values(nationalWarningSnapshot?.countries||{})) updates.set(country.country,country.updatedAt);
@@ -298,10 +303,10 @@ function updateVisibleWarningStatus(){
 
   for(const [country,label] of [
     ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
-    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['Greenland','GL'],['Canada','CA']
+    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['Greenland','GL'],['Canada','CA'],['USA','US']
   ]){
     const count=counts.get(country)||0;
-    if(count || (['Canada','Greenland'].includes(country) && nationalWarningSnapshot?.countries?.[label])) parts.push(`${label} ${count}`);
+    if(count || (['Canada','Greenland','USA'].includes(country) && nationalWarningSnapshot?.countries?.[label])) parts.push(`${label} ${count}`);
   }
 
   if(previous.includes('cached')) parts.push('cached source used');
@@ -348,7 +353,7 @@ function scheduleWarningExpiryRefresh(){
     if(Number.isFinite(expiry) && expiry>now) deadlines.push(expiry);
     const messageExpiry=Date.parse(record.messageExpires);
     if(Number.isFinite(messageExpiry) && messageExpiry>now) deadlines.push(messageExpiry);
-    if(['Latvia','Poland','Denmark','Greenland','Canada'].includes(warningCountry(record))){
+    if(['Latvia','Poland','Denmark','Greenland','Canada','USA'].includes(warningCountry(record))){
       const maxAge=warningCountry(record)==='Latvia'?LATVIA_WARNING_MAX_AGE:NATIONAL_WARNING_MAX_AGE;
       const staleAt=Date.parse(record.sourceUpdatedAt)+maxAge+1;
       if(Number.isFinite(staleAt) && staleAt>now) deadlines.push(staleAt);
@@ -381,3 +386,4 @@ $('warningOn').addEventListener('change',()=>{
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible') purgeExpiredWarningDisplay();
 });
+

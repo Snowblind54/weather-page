@@ -726,7 +726,7 @@ async function loadWarnings(force=false){
   const parts=[`${allRecords.length} active warning records`];
   for(const [country,label] of [
     ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
-    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['Greenland','GL'],['Canada','CA']
+    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['Greenland','GL'],['Canada','CA'],['USA','US']
   ]){
     if(counts.get(country)) parts.push(`${label} ${counts.get(country)}`);
   }
@@ -1579,7 +1579,7 @@ function dedupeNordicWarnings(records){
   const mapByKey=new Map();
 
   for(const record of records){
-    const key=[
+    const key=record.country==='USA' && record.identifier ? 'USA|'+record.identifier : [
       record.country,
       normalizeWarningArea(record.area),
       normalizeWarningArea(record.event),
@@ -1644,6 +1644,7 @@ async function loadNordicWarnings(force=false){
       {country:'Denmark',run:()=>loadNationalWarningCountry('DK')},
       {country:'Greenland',run:()=>loadNationalWarningCountry('GL')},
       {country:'Canada',run:()=>loadNationalWarningCountry('CA')},
+      {country:'USA',run:()=>loadNationalWarningCountry('US')},
       ...NORDIC_WARNING_SOURCES.map(source=>({
         country:source.country,
         run:async()=>{
@@ -1710,11 +1711,13 @@ function nordicWarningPopupHtml(record){
 
   return `<div class="warning-popup">
     <h3>${htmlEscape(record.flag+' '+(record.headline||record.event))}</h3>
-    <p class="sev" style="color:${sev.color}">${htmlEscape(record.alertType?record.alertType+' · '+sev.name:sev.name)}</p>
+    <p class="sev" style="color:${sev.color}">${htmlEscape(record.alertType?record.alertType+' · '+(record.country==='USA'?record.officialSeverity||sev.name:sev.name):sev.name)}</p>
     <p><b>Country:</b> ${htmlEscape(record.country)}</p>
     <p><b>Area:</b> ${htmlEscape(record.area)}</p>
     ${start||end?`<p><b>Valid:</b> ${htmlEscape(start)}${start&&end?' – ':''}${htmlEscape(end)}</p>`:''}
     ${record.description?`<p>${htmlEscape(record.description)}</p>`:''}
+    ${record.country==='USA'?`<p class="small">Times in ${htmlEscape(record.timeZone||'UTC')}${record.timeZones?.length>1?' · alert spans multiple time zones':''}.</p>`:''}
+    ${record.geometryIncomplete?'<p class="small">Some official zone boundaries are unavailable; the mapped area is incomplete. See the official alert for all affected areas.</p>':''}
     ${record.instruction?`<p><b>Instructions:</b> ${htmlEscape(record.instruction)}</p>`:''}
     <p><a href="${record.sourcePage||record.capUrl||NORDIC_WARNING_PAGE}" target="_blank" rel="noopener">${record.sourceName?'Official '+htmlEscape(record.sourceName)+' source':record.country==='Finland'?'Official FMI CAP source':record.country==='Latvia'?'Official LVĢMC CAP source':'MeteoAlarm / CAP source'} ↗</a></p>
   </div>`;
@@ -1771,7 +1774,7 @@ async function renderNordicWarnings(){
 
     card.innerHTML=
       `<div class="warning-title">${htmlEscape(record.flag+' '+(record.headline||record.event))}</div>`+
-      `<div class="warning-meta">${htmlEscape(record.alertType?record.alertType+' · '+sev.name:sev.name)} · until ${htmlEscape(end)}</div>`+
+      `<div class="warning-meta">${htmlEscape(record.alertType?record.alertType+' · '+(record.country==='USA'?record.officialSeverity||sev.name:sev.name):sev.name)} · until ${htmlEscape(end)}</div>`+
       `<div class="warning-area">${htmlEscape(record.area)}</div>`+
       (record.description
         ? `<div class="warning-meta" style="margin-top:4px">${htmlEscape(record.description)}</div>`
@@ -1795,3 +1798,4 @@ async function renderNordicWarnings(){
 
   return mapped;
 }
+

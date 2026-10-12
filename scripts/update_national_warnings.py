@@ -212,6 +212,9 @@ def parse_canada(payload, now):
 
 
 def update_country(code, now):
+    if code == 'US':
+        from update_us_warnings import load_usa
+        return load_usa(now)
     if code == 'CA':
         return {'country': 'Canada', 'updatedAt': now.isoformat(), 'source': CANADA_FEED,
                 'records': parse_canada(canada_payload(), now)}
@@ -236,7 +239,7 @@ def main():
     countries = dict(previous.get('countries', {}))
     failed = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        jobs = {pool.submit(update_country, code, now): code for code in ('PL', 'DK', 'GL', 'CA')}
+        jobs = {pool.submit(update_country, code, now): code for code in ('PL', 'DK', 'GL', 'CA', 'US')}
         for job in concurrent.futures.as_completed(jobs):
             code = jobs[job]
             try:
@@ -246,7 +249,7 @@ def main():
                 # Never freshen an old country snapshot after a failed fetch.
                 failed.append(code)
                 print(code, 'update failed:', error)
-    if len(failed) == 4:
+    if len(failed) == 5:
         raise RuntimeError('All official warning updates failed')
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps({'version': 1, 'updatedAt': now.isoformat(), 'countries': countries},
@@ -255,3 +258,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

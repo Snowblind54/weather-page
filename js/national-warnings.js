@@ -1,4 +1,4 @@
-// Official IMGW, DMI and ECCC warning polygons, copied directly
+// Official IMGW, DMI, ECCC and NOAA/NWS warning polygons, copied directly
 // from their national feeds by the scheduled repository updater.
 const NATIONAL_WARNING_URL='https://raw.githubusercontent.com/Snowblind54/weather-page/main/data/national-warnings.json';
 const NATIONAL_WARNING_MAX_AGE=60*60*1000;
@@ -17,7 +17,7 @@ function validNationalWarningPolygon(polygon){
 }
 
 function validateNationalWarningCountry(data,code){
-  const name=({PL:'Poland',DK:'Denmark',GL:'Greenland',CA:'Canada'})[code];
+  const name=({PL:'Poland',DK:'Denmark',GL:'Greenland',CA:'Canada',US:'USA'})[code];
   const country=data?.countries?.[code];
   const updated=Date.parse(country?.updatedAt);
   if(data?.version!==1 || country?.country!==name || !Array.isArray(country.records) ||
@@ -25,10 +25,10 @@ function validateNationalWarningCountry(data,code){
     throw new Error(name+' official warning data invalid');
   }
   for(const record of country.records){
-    if(record.country!==name || !['Moderate','Severe','Extreme',...(code==='CA'?['Information']:[])].includes(record.level) ||
+    if(record.country!==name || !['Moderate','Severe','Extreme',...(['CA','US'].includes(code)?['Information']:[])].includes(record.level) ||
        !Number.isFinite(Date.parse(record.expires)) || !Number.isFinite(Date.parse(record.effective)) ||
-       (code==='CA' && !Number.isFinite(Date.parse(record.messageExpires))) ||
-       !record.polygons?.length || !record.polygons.every(validNationalWarningPolygon)){
+       (['CA','US'].includes(code) && !Number.isFinite(Date.parse(record.messageExpires))) ||
+       !Array.isArray(record.polygons) || (code!=='US'&&!record.polygons.length) || !record.polygons.every(validNationalWarningPolygon)){
       throw new Error(name+' official warning data invalid');
     }
   }
@@ -70,3 +70,4 @@ async function loadNationalWarningCountry(code){
   const data=await fetchNationalWarningSnapshot();
   return {records:validateNationalWarningCountry(data,code),official:true,updatedAt:data.countries[code].updatedAt};
 }
+
