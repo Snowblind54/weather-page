@@ -59,6 +59,28 @@ def accounted(store, files=None, total=None, now=None):
 
 
 class StorageSafety(unittest.TestCase):
+    def test_shorter_archive_retention_preserves_active_files_and_other_policies(self):
+        now = datetime.now(timezone.utc)
+        objects = {}
+        protected = set()
+        expected = []
+        for directory, hours in [('cloud-tiles', 6), ('forecast-cache', 12),
+                                 ('forecast-iceland-cache', 12), ('forecast-canada-cache', 12)]:
+            for name, age in [('expired', hours + 1), ('boundary', hours),
+                              ('recent', hours - 1), ('active', 72)]:
+                key = f'weather/data/{directory}/{name}.webp'
+                objects[key] = {'Size': 10, 'LastModified': now - timedelta(hours=age)}
+                if name == 'expired': expected.append(key)
+                if name == 'active': protected.add(key)
+        for directory in ['radar-tiles', 'radar-cache']:
+            key = f'weather/data/{directory}/recent.webp'
+            objects[key] = {'Size': 10, 'LastModified': now - timedelta(hours=13)}
+        objects['weather/data/snow-history/recent.json'] = {'Size': 10,
+            'LastModified': now - timedelta(days=14)}
+        objects['weather/data/other/recent.json'] = {'Size': 10,
+            'LastModified': now - timedelta(hours=25)}
+        self.assertEqual(r2.expired_keys(objects, protected, now), expected)
+
     def test_breakdown_reconciles_active_retired_pending_and_foreign_bytes(self):
         now = datetime.now(timezone.utc)
         active = 'weather/data/cloud-tiles/current.pmtiles'
