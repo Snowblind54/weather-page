@@ -3,7 +3,7 @@
   const panel=$('forecastSection');if(!panel)return;
   const D=ForecastMapData;
   const controls=document.createElement('div');controls.className='forecast-map-controls';
-  controls.innerHTML=`<div class="forecast-map-layer-heading"><label class="label" for="forecastMapLayer">Forecast map layer</label><button type="button" class="info-button" data-info="forecastMapInfo" aria-controls="forecastMapInfo" aria-expanded="false" aria-label="Forecast map information">i</button></div><div id="forecastMapInfo" class="source-card" hidden><h3>Forecast map information</h3><p class="forecast-note">Nordics/Baltics: MET Nordic. Iceland/North Atlantic and Canada: ECMWF IFS open data (0.25° grid), filling the gap to Norway; MET Nordic keeps priority inside its coverage. All regions follow the same hourly timeline and colour scales. ECMWF’s native steps are three hours: temperature, wind and clouds are interpolated between steps; rain shows the three-hour mean rate and gusts use the nearest native forecast, with its actual period shown below. The model cycles can differ. New ECMWF model cycles arrive four times daily; the shared cache checks every hour. Maps are prepared centrally and served through R2/CDN with GitHub fallback. Only regions in the current view are downloaded. Closing this menu keeps the forecast map and timeline active. Choose another category in the top menu to return to its weather layers, or choose location forecast only to hide the coloured forecast map.</p></div><select id="forecastMapLayer"><option value="temperature">Temperature</option><option value="rain">Rain / snow</option><option value="wind">Sustained wind</option><option value="gusts">Wind gusts</option><option value="clouds">Cloud cover</option><option value="off">Location forecast only</option></select><div class="forecast-map-opacity"><label for="forecastMapOpacity">Map opacity</label><output id="forecastMapOpacityValue">55%</output></div><input id="forecastMapOpacity" type="range" min="10" max="90" step="5" value="55" aria-label="Forecast map opacity"><div id="forecastMapLegend" hidden><div id="forecastMapLegendTitle" class="label"></div><img id="forecastMapColorbar" alt="Forecast colour scale" width="256" height="18"><div id="forecastMapLegendTicks"></div><div id="forecastMapVisibleTime" class="forecast-note"></div></div><div id="forecastMapStatus" class="status" role="status" aria-live="polite">Open Forecast to load the forecast maps.</div>`;
+  controls.innerHTML=`<div class="forecast-map-layer-heading"><label class="label" for="forecastMapLayer">Forecast map layer</label><button type="button" class="info-button" data-info="forecastMapInfo" aria-controls="forecastMapInfo" aria-expanded="false" aria-label="Forecast map information">i</button></div><div id="forecastMapInfo" class="source-card" hidden><h3>Forecast map information</h3><p class="forecast-note">Nordics/Baltics: MET Nordic. Iceland/North Atlantic and North America: ECMWF IFS open data (0.25° grid), covering Canada, mainland USA, Alaska, Hawaii and the Atlantic to Iceland; MET Nordic keeps priority inside its coverage. All regions follow the same hourly timeline and colour scales. ECMWF’s native steps are three hours: temperature, wind and clouds are interpolated between steps; rain shows the three-hour mean rate and gusts use the nearest native forecast, with its actual period shown below. The model cycles can differ. New ECMWF model cycles arrive four times daily; the shared cache checks every hour. Maps are prepared centrally and served through R2/CDN with GitHub fallback. Only regions in the current view are downloaded. Closing this menu keeps the forecast map and timeline active. Choose another category in the top menu to return to its weather layers, or choose location forecast only to hide the coloured forecast map.</p></div><select id="forecastMapLayer"><option value="temperature">Temperature</option><option value="rain">Rain / snow</option><option value="wind">Sustained wind</option><option value="gusts">Wind gusts</option><option value="clouds">Cloud cover</option><option value="off">Location forecast only</option></select><div class="forecast-map-opacity"><label for="forecastMapOpacity">Map opacity</label><output id="forecastMapOpacityValue">55%</output></div><input id="forecastMapOpacity" type="range" min="10" max="90" step="5" value="55" aria-label="Forecast map opacity"><div id="forecastMapLegend" hidden><div id="forecastMapLegendTitle" class="label"></div><img id="forecastMapColorbar" alt="Forecast colour scale" width="256" height="18"><div id="forecastMapLegendTicks"></div><div id="forecastMapVisibleTime" class="forecast-note"></div></div><div id="forecastMapStatus" class="status" role="status" aria-live="polite">Open Forecast to load the forecast maps.</div>`;
   $('forecastLocation').before(controls);
   const dock=document.createElement('div');dock.className='forecast-map-dock';dock.hidden=true;
   dock.setAttribute('aria-label','Forecast map timeline');
@@ -30,7 +30,7 @@
           const response=await fetch(path+'?v='+Math.floor(Date.now()/900000),{signal:abort.signal,cache:'no-cache'});
           if(!response.ok)throw Error(region+' map index unavailable');
           const candidate=await response.json();
-          if(candidate.delivery!=='static-regional-images'||(candidate.asset_root||'forecast-cache')!==assetRoot||!Array.isArray(candidate.bounds)||candidate.bounds.length!==4||!candidate.bounds.every(Number.isFinite)||candidate.bounds[0]>=candidate.bounds[2]||candidate.bounds[1]>=candidate.bounds[3]||candidate.bounds[1]<-85||candidate.bounds[3]>85||candidate.bounds[0]<-180||candidate.bounds[2]>180||!Number.isFinite(Date.parse(candidate.reference_time))||!D.cachedTimes(candidate).length)throw Error('Invalid '+region+' map index');
+          if(candidate.delivery!=='static-regional-images'||(candidate.asset_root||'forecast-cache')!==assetRoot||!Array.isArray(candidate.bounds)||candidate.bounds.length!==4||!candidate.bounds.every(Number.isFinite)||candidate.bounds[0]>=candidate.bounds[2]||candidate.bounds[1]>=candidate.bounds[3]||candidate.bounds[1]<-85||candidate.bounds[3]>85||candidate.bounds[0]<(assetRoot==='forecast-canada-cache'?-190:-180)||candidate.bounds[2]>180||!Number.isFinite(Date.parse(candidate.reference_time))||!D.cachedTimes(candidate).length)throw Error('Invalid '+region+' map index');
           for(const kind of ['temperature','rain','wind'])if(!candidate.layers?.[kind])throw Error('Missing '+region+' quantity');
           for(const kind of Object.keys(candidate.layers)){if(candidate.layers[kind]!==D.layers[kind]?.name)throw Error('Invalid '+region+' quantity');D.assetUrl(candidate,kind);}
           return {...candidate,region};
@@ -57,7 +57,7 @@
     $('forecastMapStart').textContent=date(meta.times[0]);$('forecastMapEnd').textContent=date(meta.times.at(-1));
     $('forecastMapPrevious').disabled=index===0;$('forecastMapNext').disabled=index===meta.times.length-1;
     const older=meta.regions.some(r=>r.region==='Nordics'&&Date.now()-Date.parse(r.reference_time)>9*3600000);
-    $('forecastMapCycle').textContent=meta.regions.map(r=>(r.region==='Iceland'?'Iceland / Atlantic':r.region)+' cycle '+date(Date.parse(r.reference_time))).join(' · ')+(older?' · older Nordic cycle':'');
+    $('forecastMapCycle').textContent=meta.regions.map(r=>D.regionLabel(r)+' cycle '+date(Date.parse(r.reference_time))).join(' · ')+(older?' · older Nordic cycle':'');
     for(const option of $('forecastMapLayer').options)option.disabled=option.value!=='off'&&!meta.layers[option.value];
   }
   function image(url){
@@ -86,7 +86,7 @@
     const notes=visibleRegions.map(region=>{
       if(region.region==='Nordics')return kind==='rain'?'Nordics: total for '+date(visibleTime)+' – '+date(visibleTime+3600000)+'.':'Nordics: valid '+date(visibleTime)+'.';
       const period=region.periods[new Date(visibleTime).toISOString()];
-      const label=region.region==='Canada'?'Canada':'Iceland / North Atlantic';
+      const label=D.regionLabel(region);
       if(kind==='rain'||kind==='gusts')return label+': '+(kind==='rain'?'three-hour mean precipitation rate':'maximum gust (nearest native forecast)')+' for '+date(Date.parse(kind==='gusts'?(period.gust_start||period.start):period.start))+' – '+date(Date.parse(kind==='gusts'?(period.gust_end||period.end):period.end))+'.';
       return label+': valid '+date(visibleTime)+(period.interpolated?' · interpolated between native three-hour forecasts.':'.');
     });
@@ -104,7 +104,7 @@
       const bounds=map.getBounds();
       const regions=D.visibleRegions(meta.regions,bounds,kind,selectedTime);
       if(!regions.length){clearOverlay();status('No forecast map available in this view at this hour. Location forecasts remain available.');return;}
-      const urls=regions.map(region=>D.assetUrl(region,kind,selectedTime)),key=urls.join('|');
+      const urls=regions.map(region=>D.assetUrl(region,kind,selectedTime)),key=urls.map((url,i)=>url+'@'+regions[i].bounds[0]).join('|');
       if(overlay&&visibleUrl===key){visibleRegions=regions;opacity();legend(kind);status('Forecast map ready · cached images.');return;}
       status(visibleTime!==null?'Loading forecast maps… Previous images valid '+date(visibleTime)+'.':'Loading forecast map images…');
       const imgs=await Promise.all(urls.map(image));if(id!==generation||!active())return;
@@ -132,4 +132,5 @@
   setInterval(()=>{if(!document.hidden&&active()&&Date.now()-metaChecked>=15*60000)schedule(0);},60000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&active())schedule(0);});
 })();
+
 

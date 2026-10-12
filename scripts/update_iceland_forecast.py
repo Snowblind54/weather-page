@@ -65,6 +65,9 @@ def decode(raw, run, step, bounds=None):
         if reference != run or valid != run+timedelta(hours=step): raise ValueError('ECMWF run/time mismatch')
         lats = ec.codes_get_array(g,'latitudes')
         lons = (ec.codes_get_array(g,'longitudes')+180)%360-180
+        if bounds[0]<-180:
+            # One continuous grid across Alaska's date-line islands.
+            lons = np.where(lons>bounds[2],lons-360,lons)
         values = ec.codes_get_values(g)
         mask = (lats>=bounds[1]-.25)&(lats<=bounds[3]+.25)&(lons>=bounds[0]-.25)&(lons<=bounds[2]+.25)
         lat, lon = np.unique(lats[mask]), np.unique(lons[mask])
@@ -301,4 +304,5 @@ def main():
         if stage.exists(): shutil.rmtree(stage)
 
 if __name__=='__main__': main()
+
 

@@ -18,14 +18,16 @@
     return ['year','month','day'].map(key=>parts.find(p=>p.type===key).value).join('-');
   }
   function validateGustGrid(grid,reference,region='Iceland'){
-    const canada=region==='Canada';
+    if(!['Iceland','Canada','North America'].includes(region))throw Error('Invalid forecast gust region');
+    const america=region==='North America',canada=region==='Canada';
+    if(america&&grid?.region!=='North America')throw Error('Invalid North America gust grid');
     if(canada&&grid?.region!=='Canada')throw Error('Invalid Canada gust grid');
     const ordered=(xs,min,max)=>Array.isArray(xs)&&xs.length>=2&&xs.length<=200&&xs.every((v,i)=>number(v)!==null&&v>=min&&v<=max&&(!i||v>xs[i-1]));
     const run=Date.parse(grid?.reference_time);
-    if(!Number.isFinite(run)||run!==Date.parse(reference)||grid.units!=='m/s'||grid.grid_spacing_degrees!==.25||!ordered(grid.latitudes,canada?40:61,canada?84:69)||!ordered(grid.longitudes,canada?-142:-28,canada?-50:-12)||!Array.isArray(grid.samples)||!grid.samples.length||grid.samples.length>40)throw Error('Invalid Iceland gust grid');
+    if(!Number.isFinite(run)||run!==Date.parse(reference)||grid.units!=='m/s'||grid.grid_spacing_degrees!==.25||!ordered(grid.latitudes,america?18:canada?40:61,(america||canada)?84:69)||!ordered(grid.longitudes,america?-190:canada?-142:-28,america?-30:canada?-50:-12)||!Array.isArray(grid.samples)||!grid.samples.length||grid.samples.length>40)throw Error('Invalid Iceland gust grid');
     for(const xs of [grid.latitudes,grid.longitudes])if(xs.some((v,i)=>i&&Math.abs(v-xs[i-1]-.25)>1e-8))throw Error('Invalid gust grid spacing');
     const count=grid.latitudes.length*grid.longitudes.length;
-    if(count>(canada?30000:10000))throw Error('Oversized gust grid');
+    if(count>((america||canada)?30000:10000))throw Error('Oversized gust grid');
     let previous=-Infinity;
     for(const sample of grid.samples){
       const time=Date.parse(sample.time),start=Date.parse(sample.start),end=Date.parse(sample.end);
@@ -35,6 +37,7 @@
     return grid;
   }
   function gustSample(grid,lat,lon,time){
+    if(grid?.region==='North America'&&lon>=170&&lon<=180)lon-=360;
     if(!grid||!Number.isFinite(lat)||!Number.isFinite(lon)||!Number.isFinite(time)||lat<grid.latitudes[0]||lat>grid.latitudes.at(-1)||lon<grid.longitudes[0]||lon>grid.longitudes.at(-1))return null;
     const nearest=(xs,value)=>xs.reduce((best,x,i)=>Math.abs(x-value)<Math.abs(xs[best]-value)?i:best,0);
     const sample=grid.samples.reduce((best,s)=>Math.abs(Date.parse(s.time)-time)<Math.abs(Date.parse(best.time)-time)?s:best);
@@ -72,4 +75,5 @@
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else root.MetForecastData=api;
 })(typeof window==='undefined'?{}:window);
+
 

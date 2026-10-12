@@ -121,3 +121,13 @@ test('Canada point forecast downloads only its gust band and reuses it for nearb
 test('Late Canada gust data cannot replace another location',async()=>{
  const h=harness();h.open();h.choose(50.05,-100);h.runDebounce();h.reply(0);await flush();h.replyJson(1,canadaGustMeta);await flush();h.choose(59,25);h.runDebounce();h.reply(3,9);await flush();h.replyJson(2,canadaGustGrid());await flush();assert.equal(h.ids.forecastSelected.children[0].children[0].textContent,'9.0°');assert.equal(h.ids.forecastGustAttribution.hidden,true);
 });
+
+
+const americaGustMeta={reference_time:'2026-10-07T18:00:00Z',asset_root:'forecast-canada-cache',asset_version:'northamerica-v2',gust_grids:[18,40,62].flatMap((south,row)=>[-190,-150,-110,-70].map((west,col)=>({bounds:[west,south,west+40,south+22],path:'data/forecast-canada-cache/20261007T18Z-northamerica-v2/gust-grid-'+(row*4+col)+'-v1.json',units:'m/s'})))};
+const americaGustGrid=(lat=26,lon=-81)=>({...gustGrid(),region:'North America',latitudes:[lat,lat+.25],longitudes:[lon,lon+.25]});
+test('USA point forecasts load their local gust grid with the new source version',async()=>{
+ const h=harness();h.open();h.choose(26.05,-81);h.runDebounce();h.reply(0);await flush();h.replyJson(1,americaGustMeta);await flush();assert.equal(h.requests[2].url,americaGustMeta.gust_grids[2].path);h.replyJson(2,americaGustGrid());await flush();assert.equal(h.ids.forecastSelected.children[1].children[1].children[1].textContent,'0.0 m/s');assert.equal(h.ids.forecastGustAttribution.hidden,false);
+});
+test('Native gust samples work on both sides of the Alaska date line and reject invented grid detail',()=>{
+ const grid=americaGustGrid(52,-187);forecast.validateGustGrid(grid,grid.reference_time,'North America');assert.equal(forecast.gustSample(grid,52,173,Date.parse('2026-10-07T21:00:00Z')).value,0);assert.equal(forecast.gustSample(grid,52,-187,Date.parse('2026-10-07T21:00:00Z')).value,0);assert.equal(forecast.gustSample(grid,52,172,Date.parse('2026-10-07T21:00:00Z')),null);grid.longitudes=[-187,-186.9];assert.throws(()=>forecast.validateGustGrid(grid,grid.reference_time,'North America'));
+});
