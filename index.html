@@ -7,7 +7,7 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=8.91">
+<link rel="stylesheet" href="css/style.css?v=temp-extremes-1">
 <link rel="stylesheet" href="css/cyclone-fronts.css?v=1">
 <link rel="stylesheet" href="css/mobile.css?v=1" media="(max-width:760px)">
 <link rel="stylesheet" href="css/forecast.css?v=7">
@@ -33,7 +33,11 @@
         <input id="tempOpacity" type="range" min="0" max="100" value="58">
         <span id="tempOpacityVal" class="value">58%</span>
       </div>
-      <div class="legend temp-legend"></div>
+      <div id="tempColorScale" class="temp-color-scale" role="img" aria-label="Temperature colour scale">
+        <div class="small temp-scale-heading">Temperature scale <span id="tempLegendUnit">°C</span></div>
+        <div id="tempLegendBar" class="legend temp-legend"></div>
+        <div id="tempLegendTicks" class="temp-legend-ticks"></div>
+      </div>
       <div id="tempStatus" class="status">Temperature layer is off.</div>
     </div>
   </div>
@@ -250,7 +254,7 @@
 <script src="js/warning-filters.js?v=usa-1"></script>
 <script src="js/warning-fill.js?v=1"></script>
 <script src="js/temperature-us.js?v=1"></script>
-<script src="js/temperature.js?v=usa-1"></script>
+<script src="js/temperature.js?v=temp-extremes-1"></script>
 <script src="js/stations.js?v=usa-1"></script>
 <script src="js/cloud-pixels.js?v=8.112"></script>
 <script src="js/clouds.js?v=v8.140"></script>
@@ -297,8 +301,3 @@ if(typeof installNordicCloudCoverage==='function')installNordicCloudCoverage();
 <script src="js/daylight.js?v=2"></script>
 <script src="js/ui.js?v=daylight-1"></script><script src="js/auto-refresh.js?v=8.137"></script></body>
 </html>
-
-
-
-
-

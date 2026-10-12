@@ -401,11 +401,42 @@ function temperatureCoordKey(lat,lon){
   return Number(lat).toFixed(2)+','+Number(lon).toFixed(2);
 }
 
+// One Celsius scale drives both the raster colours and the labelled ruler.
+// Keep familiar everyday colours; extend both tails for exceptional conditions.
+const TEMP_COLOR_STOPS=[
+  [-60,[248,220,255]],[-50,[213,128,238]],[-40,[164,71,205]],[-30,[113,51,186]],
+  [-20,[75,60,167]],[-10,[40,95,201]],[0,[49,167,223]],
+  [10,[87,198,106]],[20,[240,218,59]],[30,[246,139,44]],
+  [40,[220,61,61]],[50,[150,0,63]],[60,[249,83,168]]
+];
+const TEMP_LEGEND_TICKS=[-60,-40,-20,0,20,40,60];
+
+function temperatureScalePosition(t){
+  const min=TEMP_COLOR_STOPS[0][0],max=TEMP_COLOR_STOPS.at(-1)[0];
+  return (t-min)/(max-min)*100;
+}
+
+function updateTemperatureLegend(){
+  const bar=document.getElementById('tempLegendBar'),ticks=document.getElementById('tempLegendTicks');
+  if(!bar||!ticks)return;
+  const colours=TEMP_COLOR_STOPS.map(([t,c])=>`rgb(${c.join(',')}) ${temperatureScalePosition(t)}%`).join(',');
+  bar.style.background='linear-gradient(90deg,'+colours+')';
+  // Match tempColor's RGB interpolation; the first assignment supports older browsers.
+  bar.style.background='linear-gradient(90deg in srgb,'+colours+')';
+  const unit=globalThis.WeatherUnits?.temperatureUnit()||'°C';
+  const heading=document.getElementById('tempLegendUnit');if(heading)heading.textContent=unit;
+  const labels=TEMP_LEGEND_TICKS.map((t,i)=>{
+    const label=document.createElement('span');
+    const value=globalThis.WeatherUnits?.temperatureValue(t)??t;
+    label.textContent=(i===0?'≤':i===TEMP_LEGEND_TICKS.length-1?'≥':'')+Math.round(value)+'°';
+    label.style.left=temperatureScalePosition(t)+'%';return label;
+  });
+  ticks.replaceChildren(...labels);
+  document.getElementById('tempColorScale')?.setAttribute('aria-label',`Temperature colour scale in ${unit}: ${labels.map(label=>label.textContent).join(', ')}`);
+}
+
 function tempColor(t){
-  const stops=[
-    [-20,[75,60,167]],[-10,[40,95,201]],[0,[49,167,223]],
-    [10,[87,198,106]],[20,[240,218,59]],[30,[246,139,44]],[40,[220,61,61]]
-  ];
+  const stops=TEMP_COLOR_STOPS;
   if(t<=stops[0][0]) return stops[0][1];
   if(t>=stops.at(-1)[0]) return stops.at(-1)[1];
   for(let i=0;i<stops.length-1;i++){
@@ -1063,4 +1094,7 @@ map.on('moveend',()=>{
   if(frame && $('tempOn').checked) renderTemperatureLabels(frame.time);
 });
 
-
+if(typeof document!=='undefined'&&typeof document.getElementById==='function'){
+  updateTemperatureLegend();
+  document.addEventListener('weather-units-change',updateTemperatureLegend);
+}

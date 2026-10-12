@@ -51,7 +51,13 @@ input[type=range]{width:100%;accent-color:#eee} input[type=checkbox]{accent-colo
 .status{font-size:10.5px;line-height:1.4;color:#bbb;margin-top:5px}.ok{color:#b9e8bc}.warn{color:#ffd27e}.bad{color:#ff9696}
 .badge{display:inline-block;border:1px solid #3b3b3b;border-radius:999px;font-size:9px;color:#bbb;padding:3px 7px}
 .legend{height:8px;border-radius:999px;margin:7px 0 5px;background:linear-gradient(90deg,transparent 0%,#9cddff 8%,#36aaff 18%,#00d89a 30%,#e8f700 44%,#ffc400 56%,#ff7b00 67%,#ff2a2a 80%,#d300d7 92%,#7400a8 100%)}
-.temp-legend{background:linear-gradient(90deg,#4b3ca7,#285fc9,#31a7df,#57c66a,#f0da3b,#f68b2c,#dc3d3d)}
+.temp-color-scale{margin:12px 0 8px}
+.temp-scale-heading{display:flex;justify-content:space-between;gap:12px;margin-bottom:5px}
+.temp-legend{height:12px;margin:0;background:transparent}
+.temp-legend-ticks{position:relative;height:20px;margin-top:6px;color:var(--muted,#c3d0d7);font-size:10px;line-height:16px;font-variant-numeric:tabular-nums}
+.temp-legend-ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.temp-legend-ticks span:first-child{transform:none}
+.temp-legend-ticks span:last-child{transform:translateX(-100%)}
 .temp-label{
   background:rgba(0,0,0,.72);
   color:#fff;
