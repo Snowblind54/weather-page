@@ -62,3 +62,15 @@ test('the shared snapshot accepts a nationwide station count and still enforces 
  h.fixture.stations=Array.from({length:4500},(_,i)=>({country:'US',code:'US'+i,name:'US Station',lat:40,lon:-100,rows:[[h.now-60,0,null,null]]}));
  h.run('validateOfficialWind(fixture)');h.fixture.stations=Array.from({length:10001},()=>h.fixture.stations[0]);assert.throws(()=>h.run('validateOfficialWind(fixture)'));
 });
+
+test('clicking measured wind controls loads the shared snapshot without enabling a modeled field',async()=>{
+  const h=harness();let requests=0;
+  h.context.fetch=async url=>{requests++;assert.equal(url,'data/official-wind.json');return {ok:true,json:async()=>h.fixture};};
+  h.elements.officialWindSustained.checked=true;h.elements.officialWindSustained.change();
+  await h.run('officialWindPromise');
+  assert.equal(requests,1);assert.equal(h.group.children.length,2);
+  assert.equal(h.elements.windOn.checked,false);assert.equal(h.elements.windHeatmapOn.checked,false);
+  h.elements.officialWindGusts.checked=true;h.elements.officialWindGusts.change();assert.equal(requests,1,'another toggle reuses the same snapshot');
+  h.elements.officialWindSustained.checked=h.elements.officialWindGusts.checked=false;
+  h.elements.officialWindGusts.change();assert.equal(h.group.children.length,0);
+});

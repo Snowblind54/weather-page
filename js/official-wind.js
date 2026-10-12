@@ -179,3 +179,18 @@ async function loadOfficialWind(force=false){
   try{await officialWindPromise;}finally{officialWindPromise=null;}
 }
 
+// Measured controls must start their own snapshot load, even when neither
+// modeled wind overlay is enabled. Panning only redraws the retained readings.
+for(const id of ['officialWindSustained','officialWindGusts'])$(id).addEventListener('change',()=>{
+  syncWindFieldToOfficial();
+  renderOfficialWind();
+  if(officialWindEnabled())loadOfficialWind();
+});
+for(const id of ['windOn','windHeatmapOn'])$(id)?.addEventListener('change',()=>{
+  if($(id).checked)syncOfficialWindToField();
+});
+map.on('moveend zoomend',renderOfficialWind);
+setInterval(()=>{if(officialWindNeeded()&&!document.hidden)loadOfficialWind();},OFFICIAL_WIND_CHECK_MS);
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&officialWindNeeded()){renderOfficialWind();loadOfficialWind();}
+});
