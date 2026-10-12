@@ -297,3 +297,17 @@ test('Iceland published accumulations validate and display without inventing hou
   assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],24,rainWindowEnd()).value'),65.2);
   assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],1,rainWindowEnd())'),null);
 });
+
+test('Canadian station totals validate, render and retain missing hours without model substitution',()=>{
+ const h=harness();h.elements.rain48h.checked=true;
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{CA:{name:'ECCC / MSC'}},stations:[{
+ country:'CA',code:'123',name:'Vancouver gauge',lat:49,lon:-123,
+ times:Array.from({length:49},(_,i)=>rainWindowEnd()-(48-i)*3600),amounts:Array(49).fill(0.5),traces:[]}]};`);
+ assert(h.run('validOfficialRainSnapshot(officialRainData)'));
+ assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],48,rainWindowEnd()).value'),24);
+ h.run('renderOfficialRainLabels()');assert.equal(h.run('officialRainLabels.children.length'),1);
+ const popup=h.run('rainfallPopupContent({lat:49,lng:-123,station:officialRainData.stations[0]},rainWindowEnd())');
+ assert(popup.includes('ECCC / MSC'));assert(popup.includes('24.0'));
+ h.run('officialRainData.stations[0].times.splice(10,1);officialRainData.stations[0].amounts.splice(10,1)');
+ assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],48,rainWindowEnd())'),null);
+});

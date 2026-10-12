@@ -11,6 +11,43 @@ END = int(NOW.timestamp())
 
 
 class Rainfall(unittest.TestCase):
+    def test_canada_approved_hourly_gauges_keep_zero_and_reject_missing_bad_quality_and_moving_windows(self):
+        meta = {'123': {'name': 'Canadian gauge', 'data_provider': 'MSC'}, 'private': {'data_provider': 'Partner'}}
+        def row(value, **extra):
+            p = {'msc_id-value': '123', 'obs_date_tm': NOW.isoformat(), 'pcpn_amt_pst1hr': value,
+                 'pcpn_amt_pst1hr-qa': 100, 'pcpn_amt_pst1hr-uom': 'mm'}
+            p.update(extra)
+            return {'properties': p, 'geometry': {'coordinates': [-123, 49]}}
+        rows = [row(0), row(1.2, **{'obs_date_tm': (NOW-dt.timedelta(hours=1)).isoformat()}),
+                row(None), row(-1), row(10000), row(99, **{'pcpn_amt_pst1hr-qa': 10}),
+                row(99, **{'pcpn_amt_pst1hr-uom': 'cm'}), row(99, **{'msc_id-value': 'private'}),
+                row(99, **{'obs_date_tm': NOW.replace(minute=10).isoformat()})]
+        s = rain.merge([], rain.parse_canada(rows, meta), NOW)[0]
+        self.assertEqual((s['country'], s['lat'], s['lon']), ('CA', 49, -123))
+        self.assertEqual(s['times'], [END-3600, END]); self.assertEqual(s['amounts'], [1.2, 0])
+
+    def test_canada_loader_backfills_then_fetches_only_recent_overlap(self):
+        from unittest.mock import patch
+        calls = []
+        def features(collection, params):
+            calls.append((collection, params))
+            return [{'properties': {'msc_id': '123', 'data_provider': 'MSC'}}] if collection == 'swob-stations' else []
+        with patch.object(rain, 'canada_features', features):
+            rain.load_canada(NOW, [])
+            self.assertEqual(calls[-1][1]['datetime'], '2026-09-30T10:00:00Z/2026-10-03T10:00:00Z')
+            rain.load_canada(NOW, [{'country': 'CA', 'times': [END-3600]}])
+            self.assertEqual(calls[-1][1]['datetime'], '2026-10-03T03:00:00Z/2026-10-03T10:00:00Z')
+
+    def test_canada_pagination_keeps_filters_and_rejects_external_next_link(self):
+        from unittest.mock import patch
+        base = 'https://api.weather.gc.ca/collections/swob-realtime/items'
+        pages = [{'features': [1], 'links': [{'rel': 'next', 'href': base+'?offset=1&limit=1'}]}, {'features': [2]}]
+        with patch.object(rain, 'download', side_effect=pages):
+            self.assertEqual(list(rain.canada_features('swob-realtime', {'limit': 1})), [1, 2])
+        with patch.object(rain, 'download', return_value={'features': [], 'links': [{'rel': 'next', 'href': 'https://other.example/items'}]}):
+            with self.assertRaisesRegex(ValueError, 'pagination URL'):
+                list(rain.canada_features('swob-realtime', {}))
+
     def test_norway_measured_primary_hourly_sums_keep_reference_time_and_gaps(self):
         meta = [{'id': 'SN18700', 'name': 'Oslo', 'stationHolders': ['MET.NO'],
                  'geometry': {'coordinates': [10.7, 59.9]}},

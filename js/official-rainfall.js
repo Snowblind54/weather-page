@@ -1,6 +1,6 @@
 // Official gauge histories are published as a same-origin snapshot by Actions.
-const RAIN_COUNTRY_CODES={'233':'EE','428':'LV','440':'LT','246':'FI','752':'SE','578':'NO','352':'IS','616':'PL','208':'DK'};
-const RAIN_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark'};
+const RAIN_COUNTRY_CODES={'233':'EE','428':'LV','440':'LT','246':'FI','752':'SE','578':'NO','352':'IS','616':'PL','208':'DK','124':'CA'};
+const RAIN_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',CA:'Canada'};
 const OFFICIAL_RAIN_RADIUS_KM=100;
 let officialRainData=null,officialRainLoadedAt=0,officialRainLoadPromise=null;
 let officialRainLabels=null;
@@ -11,7 +11,7 @@ function validOfficialRainSnapshot(data){
   if(data?.version!==1 || !Number.isFinite(data.generatedAt) || data.generatedAt>Date.now()/1000+300 ||
      !Array.isArray(data.stations) || !data.sources) return false;
   return data.stations.every(s=>RAIN_COUNTRY_NAMES[s.country] && Number.isFinite(s.lat) && Number.isFinite(s.lon) &&
-    s.lat>=48 && s.lat<=72.5 && s.lon>=-26 && s.lon<=33 && typeof s.code==='string' &&
+    (s.country==='CA'?s.lat>=41&&s.lat<=84&&s.lon>=-142&&s.lon<=-52:s.lat>=48&&s.lat<=72.5&&s.lon>=-26&&s.lon<=33) && typeof s.code==='string' &&
     Array.isArray(s.times) && Array.isArray(s.amounts) && s.times.length===s.amounts.length &&
     s.times.every((t,i)=>Number.isFinite(t)&&t%3600===0&&(!i||t>s.times[i-1])) &&
     s.amounts.every(v=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1000) &&
@@ -116,7 +116,7 @@ function officialRainSourceSummary(hours,end){
   for(const [country,name] of Object.entries(RAIN_COUNTRY_NAMES)){
     const window=officialRainWindow(country,hours,end);
     if(window) official.push(name+' ('+window.rows.length+' gauges; ending '+fmt(window.end)+')');
-    else model.push(name);
+    else if(country!=='CA') model.push(name);
   }
   return 'Official precipitation: '+(official.join('; ')||'none for this period')+'. Open-Meteo rain fallback: '+
     (model.join(', ')||'gaps only')+'. Model also fills areas beyond 100 km from a reporting gauge. '+

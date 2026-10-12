@@ -30,6 +30,7 @@ SOURCES = {
     'LV': ('LVĢMC', 'https://data.gov.lv/dati/dataset/hidrometeorologiskie-noverojumi'),
     'IS': ('Icelandic Meteorological Office (IMO)', 'https://www.vedur.is/gogn/athuganir/urkoma.html'),
     'NO': ('MET Norway / Seklima', 'https://seklima.met.no/observations/'),
+    'CA': ('Environment and Climate Change Canada / MSC', 'https://api.weather.gc.ca/collections/swob-realtime'),
 }
 
 
@@ -61,7 +62,8 @@ def amount(value):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    if not (48 <= lat <= 72.5 and -26 <= lon <= 33):
+    valid = (41 <= lat <= 84 and -142 <= lon <= -52) if country == 'CA' else (48 <= lat <= 72.5 and -26 <= lon <= 33)
+    if not valid:
         raise ValueError('Invalid precipitation station coordinates')
     readings, traces = {}, set()
     for time, value, trace in rows:
@@ -447,8 +449,67 @@ def merge(previous, incoming, now):
     return sorted(result, key=lambda s: (s['country'], s['code']))
 
 
+def canada_features(collection, params):
+    base = 'https://api.weather.gc.ca/collections/' + collection + '/items'
+    url = base + '?' + urllib.parse.urlencode(params)
+    seen = set()
+    for _ in range(24):
+        if url in seen:
+            raise ValueError('Repeated Canadian precipitation page')
+        seen.add(url)
+        payload = download(url)
+        yield from payload.get('features', [])
+        next_url = next((link['href'] for link in payload.get('links', []) if link.get('rel') == 'next'), None)
+        if not next_url:
+            return
+        url = urllib.parse.urljoin(base, next_url)
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme != 'https' or parsed.netloc != 'api.weather.gc.ca' or parsed.path != urllib.parse.urlsplit(base).path:
+            raise ValueError('Invalid Canadian precipitation pagination URL')
+    raise ValueError('Canadian precipitation pagination limit reached')
+
+
+def parse_canada(features, metadata):
+    grouped = {}
+    for feature in features:
+        p = feature.get('properties') or {}
+        code = str(p.get('msc_id-value') or '')
+        coords = (feature.get('geometry') or {}).get('coordinates') or []
+        if (code not in metadata or metadata[code].get('data_provider') != 'MSC' or len(coords) < 2 or
+                p.get('pcpn_amt_pst1hr-uom') != 'mm' or p.get('pcpn_amt_pst1hr-qa') != 100 or
+                amount(p.get('pcpn_amt_pst1hr')) is None):
+            continue
+        try:
+            end = unix(p.get('obs_date_tm'))
+            if end % 3600:
+                continue  # A moving one-hour window is not a completed clock hour.
+            s = grouped.setdefault(code, station('CA', code, metadata[code].get('name') or p.get('stn_nam-value') or code,
+                                                 coords[1], coords[0], []))
+            s['times'].append(end)
+            s['amounts'].append(amount(p['pcpn_amt_pst1hr']))
+        except (TypeError, ValueError):
+            continue
+    return list(grouped.values())
+
+
+def load_canada(now, previous):
+    metadata = {}
+    for f in canada_features('swob-stations', {'f': 'json', 'limit': 1000}):
+        p = f.get('properties') or {}
+        if p.get('data_provider') == 'MSC':
+            metadata[str(p.get('msc_id') or f.get('id') or '')] = p
+    latest = max((t for s in previous if s['country'] == 'CA' for t in s['times']), default=0)
+    end = int(now.timestamp())
+    start = max(end - 72 * 3600, latest - 6 * 3600)
+    stamp = lambda t: dt.datetime.fromtimestamp(t, dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    params = {'f': 'json', 'limit': 10000, 'datetime': stamp(start) + '/' + stamp(end),
+              '_is-minutely_obs-value': 'false', 'sortby': 'obs_date_tm',
+              'properties': 'msc_id-value,stn_nam-value,obs_date_tm,pcpn_amt_pst1hr,pcpn_amt_pst1hr-qa,pcpn_amt_pst1hr-uom'}
+    return parse_canada(canada_features('swob-realtime', params), metadata)
+
+
 LOADERS = {'EE': load_estonia, 'LT': load_lithuania, 'FI': load_finland, 'SE': load_sweden, 'DK': load_denmark,
-           'LV': load_latvia, 'IS': load_iceland, 'NO': load_norway}
+           'LV': load_latvia, 'IS': load_iceland, 'NO': load_norway, 'CA': load_canada}
 
 
 def main():

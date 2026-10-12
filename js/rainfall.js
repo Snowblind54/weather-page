@@ -324,7 +324,7 @@ function rainfallPopupContent(point,end){
   const readings='<div class="rain-popup-readings">'+RAIN_PERIODS.map(hours=>{
     const official=officialRainAt(point.lat,point.lng,hours,end,country);
     let value=official?.value??totals?.[hours];
-    let source=official?official.source+(official.distance<0.1?' · measured':' · gauge estimate'):'Open-Meteo · model';
+    let source=official?official.source+(official.distance<0.1?' · measured':' · gauge estimate'):country==='CA'?'No complete official Canadian measurement':'Open-Meteo · model';
     let actualEnd=official?.end||end;
     // A gauge popup reports this gauge's measurements, not a nearby gauge or
     // model value presented as a measurement when this gauge has gaps.
@@ -347,7 +347,7 @@ function rainfallPopupContent(point,end){
   const wind=$('windOn').checked?'<hr>'+windPopupContent(point,selectedWindTime()):'';
   return '<div class="rain-popup"><b>'+(point.station?htmlEscape(point.station.name)+' · measured precipitation':'Accumulated rainfall / precipitation')+'</b>'+readings+
     '<div class="rain-popup-meta">'+point.lat.toFixed(3)+'°, '+point.lng.toFixed(3)+'°'+gauge+
-    '<br>'+note+'<br>Between gauges: interpolated estimate. Model fallback beyond 100 km or when a period is incomplete.</div></div>'+wind;
+    '<br>'+note+'<br>'+(country==='CA'?'Canadian station totals remain unavailable when hours are missing.':'Between gauges: interpolated estimate. Model fallback beyond 100 km or when a period is incomplete.')+'</div></div>'+wind;
 }
 
 function updateAccumulationPopup(){
