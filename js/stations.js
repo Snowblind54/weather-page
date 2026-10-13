@@ -484,7 +484,10 @@ const OFFICIAL_TEMP_LOADERS=[
   // Collected centrally in the shared snapshot; never queried per visitor.
   ['GL',null],
   ['CA',null],
-  ['US',null]
+  ['US',null],
+  ['FO',null],
+  ['GB',null],
+  ['IE',null]
 ];
 
 async function loadOfficialTemperatureStations(force=false){
@@ -714,4 +717,5 @@ buildTemperatureOverlay=async function(unix,options={}){
   }
   return result;
 };
+
 

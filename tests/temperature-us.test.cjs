@@ -28,6 +28,16 @@ test('Alaska, Hawaii and both sides of the Aleutian date line have bounded raste
   const r=await us.raster(spec,[station(lat,lon,7)],now);assert(r.alpha.some(a=>a>0));
  }
 });
+test('Atlantic shading uses its own official countries and excludes US stations',async()=>{
+ const {NorthernUSTemperature:us}=harness();
+ for(const [id,country,lat,lon] of [['british-isles','GB',52,-2],['british-isles','IE',53,-8],['faroes','FO',62,-6.8]]){
+  const spec=us.regions.find(r=>r.id===id);
+  const measured={country,lat,lon,temp:9,time:now};
+  const r=await us.raster(spec,[measured,{...measured,country:'US',temp:40}],now);
+  assert(r.alpha.some(a=>a>0));
+  for(const value of r.values)if(Number.isFinite(value))assert(Math.abs(value-9)<.001);
+ }
+});
 test('the existing renderer can draw NOAA US heatmaps with all model sources unavailable',async()=>{
  const c=harness();Object.assign(c,{console,Map,Set,JSON,AbortController,setTimeout,clearTimeout,requestAnimationFrame:fn=>fn(),map:{on(){}},temperatureImageCache:new Map(),temperatureStatsCache:new Map(),temperatureSeries:[],temperatureLoadedAt:0,temperatureRenderToken:1,TEMP_CACHE_LIMIT:6,localStorage:{getItem:()=>null}});
  c.officialStationsNearTime=()=>[station(40,-100,15)];
@@ -38,3 +48,4 @@ test('the existing renderer can draw NOAA US heatmaps with all model sources una
  const result=await vm.runInContext(`createTemperatureImage(${now},1)`,c);
  assert(result.regions.some(r=>r.id==='usa'&&r.stationBased&&r.coastlineClipped));assert(Math.abs(result.minT-15)<.001);assert(Math.abs(result.maxT-15)<.001);assert.equal(c.maskCalls,4);
 });
+

@@ -231,6 +231,8 @@ const TEMP_REGION_COUNTRY_IDS={
   canada:new Set(['124']),
   greenland:new Set(['304']),
   usa:new Set(['840']),
+  'british-isles':new Set(['826','372']),
+  faroes:new Set(['234']),
   'usa-alaska':new Set(['840']),
   'usa-hawaii':new Set(['840']),
   'usa-aleutians':new Set(['840'])
@@ -713,7 +715,8 @@ async function createTemperatureImage(unix, token){
   for(const region of TEMP_REGIONS){
     const spec=TEMP_GRID_SPECS.find(item=>item.id===region.id);
     const sourceSeries=temperatureGridData.get(region.id);
-    if(region.stationBased?!usStations.length:(!spec||!sourceSeries?.length))continue;
+    const regionStations=region.stationBased?usStations.filter(s=>(region.countries||['US']).includes(s.country)):[];
+    if(region.stationBased?!regionStations.length:(!spec||!sourceSeries?.length))continue;
 
     // Sample the model timeline only once per source point for this frame.
     // Pixel interpolation below is then just four-number bilinear blending.
@@ -736,7 +739,7 @@ async function createTemperatureImage(unix, token){
     const latValues=Array.from({length:H},(_,y)=>rasterLatitudeForRow(region,y,H));
     const latLookup=region.stationBased?null:latValues.map(lat=>axisBracket(spec.latitudes,lat));
     const correctionRaster=region.stationBased?null:buildTemperatureCorrectionRaster(region,W,H,corrections,latValues,lonValues);
-    const stationRaster=region.stationBased?await globalThis.NorthernUSTemperature.raster(region,usStations,cacheKey,()=>token===temperatureRenderToken,()=>new Promise(requestAnimationFrame)):null;
+    const stationRaster=region.stationBased?await globalThis.NorthernUSTemperature.raster(region,regionStations,cacheKey,()=>token===temperatureRenderToken,()=>new Promise(requestAnimationFrame)):null;
     if(region.stationBased&&!stationRaster)return null;
 
     for(let y=0;y<H;y++){
@@ -1098,3 +1101,4 @@ if(typeof document!=='undefined'&&typeof document.getElementById==='function'){
   updateTemperatureLegend();
   document.addEventListener('weather-units-change',updateTemperatureLegend);
 }
+

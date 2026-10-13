@@ -10,6 +10,8 @@ on:
       - scripts/update_official_temperature_all.py
       - scripts/update_north_america_temperature.py
       - scripts/update_us_temperature.py
+      - scripts/update_atlantic_temperature.py
+      - tests/test_atlantic_temperature.py
       - scripts/publish_generated_data.sh
       - js/stations.js
       - .github/workflows/update-official-temperature.yml
@@ -51,6 +53,8 @@ jobs:
         run: python3 -m unittest discover -s tests -p test_r2_storage.py -q
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py data/official-temperature.json
+      - name: Check Atlantic station parsers
+        run: python3 -m unittest discover -s tests -p test_atlantic_temperature.py -q
       - name: Fetch official temperature observations
         run: python3 scripts/update_official_temperature_all.py
       - name: Validate snapshot
@@ -64,6 +68,7 @@ jobs:
           assert p['stations']
           assert 'LV' in p['sources'], 'Latvia source missing from temperature snapshot'
           assert 'US' in p['sources'], 'NOAA USA source missing from temperature snapshot'
+          assert all(code in p['sources'] for code in ('FO','GB','IE')), 'Atlantic sources missing'
           for s in p['stations']:
               assert s['rows']
               assert -90 < s['rows'][-1][1] < 55
@@ -72,4 +77,5 @@ jobs:
       - name: Save official temperature snapshot
         if: ${{ !cancelled() }}
         run: bash scripts/publish_generated_data.sh 'Refresh official station temperature observations' data/official-temperature.json
+
 

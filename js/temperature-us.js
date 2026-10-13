@@ -1,19 +1,22 @@
-// US shading estimates temperatures between NOAA stations, without a model
+// Station shading estimates temperatures between official US and Atlantic stations, without a model
 // download. Each station touches only pixels within 125 km; gaps stay clear.
 (function(root){
   'use strict';
   const radiusKm=125;
+  const measuredCountries=new Set(['US','GB','IE','FO']);
   const regions=[
     {id:'usa',bounds:[[24,-125],[50,-66]],w:450,h:260,stationBased:true},
     {id:'usa-alaska',bounds:[[50,-180],[72,-129]],w:350,h:240,stationBased:true},
     {id:'usa-hawaii',bounds:[[18,-161],[23,-154]],w:150,h:130,stationBased:true},
-    {id:'usa-aleutians',bounds:[[50,170],[55,180]],w:90,h:120,stationBased:true}
+    {id:'usa-aleutians',bounds:[[50,170],[55,180]],w:90,h:120,stationBased:true},
+    {id:'british-isles',countries:['GB','IE'],bounds:[[49,-11],[61,3]],w:240,h:310,stationBased:true},
+    {id:'faroes',countries:['FO'],bounds:[[61.3,-7.8],[62.5,-6.1]],w:130,h:170,stationBased:true}
   ];
   const rad=Math.PI/180;
   const mercator=lat=>Math.log(Math.tan(Math.PI/4+lat*rad/2));
   function stations(unix){
     return typeof officialStationsNearTime==='function'?officialStationsNearTime(unix).filter(s=>
-      s.country==='US'&&Number.isFinite(s.temp)&&Number.isFinite(s.time)&&
+      measuredCountries.has(s.country)&&Number.isFinite(s.temp)&&Number.isFinite(s.time)&&
       Math.abs(s.time-unix)<=95*60):[];
   }
   async function raster(region,observations,unix,valid=()=>true,yieldFrame=()=>Promise.resolve()){
@@ -25,7 +28,7 @@
     let touched=0;
     for(const s of observations){
       if(!valid())return null;
-      if(s.country!=='US'||!Number.isFinite(s.temp)||!Number.isFinite(s.lat)||!Number.isFinite(s.lon)||!Number.isFinite(s.time))continue;
+      if(!(region.countries||['US']).includes(s.country)||!Number.isFinite(s.temp)||!Number.isFinite(s.lat)||!Number.isFinite(s.lon)||!Number.isFinite(s.time))continue;
       const age=Math.abs(unix-s.time),ageWeight=age<=3600?1:Math.max(0,(5700-age)/2100);
       if(!ageWeight)continue;
       let lon=s.lon;
@@ -59,3 +62,4 @@
   }
   root.NorthernUSTemperature={regions,stations,raster,radiusKm};
 })(typeof window!=='undefined'?window:globalThis);
+
