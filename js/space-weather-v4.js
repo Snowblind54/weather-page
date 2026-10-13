@@ -453,6 +453,7 @@
     });
   }
 
+  window.NorthernSpaceWeather={getSnapshot:fetchSpaceWeather};
   bindControls();
   map.on('click',showViewingPopup);
   fetchSpaceWeather().catch(error=>setStatus('Space weather snapshot is not available yet: '+error.message,'warn'));

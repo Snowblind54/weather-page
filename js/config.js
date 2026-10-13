@@ -150,7 +150,7 @@ window.addEventListener('load',()=>{
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');
-  spaceWeatherScript.src='js/space-weather-v4.js?v=8';
+  spaceWeatherScript.src='js/space-weather-v4.js?v=aurora-planner-1';
   spaceWeatherScript.onload=()=>{
     const dashboardScript=document.createElement('script');
     dashboardScript.src='js/space-weather-dashboard.js?v=4';
@@ -166,5 +166,3 @@ window.addEventListener('load',()=>{
   freshnessScript.src='js/data-freshness.js?v=2';
   document.body.appendChild(freshnessScript);
 });
-
-

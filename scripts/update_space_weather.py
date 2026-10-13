@@ -17,6 +17,7 @@ OUTPUT = ROOT / "data" / "space-weather.json"
 URLS = {
     "aurora": "https://services.swpc.noaa.gov/json/ovation_aurora_latest.json",
     "kp": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json",
+    "kp_forecast": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json",
     "wind": "https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json",
     "mag": "https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json",
     "power": "https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt",
@@ -275,6 +276,18 @@ def compact_aurora(payload):
     }
 
 
+def predicted_kp(payload, now=None):
+    """Keep native NOAA three-hour estimated/predicted bins; never extend them."""
+    now=time.time() if now is None else now
+    result={}
+    for row in payload if isinstance(payload,list) else []:
+        if not isinstance(row,dict) or row.get('observed') not in ('estimated','predicted'):continue
+        stamp=timestamp_key(row.get('time_tag')); value=as_float(row.get('kp'))
+        if not math.isfinite(stamp) or value is None or not 0<=value<=9 or not now-3*3600<=stamp<=now+96*3600:continue
+        result[stamp]={'start':iso_utc(stamp),'end':iso_utc(stamp+3*3600),'value':value,'kind':row['observed']}
+    return {'fetchedAt':int(now),'source':'NOAA SWPC','bins':[result[key] for key in sorted(result)]}
+
+
 def main():
     aurora_raw = fetch_json(URLS["aurora"])
     kp_raw = fetch_json(URLS["kp"])
@@ -287,6 +300,12 @@ def main():
         hemispheric_power = previous_power()
         print(f"Warning: hemispheric power unavailable: {exc}")
 
+    try:
+        kp_forecast=predicted_kp(fetch_json(URLS['kp_forecast']))
+    except RuntimeError as exc:
+        try:kp_forecast=json.loads(OUTPUT.read_text()).get('kpForecast',{})
+        except (OSError,json.JSONDecodeError):kp_forecast={}
+        print(f'Warning: Kp forecast unavailable; retaining its original freshness: {exc}')
     kp = parse_observed_kp(kp_raw)
     wind = latest_record(wind_raw, "proton_speed")
     mag = latest_record(mag_raw, "bz_gsm")
@@ -302,6 +321,7 @@ def main():
         "aurora": compact_aurora(aurora_raw),
         "hemisphericPower": hemispheric_power,
         "kp": kp,
+        "kpForecast": kp_forecast,
         "solarWind": {
             "speed": round(speed, 1) if speed is not None else None,
             "speedTime": wind.get("time_tag") if wind else None,

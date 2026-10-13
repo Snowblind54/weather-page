@@ -1,0 +1,24 @@
+.aurora-planner h3{margin:0;font-size:15px;color:var(--text,#e2edf3)}
+.aurora-planner-search{margin:14px 0 8px;position:relative}
+.aurora-planner-search label{display:block;margin-bottom:6px;font-size:12px;font-weight:600}
+.aurora-planner-search>div{display:flex;gap:6px}
+.aurora-planner input,.aurora-planner select{min-width:0;background:#15252f;color:#e2edf3;border:1px solid #38505d;border-radius:9px;padding:9px;font:inherit}
+.aurora-planner input{width:100%;font-size:14px}
+.aurora-planner button{border:1px solid #38505d;border-radius:9px;background:#1b303b;color:#e2edf3;padding:9px 11px;font:inherit;font-size:12px;cursor:pointer;min-height:38px}
+.aurora-planner button:hover,.aurora-planner button[aria-pressed=true]{background:#2b514e;border-color:#76d6bd}
+.aurora-planner button:focus-visible,.aurora-planner input:focus-visible,.aurora-planner select:focus-visible{outline:2px solid #83e5cd;outline-offset:2px}
+.aurora-planner-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.aurora-planner-radius{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:14px 0;font-size:12px}
+.aurora-planner-run{width:100%;background:#275b51!important;border-color:#68bba5!important;font-weight:600!important;font-size:14px!important}
+.aurora-planner-window{padding:13px;margin:10px 0;border:1px solid #37534f;border-radius:12px;background:linear-gradient(125deg,#163731,#15242f)}
+.aurora-planner-window strong{display:block;color:#a8f2d8;font-size:14px}
+.aurora-planner-time{font-size:14px;line-height:1.6;margin-top:8px;font-weight:600}
+.aurora-planner-window p{font-size:12px;line-height:1.55;margin:7px 0;color:#b6cbd4}
+.aurora-planner-facts{color:#e2edf3!important}
+.aurora-planner-info{margin-top:14px;font-size:12px;color:#afc4cf}
+.aurora-planner-info summary{cursor:pointer;min-height:30px}
+.aurora-planner-info p{font-size:12px;line-height:1.6}
+#auroraPlannerMatches{list-style:none;padding:0;margin:6px 0;border:1px solid #38505d;border-radius:9px;background:#12232e;max-height:210px;overflow:auto}
+#auroraPlannerMatches li{padding:11px;font-size:13px;cursor:pointer;border-bottom:1px solid #263b46}
+#auroraPlannerMatches li:hover,#auroraPlannerMatches li[aria-selected=true]{background:#28514b}
+@media(max-width:760px){.aurora-planner-actions button{flex:1;padding:9px 6px}.aurora-planner-radius select{max-width:48%}.aurora-planner-time{font-size:13px}}
