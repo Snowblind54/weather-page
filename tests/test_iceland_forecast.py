@@ -1,5 +1,6 @@
 import importlib.util
 import tempfile
+import json
 from datetime import datetime,timezone
 import unittest
 from pathlib import Path
@@ -57,6 +58,28 @@ class IcelandForecastTests(unittest.TestCase):
         self.assertEqual(grid['samples'][0]['values'][0],0);self.assertEqual(len(grid['samples'][0]['values']),9)
         self.assertEqual(grid['samples'][0]['start'],'2026-10-07T14:00:00.000Z')
         self.assertEqual(grid['samples'][0]['end'],'2026-10-07T15:00:00.000Z')
+    def test_europe_gust_tiles_cover_native_grid_and_preserve_intervals(self):
+        lat=np.arange(18,84.01,.25);lon=np.arange(-30,60.01,.25)
+        values=np.full((len(lat),len(lon)),12.345);values[0,0]=0
+        run=datetime(2026,10,7,18,tzinfo=timezone.utc)
+        frames={3:{'lat':lat,'lon':lon,'10fg':values,'gust_start':2,'gust_end':3}}
+        manifest=m.europe_gust_manifest('20261007T18Z-euroatlantic-v3')
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);m.write_europe_gusts(frames,run,root)
+            self.assertEqual(len(list(root.glob('*.json'))),9)
+            for entry in manifest:
+                grid=json.loads((root/Path(entry['path']).name).read_text())
+                self.assertEqual(grid['region'],'Europe')
+                self.assertEqual(grid['bounds'],entry['bounds'])
+                self.assertEqual(grid['grid_spacing_degrees'],.25)
+                self.assertEqual(len(grid['samples'][0]['values']),len(grid['latitudes'])*len(grid['longitudes']))
+                self.assertEqual(grid['samples'][0]['start'],'2026-10-07T20:00:00.000Z')
+                self.assertEqual(grid['samples'][0]['end'],'2026-10-07T21:00:00.000Z')
+            self.assertEqual(json.loads((root/Path(manifest[0]['path']).name).read_text())['samples'][0]['values'][0],0)
+            rome=json.loads((root/Path(manifest[4]['path']).name).read_text())
+            self.assertTrue(rome['latitudes'][0]<=41.9<=rome['latitudes'][-1])
+            self.assertTrue(rome['longitudes'][0]<=12.5<=rome['longitudes'][-1])
+
     def test_hourly_wind_interpolates_components_not_speed(self):
         lower={'2t':np.array([[270.]]),'10u':np.array([[4.]]),'10v':np.array([[0.]]),
                'tp':np.array([[.003]]),'tcc':np.array([[.2]])}
@@ -127,5 +150,6 @@ class IcelandForecastTests(unittest.TestCase):
                     self.assertEqual(im.getpixel((12,4))[3],0)
 
 if __name__=='__main__':unittest.main()
+
 
 

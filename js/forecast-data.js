@@ -18,16 +18,17 @@
     return ['year','month','day'].map(key=>parts.find(p=>p.type===key).value).join('-');
   }
   function validateGustGrid(grid,reference,region='Iceland'){
-    if(!['Iceland','Canada','North America'].includes(region))throw Error('Invalid forecast gust region');
-    const america=region==='North America',canada=region==='Canada';
+    if(!['Iceland','Canada','North America','Europe'].includes(region))throw Error('Invalid forecast gust region');
+    const america=region==='North America',canada=region==='Canada',europe=region==='Europe';
+    if(europe&&grid?.region!=='Europe')throw Error('Invalid Europe gust grid');
     if(america&&grid?.region!=='North America')throw Error('Invalid North America gust grid');
     if(canada&&grid?.region!=='Canada')throw Error('Invalid Canada gust grid');
     const ordered=(xs,min,max)=>Array.isArray(xs)&&xs.length>=2&&xs.length<=200&&xs.every((v,i)=>number(v)!==null&&v>=min&&v<=max&&(!i||v>xs[i-1]));
     const run=Date.parse(grid?.reference_time);
-    if(!Number.isFinite(run)||run!==Date.parse(reference)||grid.units!=='m/s'||grid.grid_spacing_degrees!==.25||!ordered(grid.latitudes,america?18:canada?40:61,(america||canada)?84:69)||!ordered(grid.longitudes,america?-190:canada?-142:-28,america?-30:canada?-50:-12)||!Array.isArray(grid.samples)||!grid.samples.length||grid.samples.length>40)throw Error('Invalid Iceland gust grid');
+    if(!Number.isFinite(run)||run!==Date.parse(reference)||grid.units!=='m/s'||grid.grid_spacing_degrees!==.25||!ordered(grid.latitudes,(america||europe)?18:canada?40:61,(america||canada||europe)?84:69)||!ordered(grid.longitudes,america?-190:canada?-142:europe?-30:-28,america?-30:canada?-50:europe?60:-12)||!Array.isArray(grid.samples)||!grid.samples.length||grid.samples.length>40)throw Error('Invalid Iceland gust grid');
     for(const xs of [grid.latitudes,grid.longitudes])if(xs.some((v,i)=>i&&Math.abs(v-xs[i-1]-.25)>1e-8))throw Error('Invalid gust grid spacing');
     const count=grid.latitudes.length*grid.longitudes.length;
-    if(count>((america||canada)?30000:10000))throw Error('Oversized gust grid');
+    if(count>((america||canada||europe)?30000:10000))throw Error('Oversized gust grid');
     let previous=-Infinity;
     for(const sample of grid.samples){
       const time=Date.parse(sample.time),start=Date.parse(sample.start),end=Date.parse(sample.end);
@@ -75,5 +76,6 @@
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else root.MetForecastData=api;
 })(typeof window==='undefined'?{}:window);
+
 
 

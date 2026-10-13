@@ -81,7 +81,7 @@ function harness(){
 test('repeated updates reuse cache and in-flight requests; API URL identifies rounded coordinates',async()=>{
   const h=harness();h.open();h.runDebounce();h.ids.forecastRetry.events.click();assert.equal(h.requests.length,1);
   assert(h.requests[0].url.endsWith('lat=59.437&lon=24.754'));assert.equal(h.requests[0].options.headers,undefined);
-  h.reply(0);await flush();h.ids.forecastRetry.events.click();await flush();assert.equal(h.requests.length,1);assert.equal(h.ids.forecastContent.hidden,false);
+  h.reply(0);await flush();h.ids.forecastRetry.events.click();await flush();assert.equal(h.requests.filter(r=>r.url.includes('api.met.no')).length,1);assert.equal(h.ids.forecastContent.hidden,false);
 });
 test('a late response for an old location cannot replace the new location',async()=>{
   const h=harness();h.open();h.runDebounce();h.choose(60,25);h.runDebounce();assert.equal(h.requests.length,2);
@@ -139,3 +139,23 @@ test('Native gust samples work on both sides of the Alaska date line and reject 
 });
 
 test('Date-line point pins stay on the clicked world copy while the forecast API uses canonical longitude',()=>{const h=harness();h.open();h.choose(52,-187);h.runDebounce();assert.match(h.requests[0].url,/lon=173.000/);assert.equal(h.markers.at(-1)[1],-187);h.close();h.open();assert.equal(h.markers.at(-1)[1],-187);});
+
+
+const europeGustMeta={reference_time:'2026-10-07T18:00:00Z',asset_root:'forecast-iceland-cache',asset_version:'euroatlantic-v3',europe_gust_grids:[18,40,62].flatMap((south,row)=>[-30,0,30].map((west,col)=>({bounds:[west,south,west+30,south+22],path:'data/forecast-iceland-cache/20261007T18Z-euroatlantic-v3/europe-gust-grid-'+(row*3+col)+'-v1.json',units:'m/s'})))};
+const europeGustGrid=()=>({...gustGrid(),region:'Europe',latitudes:[41.75,42],longitudes:[12.25,12.5]});
+test('Europe grids preserve native gusts and refuse locations beyond their coverage',()=>{
+ const grid=europeGustGrid();forecast.validateGustGrid(grid,grid.reference_time,'Europe');
+ assert.equal(forecast.gustSample(grid,41.8,12.3,Date.parse('2026-10-07T21:00:00Z')).value,0);
+ assert.equal(forecast.gustSample(grid,40,12.3,now),null);
+ const rows=forecast.addGusts([{time:Date.parse('2026-10-07T21:00:00Z'),gust:17}],grid,41.8,12.3);assert.equal(rows[0].gust,17);
+ grid.region='North America';assert.throws(()=>forecast.validateGustGrid(grid,grid.reference_time,'Europe'));
+});
+test('Rome fills missing gusts from only its regional grid and reuses the cached tile',async()=>{
+ const h=harness();h.open();h.choose(41.8,12.3);h.runDebounce();h.reply(0);await flush();h.replyJson(1,europeGustMeta);await flush();
+ assert.equal(h.requests[2].url,europeGustMeta.europe_gust_grids[4].path);h.replyJson(2,europeGustGrid());await flush();
+ assert.equal(h.ids.forecastSelected.children[1].children[1].children[1].textContent,'0.0 m/s');assert.equal(h.ids.forecastGustAttribution.hidden,false);
+ h.choose(41.9,12.4);h.runDebounce();h.reply(3);await flush();assert.equal(h.requests.length,4);
+});
+test('A late Europe grid cannot replace a newly selected location',async()=>{
+ const h=harness();h.open();h.choose(41.8,12.3);h.runDebounce();h.reply(0);await flush();h.replyJson(1,europeGustMeta);await flush();h.choose(59,25);h.runDebounce();h.reply(3,9);await flush();h.replyJson(2,europeGustGrid());await flush();assert.equal(h.ids.forecastSelected.children[0].children[0].textContent,'9.0°');assert.equal(h.ids.forecastGustAttribution.hidden,true);
+});

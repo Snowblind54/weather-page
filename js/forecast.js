@@ -13,7 +13,7 @@
   panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','forecastSection-title');
   panel.innerHTML=`
     <div class="panel-heading"><div><div class="eyebrow" id="forecastProvider">MET NORWAY</div><h2 id="forecastSection-title">Forecast</h2><p>Choose a place on the map</p></div><div class="panel-actions"><button class="info-button" data-info="forecastSection-sources" aria-controls="forecastSection-sources" aria-expanded="false" aria-label="Forecast sources">i</button><button class="close-panel" aria-label="Close Forecast menu">×</button></div></div>
-    <div id="forecastSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Weather forecast data from MET Norway, Locationforecast 2.0, under CC BY 4.0. Nordic short-range forecasts use MEPS with local post-processing; other regions and longer ranges use the models described by MET Norway. These are automatic model forecasts, not measured conditions.</p><div class="source-links"><a href="https://api.met.no/doc/locationforecast/datamodel" target="_blank" rel="noopener">Forecast models ↗</a><a href="https://api.met.no/doc/License" target="_blank" rel="noopener">MET Norway licence ↗</a><a href="https://github.com/Snowblind54/weather-page" target="_blank" rel="noopener">Northern Weather project ↗</a></div><p>Forecast times and quantities retain their original intervals. Rain/snow is liquid-water equivalent in mm, not snow depth. Missing Iceland and North America gusts are supplemented from cached ECMWF IFS open-data grids (CC BY 4.0). These use the nearest 0.25° grid point and nearest native forecast within 90 minutes; each reading retains its actual maximum-gust period and model run. Daily gust maxima use available samples. Other missing gusts and probabilities are shown as unavailable. Location forecasts do not change the observation layers.</p><p>Place search uses Open-Meteo geocoding with location data from GeoNames. Searching resolves a place name; selecting it loads the same MET Norway location forecast used when clicking the map.</p></div>
+    <div id="forecastSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Weather forecast data from MET Norway, Locationforecast 2.0, under CC BY 4.0. Nordic short-range forecasts use MEPS with local post-processing; other regions and longer ranges use the models described by MET Norway. These are automatic model forecasts, not measured conditions.</p><div class="source-links"><a href="https://api.met.no/doc/locationforecast/datamodel" target="_blank" rel="noopener">Forecast models ↗</a><a href="https://api.met.no/doc/License" target="_blank" rel="noopener">MET Norway licence ↗</a><a href="https://github.com/Snowblind54/weather-page" target="_blank" rel="noopener">Northern Weather project ↗</a></div><p>Forecast times and quantities retain their original intervals. Rain/snow is liquid-water equivalent in mm, not snow depth. Missing Europe, Iceland and North America gusts are supplemented from cached ECMWF IFS open-data grids (CC BY 4.0). These use the nearest 0.25° grid point and nearest native forecast within 90 minutes; each reading retains its actual maximum-gust period and model run. Daily gust maxima use available samples. Other missing gusts and probabilities are shown as unavailable. Location forecasts do not change the observation layers.</p><p>Place search uses Open-Meteo geocoding with location data from GeoNames. Searching resolves a place name; selecting it loads the same MET Norway location forecast used when clicking the map.</p></div>
     <form id="forecastSearchForm" class="forecast-search" role="search" aria-label="Find a forecast location">
       <label class="label" for="forecastSearchInput">Search location</label>
       <div class="forecast-search-row"><input id="forecastSearchInput" type="search" maxlength="120" placeholder="Town or city, e.g. Tallinn" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="forecastSearchResults" aria-describedby="forecastSearchStatus"><button type="submit">Search</button></div>
@@ -47,6 +47,7 @@
   let point=null,marker=null,payload=null,forecastRows=[],selectedTime=null,requestId=0,controller=null,refreshAfter=0,view='hourly';
   let gustGrid=null,gustChecked=0,gustPromise=null;
   const inIceland=p=>p&&Number(p.lat)>=61&&Number(p.lat)<=69&&Number(p.lon)>=-28&&Number(p.lon)<=-12;
+  const inEurope=p=>p&&Number(p.lat)>=18&&Number(p.lat)<=84&&Number(p.lon)>=-30&&Number(p.lon)<=60;
   const inCanada=p=>p&&Number(p.lat)>=18&&Number(p.lat)<=84&&((Number(p.lon)>=-180&&Number(p.lon)<=-30)||Number(p.lon)>=170);
   const canadaGrids=new Map();
   let canadaMeta=null,canadaChecked=0,canadaPromise=null;
@@ -83,6 +84,41 @@
     }catch(error){console.warn('North America gust grid unavailable',error);return null;}
     finally{clearTimeout(timer);}
   }
+  const europeGrids=new Map();
+  let europeMeta=null,europeChecked=0,europePromise=null;
+  async function getEuropeGustGrid(location){
+    if(!europeMeta||Date.now()-europeChecked>=15*60000){
+      if(!europePromise)europePromise=(async()=>{
+        const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),15000);
+        try{
+          const response=await fetch('data/forecast-iceland.json?v='+Math.floor(Date.now()/900000),{signal:abort.signal,cache:'no-cache'});
+          if(!response.ok)throw Error('Europe gust index unavailable');
+          const next=await response.json();
+          if(next.asset_root!=='forecast-iceland-cache'||!['euroatlantic-v2','euroatlantic-v3'].includes(next.asset_version)||!Number.isFinite(Date.parse(next.reference_time))||!Array.isArray(next.europe_gust_grids)||next.europe_gust_grids.length!==9)throw Error('Invalid Europe gust index');
+          if(europeMeta?.reference_time!==next.reference_time||europeMeta?.asset_version!==next.asset_version)europeGrids.clear();
+          europeMeta=next;europeChecked=Date.now();
+        }finally{clearTimeout(timer);}
+      })().finally(()=>{europePromise=null;});
+      try{await europePromise;}catch(error){console.warn('Europe forecast gusts unavailable',error);}
+    }
+    if(!europeMeta)return null;
+    const lat=Number(location.lat),lon=Number(location.lon);
+    const band=europeMeta.europe_gust_grids.findIndex(g=>Array.isArray(g.bounds)&&g.bounds.length===4&&lon>=g.bounds[0]&&lon<=g.bounds[2]&&lat>=g.bounds[1]&&lat<=g.bounds[3]);
+    if(band<0)return null;
+    const cycle=new Date(europeMeta.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z-'+europeMeta.asset_version;
+    const path='data/forecast-iceland-cache/'+cycle+'/europe-gust-grid-'+band+'-v1.json';
+    if(europeMeta.europe_gust_grids[band].path!==path||europeMeta.europe_gust_grids[band].units!=='m/s')return null;
+    if(europeGrids.has(path)){const grid=europeGrids.get(path);europeGrids.delete(path);europeGrids.set(path,grid);return grid;}
+    const reference=europeMeta.reference_time,abort=new AbortController(),timer=setTimeout(()=>abort.abort(),20000);
+    try{
+      const response=await fetch(path,{signal:abort.signal,cache:'force-cache'});
+      if(!response.ok)return null;
+      const grid=MetForecastData.validateGustGrid(await response.json(),reference,'Europe');
+      if(europeMeta.reference_time===reference){europeGrids.set(path,grid);while(europeGrids.size>3)europeGrids.delete(europeGrids.keys().next().value);}
+      return grid;
+    }catch(error){console.warn('Europe gust grid unavailable',error);return null;}
+    finally{clearTimeout(timer);}
+  }
   async function getGustGrid(){
     if(gustGrid&&Date.now()-gustChecked<15*60000)return gustGrid;
     if(gustPromise)return gustPromise;
@@ -106,9 +142,9 @@
     return gustPromise;
   }
   async function loadGusts(){
-    if(panel.hidden||!payload||(!inIceland(point)&&!inCanada(point)))return;
+    if(panel.hidden||!payload||(!inEurope(point)&&!inCanada(point)))return;
     const id=requestId,key=point.lat+','+point.lon;
-    const grid=inCanada(point)?await getCanadaGustGrid({...point}):await getGustGrid();
+    const grid=inCanada(point)?await getCanadaGustGrid({...point}):inIceland(point)?await getGustGrid():await getEuropeGustGrid({...point});
     if(!grid||id!==requestId||panel.hidden||!payload||point.lat+','+point.lon!==key)return;
     const wanted=selectedTime;render(payload,false,grid);selectedTime=wanted;
   }
@@ -151,7 +187,7 @@
   }
   function render(data,syncMap=true,sharedGustGrid=null){
     payload=data;
-    const original=MetForecastData.rows(data),all=MetForecastData.addGusts(original,sharedGustGrid||(inCanada(point)?[...canadaGrids.values()].find(g=>MetForecastData.gustSample(g,Number(point.lat),Number(point.lon),original[0]?.time)):gustGrid),Number(point?.lat),Number(point?.lon)),end=Date.now()+72*3600000;
+    const original=MetForecastData.rows(data),all=MetForecastData.addGusts(original,sharedGustGrid||(inCanada(point)?[...canadaGrids.values()].find(g=>MetForecastData.gustSample(g,Number(point.lat),Number(point.lon),original[0]?.time)):inIceland(point)?gustGrid:[...europeGrids.values()].find(g=>MetForecastData.gustSample(g,Number(point.lat),Number(point.lon),original[0]?.time))),Number(point?.lat),Number(point?.lon)),end=Date.now()+72*3600000;
     forecastRows=all.filter(r=>r.time<=end);
     let index=0;if(selectedTime!==null)index=forecastRows.reduce((best,row,i)=>Math.abs(row.time-selectedTime)<Math.abs(forecastRows[best].time-selectedTime)?i:best,0);
     $('forecastTimeline').max=String(forecastRows.length-1);$('forecastTimeline').value=String(index);
@@ -225,7 +261,7 @@
     choose({lat:place.lat,lng:place.lon},place.label);
   }});
   $('forecastCenter').addEventListener('click',()=>choose(map.getCenter()));
-  $('forecastRetry').addEventListener('click',()=>{gustChecked=0;canadaChecked=0;loadForecast();});
+  $('forecastRetry').addEventListener('click',()=>{gustChecked=0;canadaChecked=0;europeChecked=0;loadForecast();});
   $('forecastTimeline').addEventListener('input',renderSelected);
   function switchView(next){
     view=next;
@@ -254,7 +290,7 @@
       else{if(!marker)marker=L.marker([Number(point.lat),Number(point.markerLon??point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);loadForecast();}
     }
   }).observe(panel,{attributes:true,attributeFilter:['hidden']});
-  setInterval(()=>{if(!document.hidden&&!panel.hidden){if(Date.now()>=refreshAfter)loadForecast();else if(payload&&Date.now()-(inCanada(point)?canadaChecked:gustChecked)>=15*60000)loadGusts();}},60000);
+  setInterval(()=>{if(!document.hidden&&!panel.hidden){if(Date.now()>=refreshAfter)loadForecast();else if(payload&&Date.now()-(inCanada(point)?canadaChecked:inIceland(point)?gustChecked:europeChecked)>=15*60000)loadGusts();}},60000);
   document.addEventListener('weather-units-change',()=>{if(payload)render(payload,false);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!panel.hidden)loadForecast();});
   window.addEventListener('online',()=>{if(!panel.hidden)loadForecast();});
@@ -265,6 +301,7 @@
     $('forecastTimeline').value=String(i);renderSelected(false);selectedTime=wanted;
   });
 })();
+
 
 
 
