@@ -26,6 +26,7 @@ FILTER = 'https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl'
 BOUNDS = [[20, -85], [82, 45]]
 STEPS = list(range(97))
 PRESSURE_INTERVAL = 1
+MIN_CENTRE_SEPARATION_KM = 200
 
 
 def distance(a, b):
@@ -134,7 +135,7 @@ def centres(lats, lons, fields, valid_time):
             continue
         point = {'time': valid_time, 'lat': round(lat, 4), 'lon': round(lon, 4),
                  'pressure': round(sample(pressure, lats, lons, lat, lon), 1), 'depth': round(depth, 1)}
-        if any(distance(point, other) < 350 for other in result):
+        if any(distance(point, other) < MIN_CENTRE_SEPARATION_KM for other in result):
             continue
         dy = (lats[:, None]-lat)*111.2
         dx = (lons[None, :]-lon)*111.2*math.cos(math.radians(lat))
@@ -386,3 +387,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

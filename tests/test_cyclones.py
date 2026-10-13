@@ -24,6 +24,22 @@ def point(hour=0, lon=-30, pressure=985):
 
 @unittest.skipIf(np is None, 'Optional cyclone numpy/scipy dependencies are not installed')
 class Cyclones(unittest.TestCase):
+    def test_nearby_distinct_lows_are_kept_without_duplicate_centres(self):
+        lats, lons = np.arange(48, 62.1, .5), np.arange(-43, -16.9, .5)
+        y = (lats[:, None]-55)*111.2
+        x = (lons[None, :]+30)*111.2*np.cos(np.deg2rad(55))
+        for separation, expected in ((250, 2), (150, 1)):
+            with self.subTest(separation=separation):
+                pressure = (1015-30*np.exp(-(y*y+(x-separation/2)**2)/5000)
+                            -30*np.exp(-(y*y+(x+separation/2)**2)/5000))
+                fields = {'pressure': pressure, 'u': np.zeros_like(pressure),
+                          'v': np.zeros_like(pressure), 'gust': np.zeros_like(pressure)}
+                lows = c.centres(lats, lons, fields, STAMP)
+                self.assertEqual(len(lows), expected)
+                if expected == 2:
+                    self.assertGreater(c.distance(*lows), 200)
+                    self.assertLess(c.distance(*lows), 350)
+
     def test_closed_minimum_and_wind_units(self):
         lats, lons = np.arange(48, 62.1, .5), np.arange(-43, -16.9, .5)
         r2 = ((lats[:, None]-55)*111.2)**2+((lons[None, :]+30)*111.2*np.cos(np.deg2rad(55)))**2
@@ -173,3 +189,4 @@ class PressureAndNames(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
