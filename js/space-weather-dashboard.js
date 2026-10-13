@@ -296,6 +296,7 @@
 
   function updateSpaceDashboard(){
     if(!spaceData)return;
+    window.NorthernSolarEruptions?.update(spaceData);
     const power=Number(spaceData.hemisphericPower?.north);
     const powerValue=$('spacePowerValue');
     const powerMeta=$('spacePowerMeta');

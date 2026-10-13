@@ -16,7 +16,7 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
   if(!nav)return;
 
   const style=document.createElement('link');
-  style.rel='stylesheet';style.href='css/space-weather.css?v=4';
+  style.rel='stylesheet';style.href='css/space-weather.css?v=cme-1';
   document.head.appendChild(style);
 
   const button=document.createElement('button');
@@ -76,6 +76,11 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
           <strong id="spaceKpValue">—</strong><small id="spaceKpMeta">Loading…</small>
           <div id="spaceKpAge" class="space-data-age">Update time unavailable</div>
           <div id="spaceHelpKp" class="space-metric-help" hidden>Kp measures global geomagnetic disturbance. Higher Kp usually means the auroral oval expands farther south and aurora can become stronger.</div>
+        </div>
+        <div class="space-metric wide space-g-rating">
+          <div class="space-metric-heading"><span>Geomagnetic storm · G scale</span><button class="space-metric-info" type="button" data-space-help="spaceHelpG" aria-controls="spaceHelpG" aria-expanded="false" aria-label="What the G storm rating means">i</button></div>
+          <strong id="spaceGValue">—</strong><small id="spaceGMeta">Loading NOAA current rating…</small><div id="spaceGAge" class="space-data-age">Update time unavailable</div>
+          <div id="spaceHelpG" class="space-metric-help" hidden>NOAA’s current geomagnetic storm rating: G1 minor, G2 moderate, G3 strong, G4 severe, G5 extreme. G0 means no geomagnetic storm is currently reported. This describes conditions at Earth, not the strength of an individual CME or a guarantee of visible aurora. Future forecasts are separate.</div>
         </div>
       </div>
       <div class="space-forecast-row"><span>OVATION forecast</span><strong id="spaceForecastTime">—</strong></div>
@@ -152,7 +157,7 @@ window.addEventListener('load',()=>{
   spaceWeatherScript.src='js/space-weather-v4.js?v=aurora-planner-1';
   spaceWeatherScript.onload=()=>{
     const dashboardScript=document.createElement('script');
-    dashboardScript.src='js/space-weather-dashboard.js?v=solar-freshness-30m';
+    dashboardScript.src='js/space-weather-dashboard.js?v=cme-1';
     document.body.appendChild(dashboardScript);
   };
   document.body.appendChild(spaceWeatherScript);

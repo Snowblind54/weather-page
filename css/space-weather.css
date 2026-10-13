@@ -59,3 +59,14 @@
   .space-metric strong,.space-metric-power strong{font-size:19px}
   .space-metric[data-history-metric]::after{display:none}
 }
+
+.space-cme-section>summary{cursor:pointer;font-size:12px;font-weight:700;line-height:1.6;color:var(--text,#f4f7fb)}
+.space-cme-section>summary small{display:block;margin-left:15px;font-size:10px;font-weight:400;color:var(--muted,#aeb9c9)}
+.space-cme-content{margin-top:10px}.space-cme-list{display:grid;gap:9px;margin-top:9px}
+.space-cme-card{padding:11px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(10,18,28,.42);min-width:0}
+.space-cme-card h4{margin:0 0 5px;font-size:12px;color:#d5f5eb}.space-cme-card dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 9px;font-size:10px;line-height:1.45;margin:9px 0}
+.space-cme-card dt{color:var(--muted,#aeb9c9)}.space-cme-card dd{margin:0;text-align:right;color:var(--text,#f4f7fb);overflow-wrap:anywhere}
+.space-cme-countdown{display:block;font-size:11px;line-height:1.5;color:#83e5cd}
+.space-cme-analysis,.space-cme-help{margin-top:9px;font-size:10px;line-height:1.5;color:var(--muted,#aeb9c9)}
+.space-cme-analysis summary,.space-cme-help summary{cursor:pointer;color:#bfe9e0}.space-cme-analysis p{white-space:pre-line;overflow-wrap:anywhere}.space-cme-analysis a,.space-cme-help a{color:#83e5cd;margin-right:8px}
+.space-cme-empty{padding:10px 0}.space-g-rating strong{font-size:23px}

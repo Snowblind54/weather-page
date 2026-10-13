@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import math
 import time
+from solar_eruptions import compact_cmes, current_g_scale
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -306,6 +307,21 @@ def main():
         try:kp_forecast=json.loads(OUTPUT.read_text()).get('kpForecast',{})
         except (OSError,json.JSONDecodeError):kp_forecast={}
         print(f'Warning: Kp forecast unavailable; retaining its original freshness: {exc}')
+    # Optional products fail independently and retain their original timestamps.
+    now = time.time()
+    try: previous = json.loads(OUTPUT.read_text())
+    except (OSError, json.JSONDecodeError): previous = {}
+    try:
+        dates = 'startDate=' + datetime.fromtimestamp(now-7*86400, timezone.utc).strftime('%Y-%m-%d') + '&endDate=' + datetime.fromtimestamp(now, timezone.utc).strftime('%Y-%m-%d')
+        solar_eruptions = compact_cmes(fetch_json('https://ccmc.gsfc.nasa.gov/DONKI/WS/get/CME?' + dates, attempts=2), now)
+    except (RuntimeError, ValueError) as exc:
+        solar_eruptions = previous.get('solarEruptions')
+        print(f'Warning: CME feed unavailable; retaining original freshness: {exc}')
+    try:
+        geomagnetic_storm = current_g_scale(fetch_json('https://services.swpc.noaa.gov/products/noaa-scales.json', attempts=2), now)
+    except (RuntimeError, ValueError) as exc:
+        geomagnetic_storm = previous.get('geomagneticStorm')
+        print(f'Warning: current G scale unavailable; retaining original freshness: {exc}')
     kp = parse_observed_kp(kp_raw)
     wind = latest_record(wind_raw, "proton_speed")
     mag = latest_record(mag_raw, "bz_gsm")
@@ -321,6 +337,8 @@ def main():
         "aurora": compact_aurora(aurora_raw),
         "hemisphericPower": hemispheric_power,
         "kp": kp,
+        "solarEruptions": solar_eruptions,
+        "geomagneticStorm": geomagnetic_storm,
         "kpForecast": kp_forecast,
         "solarWind": {
             "speed": round(speed, 1) if speed is not None else None,
