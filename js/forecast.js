@@ -58,7 +58,7 @@
           const response=await fetch('data/forecast-canada.json?v='+Math.floor(Date.now()/900000),{signal:abort.signal,cache:'no-cache'});
           if(!response.ok)throw Error('North America gust index unavailable');
           const next=await response.json();
-          if(next.asset_root!=='forecast-canada-cache'||!['canada-v1','northamerica-v2'].includes(next.asset_version)||!Number.isFinite(Date.parse(next.reference_time))||!Array.isArray(next.gust_grids)||next.gust_grids.length!==(next.asset_version==='northamerica-v2'?12:3))throw Error('Invalid North America gust index');
+          if(next.asset_root!=='forecast-canada-cache'||!['canada-v1','northamerica-v2','northamerica-v3'].includes(next.asset_version)||!Number.isFinite(Date.parse(next.reference_time))||!Array.isArray(next.gust_grids)||next.gust_grids.length!==(['northamerica-v2','northamerica-v3'].includes(next.asset_version)?12:3))throw Error('Invalid North America gust index');
           if(canadaMeta?.reference_time!==next.reference_time||canadaMeta?.asset_version!==next.asset_version)canadaGrids.clear();
           canadaMeta=next;canadaChecked=Date.now();
         }finally{clearTimeout(timer);}
@@ -66,7 +66,7 @@
       try{await canadaPromise;}catch(error){console.warn('North America forecast gusts unavailable',error);}
     }
     if(!canadaMeta)return null;
-    const lat=Number(location.lat),lon=canadaMeta.asset_version==='northamerica-v2'&&Number(location.lon)>=170?Number(location.lon)-360:Number(location.lon);
+    const lat=Number(location.lat),lon=['northamerica-v2','northamerica-v3'].includes(canadaMeta.asset_version)&&Number(location.lon)>=170?Number(location.lon)-360:Number(location.lon);
     const band=canadaMeta.gust_grids.findIndex(g=>Array.isArray(g.bounds)&&g.bounds.length===4&&lon>=g.bounds[0]&&lon<=g.bounds[2]&&lat>=g.bounds[1]&&lat<=g.bounds[3]);
     if(band<0)return null;
     const cycle=new Date(canadaMeta.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z-'+canadaMeta.asset_version;
@@ -77,7 +77,7 @@
     try{
       const response=await fetch(path,{signal:abort.signal,cache:'force-cache'});
       if(!response.ok)return null;
-      const grid=MetForecastData.validateGustGrid(await response.json(),reference,canadaMeta.asset_version==='northamerica-v2'?'North America':'Canada');
+      const grid=MetForecastData.validateGustGrid(await response.json(),reference,['northamerica-v2','northamerica-v3'].includes(canadaMeta.asset_version)?'North America':'Canada');
       if(canadaMeta.reference_time===reference){canadaGrids.set(path,grid);while(canadaGrids.size>3)canadaGrids.delete(canadaGrids.keys().next().value);}
       return grid;
     }catch(error){console.warn('North America gust grid unavailable',error);return null;}
@@ -92,7 +92,7 @@
         const response=await fetch('data/forecast-iceland.json?v='+Math.floor(Date.now()/900000),{signal:abort.signal,cache:'no-cache'});
         if(!response.ok)throw Error('Iceland gust index unavailable');
         const meta=await response.json(),run=Date.parse(meta.reference_time);
-        if(!Number.isFinite(run)||meta.asset_root!=='forecast-iceland-cache'||!['atlantic-v1','euroatlantic-v2'].includes(meta.asset_version))throw Error('Invalid gust index');
+        if(!Number.isFinite(run)||meta.asset_root!=='forecast-iceland-cache'||!['atlantic-v1','euroatlantic-v2','euroatlantic-v3'].includes(meta.asset_version))throw Error('Invalid gust index');
         const cycle=new Date(run).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z-'+meta.asset_version;
         const path='data/forecast-iceland-cache/'+cycle+'/gust-grid-v1.json';
         if(meta.gust_grid?.path!==path||meta.gust_grid.units!=='m/s')throw Error('No shared Iceland gust grid');
@@ -265,6 +265,7 @@
     $('forecastTimeline').value=String(i);renderSelected(false);selectedTime=wanted;
   });
 })();
+
 
 
 

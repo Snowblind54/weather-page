@@ -178,3 +178,16 @@ test('Alaska date-line islands use the same image in the correct world copy',asy
  const h=harness({america:true,viewBounds:[170,48,179,55]});h.open();await h.run();await h.loaded(0);assert.deepEqual(JSON.parse(JSON.stringify(h.overlays.filter(l=>l.active)[0].bounds)),[[18,170],[84,330]]);h.bounds([-175,48,-166,55]);await h.run();assert.equal(h.images.length,1);assert.deepEqual(JSON.parse(JSON.stringify(h.overlays.filter(l=>l.active)[0].bounds)),[[18,-190],[84,-30]]);assert.equal(h.overlays.filter(l=>l.active).length,1);
 });
 test('The extended region retains the old Canadian version and rejects unknown new versions',()=>{assert.match(D.assetUrl(americaManifest,'wind',first),/northamerica-v2/);assert.match(D.assetUrl(canadaManifest,'wind',first),/canada-v1/);const bad=structuredClone(americaManifest);bad.asset_version='northamerica-v999';assert.throws(()=>D.assetUrl(bad,'wind',first));});
+
+test('expanded temperatures use their actual cached scale and versioned assets',()=>{
+ assert.deepEqual(D.temperatureTicks(manifest),['−20','−10','0','10','20','30+']);
+ for(const [base,version] of [[manifest,'temperature-v1'],[americaManifest,'northamerica-v3'],[europeManifest,'euroatlantic-v3']]){
+  const wide=structuredClone(base);wide.temperature_range_celsius=[-60,60];wide.asset_version=version;
+  for(const kind of Object.keys(wide.layers)){
+   wide.legends[kind]=wide.legends[kind].replace(/20261007T21Z(?:-[^/]+)?\//,'20261007T21Z-'+version+'/');
+   for(const time of Object.keys(wide.images[kind]))wide.images[kind][time]=wide.images[kind][time].replace(/20261007T21Z(?:-[^/]+)?\//,'20261007T21Z-'+version+'/');
+  }
+  assert.deepEqual(D.temperatureTicks(wide),['−60','−40','−20','0','20','40','60+']);
+  assert(D.assetUrl(wide,'temperature',first).includes(version));
+ }
+});

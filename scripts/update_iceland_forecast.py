@@ -21,14 +21,14 @@ from scipy.interpolate import RegularGridInterpolator
 
 ROOT = 'https://data.ecmwf.int/forecasts/'
 BOUNDS = [-30, 18, 60, 84]
-ASSET_VERSION = 'euroatlantic-v2'
+ASSET_VERSION = 'euroatlantic-v3'
 POINT_BOUNDS = [-28, 61, -12, 69]
 GUST_FILE = 'gust-grid-v1.json'
 SIZE = 2048
 PARAMS = {'2t', '10u', '10v', 'tp', 'tcc', '10fg'}
 FIELDS = {'temperature':'air_temperature_2m', 'rain':'precipitation_amount',
           'wind':'wind_speed_10m', 'gusts':'wind_speed_of_gust', 'clouds':'cloud_area_fraction'}
-RANGES = {'temperature':(253.15,303.15), 'rain':(.1,10), 'wind':(0,30),
+RANGES = {'temperature':(213.15,333.15), 'rain':(.1,10), 'wind':(0,30),
           'gusts':(0,40), 'clouds':(0,1)}
 USER_AGENT = 'NorthernWeather/1.0 https://github.com/Snowblind54/weather-page'
 
@@ -180,7 +180,7 @@ def render(grid, lat, lon, kind, palette, destination, exclusion=None, bounds=No
     for first in range(0,size,64):
         la,ln = np.meshgrid(sample_lat[first:first+64],sample_lon,indexing='ij')
         values = sampler(np.stack((la,ln),axis=-1))
-        bins = np.clip(np.floor((values-lo)/(hi-lo)*64),0,63).astype(int)
+        bins = np.clip(np.floor((values-lo)/(hi-lo)*len(palette)),0,len(palette)-1).astype(int)
         rgba = palette[bins].copy()
         if kind=='rain': rgba[values<lo,3]=0
         if exclusion is not None: rgba[exclusion[first:first+64],3]=0
@@ -264,7 +264,7 @@ def main():
             legend = data.parent/nordic['legends'][kind]
             with Image.open(legend) as im:
                 rgba = np.array(im.convert('RGBA'))
-                palettes[kind] = rgba[rgba.shape[0]//2,np.linspace(2,253,64).round().astype(int)]
+                palettes[kind] = rgba[rgba.shape[0]//2,np.linspace(2,253,128 if kind=='temperature' else 64).round().astype(int)]
             shutil.copyfile(legend,stage/(kind+'-legend.webp'))
         images = {kind:{} for kind in FIELDS};periods = {};times = []
         for hour in range(3,90):
@@ -290,7 +290,7 @@ def main():
         if target.exists(): shutil.rmtree(target)
         stage.rename(target)
         manifest = {'delivery':'static-regional-images','asset_root':'forecast-iceland-cache',
-                    'asset_version':ASSET_VERSION,'source':'ECMWF IFS open data · Europe, Iceland and Arctic','reference_time':run.isoformat(),
+                    'asset_version':ASSET_VERSION,'temperature_range_celsius':[-60,60],'source':'ECMWF IFS open data · Europe, Iceland and Arctic','reference_time':run.isoformat(),
                     'generated_at':datetime.now(timezone.utc).isoformat(),'bounds':BOUNDS,'layers':FIELDS,
                     'images':images,'cached_times':times,'periods':periods,'image_size':[SIZE,SIZE],
                     'legends':{k:f'data/forecast-iceland-cache/{cycle}/{k}-legend.webp' for k in FIELDS},
@@ -303,7 +303,7 @@ def main():
                     'processing':'Hourly temperature, wind components and cloud cover are linearly interpolated. Rain is a native three-hour mean rate; gusts use the nearest native forecast and retain its maximum interval.'}
         temp=data/'forecast-iceland.json.tmp';temp.write_text(json.dumps(manifest,indent=2)+'\n');temp.replace(previous_path)
         # Mirror only the complete current cycle; retired R2 assets expire centrally.
-        cycles=[p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-(?:atlantic-v1|euroatlantic-v2))?',p.name)]
+        cycles=[p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-(?:atlantic-v1|euroatlantic-v2|euroatlantic-v3))?',p.name)]
         for old in cycles:
             if old!=target: shutil.rmtree(old)
         print('Published Europe and Arctic:',len(times),'hours;',round(size/1024/1024,2),'MiB',flush=True)
@@ -311,5 +311,6 @@ def main():
         if stage.exists(): shutil.rmtree(stage)
 
 if __name__=='__main__': main()
+
 
 

@@ -18,7 +18,7 @@ import update_iceland_forecast as ifs
 DATA = Path(__file__).resolve().parents[1]/'data'
 BOUNDS = [-190, 18, -30, 84]
 SIZE = 2048
-VERSION = 'northamerica-v2'
+VERSION = 'northamerica-v3'
 ASSET_ROOT = 'forecast-canada-cache'
 MAX_BYTES = 200*1024*1024
 GUST_AREAS = [[west,south,east,north] for south,north in [(18,40),(40,62),(62,84)]
@@ -76,7 +76,7 @@ def ensure_palettes(nordic, root, restore=None):
         with Image.open(root/path) as image:
             if image.size!=(256,18):raise ValueError('Invalid shared forecast colour scale')
             rgba=np.array(image.convert('RGBA'))
-            palettes[kind]=rgba[rgba.shape[0]//2,np.linspace(2,253,64).round().astype(int)]
+            palettes[kind]=rgba[rgba.shape[0]//2,np.linspace(2,253,128 if kind=='temperature' else 64).round().astype(int)]
     return palettes
 
 
@@ -120,7 +120,7 @@ def publish(frames, run, nordic, palettes, data=DATA, size=SIZE):
             if hour%6==0:print('Rendered North America maps:',hour,'/ 90 hours',flush=True)
         total=sum(p.stat().st_size for p in stage.iterdir())
         if total>MAX_BYTES:raise ValueError('Canada forecast cache exceeds 200 MiB; previous cycle retained')
-        manifest={'delivery':'static-regional-images','asset_root':ASSET_ROOT,'asset_version':VERSION,
+        manifest={'delivery':'static-regional-images','asset_root':ASSET_ROOT,'asset_version':VERSION,'temperature_range_celsius':[-60,60],
                   'source':'ECMWF IFS open data · North America and Atlantic','reference_time':run.isoformat(),
                   'generated_at':datetime.now(timezone.utc).isoformat(),'bounds':BOUNDS,'layers':ifs.FIELDS,
                   'images':images,'cached_times':times,'periods':periods,'image_size':[size,size],
@@ -178,4 +178,5 @@ def main():
     publish(frames,run,nordic,palettes)
 
 if __name__=='__main__':main()
+
 

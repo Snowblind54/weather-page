@@ -80,7 +80,7 @@
     const l=D.layers[kind];$('forecastMapLegendTitle').textContent=l.label+' · '+(kind==='temperature'?(globalThis.WeatherUnits?.temperatureUnit()??l.unit):['wind','gusts'].includes(kind)?(globalThis.WeatherUnits?.windUnit()??l.unit):l.unit);
     const colorbar=$('forecastMapColorbar');colorbar.onerror=()=>{const backup=window.weatherGithubDataUrl?.(colorbar.src);if(backup&&backup!==colorbar.src)colorbar.src=backup;};
     colorbar.src=D.assetUrl(visibleRegions[0]||meta,kind);
-    $('forecastMapLegendTicks').replaceChildren(...l.ticks.map(value=>{const e=document.createElement('span');const native=Number(String(value).replace('−','-').replace('+',''));
+    $('forecastMapLegendTicks').replaceChildren(...(kind==='temperature'?D.temperatureTicks(visibleRegions[0]||meta):l.ticks).map(value=>{const e=document.createElement('span');const native=Number(String(value).replace('−','-').replace('+',''));
       const converted=kind==='temperature'?(globalThis.WeatherUnits?.temperatureValue(native)??native):['wind','gusts'].includes(kind)?(globalThis.WeatherUnits?.windValue(native)??native):native;
       e.textContent=['temperature','wind','gusts'].includes(kind)&&Number.isFinite(native)?String(Math.round(converted))+(String(value).endsWith('+')?'+':''):value;return e;}));
     const notes=visibleRegions.map(region=>{
@@ -132,5 +132,6 @@
   setInterval(()=>{if(!document.hidden&&active()&&Date.now()-metaChecked>=15*60000)schedule(0);},60000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&active())schedule(0);});
 })();
+
 
 

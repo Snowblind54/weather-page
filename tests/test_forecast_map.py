@@ -35,7 +35,7 @@ class ForecastMapTests(unittest.TestCase):
         self.assertEqual(params['time'],['2026-10-07T19:00:00.000Z'])
         self.assertEqual(params['srs'],['EPSG:3857'])
         self.assertEqual(len(params['bbox'][0].split(',')),4)
-        self.assertEqual(parse_qs(urlparse(module.image_url(manifest,'temperature',t)).query)['colorscalerange'],['253.15,303.15'])
+        self.assertEqual(parse_qs(urlparse(module.image_url(manifest,'temperature',t)).query)['colorscalerange'],['213.15,333.15'])
 
     def test_failed_download_keeps_previous_snapshot(self):
         manifest={'reference_time':'2026-10-07T18:00:00+00:00', 'endpoint':'https://thredds.met.no/example',
@@ -63,3 +63,4 @@ class ForecastMapTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

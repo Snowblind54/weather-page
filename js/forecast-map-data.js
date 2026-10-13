@@ -1,7 +1,7 @@
 (function(root){
   const HOUR=3600000;
   const layers=Object.freeze({
-    temperature:{name:'air_temperature_2m',label:'Temperature',unit:'°C',range:[253.15,303.15],ticks:['−20','−10','0','10','20','30+'],palette:'metnoredblue'},
+    temperature:{name:'air_temperature_2m',label:'Temperature',unit:'°C',range:[213.15,333.15],ticks:['−60','−40','−20','0','20','40','60+'],palette:'metnoredblue'},
     rain:{name:'precipitation_amount',label:'Rain / snow',unit:'mm / hour',range:[0.1,10],ticks:['0.1','2.1','4.1','6.0','8.0','10+'],palette:'metnoprecipitation',offset:HOUR},
     wind:{name:'wind_speed_10m',label:'Sustained wind',unit:'m/s',range:[0,30],ticks:['0','6','12','18','24','30+'],palette:'rainbow'},
     gusts:{name:'wind_speed_of_gust',label:'Wind gusts',unit:'m/s',range:[0,40],ticks:['0','8','16','24','32','40+'],palette:'rainbow'},
@@ -36,7 +36,7 @@
     const name=time===undefined?kind+'-legend.webp':kind+'-'+new Date(time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z.webp';
     const path=time===undefined?manifest.legends?.[kind]:manifest.images?.[kind]?.[new Date(time).toISOString()];
     let cycle=new Date(manifest.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z';
-    if(manifest.asset_version!==undefined){if(!((manifest.asset_root==='forecast-iceland-cache'&&['atlantic-v1','euroatlantic-v2'].includes(manifest.asset_version))||(manifest.asset_root==='forecast-canada-cache'&&['canada-v1','northamerica-v2'].includes(manifest.asset_version))))throw Error('Invalid forecast asset version');cycle+='-'+manifest.asset_version;}
+    if(manifest.asset_version!==undefined){if(!((manifest.asset_root==='forecast-iceland-cache'&&['atlantic-v1','euroatlantic-v2','euroatlantic-v3'].includes(manifest.asset_version))||(manifest.asset_root==='forecast-canada-cache'&&['canada-v1','northamerica-v2','northamerica-v3'].includes(manifest.asset_version))||((manifest.asset_root||'forecast-cache')==='forecast-cache'&&manifest.asset_version==='temperature-v1')))throw Error('Invalid forecast asset version');cycle+='-'+manifest.asset_version;}
     const assetRoot=manifest.asset_root||'forecast-cache';
     if(!['forecast-cache','forecast-iceland-cache','forecast-canada-cache'].includes(assetRoot))throw Error('Invalid forecast asset root');
     if(typeof path!=='string'||!path.startsWith('data/'+assetRoot+'/'+cycle+'/')||path.split('/').length!==4||path.split('/').at(-1)!==name)throw Error('Invalid shared forecast image');
@@ -54,8 +54,8 @@
     return [...new Set(regions.flatMap(region=>cachedTimes(region,now)))].filter(t=>t<=end).sort((a,b)=>a-b);
   }
   function regionLabel(region){
-    if(region.region==='Iceland')return region.asset_version==='euroatlantic-v2'?'Europe / Arctic':'Iceland / Atlantic';
-    if(region.region==='Canada'&&region.asset_version==='northamerica-v2')return 'North America / Atlantic';
+    if(region.region==='Iceland')return ['euroatlantic-v2','euroatlantic-v3'].includes(region.asset_version)?'Europe / Arctic':'Iceland / Atlantic';
+    if(region.region==='Canada'&&['northamerica-v2','northamerica-v3'].includes(region.asset_version))return 'North America / Atlantic';
     return region.region;
   }
   function visibleRegions(regions,bounds,kind,time){
@@ -73,8 +73,10 @@
     }
     return visible;
   }
-  const api={layers,expandTimes,runs,reference,availableTimes,params,assetUrl,cachedTimes,regionalTimes,regionLabel,visibleRegions};
+  function temperatureTicks(manifest){return manifest?.temperature_range_celsius?.[0]===-60&&manifest?.temperature_range_celsius?.[1]===60?layers.temperature.ticks:['−20','−10','0','10','20','30+'];}
+  const api={temperatureTicks,layers,expandTimes,runs,reference,availableTimes,params,assetUrl,cachedTimes,regionalTimes,regionLabel,visibleRegions};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ForecastMapData=api;
 })(typeof window==='undefined'?{}:window);
+
 
 

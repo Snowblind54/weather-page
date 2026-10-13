@@ -82,7 +82,7 @@ def build_manifest(path, capabilities, das, now=None):
 # Keep colour scales aligned with js/forecast-map-data.js. Rain ends one hour
 # after the displayed selection; all other variables are instantaneous.
 STYLES = {
-    'temperature': ('metnoredblue', '253.15,303.15'),
+    'temperature': ('metnoredblue', '213.15,333.15'),
     'rain': ('metnoprecipitation', '0.1,10'),
     'wind': ('rainbow', '0,30'),
     'gusts': ('rainbow', '0,40'),
@@ -107,7 +107,7 @@ def projected_bbox(bounds):
 def image_url(manifest, kind, valid=None):
     palette, scale = STYLES[kind]
     params = {'service':'WMS', 'version':'1.1.1', 'colorscalerange':scale,
-              'numcolorbands':64, 'logscale':'false'}
+              'numcolorbands':128 if kind=='temperature' else 64, 'logscale':'false'}
     if valid is None:
         params.update(request='GetLegendGraphic', layer=manifest['layers'][kind],
                       palette=palette, colorbaronly='true', vertical='false', width=256, height=18)
@@ -133,7 +133,7 @@ def download_image(url, dest, expected_size):
     time.sleep(0.4)
 
 def publish_cache(manifest, data_dir, downloader=download_image):
-    cycle = datetime.fromisoformat(manifest['reference_time']).strftime('%Y%m%dT%HZ')
+    cycle = datetime.fromisoformat(manifest['reference_time']).strftime('%Y%m%dT%HZ')+'-temperature-v1'
     root = data_dir / 'forecast-cache'
     root.mkdir(parents=True, exist_ok=True)
     times = forecast_times(manifest)
@@ -169,6 +169,7 @@ def publish_cache(manifest, data_dir, downloader=download_image):
         if destination.exists(): shutil.rmtree(destination)
         stage.rename(destination)
         cached = {**manifest, 'delivery':'static-regional-images', 'images':frames,
+                  'asset_version':'temperature-v1', 'temperature_range_celsius':[-60,60],
                   'legends':legends, 'image_size':[WIDTH,HEIGHT], 'cache_bytes':size,
                   'cached_times':[iso(t) for t in times], 'refresh_interval_hours':6}
         # Images are complete before the new manifest becomes visible.
@@ -176,7 +177,7 @@ def publish_cache(manifest, data_dir, downloader=download_image):
         temp.write_text(json.dumps(cached,indent=2)+'\n')
         temp.replace(data_dir/'forecast-map.json')
         # Retain this and the preceding cycle so open tabs can finish loading.
-        cycles = sorted(p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z',p.name))
+        cycles = sorted(p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-temperature-v1)?',p.name))
         for old in cycles[:-2]: shutil.rmtree(old)
         print('Published',len(tasks),'shared forecast images;',round(size/1024/1024,2),'MiB')
         return cached
@@ -184,7 +185,7 @@ def publish_cache(manifest, data_dir, downloader=download_image):
         if stage.exists(): shutil.rmtree(stage)
 
 def cache_complete(previous, data_dir):
-    if previous.get('delivery') != 'static-regional-images': return False
+    if previous.get('delivery') != 'static-regional-images' or previous.get('temperature_range_celsius') != [-60,60]: return False
     files = [p for frames in previous.get('images',{}).values() for p in frames.values()]
     files += list(previous.get('legends',{}).values())
     return bool(files) and all((data_dir.parent / p).is_file() for p in files)
@@ -215,3 +216,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

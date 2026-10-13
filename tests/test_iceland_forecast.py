@@ -17,7 +17,7 @@ class IcelandForecastTests(unittest.TestCase):
         self.assertEqual(west,-30)
         for lat,lon in [(78.2,15.6),(82.,-25.),(40.4,-3.7),(41.9,12.5),(55.8,37.6),(30.,31.2)]:
             self.assertTrue(west<=lon<=east and south<=lat<=north)
-        self.assertEqual(m.ASSET_VERSION,'euroatlantic-v2')
+        self.assertEqual(m.ASSET_VERSION,'euroatlantic-v3')
 
     def test_ecmwf_fills_the_nordic_domain_when_its_forecast_has_ended(self):
         exclusion=np.ones((16,16),dtype=bool)
@@ -93,6 +93,16 @@ class IcelandForecastTests(unittest.TestCase):
             m.render(np.zeros((2,2)),lat,lon,'rain',palette,path)
             with Image.open(path) as im:self.assertEqual(im.getpixel((4,4))[3],0)
 
+    def test_expanded_temperature_range_retains_distinct_extremes_and_zero(self):
+        palette=np.array([[i,i,i,255] for i in range(128)],dtype=np.uint8)
+        lat=np.array([61.,69.]);lon=np.array([-28.,-12.])
+        with tempfile.TemporaryDirectory() as directory:
+            for celsius,expected in [(-60,0),(-40,21),(0,64),(30,96),(60,127)]:
+                path=Path(directory)/'temperature.webp'
+                m.render(np.full((2,2),celsius+273.15),lat,lon,'temperature',palette,path,
+                         bounds=[-28,61,-12,69],size=4)
+                with Image.open(path) as im:self.assertEqual(im.getpixel((1,1))[0],expected)
+
     def test_nordic_domain_mask_reprojects_north_and_excludes_only_coverage(self):
         with patch.object(m,'SIZE',5):
             alpha=np.array([[255,255],[0,0]],dtype=np.uint8)
@@ -117,4 +127,5 @@ class IcelandForecastTests(unittest.TestCase):
                     self.assertEqual(im.getpixel((12,4))[3],0)
 
 if __name__=='__main__':unittest.main()
+
 
