@@ -9,3 +9,8 @@ test('Approximate countdown never confirms arrival and flags stale forecasts',()
 test('G0 is zero, missing is unknown, stale G5 is last reported',()=>{
  assert.equal(c.gState({scale:0,time:'2026-10-13T15:59Z'},now).value,'G0');assert.equal(c.gState({scale:null},now).value,'—');const g=c.gState({scale:5,time:'2026-10-13T14:00Z'},now);assert.equal(g.stale,true);assert.match(g.label,/Last reported/);
 });
+
+test('Past arrival forecasts stay hidden even with show all; future arrivals remain',()=>{
+ const rows=[{id:'past',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-13T15:59Z',earthImpact:'expected'},{id:'now',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-13T16:00Z',earthImpact:'expected'},{id:'future',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-14T12:00Z',earthImpact:'expected'}];
+ assert.deepEqual(c.recent(rows,now).map(r=>r.id),['future']);assert.deepEqual(c.recent(rows,now,true).map(r=>r.id),['future']);
+});

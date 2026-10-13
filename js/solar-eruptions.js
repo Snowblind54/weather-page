@@ -44,7 +44,7 @@
   'use strict';
   function time(v){if(typeof v==='number')return Number.isFinite(v)?(v<1e12?v*1000:v):null;if(!v)return null;const n=Date.parse(v);return Number.isFinite(n)?n:null;}
   function stale(v,now,seconds){const t=time(v);return !t||now-t>seconds*1000||t>now+300000;}
-  function recent(rows,now,all=false){return rows.filter(r=>time(r?.detectedAt)>=now-7*86400000&&time(r.detectedAt)<=now+300000&&(all||['expected','glancing','minor'].includes(r.earthImpact))).sort((a,b)=>time(b.detectedAt)-time(a.detectedAt));}
+  function recent(rows,now,all=false){return rows.filter(r=>time(r?.detectedAt)>=now-7*86400000&&time(r.detectedAt)<=now+300000&&(!time(r.estimatedArrival)||time(r.estimatedArrival)>now)&&(all||['expected','glancing','minor'].includes(r.earthImpact))).sort((a,b)=>time(b.detectedAt)-time(a.detectedAt));}
   function impactLabel(r){return ({expected:'Earth-directed CME',glancing:'Possible glancing Earth impact',minor:'Possible minor Earth impact','not-predicted':'No Earth impact predicted',unassessed:'CME · Earth impact not assessed'})[r?.earthImpact]||'CME · Earth impact not assessed';}
   function uncertainty(r){const n=r?.arrivalUncertaintyHours;return typeof n==='number'&&Number.isFinite(n)&&n>0&&n<=72?n:null;}
   function countdown(r,now,isStale=false){
