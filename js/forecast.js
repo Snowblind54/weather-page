@@ -13,7 +13,13 @@
   panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','forecastSection-title');
   panel.innerHTML=`
     <div class="panel-heading"><div><div class="eyebrow" id="forecastProvider">MET NORWAY</div><h2 id="forecastSection-title">Forecast</h2><p>Choose a place on the map</p></div><div class="panel-actions"><button class="info-button" data-info="forecastSection-sources" aria-controls="forecastSection-sources" aria-expanded="false" aria-label="Forecast sources">i</button><button class="close-panel" aria-label="Close Forecast menu">×</button></div></div>
-    <div id="forecastSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Weather forecast data from MET Norway, Locationforecast 2.0, under CC BY 4.0. Nordic short-range forecasts use MEPS with local post-processing; other regions and longer ranges use the models described by MET Norway. These are automatic model forecasts, not measured conditions.</p><div class="source-links"><a href="https://api.met.no/doc/locationforecast/datamodel" target="_blank" rel="noopener">Forecast models ↗</a><a href="https://api.met.no/doc/License" target="_blank" rel="noopener">MET Norway licence ↗</a><a href="https://github.com/Snowblind54/weather-page" target="_blank" rel="noopener">Northern Weather project ↗</a></div><p>Forecast times and quantities retain their original intervals. Rain/snow is liquid-water equivalent in mm, not snow depth. Missing Iceland and North America gusts are supplemented from cached ECMWF IFS open-data grids (CC BY 4.0). These use the nearest 0.25° grid point and nearest native forecast within 90 minutes; each reading retains its actual maximum-gust period and model run. Daily gust maxima use available samples. Other missing gusts and probabilities are shown as unavailable. Location forecasts do not change the observation layers.</p></div>
+    <div id="forecastSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Weather forecast data from MET Norway, Locationforecast 2.0, under CC BY 4.0. Nordic short-range forecasts use MEPS with local post-processing; other regions and longer ranges use the models described by MET Norway. These are automatic model forecasts, not measured conditions.</p><div class="source-links"><a href="https://api.met.no/doc/locationforecast/datamodel" target="_blank" rel="noopener">Forecast models ↗</a><a href="https://api.met.no/doc/License" target="_blank" rel="noopener">MET Norway licence ↗</a><a href="https://github.com/Snowblind54/weather-page" target="_blank" rel="noopener">Northern Weather project ↗</a></div><p>Forecast times and quantities retain their original intervals. Rain/snow is liquid-water equivalent in mm, not snow depth. Missing Iceland and North America gusts are supplemented from cached ECMWF IFS open-data grids (CC BY 4.0). These use the nearest 0.25° grid point and nearest native forecast within 90 minutes; each reading retains its actual maximum-gust period and model run. Daily gust maxima use available samples. Other missing gusts and probabilities are shown as unavailable. Location forecasts do not change the observation layers.</p><p>Place search uses Open-Meteo geocoding with location data from GeoNames. Searching resolves a place name; selecting it loads the same MET Norway location forecast used when clicking the map.</p></div>
+    <form id="forecastSearchForm" class="forecast-search" role="search" aria-label="Find a forecast location">
+      <label class="label" for="forecastSearchInput">Search location</label>
+      <div class="forecast-search-row"><input id="forecastSearchInput" type="search" maxlength="120" placeholder="Town or city, e.g. Tallinn" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="forecastSearchResults" aria-describedby="forecastSearchStatus"><button type="submit">Search</button></div>
+      <ul id="forecastSearchResults" class="forecast-search-results" role="listbox" aria-label="Matching locations" hidden></ul>
+      <div id="forecastSearchStatus" class="forecast-note" role="status" aria-live="polite">Search for a town or city.</div>
+    </form>
     <div class="forecast-location" id="forecastLocation">Choose a location</div>
     <div class="forecast-actions"><button type="button" id="forecastCenter">Use map centre</button><button type="button" id="forecastRetry">Check for updates</button></div>
     <div id="forecastStatus" class="status" role="status" aria-live="polite">Open Forecast to load this map location.</div>
@@ -198,15 +204,19 @@
       else{setStatus('Forecast unavailable. Check your connection and try again shortly.',true);$('forecastContent').hidden=true;}
     }finally{clearTimeout(timer);if(controller===abort)controller=null;}
   }
-  function choose(latlng){
+  function choose(latlng,placeName){
     requestId++;controller?.abort();controller=null;payload=null;refreshAfter=0;
     const longitude=((latlng.lng+180)%360+360)%360-180;
     point={lat:Math.max(-90,Math.min(90,latlng.lat)).toFixed(3),lon:longitude.toFixed(3),markerLon:Number(longitude.toFixed(3))+Math.round((latlng.lng-longitude)/360)*360};
-    $('forecastLocation').textContent=point.lat+'°, '+point.lon+'°';$('forecastContent').hidden=true;$('forecastIssued').textContent='Forecast update time will appear here.';
+    $('forecastLocation').textContent=placeName||point.lat+'°, '+point.lon+'°';$('forecastContent').hidden=true;$('forecastIssued').textContent='Forecast update time will appear here.';
     if(marker)map.removeLayer(marker);
     marker=L.marker([Number(point.lat),Number(point.markerLon??point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
     clearTimeout(choose.timer);choose.timer=setTimeout(loadForecast,350);
   }
+  const locationSearch=window.NorthernForecastSearch?.attach({form:$('forecastSearchForm'),input:$('forecastSearchInput'),results:$('forecastSearchResults'),status:$('forecastSearchStatus'),onChoose:place=>{
+    map.setView([place.lat,place.lon],9);
+    choose({lat:place.lat,lng:place.lon},place.label);
+  }});
   $('forecastCenter').addEventListener('click',()=>choose(map.getCenter()));
   $('forecastRetry').addEventListener('click',()=>{gustChecked=0;canadaChecked=0;loadForecast();});
   $('forecastTimeline').addEventListener('input',renderSelected);
@@ -230,7 +240,7 @@
   });
   new MutationObserver(()=>{
     
-    if(panel.hidden){requestId++;controller?.abort();controller=null;clearTimeout(choose.timer);if(marker){map.removeLayer(marker);marker=null;}}
+    if(panel.hidden){locationSearch?.cancel();requestId++;controller?.abort();controller=null;clearTimeout(choose.timer);if(marker){map.removeLayer(marker);marker=null;}}
     else{
       if(typeof stop==='function')stop();
       if(!point)choose(map.getCenter());
@@ -248,5 +258,6 @@
     $('forecastTimeline').value=String(i);renderSelected(false);selectedTime=wanted;
   });
 })();
+
 
 
