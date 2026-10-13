@@ -46,7 +46,7 @@ def request(address, start=None, length=None):
     for attempt in range(4):
         # The shared decoder is used by both regional updaters. Space requests
         # and honour provider slow-down replies instead of restarting a cycle.
-        time.sleep(1)
+        time.sleep(2)
         try:
             with urllib.request.urlopen(urllib.request.Request(address,headers=headers),timeout=90) as response:
                 if start is not None:

@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: forecast-ecmwf-cache
+  group: forecast-canada-cache
   cancel-in-progress: false
 
 env:

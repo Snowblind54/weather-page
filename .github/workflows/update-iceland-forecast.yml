@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: forecast-ecmwf-cache
+  group: forecast-iceland-cache
   cancel-in-progress: false
 
 env:
