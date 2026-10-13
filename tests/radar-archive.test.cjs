@@ -29,3 +29,12 @@ test('compressed mobile cache is bounded separately from decoded mosaic memory',
  const h=harness();h.c.entry={whole:new Uint8Array(1024*1024),parts:new Map()};
  for(let i=0;i<10;i++)h.run('touchRadarArchive("frame'+i+'",entry)');assert(h.run('radarArchiveCache.size')<=4);
 });
+
+test('A decoded archive tile is reused across frame rebuilds and released within the shared budget',async()=>{
+ const h=harness(),Cache=require('../js/decoded-image-cache.js');let decodes=0,closed=0;
+ h.c.window={NorthernDecodedImageCache:Cache};h.c.createImageBitmap=async()=>{decodes++;return {width:256,height:256,close(){closed++}}};
+ h.c.tileCoords={x:4,y:3};
+ const a=await h.run('acquireRadarArchiveTile(record,tileCoords,3)');a.release();
+ const b=await h.run('acquireRadarArchiveTile(record,tileCoords,3)');assert.equal(a.image,b.image);assert.equal(decodes,1);assert.equal(h.calls.length,1);b.release();
+ h.run('radarDecodedImages.clear()');assert.equal(closed,1);
+});

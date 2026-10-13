@@ -4,9 +4,10 @@
   document.title=document.title.replace(/Northern Weather Map v8\.\d+\b/,'Northern Weather Map v8.140');
  const nativeMetadata=cloudEnsureMetadata,nativeTile=cloudGetTile,nativeKey=cloudTileKey;
  let manifest=null,checkedAt=0,pending=null;
- const images=new Map(),downloads=new Map();
+
  const mobile=typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches;
  const imageBudget=mobile?8*1024*1024:24*1024*1024;
+ const images=new window.NorthernDecodedImageCache({maxBytes:imageBudget});
  async function refresh(force=false){
   if(pending)return pending;if(!force&&Date.now()-checkedAt<60000)return;
   pending=(async()=>{
@@ -84,29 +85,24 @@
   if(r.archive&&(typeof validCloudArchive!=='function'||!validCloudArchive(r)))return null;
   return {r,path:r.paths[index],factor,x:coords.x%factor,y:coords.y%factor};
  }
- async function imageFor(path,record){
-  if(images.has(path)){const hit=images.get(path);images.delete(path);images.set(path,hit);return hit;}
-  if(downloads.has(path))return downloads.get(path);
-  const session=cloudSession,ctrl=new AbortController();cloudControllers.add(ctrl);
-  const timer=setTimeout(()=>ctrl.abort(),15000);
-  const p=(async()=>{
-   let blob;
-   if(record.archive)blob=await cloudArchiveBlob(record,path);
-   else {const r=await fetch(path,{signal:ctrl.signal});if(!r.ok)throw Error('Cloud tile HTTP '+r.status);blob=await r.blob();}
-   let drawable,url;
+ function imageFor(path,record){
+  return images.acquire(path,async()=>{
+   const session=cloudSession,ctrl=new AbortController();cloudControllers.add(ctrl);
+   const timer=setTimeout(()=>ctrl.abort(),15000);let drawable,url;
    try{
+    let blob;
+    if(record.archive)blob=await cloudArchiveBlob(record,path);
+    else {const r=await fetch(path,{signal:ctrl.signal});if(!r.ok)throw Error('Cloud tile HTTP '+r.status);blob=await r.blob();}
     if(typeof createImageBitmap==='function')drawable=await createImageBitmap(blob);
     else {url=URL.createObjectURL(blob);drawable=new Image();await new Promise((resolve,reject)=>{drawable.onload=resolve;drawable.onerror=reject;drawable.src=url;});}
+    const width=drawable.width||drawable.naturalWidth,height=drawable.height||drawable.naturalHeight;
     if(session!==cloudSession)throw Error('Cloud loading cancelled');
-    const canvas=document.createElement('canvas');canvas.width=drawable.width||drawable.naturalWidth;canvas.height=drawable.height||drawable.naturalHeight;
-    if(![256,512,1024].includes(canvas.width)||canvas.width!==canvas.height)throw Error('Invalid cloud block dimensions');
-    canvas.getContext('2d').drawImage(drawable,0,0);
-    images.set(path,canvas);
-    while([...images.values()].reduce((n,c)=>n+c.width*c.height*4,0)>imageBudget)images.delete(images.keys().next().value);
-    return canvas;
-   }finally{drawable?.close?.();if(url)URL.revokeObjectURL(url);}
-  })().finally(()=>{clearTimeout(timer);cloudControllers.delete(ctrl);downloads.delete(path);});
-  downloads.set(path,p);return p;
+    if(![256,512,1024].includes(width)||width!==height)throw Error('Invalid cloud block dimensions');
+    // Draw directly from the decoded bitmap; avoid copying the whole block into another canvas.
+    return drawable;
+   }catch(error){drawable?.close?.();throw error;}
+   finally{clearTimeout(timer);cloudControllers.delete(ctrl);if(url)URL.revokeObjectURL(url);}
+  });
  }
  cloudEnsureMetadata=async function(force=false){
   await refresh(force);
@@ -130,10 +126,11 @@
  cloudGetTile=function(coords,time,priority=0){
   const s=selection(coords,time);if(!s)return nativeTile(coords,time,priority);
   const key=cloudTileKey(coords,time);
-  if(cloudTileCache.has(key))return Promise.resolve(cloudTileCache.get(key));
+  if(cloudTileCache.has(key)){const hit=cloudTileCache.get(key);cloudTileCache.delete(key);cloudTileCache.set(key,hit);return Promise.resolve(hit);}
   if(cloudTilePromises.has(key))return cloudTilePromises.get(key);
   const session=cloudSession;
-  const p=imageFor(s.path,s.r).then(source=>{
+  const p=imageFor(s.path,s.r).then(lease=>{
+   try{const source=lease.image;
    if(session!==cloudSession)throw Error('Cloud loading cancelled');
    const size=cloudTileResolution(coords),canvas=document.createElement('canvas');canvas.width=canvas.height=size;
    const span=source.width/s.factor;
@@ -143,10 +140,11 @@
    const budget=mobile?16*1024*1024:CLOUD_CACHE_BYTES;
    while(cloudTileCache.size>CLOUD_TILE_CACHE_LIMIT||cloudCacheBytes()>budget)cloudTileCache.delete(cloudTileCache.keys().next().value);
    return result;
+   }finally{lease.release();}
   }).catch(e=>{if(session!==cloudSession)throw e;cloudTilePromises.delete(key);return nativeTile(coords,time,priority);})
    .finally(()=>{if(cloudTilePromises.get(key)===p)cloudTilePromises.delete(key);});
   cloudTilePromises.set(key,p);return p;
  };
- map.on('movestart zoomstart',()=>{images.clear();});
+ // Immutable decoded blocks remain reusable across pans and zooms, bounded by imageBudget.
  $('cloudOn').addEventListener('change',()=>{if(!$('cloudOn').checked)images.clear();});
 })();

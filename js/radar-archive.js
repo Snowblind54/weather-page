@@ -86,3 +86,16 @@ async function decodeRadarArchiveTile(record,tile,z,allowed){
   if(image.width!==256||image.height!==256||!allowed()){image.close?.();throw new Error('Invalid or obsolete archive tile');}
   return image;
 }
+
+// Retain a small decoded tile working set, sharing the existing frame memory limit.
+let radarDecodedImages=null;
+function radarDecodedImageCache(){
+ return radarDecodedImages||(radarDecodedImages=new window.NorthernDecodedImageCache({maxEntries:32,maxBytes:()=>{
+ const light=typeof radarLightMode==='function'&&radarLightMode();
+ const frameBytes=typeof preparedRadarFrames==='undefined'?0:[...preparedRadarFrames.values()].reduce((n,f)=>n+f.canvas.width*f.canvas.height*4,0);
+ return Math.max(0,Math.min((light?2:8)*1024*1024,(light?8:40)*1024*1024-frameBytes));
+}}));
+}
+function acquireRadarArchiveTile(record,tile,z){
+ return radarDecodedImageCache().acquire(record.archive.path+'|'+z+'/'+tile.x+'/'+tile.y,()=>decodeRadarArchiveTile(record,tile,z,()=>true));
+}

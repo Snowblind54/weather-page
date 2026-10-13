@@ -63,8 +63,9 @@ function preparedRadarPlan(record,z){
 function cachePreparedRadarFrame(key,frame){
   preparedRadarFrames.delete(key);preparedRadarFrames.set(key,frame);
   const limit=(typeof radarLightMode==='function'&&radarLightMode()?8:40)*1024*1024;
+  radarDecodedImages?.trim();
   let total=[...preparedRadarFrames.values()].reduce((n,f)=>n+f.canvas.width*f.canvas.height*4,0);
-  while(preparedRadarFrames.size>36||total>limit){const oldest=preparedRadarFrames.keys().next().value,f=preparedRadarFrames.get(oldest);total-=f.canvas.width*f.canvas.height*4;preparedRadarFrames.delete(oldest);}
+  while(preparedRadarFrames.size>36||total+(radarDecodedImages?.bytes()||0)>limit){const oldest=preparedRadarFrames.keys().next().value,f=preparedRadarFrames.get(oldest);total-=f.canvas.width*f.canvas.height*4;preparedRadarFrames.delete(oldest);}
 }
 function preparedRadarViewToken(){const v=map.getBounds();return [map.getZoom(),v.getSouth(),v.getWest(),v.getNorth(),v.getEast()].join('|');}
 async function preparedRadarFrame(source,unix,{background=false,canPrepare=()=>true}={}){
@@ -95,7 +96,7 @@ async function preparedRadarFrame(source,unix,{background=false,canPrepare=()=>t
       try{
       const context=canvas.getContext('2d');let next=0;
       await Promise.all(Array.from({length:Math.min(4,plan.tiles.length)},async()=>{
-        while(next<plan.tiles.length){if(!allowed())throw new Error('Obsolete radar buffering');const tile=plan.tiles[next++],image=await loadPreparedRadarTile(record.archive?tile.url+'|'+key:tile.url,!pending.foreground,allowed,record.archive?()=>decodeRadarArchiveTile(record,tile,z,allowed):null);try{if(!allowed())throw new Error('Obsolete radar buffering');context.drawImage(image,(tile.x-plan.x0)*256,(tile.y-plan.y0)*256);}finally{if(record.archive)image.close?.();}}
+        while(next<plan.tiles.length){if(!allowed())throw new Error('Obsolete radar buffering');const tile=plan.tiles[next++],loaded=await loadPreparedRadarTile(record.archive?tile.url+'|'+key:tile.url,!pending.foreground,allowed,record.archive?()=>acquireRadarArchiveTile(record,tile,z):null),image=loaded.image||loaded;try{if(!allowed())throw new Error('Obsolete radar buffering');context.drawImage(image,(tile.x-plan.x0)*256,(tile.y-plan.y0)*256);}finally{loaded.release?.();}}
       }));
       if(!allowed())throw new Error('Obsolete radar buffering');
       const frame={canvas,bounds:plan.bounds,coverage:{bounds:record.bounds},url:key,time:record.time,station:record.station,prepared:true,tileCount:plan.tiles.length,loadMs:Math.round(performance.now()-started)};

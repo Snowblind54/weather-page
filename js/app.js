@@ -13,13 +13,14 @@ function start(){
     // the selected observation before advancing; never invalidate it on a clock.
     async function cloudStep(advance=false){
       if(!playing || generation!==playbackGeneration)return;
+      const dueAt=performance.now()+900;
       if(advance){
         let i=Number($('timeline').value)+1;
         if(i>Number($('timeline').max))i=Number($('timeline').min);
         $('timeline').value=i;
       }
       try{await applyFrame({awaitCloud:true,awaitRadar:true});}catch(error){console.error(error);}
-      if(playing && generation===playbackGeneration)timer=setTimeout(()=>cloudStep(true),900);
+      if(playing && generation===playbackGeneration)timer=setTimeout(()=>cloudStep(true),Math.max(0,dueAt-performance.now()));
     }
     cloudStep();return;
   }
