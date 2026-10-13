@@ -1,13 +1,15 @@
 // Measured station labels load independently of the modeled particle animation.
 const OFFICIAL_WIND_CHECK_MS=5*60*1000,OFFICIAL_WIND_MAX_AGE=3*3600;
-const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL','CA','GL','US'];
-const OFFICIAL_WIND_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland',CA:'Canada',GL:'Greenland',US:'USA'};
+const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL','CA','GL','US','FO','GB','IE'];
+const OFFICIAL_WIND_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland',CA:'Canada',GL:'Greenland',US:'USA',FO:'Faroe Islands',GB:'UK',IE:'Ireland'};
 const OFFICIAL_WIND_GUST_LABELS={
   EE:'Gust max · latest feed period',FI:'Gust max · 10 min',SE:'Gust max · 1 hour',NO:'Gust max · 1 hour',
   IS:'Gust max · latest observation',LV:'Gust max · observation period',LT:'Gust max · 1 hour',DK:'Max 3-sec mean · 10 min',
+  FO:'Max 3-sec gust · 1 hour',GB:'Reported METAR gust',IE:'Max 3-sec gust · 1 hour',
   GL:'Max 3-sec mean · 10 min',CA:'Instantaneous wind max · 10 min',US:'Measured gust',PL:'Gust max · 10 min'
 };
 const OFFICIAL_WIND_SOURCE_LINKS={
+  FO:'https://www.dmi.dk/friedata/',GB:'https://aviationweather.gov/data/metar/',IE:'https://opendata2.met.ie/edr/',
   US:'https://aviationweather.gov/data/metar/',EE:'https://www.ilmateenistus.ee/',FI:'https://en.ilmatieteenlaitos.fi/open-data',
   SE:'https://www.smhi.se/data/meteorologi/vind',NO:'https://seklima.met.no/',IS:'https://api.vedur.is/weather/',
   LV:'https://data.gov.lv/dati/lv/dataset/hidrometeorologiskie-noverojumi',LT:'https://api.meteo.lt/',PL:'https://danepubliczne.imgw.pl/',
@@ -43,7 +45,7 @@ function validateOfficialWind(data,{maxRows=200}={}){
   if(data?.version!==1||data.units!=='m/s'||data.refreshMinutes!==10||!Number.isInteger(data.generatedAt)||data.generatedAt>now+300||!Array.isArray(data.stations)||data.stations.length>10000)throw new Error('Invalid official wind snapshot');
   const ids=new Set();
   for(const s of data.stations){
-    const [south,north,west,east]=({CA:[41,84,-142,-52],GL:[59,84,-74,-10],US:[18,72,-180,180]})[s.country]||[48.5,72.5,-26,33];
+    const [south,north,west,east]=({CA:[41,84,-142,-52],GL:[59,84,-74,-10],US:[18,72,-180,180],FO:[61,63,-8,-6],GB:[49,61,-9,3],IE:[51,56,-11,-5]})[s.country]||[48.5,72.5,-26,33];
     if(!OFFICIAL_WIND_COUNTRIES.includes(s.country)||!data.sources?.[s.country]||typeof s.code!=='string'||!s.code||typeof s.name!=='string'||!Number.isFinite(s.lat)||s.lat<south||s.lat>north||!Number.isFinite(s.lon)||s.lon<west||s.lon>east||!Array.isArray(s.rows)||s.rows.length>maxRows)throw new Error('Invalid official wind station');
     const id=s.country+'/'+s.code;if(ids.has(id))throw new Error('Duplicate official wind station');ids.add(id);
     s.rows.forEach((r,i)=>{
@@ -194,3 +196,4 @@ setInterval(()=>{if(officialWindNeeded()&&!document.hidden)loadOfficialWind();},
 document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&officialWindNeeded()){renderOfficialWind();loadOfficialWind();}
 });
+

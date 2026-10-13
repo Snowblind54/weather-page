@@ -23,6 +23,9 @@ LATVIA_DATASTORE = 'https://data.gov.lv/dati/api/3/action/datastore_search?'
 LATVIA_OBS_RESOURCE = '17460efb-ae99-4d1d-8144-1068f184b05f'
 LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
+    'FO': dict(name='DMI / Faroe Islands municipal weather stations',url='https://www.dmi.dk/friedata/',timeKind='observation',period='10-minute mean wind and highest 3-second mean gust over the latest hour. Hourly gusts retain their own timestamp; missing values remain unavailable.'),
+    'GB': dict(name='Official UK airport METAR/SPECI observations via NOAA Aviation Weather Center',url='https://aviationweather.gov/data/metar/',timeKind='observation',period='UK airport mean wind and reported METAR/SPECI gusts. Unreported gusts remain unavailable.'),
+    'IE': dict(name='Met Éireann – Irish Meteorological Service',url='https://opendata2.met.ie/edr/',timeKind='observation',period='Hourly mean of 3-second wind speeds and maximum 3-second gust over the hour. Direction is the reported 3-second direction at the top of the hour.'),
     'US': dict(name='NOAA / National Weather Service Aviation Weather Center',
                url='https://aviationweather.gov/data/metar/', timeKind='observation',
                period='USA METAR/SPECI airport observations: 2-minute mean wind and reported gusts from the preceding 10 minutes. Missing gust reports remain unavailable.'),
@@ -101,7 +104,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180)}.get(country,(48.5,72.5,-26,33))
+    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5)}.get(country,(48.5,72.5,-26,33))
     if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
@@ -315,18 +318,18 @@ def parse_poland(payload):
     return result
 
 
-def parse_denmark(payloads, metadata, country='DK', provider_country='DNK', now=None):
+def parse_denmark(payloads, metadata, country='DK', provider_country='DNK', now=None, owners=('DMI',)):
     stations = {}
     for feature in metadata.get('features') or []:
         props = feature.get('properties') or {}
         coords = (feature.get('geometry') or {}).get('coordinates') or []
-        if props.get('owner') == 'DMI' and props.get('country') == provider_country and len(coords) >= 2:
+        if props.get('owner') in owners and props.get('country') == provider_country and len(coords) >= 2:
             if now is not None:
                 end = props.get('validTo'); start = props.get('validFrom')
                 if (end and timestamp(end)<=int(now.timestamp())) or (start and timestamp(start)>int(now.timestamp())):continue
             stations[str(props.get('stationId'))] = (props.get('name') or props.get('stationId'), coords[1], coords[0])
     grouped = {}
-    indexes = {'wind_speed': 1, 'wind_max': 2, 'wind_dir': 3}
+    indexes = {'wind_speed': 1, 'wind_max': 2, 'wind_gust_always_past1h': 2, 'wind_dir': 3}
     for parameter, payload in payloads.items():
         index = indexes[parameter]
         for feature in payload.get('features') or []:
@@ -505,6 +508,7 @@ def merge(previous, current, now):
 def main():
     from official_wind_americas import load_canada, load_greenland
     from official_wind_us import load_usa
+    from official_wind_atlantic import load_faroes, load_britain, load_ireland
     now = dt.datetime.now(dt.timezone.utc)
     try:
         previous = json.loads(OUTPUT.read_text())
@@ -514,7 +518,8 @@ def main():
     results, sources = [], {}
     loaders = [('EE', load_estonia), ('FI', load_finland), ('SE', load_sweden), ('NO', load_norway),
                ('IS', load_iceland), ('LV', load_latvia), ('LT', load_lithuania), ('PL', load_poland),
-               ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_usa)]
+               ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_usa),
+               ('FO', load_faroes), ('GB', load_britain), ('IE', load_ireland)]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):
@@ -546,4 +551,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 

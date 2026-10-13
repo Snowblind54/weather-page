@@ -8,6 +8,7 @@ on:
     paths:
       - scripts/official_wind_americas.py
       - scripts/official_wind_us.py
+      - scripts/official_wind_atlantic.py
       - scripts/update_us_temperature.py
       - scripts/update_official_wind.py
       - scripts/add_florida_coastal_wind.py
@@ -15,6 +16,7 @@ on:
       - scripts/publish_generated_data.sh
       - tests/test_official_wind.py
       - tests/test_official_wind_us.py
+      - tests/test_official_wind_atlantic.py
       - tests/official-wind.test.cjs
       - js/official-wind.js
       - .github/workflows/update-official-wind.yml
@@ -73,4 +75,5 @@ jobs:
       - name: Save official wind snapshots
         if: ${{ !cancelled() }}
         run: bash scripts/publish_generated_data.sh 'Refresh official Northern Europe wind observations' data/official-wind.json data/official-wind-history.json
+
 

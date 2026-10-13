@@ -17,6 +17,20 @@ test('official wind toggles work independently and missing gusts never show as z
   h.elements.officialWindSustained.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,2);assert.match(h.group.children[0].options.icon.html,/S 3.4.*G 7.2/);
   h.elements.officialWindSustained.checked=h.elements.officialWindGusts.checked=false;h.run('renderOfficialWind()');assert.equal(h.group.children.length,0);assert.equal(h.layers.size,0);
 });
+test('Faroe, UK and Irish measurements validate, label sources and preserve missing gusts',()=>{
+ const h=harness();
+ for(const [country,lat,lon,name] of [['FO',62,-6.8,'Faroe Islands'],['GB',51.5,-.4,'UK'],['IE',53.5,-7.3,'Ireland']]){
+  h.fixture.sources[country]={status:'ok',timeKind:'observation',name:'Official '+name,period:'Measured wind'};
+  h.fixture.stations.push({country,code:country+'1',name,lat,lon,rows:[[h.now-600,4.5,null,270]]});
+ }
+ h.run('officialWindData=validateOfficialWind(fixture)');
+ for(const s of h.fixture.stations.slice(-3)){
+  h.context.selected=s;
+  const popup=h.run('officialWindPopup(selected,selected.rows[0])');
+  assert.match(popup,/Unavailable/);assert(popup.includes(s.name));assert(popup.includes('Official '+s.name));
+ }
+ h.elements.officialWindSustained.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,5);
+});
 test('station selection never uses future readings, interpolates gaps, or retains observations over three hours',()=>{
   const h=harness();assert.equal(h.run('officialWindReading(fixture.stations[0],fixture.generatedAt-3600)[1]'),1);
   assert.equal(h.run('officialWindReading(fixture.stations[0],fixture.generatedAt-8000)'),null);
@@ -74,3 +88,4 @@ test('clicking measured wind controls loads the shared snapshot without enabling
   h.elements.officialWindSustained.checked=h.elements.officialWindGusts.checked=false;
   h.elements.officialWindGusts.change();assert.equal(h.group.children.length,0);
 });
+
