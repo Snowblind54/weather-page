@@ -11,8 +11,8 @@
   const CLOUD_REFRESH_MS=30*60*1000;
   const STALE={
     power:30*60,
-    wind:15*60,
-    bz:15*60,
+    wind:30*60,
+    bz:30*60,
     kp:7*60*60,
     ovationForecastGrace:20*60,
     cloud:9*60*60

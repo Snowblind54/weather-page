@@ -131,7 +131,7 @@
   function bzTrend(history,now){
     if(!Array.isArray(history))return 'Trend unavailable';
     const rows=history.filter(r=>Array.isArray(r)&&finite(r[1])&&stamp(r[0])<=now+60000&&stamp(r[0])>=now-30*60000).sort((a,b)=>stamp(a[0])-stamp(b[0]));
-    if(rows.length<4||now-stamp(rows.at(-1)[0])>15*60000)return 'Trend unavailable';
+    if(rows.length<4||now-stamp(rows.at(-1)[0])>30*60000)return 'Trend unavailable';
     const early=rows.slice(0,Math.floor(rows.length/2)),late=rows.slice(Math.floor(rows.length/2));
     const mean=xs=>xs.reduce((v,r)=>v+r[1],0)/xs.length,diff=mean(late)-mean(early);
     return diff<=-2?'Turning more southward':diff>=2?'Turning more northward':'Little recent change';
@@ -143,7 +143,7 @@
     const cloud=cloudAt(grid,point,now),cloudNext=cloudAt(grid,point,now+HOUR);
     const cloudFresh=age(grid?.reference_time,18*HOUR)&&cloud!==null&&cloudNext!==null;
     const spaceFresh=age(snapshot?.generatedAt,15*60000)&&age(aurora?.observationTime,90*60000)&&finite(stamp(aurora?.forecastTime))&&stamp(aurora.forecastTime)>=now-20*60000&&stamp(aurora.forecastTime)<=now+90*60000;
-    const windFresh=age(wind?.speedTime,15*60000)&&age(wind?.magTime,15*60000)&&finite(wind?.speed)&&finite(wind?.bz);
+    const windFresh=age(wind?.speedTime,30*60000)&&age(wind?.magTime,30*60000)&&finite(wind?.speed)&&finite(wind?.bz);
     let signal=auroraAt(snapshot,point);
     // Aurora can be visible on the horizon. Use a regional signal, never call
     // the weighted neighbouring intensity a calibrated local probability.
@@ -160,7 +160,7 @@
     if(!finite(currentSun)){label='Conditions unavailable';reason='Solar geometry is unavailable.';}
     else if(currentSun>=-12){label='Not dark enough yet';reason='Wait until the sky is darker. The 48-hour planner can find a later window.';}
     else if(sun>=-12){label='Darkness is ending';reason='The sky will brighten during the next hour.';}
-    else if(!fresh){label='Wait for fresh live data';reason=!cloudFresh?'The current cloud forecast is missing or older than 18 hours.':!spaceFresh?'The short-term aurora forecast is missing or stale.':'Solar-wind speed or Bz is missing or older than 15 minutes.';}
+    else if(!fresh){label='Wait for fresh live data';reason=!cloudFresh?'The current cloud forecast is missing or older than 18 hours.':!spaceFresh?'The short-term aurora forecast is missing or stale.':'Solar-wind speed or Bz is missing or older than 30 minutes.';}
     else if(average>=75){label='Clouds limit viewing';reason='Most of the sky is forecast to be covered during the next hour.';}
     else if(signal<10){label='Activity looks weak';reason='NOAA shows a weak regional aurora signal, even with a dark sky.';}
     else if(score>=20&&wind.bz<0){label='Worth heading out now';reason='Darkness, clearer forecast skies and a fresh aurora signal align. Southward Bz supports activity.';}

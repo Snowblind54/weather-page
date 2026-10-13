@@ -153,7 +153,7 @@ window.addEventListener('load',()=>{
   spaceWeatherScript.src='js/space-weather-v4.js?v=aurora-planner-1';
   spaceWeatherScript.onload=()=>{
     const dashboardScript=document.createElement('script');
-    dashboardScript.src='js/space-weather-dashboard.js?v=4';
+    dashboardScript.src='js/space-weather-dashboard.js?v=solar-freshness-30m';
     document.body.appendChild(dashboardScript);
   };
   document.body.appendChild(spaceWeatherScript);

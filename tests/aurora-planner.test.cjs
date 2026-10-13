@@ -78,3 +78,10 @@ test('Go now handles missing aurora grids, northward Bz, zero readings and stale
  s.aurora.forecastTime=new Date(now-2*hour).toISOString();assert.equal(D.goNow(inputs).label,'Wait for fresh live data');
  delete s.aurora;assert.equal(D.goNow(inputs).fresh,false);assert.equal(D.auroraAt(s,point),null);
 });
+
+test('Go now tolerates normal 25-minute solar-feed delays and rejects readings older than 30 minutes',()=>{
+ const g=D.decodeGrid(grid(),meta(),6),s=liveSnapshot(),inputs={point,grid:g,snapshot:s,now,altitude:()=>-25};
+ s.solarWind.speedTime=new Date(now-25*60000).toISOString();s.solarWind.magTime=new Date(now-25*60000).toISOString();
+ assert.equal(D.goNow(inputs).windFresh,true);assert.equal(D.goNow(inputs).label,'Worth heading out now');
+ s.solarWind.magTime=new Date(now-31*60000).toISOString();assert.equal(D.goNow(inputs).windFresh,false);assert.match(D.goNow(inputs).reason,/30 minutes/);
+});
