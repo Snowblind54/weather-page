@@ -10,6 +10,10 @@ on:
       - scripts/radar_archive.py
       - scripts/check_radar_archives.py
       - tests/radar-archive.test.cjs
+      - tests/radar-tiles.test.cjs
+      - tests/decoded-image-cache.test.cjs
+      - tests/cloud-decoded-reuse.test.cjs
+      - tests/playback-clock.test.cjs
       - scripts/update_nordic_radar.py
       - scripts/requirements-radar-tiles.txt
       - tests/test_radar_tiles.py
@@ -56,7 +60,7 @@ jobs:
       - name: Check georeferencing, sparse tiles and failure retention
         run: python3 -m unittest discover -s tests -p test_radar_tiles.py -v
       - name: Check archive browser loading and memory limits
-        run: node --test tests/radar-archive.test.cjs tests/radar-tiles.test.cjs
+        run: node --test tests/radar-archive.test.cjs tests/radar-tiles.test.cjs tests/decoded-image-cache.test.cjs tests/cloud-decoded-reuse.test.cjs tests/playback-clock.test.cjs
       - name: Prepare new observations and keep last successful frames
         run: python3 scripts/update_radar_tiles.py
       - name: Publish immutable tiles and archive measurements
