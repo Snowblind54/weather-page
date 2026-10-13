@@ -43,6 +43,7 @@
   const date=time=>new Date(time).toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:zone});
   const num=(value,digits=1)=>value===null||value===undefined?'—':value.toFixed(digits);
   const text=(tag,value,className)=>{const e=document.createElement(tag);e.textContent=value;if(className)e.className=className;return e;};
+  let searchScrollPending=false;
   let point=null,marker=null,payload=null,forecastRows=[],selectedTime=null,requestId=0,controller=null,refreshAfter=0,view='hourly';
   let gustGrid=null,gustChecked=0,gustPromise=null;
   const inIceland=p=>p&&Number(p.lat)>=61&&Number(p.lat)<=69&&Number(p.lon)>=-28&&Number(p.lon)<=-12;
@@ -175,6 +176,11 @@
     $('forecastGustAttribution').hidden=!all.some(row=>row.gustSource);
     $('forecastProvider').textContent=all.some(row=>row.gustSource)?'MET NORWAY + ECMWF':'MET NORWAY';
     $('forecastContent').hidden=false;renderSelected(syncMap);
+    if(searchScrollPending){
+      searchScrollPending=false;
+      const location=$('forecastLocation'),heading=panel.querySelector('.panel-heading');
+      panel.scrollTo({top:Math.max(0,panel.scrollTop+location.getBoundingClientRect().top-panel.getBoundingClientRect().top-heading.getBoundingClientRect().height-12),behavior:'smooth'});
+    }
   }
   function setStatus(message,bad=false){$('forecastStatus').textContent=message;$('forecastStatus').className='status'+(bad?' bad':'');}
   async function loadForecast(){
@@ -205,6 +211,7 @@
     }finally{clearTimeout(timer);if(controller===abort)controller=null;}
   }
   function choose(latlng,placeName){
+    searchScrollPending=!!placeName;
     requestId++;controller?.abort();controller=null;payload=null;refreshAfter=0;
     const longitude=((latlng.lng+180)%360+360)%360-180;
     point={lat:Math.max(-90,Math.min(90,latlng.lat)).toFixed(3),lon:longitude.toFixed(3),markerLon:Number(longitude.toFixed(3))+Math.round((latlng.lng-longitude)/360)*360};
