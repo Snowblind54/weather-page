@@ -180,7 +180,7 @@ def render(grid, lat, lon, kind, palette, destination, exclusion=None, bounds=No
     for first in range(0,size,64):
         la,ln = np.meshgrid(sample_lat[first:first+64],sample_lon,indexing='ij')
         values = sampler(np.stack((la,ln),axis=-1))
-        bins = np.clip(np.floor((values-lo)/(hi-lo)*len(palette)),0,len(palette)-1).astype(int)
+        bins = np.clip(np.floor((values-lo)/(hi-lo)*len(palette)+1e-9),0,len(palette)-1).astype(int)
         rgba = palette[bins].copy()
         if kind=='rain': rgba[values<lo,3]=0
         if exclusion is not None: rgba[exclusion[first:first+64],3]=0
