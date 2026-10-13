@@ -18,11 +18,11 @@ const polygon=[[55,20],[56,20],[56,21],[55,20]];
 const updatedAt=new Date(Date.now()-3*3600000).toISOString();
 const future=new Date(Date.now()+3600000).toISOString();
 const past=new Date(Date.now()-1000).toISOString();
-for(const country of ['Latvia','Poland','Denmark','Greenland','Canada'])test(`${country}: overdue warnings remain visible, expired ones disappear`,()=>{
+for(const country of ['Latvia','Poland','Denmark','Greenland','Canada','United Kingdom','Ireland'])test(`${country}: overdue warnings remain visible, expired ones disappear`,()=>{
   const h=harness();const record={country,level:'Moderate',effective:updatedAt,expires:future,messageExpires:future,polygons:[polygon]};
   h.c.record=record;h.c.snapshot={version:1,updatedAt,records:[record]};
   if(country==='Latvia')h.run('records=validateLatviaSnapshot(snapshot)');
-  else {h.c.snapshot.countries={[({Poland:'PL',Denmark:'DK',Greenland:'GL',Canada:'CA'})[country]]:{country,updatedAt,records:[record]}};h.run(`records=validateNationalWarningCountry(snapshot,'${({Poland:'PL',Denmark:'DK',Greenland:'GL',Canada:'CA'})[country]}')`);}
+  else {h.c.snapshot.countries={[({Poland:'PL',Denmark:'DK',Greenland:'GL',Canada:'CA','United Kingdom':'UK',Ireland:'IE'})[country]]:{country,updatedAt,records:[record]}};h.run(`records=validateNationalWarningCountry(snapshot,'${({Poland:'PL',Denmark:'DK',Greenland:'GL',Canada:'CA','United Kingdom':'UK',Ireland:'IE'})[country]}')`);}
   assert.equal(h.run('records.length'),1);
   assert.equal(h.run('warningIsTodayOrTomorrow(records[0])'),true);
   h.c.nordicWarnings=h.run('records');

@@ -726,7 +726,7 @@ async function loadWarnings(force=false){
   const parts=[`${allRecords.length} active warning records`];
   for(const [country,label] of [
     ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
-    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['Greenland','GL'],['Canada','CA'],['USA','US']
+    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['United Kingdom','UK'],['Ireland','IE'],['Greenland','GL'],['Canada','CA'],['USA','US']
   ]){
     if(counts.get(country)) parts.push(`${label} ${counts.get(country)}`);
   }
@@ -1642,6 +1642,8 @@ async function loadNordicWarnings(force=false){
       },
       {country:'Poland',run:()=>loadNationalWarningCountry('PL')},
       {country:'Denmark',run:()=>loadNationalWarningCountry('DK')},
+      {country:'United Kingdom',run:()=>loadNationalWarningCountry('UK')},
+      {country:'Ireland',run:()=>loadNationalWarningCountry('IE')},
       {country:'Greenland',run:()=>loadNationalWarningCountry('GL')},
       {country:'Canada',run:()=>loadNationalWarningCountry('CA')},
       {country:'USA',run:()=>loadNationalWarningCountry('US')},
