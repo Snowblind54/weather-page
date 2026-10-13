@@ -172,7 +172,7 @@ renderNordicWarnings=async function(){
     const marine=isFinnishMarineWarning(record);
     let firstLayer=null;
 
-    for(const polygon of (record.polygons||[])){
+    for(const polygon of ((record.polygons||[]).length?[record.polygons]:[])){
       const options=marine ? {
         pane:'warningPane',
         color:sev.color,
@@ -189,8 +189,8 @@ renderNordicWarnings=async function(){
         fillOpacity:record.level==='Information'?.09:.22
       };
 
-      const layer=L.polygon(polygon,options)
-        .bindPopup(nordicWarningPopupHtml(record),{maxWidth:380});
+      const layer=window.NorthernWarningViewport.polygons(polygon,options)
+        .bindPopup(()=>nordicWarningPopupHtml(record),{maxWidth:380});
 
       layer.warningRecord=record;
       warningLayerGroup.addLayer(layer);
@@ -217,8 +217,8 @@ renderNordicWarnings=async function(){
         fillOpacity:.20
       };
 
-      const layer=L.circle(circle.center,options)
-        .bindPopup(nordicWarningPopupHtml(record),{maxWidth:380});
+      const layer=window.NorthernWarningViewport.circle(circle.center,options)
+        .bindPopup(()=>nordicWarningPopupHtml(record),{maxWidth:380});
 
       layer.warningRecord=record;
       warningLayerGroup.addLayer(layer);
@@ -386,4 +386,3 @@ $('warningOn').addEventListener('change',()=>{
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible') purgeExpiredWarningDisplay();
 });
-

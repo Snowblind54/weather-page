@@ -20,7 +20,7 @@ function harness(){
  const c={Date:Clock,Intl,Map,Set,Promise,Object,Array,console,DOMParser:class{parseFromString(){return fixtureDocument()}},
  setTimeout:()=>1,clearTimeout(){},$:id=>elements[id],document:{addEventListener(){},createElement(){return {style:{},addEventListener(){}}}},
  warningRecords:[],lithuaniaWarnings:[],renderLithuaniaWarnings:async()=>{},latviaWarningSnapshotUpdatedAt:null,nationalWarningSnapshot:null};
- vm.createContext(c);vm.runInContext(read('js/estonia-warning-data.js')+read('js/warnings.js')+read('js/warning-filters.js'),c);
+ c.window={NorthernWarningViewport:{geoJSON:(...args)=>c.L.geoJSON(...args)}};vm.createContext(c);vm.runInContext(read('js/estonia-warning-data.js')+read('js/warnings.js')+read('js/warning-filters.js'),c);
  c.setNow=value=>{now=Date.parse(value)};c.elements=elements;return c;
 }
 test('official XML retains all six warnings, including sea names containing Lääne',()=>{

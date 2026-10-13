@@ -53,7 +53,9 @@ async function fetchNationalWarningSnapshot(){
         if(data?.version!==1 || !data.countries) throw new Error('Invalid national warning snapshot');
         nationalWarningSnapshot=data;
         nationalWarningSnapshotFetchedAt=Date.now();
-        try{localStorage.setItem(NATIONAL_WARNING_CACHE_KEY,JSON.stringify(data));}catch(_){}
+        // Avoid a large synchronous copy that exceeds browser storage quotas.
+        const polygonCount=Object.values(data.countries).reduce((n,c)=>n+(Array.isArray(c?.records)?c.records:[]).reduce((total,r)=>total+(Array.isArray(r?.polygons)?r.polygons.length:0),0),0);
+        if(polygonCount<=400){try{localStorage.setItem(NATIONAL_WARNING_CACHE_KEY,JSON.stringify(data));}catch(_){}}
         return data;
       }catch(error){lastError=error;}finally{clearTimeout(timer);}
     }
@@ -70,4 +72,3 @@ async function loadNationalWarningCountry(code){
   const data=await fetchNationalWarningSnapshot();
   return {records:validateNationalWarningCountry(data,code),official:true,updatedAt:data.countries[code].updatedAt};
 }
-

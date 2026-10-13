@@ -559,7 +559,7 @@ async function renderWarnings(){
       const matching=(countyGeo.features||[]).filter(f=>featureCountyName(f)===county);
 
       for(const f of matching){
-        const layer=L.geoJSON(f,{
+        const layer=window.NorthernWarningViewport.geoJSON(f,{
           pane:'warningPane',
           style:{
             pane:'warningPane',
@@ -587,7 +587,7 @@ async function renderWarnings(){
       if(marineFeature){
         // Holes and disconnected water polygons preserve mainland and islands.
         // If geometry fails, keep the warning card without painting over land.
-        const layer=L.geoJSON(marineFeature,{pane:'warningPane',style:{
+        const layer=window.NorthernWarningViewport.geoJSON(marineFeature,{pane:'warningPane',style:{
           pane:'warningPane',
           color:sev.color,
           weight:3,
@@ -1052,7 +1052,7 @@ async function renderLithuaniaWarnings(){
       const matches=(geo.features||[]).filter(f=>ltFeatureMatches(f,w.area));
 
       for(const f of matches){
-        const layer=L.geoJSON(f,{
+        const layer=window.NorthernWarningViewport.geoJSON(f,{
           pane:'warningPane',
           style:{
             pane:'warningPane',
@@ -1733,15 +1733,15 @@ async function renderNordicWarnings(){
     const sev=warningSeverity(record.level);
     let firstLayer=null;
 
-    for(const polygon of (record.polygons||[])){
-      const layer=L.polygon(polygon,{
+    for(const polygon of ((record.polygons||[]).length?[record.polygons]:[])){
+      const layer=window.NorthernWarningViewport.polygons(polygon,{
         pane:'warningPane',
         color:sev.color,
         weight:record.level==='Information'?1.5:3,
         opacity:record.level==='Information'?.70:.96,
         fillColor:sev.color,
         fillOpacity:record.level==='Information'?.09:.22
-      }).bindPopup(nordicWarningPopupHtml(record),{maxWidth:380});
+      }).bindPopup(()=>nordicWarningPopupHtml(record),{maxWidth:380});
 
       warningLayerGroup.addLayer(layer);
       if(!firstLayer) firstLayer=layer;
@@ -1749,7 +1749,7 @@ async function renderNordicWarnings(){
     }
 
     for(const circle of (record.circles||[])){
-      const layer=L.circle(circle.center,{
+      const layer=window.NorthernWarningViewport.circle(circle.center,{
         pane:'warningPane',
         radius:circle.radiusKm*1000,
         color:sev.color,
@@ -1757,7 +1757,7 @@ async function renderNordicWarnings(){
         opacity:record.level==='Information'?.70:.96,
         fillColor:sev.color,
         fillOpacity:.20
-      }).bindPopup(nordicWarningPopupHtml(record),{maxWidth:380});
+      }).bindPopup(()=>nordicWarningPopupHtml(record),{maxWidth:380});
 
       warningLayerGroup.addLayer(layer);
       if(!firstLayer) firstLayer=layer;
@@ -1798,4 +1798,3 @@ async function renderNordicWarnings(){
 
   return mapped;
 }
-

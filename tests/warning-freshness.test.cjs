@@ -49,7 +49,7 @@ test('Canadian statement labels and subdued polygons render while Finnish marine
   h.c.document={createElement:()=>({style:{},addEventListener(){}})};
   h.c.$=id=>id==='warningList'?{appendChild:card=>cards.push(card)}:h.status;
   h.c.L={polygon:(geometry,options)=>({geometry,options,bindPopup(content){this.content=content;return this;}})};
-  h.c.warningLayerGroup={addLayer:layer=>layers.push(layer)};
+  h.c.warningLayerGroup={addLayer:layer=>layers.push(layer)};h.c.window={NorthernWarningViewport:{polygons:(geometry,options)=>h.c.L.polygon(geometry,options)}};
   h.c.isFinnishMarineWarning=record=>record.country==='Finland';
   h.c.scheduleWarningExpiryRefresh=()=>{};
   const src=read('warnings.js');
@@ -61,7 +61,7 @@ test('Canadian statement labels and subdued polygons render while Finnish marine
   h.c.nordicWarnings=[{...base,country:'Canada',level:'Information',alertType:'Statement',messageExpires:future,timeZone:'America/Vancouver'}, {...base,country:'Finland',level:'Moderate'}];
   assert.equal(await h.run('renderNordicWarnings()'),2);
   assert.equal(layers[0].options.fillOpacity,.09);
-  assert.match(layers[0].content,/Statement · Information/);
+  assert.match(layers[0].content(),/Statement · Information/);
   assert.match(cards[0].innerHTML,/Statement · Information/);
   assert.equal(layers[0].warningRecord.country,'Canada');
   assert.equal(layers[1].options.fill,false);
