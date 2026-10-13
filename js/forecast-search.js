@@ -21,7 +21,7 @@
       [...results.children].forEach((e,i)=>e.setAttribute('aria-selected',String(i===index)));
     }
     function select(place){
-      cancel();hide();input.value=place.label;message('Showing forecast for '+place.label+'.');onChoose(place);
+      cancel();hide();input.value=place.label;input.blur?.();message('Showing forecast for '+place.label+'.');onChoose(place);
     }
     function show(items){
       hide();found=items;
@@ -56,7 +56,7 @@
       else if(found.length&&['ArrowDown','ArrowUp','Enter'].includes(event.key)){
         event.preventDefault();
         if(event.key==='Enter'){select(found[active<0?0:active]);}
-        else highlight((active+(event.key==='ArrowDown'?1:-1)+found.length)%found.length);
+        else highlight(active<0?(event.key==='ArrowDown'?0:found.length-1):(active+(event.key==='ArrowDown'?1:-1)+found.length)%found.length);
       }
     });
     form.addEventListener('submit',event=>{event.preventDefault();search();});
