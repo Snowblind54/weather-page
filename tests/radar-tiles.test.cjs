@@ -46,7 +46,7 @@ test('zooming during a tile download releases the unfinished mosaic and cannot c
 test('archive tiles render through the existing viewport queue and release decoded images',async()=>{
  const {c,record,calls}=harness();let decoded=0,closed=0;
  c.validRadarArchive=()=>true;record.archive={version:1,path:record.path+'.bin'};
- c.decodeRadarArchiveTile=async()=>{decoded++;return {kind:'decoded-image',close(){closed++;}};};
+ c.acquireRadarArchiveTile=async()=>{decoded++;return {image:{kind:'decoded-image'},release(){closed++;}};};
  const frame=await vm.runInContext("preparedRadarFrame('fi',1000)",c);
  assert(frame.prepared);assert.equal(decoded,1);assert.equal(closed,1);assert.equal(calls.length,0);
 });

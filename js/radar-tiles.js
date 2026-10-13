@@ -63,9 +63,10 @@ function preparedRadarPlan(record,z){
 function cachePreparedRadarFrame(key,frame){
   preparedRadarFrames.delete(key);preparedRadarFrames.set(key,frame);
   const limit=(typeof radarLightMode==='function'&&radarLightMode()?8:40)*1024*1024;
-  radarDecodedImages?.trim();
+  const decodedCache=typeof radarDecodedImages==='undefined'?null:radarDecodedImages;
+  decodedCache?.trim();
   let total=[...preparedRadarFrames.values()].reduce((n,f)=>n+f.canvas.width*f.canvas.height*4,0);
-  while(preparedRadarFrames.size>36||total+(radarDecodedImages?.bytes()||0)>limit){const oldest=preparedRadarFrames.keys().next().value,f=preparedRadarFrames.get(oldest);total-=f.canvas.width*f.canvas.height*4;preparedRadarFrames.delete(oldest);}
+  while(preparedRadarFrames.size>36||total+(decodedCache?.bytes()||0)>limit){const oldest=preparedRadarFrames.keys().next().value,f=preparedRadarFrames.get(oldest);total-=f.canvas.width*f.canvas.height*4;preparedRadarFrames.delete(oldest);}
 }
 function preparedRadarViewToken(){const v=map.getBounds();return [map.getZoom(),v.getSouth(),v.getWest(),v.getNorth(),v.getEast()].join('|');}
 async function preparedRadarFrame(source,unix,{background=false,canPrepare=()=>true}={}){
