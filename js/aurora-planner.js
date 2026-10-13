@@ -4,7 +4,7 @@
   if(!panel||!D||typeof map==='undefined')return;
   const $=id=>document.getElementById(id),section=document.createElement('section');
   section.className='section aurora-planner';section.setAttribute('aria-labelledby','auroraPlannerTitle');
-  section.innerHTML=`<div class="space-section-title"><div><h3 id="auroraPlannerTitle">Aurora viewing planner</h3><div class="small">Your next 48 hours · nearby clearer skies</div></div></div>
+  section.innerHTML=`<div class="space-section-title"><h3 id="auroraPlannerTitle"><label><input id="auroraPlannerOn" type="checkbox" aria-controls="auroraPlannerSettings" aria-expanded="false"> Aurora viewing planner</label></h3></div><div id="auroraPlannerSettings" hidden><div class="small">Your next 48 hours · nearby clearer skies</div>
     <form id="auroraPlannerSearch" class="aurora-planner-search" role="search"><label for="auroraPlannerInput">Choose a location</label><div><input id="auroraPlannerInput" type="search" placeholder="Town or city" autocomplete="off" role="combobox" aria-controls="auroraPlannerMatches" aria-expanded="false"><button type="submit">Search</button></div><ul id="auroraPlannerMatches" role="listbox" aria-label="Planner locations" hidden></ul></form>
     <div class="aurora-planner-actions"><button id="auroraPlannerPick" type="button" aria-pressed="false">Pick on map</button><button id="auroraPlannerGPS" type="button">Use my location</button></div>
     <div id="auroraPlannerLocation" class="small">Search for a place, pick a map point or use your location.</div>
@@ -12,8 +12,9 @@
     <div class="aurora-planner-modes" role="group" aria-label="Planner mode"><button id="auroraPlannerOutlook" type="button" aria-pressed="true">Next 48 hours</button><button id="auroraPlannerNow" type="button" aria-pressed="false">Go now</button></div>
     <button id="auroraPlannerRun" class="aurora-planner-run" type="button">Find best viewing window</button>
     <p id="auroraPlannerStatus" class="small" role="status" aria-live="polite">Uses darkness, forecast clouds and NOAA forecast activity.</p><div id="auroraPlannerCloudTimeline"></div><div id="auroraPlannerResults"></div>
-    <details class="aurora-planner-info"><summary>How the planner works</summary><p>Compares two-hour windows at your location and eight surrounding map points. Natural Earth land boundaries and lakes exclude mapped water; if land verification fails, no viewing spots are recommended. Clouds use the nearest native 0.25° ECMWF grid point, with time interpolation between three-hour forecasts. Darkness is calculated locally; NOAA’s three-hour Kp forecast supplies the activity outlook.</p><p>Ratings are relative guidance, not a probability or a sighting guarantee. Magnetic latitude is approximated. Current OVATION and solar wind are short-term signals, not a forecast for the whole night. Mapped land is not a guarantee of public access or safe terrain: check access and a clear northern horizon. Light pollution, moonlight and terrain are not included.</p><p>Planning confidence uses lead time, cloud model age and cloud variability nearby and through time. It is capped at Moderate because only one cloud model is used; independent model agreement is not checked.</p><p>Go now checks the next hour using modelled clouds, darkness, fresh NOAA OVATION and solar wind/Bz. Live readings must be fresh; short-term signals are not carried into tomorrow’s outlook.</p></details>`;
-  const layers=panel.querySelector('.space-layer-section');layers.after(section);
+    <details class="aurora-planner-info"><summary>How the planner works</summary><p>Compares two-hour windows at your location and eight surrounding map points. Natural Earth land boundaries and lakes exclude mapped water; if land verification fails, no viewing spots are recommended. Clouds use the nearest native 0.25° ECMWF grid point, with time interpolation between three-hour forecasts. Darkness is calculated locally; NOAA’s three-hour Kp forecast supplies the activity outlook.</p><p>Ratings are relative guidance, not a probability or a sighting guarantee. Magnetic latitude is approximated. Current OVATION and solar wind are short-term signals, not a forecast for the whole night. Mapped land is not a guarantee of public access or safe terrain: check access and a clear northern horizon. Light pollution, moonlight and terrain are not included.</p><p>Planning confidence uses lead time, cloud model age and cloud variability nearby and through time. It is capped at Moderate because only one cloud model is used; independent model agreement is not checked.</p><p>Go now checks the next hour using modelled clouds, darkness, fresh NOAA OVATION and solar wind/Bz. Live readings must be fresh; short-term signals are not carried into tomorrow’s outlook.</p></details></div>`;
+  const daylight=document.getElementById('sunriseSunsetSection');daylight.after(section);
+  const toggle=$('auroraPlannerOn'),settings=$('auroraPlannerSettings');
   L.DomEvent.disableClickPropagation(section);L.DomEvent.disableScrollPropagation(section);
   let point=null,picking=false,generation=0,marker=null,lastRun=0,running=false,mode='outlook';
   let meta=null,checked=0,metaPromise=null;
@@ -28,11 +29,11 @@
   $('auroraPlannerPick').addEventListener('click',()=>{picking=!picking;$('auroraPlannerPick').setAttribute('aria-pressed',String(picking));$('auroraPlannerStatus').textContent=picking?'Click a point on the map. Dragging will not choose a location.':'Map selection cancelled.';});
   let dragged=false;
   map.on('dragstart',()=>{dragged=true;});map.on('dragend',()=>setTimeout(()=>{dragged=false;},100));
-  map.on('click',e=>{if(picking&&!dragged&&!panel.hidden&&e.latlng)select({lat:e.latlng.lat,lon:e.latlng.lng});});
+  map.on('click',e=>{if(toggle.checked&&picking&&!dragged&&!panel.hidden&&e.latlng)select({lat:e.latlng.lat,lon:e.latlng.lng});});
   $('auroraPlannerGPS').addEventListener('click',()=>{
     if(!navigator.geolocation){$('auroraPlannerStatus').textContent='Location access is unavailable. Search for your town instead.';return;}
     const id=++generation;$('auroraPlannerStatus').textContent='Finding your location…';
-    navigator.geolocation.getCurrentPosition(p=>{if(id!==generation||panel.hidden)return;select({lat:p.coords.latitude,lon:p.coords.longitude,label:'Your location'});map.setView([point.lat,point.lon],8);},()=>{if(id===generation)$('auroraPlannerStatus').textContent='Location unavailable. Search for a town or pick a map point.';},{timeout:10000,maximumAge:300000});
+    navigator.geolocation.getCurrentPosition(p=>{if(id!==generation||panel.hidden||!toggle.checked)return;select({lat:p.coords.latitude,lon:p.coords.longitude,label:'Your location'});map.setView([point.lat,point.lon],8);},()=>{if(id===generation)$('auroraPlannerStatus').textContent='Location unavailable. Search for a town or pick a map point.';},{timeout:10000,maximumAge:300000});
   });
   async function json(path,options={}){
     const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),30000);
@@ -137,6 +138,7 @@
     const note=document.createElement('p');note.className='small';note.textContent='Cloud model run '+time(Date.parse(m.reference_time),point)+'. NOAA activity updated '+time(snapshot.kpForecast.fetchedAt*1000,point)+'. Ratings compare available conditions; even the best window may have weak aurora activity.';output.append(note);
   }
   async function run(){
+    if(!toggle.checked)return;
     if(!point){$('auroraPlannerStatus').textContent='Choose a location using search, Pick on map or Use my location first.';return;}
     const chosen={...point},id=++generation;lastRun=Date.now();running=true;
     $('auroraPlannerStatus').textContent='Verifying land locations and loading forecast guidance…';
@@ -157,11 +159,13 @@
     }catch(error){if(id===generation&&!panel.hidden)$('auroraPlannerStatus').textContent=error.message||'Planner unavailable. Try again shortly.';}
     finally{if(id===generation){running=false;$('auroraPlannerRun').textContent=mode==='now'?'Check conditions now':'Find best viewing window';}}
   }
+  function stopPlanner(){generation++;running=false;picking=false;search?.cancel();$('auroraPlannerPick').setAttribute('aria-pressed','false');$('auroraPlannerRun').textContent=mode==='now'?'Check conditions now':'Find best viewing window';if(marker){map.removeLayer(marker);marker=null;}}
+  toggle.addEventListener('change',()=>{settings.hidden=!toggle.checked;toggle.setAttribute('aria-expanded',String(toggle.checked));if(!toggle.checked)stopPlanner();else if(point&&lastRun)run();});
   $('auroraPlannerRun').addEventListener('click',run);
   function setMode(next){mode=next;generation++;running=false;$('auroraPlannerOutlook').setAttribute('aria-pressed',String(mode==='outlook'));$('auroraPlannerNow').setAttribute('aria-pressed',String(mode==='now'));$('auroraPlannerRun').textContent=mode==='now'?'Check conditions now':'Find best viewing window';$('auroraPlannerResults').replaceChildren();$('auroraPlannerCloudTimeline').replaceChildren();if(point)run();else $('auroraPlannerStatus').textContent='Choose a location first.';}
   $('auroraPlannerOutlook').addEventListener('click',()=>setMode('outlook'));$('auroraPlannerNow').addEventListener('click',()=>setMode('now'));
   $('auroraPlannerRadius').addEventListener('change',()=>{generation++;running=false;lastRun=0;$('auroraPlannerRun').textContent=mode==='now'?'Check conditions now':'Find best viewing window';$('auroraPlannerResults').replaceChildren();$('auroraPlannerCloudTimeline').replaceChildren();$('auroraPlannerStatus').textContent='Comparison radius changed. Find a new viewing window.';});
   new MutationObserver(()=>{if(panel.hidden){generation++;running=false;picking=false;search?.cancel();$('auroraPlannerPick').setAttribute('aria-pressed','false');$('auroraPlannerRun').textContent=mode==='now'?'Check conditions now':'Find best viewing window';}}).observe(panel,{attributes:true,attributeFilter:['hidden']});
-  $('clearLayers')?.addEventListener('click',()=>{if(marker){map.removeLayer(marker);marker=null;}picking=false;$('auroraPlannerPick').setAttribute('aria-pressed','false');});
-  setInterval(()=>{if(lastRun&&!running&&!document.hidden&&!panel.hidden&&Date.now()-lastRun>=(mode==='now'?2:15)*60000)run();},60000);
+  $('clearLayers')?.addEventListener('click',()=>{toggle.checked=false;settings.hidden=true;toggle.setAttribute('aria-expanded','false');stopPlanner();});
+  setInterval(()=>{if(toggle.checked&&lastRun&&!running&&!document.hidden&&!panel.hidden&&Date.now()-lastRun>=(mode==='now'?2:15)*60000)run();},60000);
 })();

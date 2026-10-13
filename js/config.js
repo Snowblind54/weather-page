@@ -48,18 +48,17 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
 
     <div class="section space-layer-section">
       <div class="space-section-title"><div><div class="label">Aurora layers</div><div class="small">Forecast or local viewing conditions</div></div></div>
-      <div class="row"><label class="label"><input id="auroraOn" type="checkbox"> Aurora forecast</label><span class="badge">NOAA OVATION</span></div>
-      <div class="row"><label class="label"><input id="auroraViewingOn" type="checkbox"> Aurora viewing conditions</label><span class="badge">aurora + dark + ECMWF cloud</span></div>
-      <div class="small space-weather-help">Viewing conditions combine NOAA OVATION with astronomical darkness and ECMWF IFS total cloud cover. Click the map while either aurora layer is on to see the local viewing estimate.</div>
-      <div class="space-aurora-legend" aria-label="Aurora forecast intensity"><span>Low</span><i></i><span>High</span></div>
+      <div class="row"><label class="label"><input id="auroraOn" type="checkbox"> Aurora forecast</label><button class="info-button" type="button" data-info="auroraForecastHelp" aria-controls="auroraForecastHelp" aria-expanded="false" aria-label="Aurora forecast information">i</button></div><div id="auroraForecastHelp" class="source-card" hidden><p>NOAA OVATION shows the short-term forecast location and intensity of the aurora. It is a model forecast, not an observation of visible northern lights. Click the map while this layer is on for the local estimate.</p><div class="space-aurora-legend" aria-label="Aurora forecast intensity"><span>Low</span><i></i><span>High</span></div></div>
+      <div class="row"><label class="label"><input id="auroraViewingOn" type="checkbox"> Aurora viewing conditions</label><button class="info-button" type="button" data-info="auroraViewingHelp" aria-controls="auroraViewingHelp" aria-expanded="false" aria-label="Aurora viewing conditions information">i</button></div>
+      <div id="auroraViewingHelp" class="source-card" hidden><p>Viewing conditions combine NOAA OVATION with astronomical darkness and ECMWF IFS total cloud cover. Daylight, twilight and clouds reduce the viewing estimate. Click the map while this layer is on for its local estimate. Light pollution, terrain and horizon obstructions are not modelled; this is not a sighting guarantee.</p></div>
       <div id="spaceWeatherStatus" class="status" role="status">Space weather layers are off.</div>
     </div>
 
-    <div class="section space-layer-section">
+    <div class="section space-layer-section" id="sunriseSunsetSection">
       <div class="space-section-title"><div><div class="label">Sunrise &amp; sunset</div><div class="small">Live daylight around the world</div></div></div>
-      <div class="row"><label class="label"><input id="daylightOn" type="checkbox"> Daylight / night</label><span class="badge">live</span></div>
+      <div class="row"><label class="label"><input id="daylightOn" type="checkbox"> Daylight / night</label><button class="info-button" type="button" data-info="sunriseSunsetHelp" aria-controls="sunriseSunsetHelp" aria-expanded="false" aria-label="Sunrise and sunset information">i</button></div><div id="sunriseSunsetHelp" class="source-card" hidden>
       <div class="sun-layer-legend" aria-label="Daylight and night shading"><span><i class="day"></i>Daylight · clear</span><span><i class="twilight"></i>Twilight</span><span><i class="night"></i>Night</span></div>
-      <div class="small space-weather-help">Click any map location for its next sunrise and sunset. The boundary updates every minute. Popup times use the selected location’s local time zone.</div>
+      <div class="small space-weather-help">Click any map location for its next sunrise and sunset. The boundary updates every minute. Popup times use the selected location’s local time zone. Times are calculated locally and assume a clear, level horizon.</div></div>
       <div id="daylightStatus" class="status" role="status">Daylight / night layer is off.</div>
     </div>
 

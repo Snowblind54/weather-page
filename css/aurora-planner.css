@@ -39,3 +39,7 @@
 #auroraPlannerMatches li{padding:11px;font-size:13px;cursor:pointer;border-bottom:1px solid #263b46}
 #auroraPlannerMatches li:hover,#auroraPlannerMatches li[aria-selected=true]{background:#28514b}
 @media(max-width:760px){.aurora-planner-actions button{flex:1;padding:9px 6px}.aurora-planner-radius select{max-width:48%}.aurora-planner-time{font-size:13px}}
+
+.aurora-planner #auroraPlannerSettings[hidden]{display:none!important}
+.aurora-planner h3 label{display:flex;align-items:center;gap:9px;cursor:pointer}
+.aurora-planner #auroraPlannerOn{width:16px;height:16px;min-width:16px;padding:0;margin:0;accent-color:#83e5cd}
