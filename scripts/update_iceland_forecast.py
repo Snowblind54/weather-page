@@ -21,8 +21,7 @@ import numpy as np
 from PIL import Image
 from scipy.interpolate import RegularGridInterpolator
 
-# Official ECMWF AWS mirror supports the same indexed GRIB range downloads.
-ROOT = 'https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/'
+ROOT = 'https://data.ecmwf.int/forecasts/'
 BOUNDS = [-30, 18, 60, 84]
 ASSET_VERSION = 'euroatlantic-v3'
 POINT_BOUNDS = [-28, 61, -12, 69]
