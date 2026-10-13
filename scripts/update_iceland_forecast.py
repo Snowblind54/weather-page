@@ -10,6 +10,8 @@ import math
 import re
 import shutil
 import tempfile
+import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -42,13 +44,26 @@ def url(run, step, suffix):
 def request(address, start=None, length=None):
     headers = {'User-Agent':USER_AGENT}
     if start is not None: headers['Range'] = f'bytes={start}-{start+length-1}'
-    with urllib.request.urlopen(urllib.request.Request(address,headers=headers),timeout=90) as response:
-        if start is not None:
-            if response.status != 206 or not response.headers.get('Content-Range','').startswith(f'bytes {start}-'):
-                raise ValueError('ECMWF server did not honour byte range')
-        data = response.read((length if length is not None else 4*1024*1024)+1)
-        if start is not None and len(data) != length: raise ValueError('Incomplete GRIB message')
-        return data
+    for attempt in range(4):
+        # The shared decoder is used by both regional updaters. Space requests
+        # and honour provider slow-down replies instead of restarting a cycle.
+        time.sleep(1)
+        try:
+            with urllib.request.urlopen(urllib.request.Request(address,headers=headers),timeout=90) as response:
+                if start is not None:
+                    if response.status != 206 or not response.headers.get('Content-Range','').startswith(f'bytes {start}-'):
+                        raise ValueError('ECMWF server did not honour byte range')
+                data = response.read((length if length is not None else 4*1024*1024)+1)
+                if start is not None and len(data) != length: raise ValueError('Incomplete GRIB message')
+                return data
+        except urllib.error.HTTPError as error:
+            if error.code not in (429, 503) or attempt == 3: raise
+            try: retry_after = float(error.headers.get('Retry-After', 0))
+            except (TypeError, ValueError): retry_after = 0
+            delay = max(15*2**attempt, retry_after)
+            if delay > 120: raise
+            print('ECMWF provider requests slower downloads; waiting',delay,'seconds',flush=True)
+            time.sleep(delay)
 
 def index(run, step):
     rows = [json.loads(line) for line in request(url(run,step,'index')).decode().splitlines()]

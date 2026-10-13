@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: forecast-iceland-cache
+  group: forecast-ecmwf-cache
   cancel-in-progress: false
 
 env:
@@ -57,3 +57,4 @@ jobs:
         run: python3 scripts/update_iceland_forecast.py
       - name: Publish complete Europe and Arctic cache
         run: bash scripts/publish_generated_data.sh 'Refresh ECMWF Europe and Arctic forecast maps' data/forecast-iceland.json data/forecast-iceland-cache
+
