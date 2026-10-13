@@ -96,6 +96,77 @@
     }
     return {windows,diagnostics};
   }
-  root.NorthernAuroraPlannerData={nearby,validateManifest,decodeGrid,cloudAt,kpAt,activity,rank,longitude};
+  function planningConfidence({grid,point,time,snapshot,now=Date.now()}){
+    const run=Date.parse(grid?.reference_time),cloud=cloudAt(grid,point,time),kp=kpAt(snapshot,time,now);
+    if(!finite(run)||cloud===null||kp===null)return {label:'Limited',reason:'Missing or stale forecast inputs; single cloud model.'};
+    const lead=Math.max(0,(time-run)/HOUR),age=Math.max(0,(now-run)/HOUR);
+    const probes=[cloud,cloudAt(grid,point,time-3*HOUR),cloudAt(grid,point,time+3*HOUR),
+      ...[[.25,0],[-.25,0],[0,.25],[0,-.25]].map(([lat,lon])=>cloudAt(grid,{lat:point.lat+lat,lon:point.lon+lon},time))].filter(finite);
+    const spread=Math.max(...probes)-Math.min(...probes);
+    const limited=lead>30||age>18||spread>35;
+    const reason=lead>30?'Longer forecast lead time':age>18?'Older cloud model run':spread>35?'Cloud cover varies strongly nearby or through time':'Shorter lead time and reasonably stable modelled clouds';
+    return {label:limited?'Limited':'Moderate',reason:reason+'; single cloud model, no independent model agreement check.',spread};
+  }
+  function cloudTimeline({grid,point,snapshot,now=Date.now(),altitude}){
+    const start=Math.floor(now/HOUR)*HOUR;
+    return Array.from({length:49},(_,i)=>{
+      const time=start+i*HOUR,cloud=cloudAt(grid,point,time),kp=kpAt(snapshot,time,now);
+      return {time,cloud,kp,dark:altitude(time,point)<-12};
+    });
+  }
+  function stamp(value){
+    if(finite(value))return value>1e12?value:value*1000;
+    if(typeof value!=='string')return NaN;
+    return Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(value)?value:value.replace(' ','T')+'Z');
+  }
+  function auroraAt(snapshot,point){
+    const a=snapshot?.aurora;
+    if(!a||!Number.isInteger(a.width)||!Number.isInteger(a.height)||!finite(a.latMin)||!finite(a.latMax)||!Array.isArray(a.values)||a.values.length!==a.width*a.height||point.lat<a.latMin||point.lat>a.latMax)return null;
+    const x=((point.lon%360)+360)%360,y=point.lat-a.latMin;
+    const x0=Math.floor(x)%a.width,x1=(x0+1)%a.width,y0=Math.min(a.height-1,Math.max(0,Math.floor(y))),y1=Math.min(a.height-1,y0+1),fx=x-Math.floor(x),fy=y-Math.floor(y);
+    const values=[a.values[y0*a.width+x0],a.values[y0*a.width+x1],a.values[y1*a.width+x0],a.values[y1*a.width+x1]];
+    if(values.some(v=>!finite(v)||v<0||v>100))return null;
+    return (values[0]*(1-fx)+values[1]*fx)*(1-fy)+(values[2]*(1-fx)+values[3]*fx)*fy;
+  }
+  function bzTrend(history,now){
+    if(!Array.isArray(history))return 'Trend unavailable';
+    const rows=history.filter(r=>Array.isArray(r)&&finite(r[1])&&stamp(r[0])<=now+60000&&stamp(r[0])>=now-30*60000).sort((a,b)=>stamp(a[0])-stamp(b[0]));
+    if(rows.length<4||now-stamp(rows.at(-1)[0])>15*60000)return 'Trend unavailable';
+    const early=rows.slice(0,Math.floor(rows.length/2)),late=rows.slice(Math.floor(rows.length/2));
+    const mean=xs=>xs.reduce((v,r)=>v+r[1],0)/xs.length,diff=mean(late)-mean(early);
+    return diff<=-2?'Turning more southward':diff>=2?'Turning more northward':'Little recent change';
+  }
+  function goNow({point,grid,snapshot,now=Date.now(),altitude}){
+    const wind=snapshot?.solarWind,aurora=snapshot?.aurora;
+    const age=(value,max)=>finite(stamp(value))&&now-stamp(value)>=-5*60000&&now-stamp(value)<=max;
+    const currentSun=altitude(now,point),sun=Math.max(currentSun,altitude(now+HOUR/2,point),altitude(now+HOUR,point));
+    const cloud=cloudAt(grid,point,now),cloudNext=cloudAt(grid,point,now+HOUR);
+    const cloudFresh=age(grid?.reference_time,18*HOUR)&&cloud!==null&&cloudNext!==null;
+    const spaceFresh=age(snapshot?.generatedAt,15*60000)&&age(aurora?.observationTime,90*60000)&&finite(stamp(aurora?.forecastTime))&&stamp(aurora.forecastTime)>=now-20*60000&&stamp(aurora.forecastTime)<=now+90*60000;
+    const windFresh=age(wind?.speedTime,15*60000)&&age(wind?.magTime,15*60000)&&finite(wind?.speed)&&finite(wind?.bz);
+    let signal=auroraAt(snapshot,point);
+    // Aurora can be visible on the horizon. Use a regional signal, never call
+    // the weighted neighbouring intensity a calibrated local probability.
+    if(signal!==null){
+      for(const distance of [200,400,600]){
+        const sample={lat:Math.min(90,point.lat+distance/111.2),lon:point.lon};
+        const v=auroraAt(snapshot,sample);if(v!==null)signal=Math.max(signal,v*(1-distance/900));
+      }
+    }
+    const fresh=cloudFresh&&spaceFresh&&windFresh&&signal!==null;
+    const average=cloudFresh?(cloud+cloudNext)/2:null;
+    const score=fresh&&sun<-12?signal*Math.max(0,1-average/100):0;
+    let label,reason;
+    if(!finite(currentSun)){label='Conditions unavailable';reason='Solar geometry is unavailable.';}
+    else if(currentSun>=-12){label='Not dark enough yet';reason='Wait until the sky is darker. The 48-hour planner can find a later window.';}
+    else if(sun>=-12){label='Darkness is ending';reason='The sky will brighten during the next hour.';}
+    else if(!fresh){label='Wait for fresh live data';reason=!cloudFresh?'The current cloud forecast is missing or older than 18 hours.':!spaceFresh?'The short-term aurora forecast is missing or stale.':'Solar-wind speed or Bz is missing or older than 15 minutes.';}
+    else if(average>=75){label='Clouds limit viewing';reason='Most of the sky is forecast to be covered during the next hour.';}
+    else if(signal<10){label='Activity looks weak';reason='NOAA shows a weak regional aurora signal, even with a dark sky.';}
+    else if(score>=20&&wind.bz<0){label='Worth heading out now';reason='Darkness, clearer forecast skies and a fresh aurora signal align. Southward Bz supports activity.';}
+    else{label='Watch conditions closely';reason=wind.bz>=0?'Aurora is modelled nearby, but northward Bz is less favourable.':'Conditions are mixed; check the sky and the live aurora layer before leaving.';}
+    return {point,label,reason,score,fresh,cloud:average,currentCloud:cloud,sun:currentSun,signal,windFresh,spaceFresh,cloudFresh,bz:windFresh?wind.bz:null,speed:windFresh?wind.speed:null,trend:windFresh?bzTrend(wind.bzHistory,now):'Trend unavailable'};
+  }
+  root.NorthernAuroraPlannerData={nearby,validateManifest,decodeGrid,cloudAt,kpAt,activity,rank,longitude,planningConfidence,cloudTimeline,goNow,auroraAt,bzTrend};
   if(typeof module!=='undefined'&&module.exports)module.exports=root.NorthernAuroraPlannerData;
 })(typeof window!=='undefined'?window:globalThis);
