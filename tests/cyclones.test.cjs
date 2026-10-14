@@ -17,7 +17,7 @@ function harness(details=false,ensemble=false){
   const data={version:1,generatedAt:now,modelRun:now-3600,forecastEnd:now+96*3600,status:'ok',systems:[
     {id:'GFS-example',name:null,points:Array.from({length:33},(_,i)=>({time:now-3600+i*3*3600,lat:55,lon:-40+i*.5,pressure:985-i*.2,nearbyWind:20,nearbyGust:32+i*.2}))}
   ]};
-  const context={console,Date:ClockDate,Math,JSON,Number,Map,Set,AbortController,setTimeout,clearTimeout,
+  const context={console,Date:ClockDate,Math,JSON,Number,Map,Set,AbortController,setTimeout,clearTimeout,atob,
     setInterval(f,delay){if(delay<1000){timers.set(tick,f);return tick++;}return 0;},clearInterval:n=>timers.delete(n),
     map,$:id=>elements[id],setWeatherSectionState(){},fmt:t=>new Date(t*1000).toISOString(),htmlEscape:s=>String(s).replaceAll('<','&lt;'),
     document:{hidden:false,addEventListener(){},createElement(){return {type:'',innerHTML:'',listeners:{},setAttribute(){},addEventListener(k,f){this.listeners[k]=f;}};}},URL,fetch:async()=>({ok:true,json:async()=>JSON.parse(JSON.stringify(data))}),
@@ -28,6 +28,7 @@ function harness(details=false,ensemble=false){
       popup:options=>layer({options,setLatLng(p){this.point=p;return this;},setContent(s){this.content=s;return this;},openOn(){layers.add(this);return this;}})}
   };
   vm.createContext(context);const run=s=>vm.runInContext(s,context);
+  run(fs.readFileSync(path.join(__dirname,'../js/cyclone-live-pressure.js'),'utf8'));
   run(fs.readFileSync(path.join(__dirname,'../js/cyclones.js'),'utf8'));
   if(details){elements.cycloneIsobarsOn.checked=true;elements.cycloneIsobarOpacity.value='35';run(fs.readFileSync(path.join(__dirname,'../js/cyclone-details.js'),'utf8'));}
   if(ensemble)run(fs.readFileSync(path.join(__dirname,'../js/cyclone-ensemble.js'),'utf8'));
@@ -239,4 +240,25 @@ test('progressively published ensemble horizons render and disclose the availabl
   assert.match(h.elements.cycloneEnsembleStatus.textContent,/extends 72 h from the model run/);
   assert(h.run('cycloneEnsembleGroup.children.length>0'));
   e.forecastEnd+=3600;assert.throws(()=>h.run('validateCycloneEnsemble(ensembleFixture)'),/Invalid ensemble snapshot/);
+});
+
+test('Now centres and pressure contours share minute time; forecast paths stay hourly',()=>{
+ const h=harness(true),run=h.data.modelRun;
+ h.data.forecastStepHours=1;
+ h.data.systems[0].points=Array.from({length:97},(_,i)=>({time:run+i*3600,lat:55,lon:-40+i*.1,pressure:985,nearbyWind:20,nearbyGust:32}));
+ h.data.pressureContours={version:1,interval:1,modelRun:run,frames:Array.from({length:97},(_,i)=>({time:run+i*3600,lines:[{pressure:1000,points:[[-40+i*.1,55],[-39+i*.1,56]]}]}))};
+ const grid={width:9,height:5,west:-42,south:54,dx:.5,dy:.5};
+ const make=i=>{const b=Buffer.alloc(90);for(let y=0;y<5;y++)for(let x=0;x<9;x++)b.writeUInt16LE(Math.round((1000+(-42+x*.5+40-i*.1)*4)*10),(y*9+x)*2);return {time:run+i*3600,grid,values:b.toString('base64')};};
+ h.data.livePressure={version:1,modelRun:run,frames:[make(1),make(2),make(3)]};
+ h.setClock((run+5400)*1000);h.seed();
+ assert.equal(h.run('cycloneSelectedTime()'),run+5400);
+ assert.ok(Math.abs(h.run('cycloneMarkers.values().next().value.point[1]')+39.85)<1e-9);
+ assert.match(h.elements.cycloneIsobarStatus.textContent,/interpolated estimate/);
+ const contour=h.run('cycloneIsobarGroup.children.find(l=>l.points.every(pt=>Math.abs(pt[1]+39.85)<.01))');
+ assert.ok(contour,'isobars move at the same interpolated time as the centre');
+ h.setClock((run+5460)*1000);h.run('renderCyclones()');assert.equal(h.run('cycloneSelectedTime()'),run+5460);
+ assert.ok(h.run('cycloneMarkers.values().next().value.point[1]')>-39.85);
+ h.elements.cycloneForecastHour.value='1';h.elements.cycloneForecastHour.listeners.input();assert.equal(h.run('cycloneSelectedTime()'),run+7200);
+ h.elements.cycloneForecastHour.value='0';h.data.livePressure.frames=[];h.run('renderCyclones()');assert.equal(h.run('cycloneSelectedTime()'),run+3600);
+ assert.doesNotMatch(h.elements.cycloneIsobarStatus.textContent,/interpolated estimate/);
 });

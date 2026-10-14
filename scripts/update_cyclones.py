@@ -4,6 +4,7 @@ A consistent 0.5-degree model run supplies pressure and 10 m wind over the North
 Atlantic / northern Europe. Tracks stop at missing centres, split/merge events
 or coverage limits; a forecast line is not an uncertainty cone or warning.
 """
+import base64
 import concurrent.futures as futures
 import datetime as dt
 import gzip
@@ -302,6 +303,22 @@ def pressure_contours(lats,lons,pressure,valid):
     return {'time':valid,'lines':lines}
 
 
+def live_pressure_frame(lats, lons, pressure, valid):
+    """Small current-time window, with the same smoothing as detected centres."""
+    smooth = gaussian_filter(pressure, .8, mode='nearest')
+    if not np.isfinite(smooth).all() or smooth.min() < 850 or smooth.max() > 1100:
+        raise ValueError('Invalid live pressure field')
+    return {'time': valid, 'grid': {'width': len(lons), 'height': len(lats),
+            'west': float(lons[0]), 'south': float(lats[0]),
+            'dx': float(lons[1]-lons[0]), 'dy': float(lats[1]-lats[0])},
+            'values': base64.b64encode(np.rint(smooth*10).astype('<u2').tobytes()).decode('ascii')}
+
+
+def live_pressure_steps(now, stamp):
+    current = int(now.timestamp())//3600*3600
+    return [step for step in range(max(0, (current-stamp)//3600-1), min(96, (current-stamp)//3600+3)+1)]
+
+
 def reusable_forecast(previous, stamp):
     return (previous.get('pressureContours', {}).get('version') == 1 and
             previous.get('pressureContours', {}).get('interval') == PRESSURE_INTERVAL and
@@ -329,11 +346,25 @@ def collect(now, previous):
     if run is None or (now-run).total_seconds() > 18*3600:
         raise ValueError('No recent complete GFS model cycle')
     stamp = int(run.timestamp())
+    live_frames = []
+    live_steps = live_pressure_steps(now, stamp)
     if reusable_forecast(previous, stamp):
         systems = json.loads(json.dumps(previous['systems']))
         for s in systems:
             s['name'] = None; s.pop('nhc', None);s.pop('europeanName',None)
         contours=previous['pressureContours']['frames']
+        archive = previous.get('livePressure') or {}
+        cached = {f['time']: f for f in archive.get('frames', [])} if archive.get('version') == 1 and archive.get('modelRun') == stamp else {}
+        for step in live_steps:
+            valid = stamp+step*3600
+            if valid in cached:
+                live_frames.append(cached[valid]);continue
+            try:
+                lats, lons, grid = decode(seed.get(step) or download(grid_url(run, step)), valid)
+                live_frames.append(live_pressure_frame(lats, lons, grid['pressure'], valid))
+            except Exception as error:
+                print('Live pressure hour unavailable; hourly contours remain available:', step, error, flush=True)
+
     else:
         def get(step):
             if step in seed: return step, seed[step]
@@ -348,6 +379,8 @@ def collect(now, previous):
             lats, lons, grid = decode(fields[step], valid)
             lows = centres(lats, lons, grid, valid);frames.append((valid, lows))
             contours.append(pressure_contours(lats,lons,grid['pressure'],valid))
+            if step in live_steps:
+                live_frames.append(live_pressure_frame(lats,lons,grid['pressure'],valid))
             print('Forecast', step, 'h:', len(lows), 'closed centres', flush=True)
         systems = assign_ids(track_frames(frames), previous, run)
     systems = retain_history(systems, previous, now, stamp)
@@ -358,6 +391,7 @@ def collect(now, previous):
             'bounds': BOUNDS, 'source': 'NOAA / NCEP GFS hourly, sampled at 0.5°', 'sourceUrl': 'https://nomads.ncep.noaa.gov/',
             'method': 'Closed pressure minima; 400 km ring depth ≥2 hPa; ≥9-hour persistence; tracked every hour.',
             'nhcStatus': nhc, 'europeanNamesStatus':european,
+            'livePressure': {'version': 1, 'modelRun': stamp, 'frames': live_frames},
             'pressureContours':{'version':1,'interval':PRESSURE_INTERVAL,'modelRun':stamp,'frames':contours},'systems': systems}
 
 

@@ -80,6 +80,7 @@ function renderCycloneIsobars(){
   }
   const frames=cycloneData.pressureContours?.frames||[],unix=cycloneSelectedTime();
   let frame=null;for(const candidate of frames)if(candidate.time<=unix)frame=candidate;else break;
+  if(unix%3600&&typeof NorthernCyclonePressure!=='undefined')frame=NorthernCyclonePressure.frame(cycloneData.livePressure,unix,cycloneData.pressureContours?.interval||1);
   if(!frame || frame.time!==unix){hideCycloneIsobars();$('cycloneIsobarStatus').textContent='Pressure contours unavailable for this model time.';return;}
   const interval=cycloneData.pressureContours.interval||4,key=cycloneData.modelRun+'/'+frame.time+'/'+interval;
   const opacity=Number($('cycloneIsobarOpacity').value)/100;
@@ -111,7 +112,7 @@ function renderCycloneIsobars(){
     }
   }
   cycloneIsobarLabels=L.layerGroup(labels).addTo(map);
-  $('cycloneIsobarStatus').textContent=interval+' hPa spacing · sea-level pressure · '+fmt(frame.time)+' · '+Math.round(opacity*100)+'% opacity';
+  $('cycloneIsobarStatus').textContent=interval+' hPa spacing · sea-level pressure · '+fmt(frame.time)+(frame.interpolated?' · interpolated estimate':'')+' · '+Math.round(opacity*100)+'% opacity';
 }
 function renderCycloneDetails(){renderCycloneList();renderCycloneIsobars();}
 $('cycloneIsobarsOn').addEventListener('change',renderCycloneIsobars);

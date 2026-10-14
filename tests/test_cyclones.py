@@ -1,4 +1,5 @@
 """Closed-low detection, association and official-name matching."""
+import base64
 import datetime as dt
 import json
 import pathlib
@@ -190,3 +191,21 @@ class PressureAndNames(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
+
+@unittest.skipIf(np is None, 'NumPy not installed')
+class LivePressure(unittest.TestCase):
+    def test_packed_pressure_is_the_same_smoothed_half_degree_field(self):
+        lats=np.arange(40,42.1,.5);lons=np.arange(-2,2.1,.5)
+        values=1000+np.broadcast_to(lons[None,:],(len(lats),len(lons)))
+        frame=c.live_pressure_frame(lats,lons,values,STAMP)
+        decoded=np.frombuffer(base64.b64decode(frame['values']),dtype='<u2').reshape(values.shape)/10
+        expected=c.gaussian_filter(values,.8,mode='nearest')
+        self.assertTrue(np.max(np.abs(decoded-expected))<=.05)
+        self.assertEqual(frame['grid']['dx'],.5);self.assertEqual(frame['grid']['dy'],.5)
+        self.assertEqual(frame['time'],STAMP)
+        with self.assertRaises(ValueError):c.live_pressure_frame(lats,lons,values*np.nan,STAMP)
+    def test_small_window_rolls_hourly_and_stays_in_forecast_bounds(self):
+        now=RUN+dt.timedelta(hours=6,minutes=31)
+        self.assertEqual(c.live_pressure_steps(now,STAMP),[5,6,7,8,9])
+        self.assertEqual(c.live_pressure_steps(RUN,STAMP),[0,1,2,3])
+        self.assertEqual(c.live_pressure_steps(RUN+dt.timedelta(hours=96),STAMP),[95,96])

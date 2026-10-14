@@ -36,6 +36,7 @@ function validateCyclones(data){
 
   }
   if(typeof validatePressureContours==='function')validatePressureContours(data);
+  if(typeof NorthernCyclonePressure!=='undefined'){try{NorthernCyclonePressure.validate(data.livePressure,data.modelRun,data.forecastEnd);}catch(error){console.warn(error.message);data.livePressure=null;}}
   return data;
 }
 
@@ -63,7 +64,7 @@ function cyclonePointAt(system,unix){
   for(let i=1;i<points.length;i++){
     a=points[i-1];b=points[i];if(unix<=b.time)break;
   }
-  if(b.time-a.time>6*3600) return null;
+  if(b.time-a.time>(cycloneData?.forecastStepHours===1?3600:6*3600)) return null;
   const f=(unix-a.time)/(b.time-a.time),point={time:unix};
   for(const field of ['lat','lon','pressure','nearbyWind','nearbyGust']) point[field]=Number.isFinite(a[field])&&Number.isFinite(b[field])?a[field]+(b[field]-a[field])*f:null;
   point.speed=cycloneDistance(a,b)/((b.time-a.time)/3600);
@@ -77,7 +78,11 @@ function cycloneFrameTime(requested){
   let frame=null;for(const candidate of frames)if(candidate.time<=requested)frame=candidate;else break;
   return frame && requested-frame.time<3*3600 ? frame.time : requested;
 }
-function cycloneSelectedTime(){return cycloneFrameTime(cycloneTrackStart()+Number($('cycloneForecastHour').value)*3600);}
+function cycloneSelectedTime(){
+  const hour=Number($('cycloneForecastHour').value),now=Math.floor(Date.now()/60000)*60;
+  if(!cyclonePlaying&&hour===0&&now%3600!==0&&typeof NorthernCyclonePressure!=='undefined'&&NorthernCyclonePressure.canInterpolate(cycloneData?.livePressure,now))return now;
+  return cycloneFrameTime(cycloneTrackStart()+hour*3600);
+}
 function cycloneUsable(){return cycloneData && Date.now()/1000-cycloneData.modelRun<=18*3600 && cycloneSelectedTime()<=cycloneData.forecastEnd;}
 function cycloneColour(pressure){return pressure<970?'#cc83ff':pressure<985?'#ff6976':pressure<1000?'#ffc65b':'#7ddcff';}
 function cycloneName(system){return system.name||'Unnamed low-pressure system';}
@@ -112,7 +117,7 @@ function cyclonePopupContent(system,point){
     '<div><span>Highest model wind within 200 km</span><strong>'+(point.nearbyWind==null?'Unavailable':(globalThis.WeatherUnits?.wind(point.nearbyWind,1)??point.nearbyWind.toFixed(1)+' m/s'))+'</strong><small>10 m wind; excludes gusts</small></div>'+
     '<div><span>Highest model gust within 200 km</span><strong>'+(point.nearbyGust==null?'Unavailable':(globalThis.WeatherUnits?.wind(point.nearbyGust,1)??point.nearbyGust.toFixed(1)+' m/s'))+'</strong><small>GFS surface gust estimate</small></div></div>'+
     '<div class="cyclone-meta">Position: '+point.lat.toFixed(2)+'°, '+point.lon.toFixed(2)+'°<br>Valid: '+htmlEscape(fmt(point.time))+
-    '<br>Model run: '+htmlEscape(fmt(cycloneData.modelRun))+'<br>Track available until '+htmlEscape(fmt(end))+
+    (point.time%3600?'<br>Interpolated estimate between hourly GFS positions; not a live observation.':'')+'<br>Model run: '+htmlEscape(fmt(cycloneData.modelRun))+'<br>Track available until '+htmlEscape(fmt(end))+
     '<br>NOAA / NCEP GFS 0.5° · derived centre and forecast track. Forecast uncertainty grows with time. Symbol rotation is illustrative.</div>'+official+(typeof cycloneEuropeanNameHtml==='function'?cycloneEuropeanNameHtml(system):'')+'</div>';
 }
 
@@ -188,7 +193,7 @@ function renderCyclones(){
   if(!$('cycloneOn').checked)return;
   if(!cyclonePlaying && Number($('cycloneForecastHour').value)===0)cycloneTrackTime=Math.floor(Date.now()/3600000)*3600;
   const hour=Number($('cycloneForecastHour').value),unix=cycloneSelectedTime();
-  $('cycloneTimeLabel').textContent=(hour?'+'+hour+' h · ':'Now · ')+fmt(unix);
+  $('cycloneTimeLabel').textContent=(hour?'+'+hour+' h · ':'Now · ')+fmt(unix)+(unix%3600?' · interpolated estimate':'');
   if(!cycloneUsable()){
     stopCyclonePlayback();hideCycloneLayers();$('cycloneStatus').textContent='Cyclone forecast is unavailable or too old. Refresh to load a recent model run.';
     $('cycloneStatus').className='status warn';return;
@@ -222,7 +227,7 @@ function renderCyclones(){
     else closeCyclonePopup();
   }
   const old=Date.now()/1000-cycloneData.modelRun>12*3600;
-  $('cycloneStatus').textContent=shown.size+' '+(shown.size===1?'system':'systems')+' across the region · '+(hour?'forecast':'modelled current positions')+
+  $('cycloneStatus').textContent=shown.size+' '+(shown.size===1?'system':'systems')+' across the region · '+(hour?'forecast':unix%3600?'interpolated current positions · refreshed each minute':'hourly modelled current positions')+
     ' · model run '+fmt(cycloneData.modelRun)+(cycloneData.status==='error'||cycloneRefreshFailed?' · latest refresh failed; using previous forecast':old?' · older model run':'');
   $('cycloneStatus').className='status '+(old||cycloneData.status==='error'||cycloneRefreshFailed?'warn':'ok');
 }
