@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import math
 import time
-from solar_eruptions import compact_cmes, current_g_scale
+from solar_eruptions import compact_cmes, current_g_scale, compact_arrival_reports
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -322,6 +322,11 @@ def main():
     except (RuntimeError, ValueError) as exc:
         geomagnetic_storm = previous.get('geomagneticStorm')
         print(f'Warning: current G scale unavailable; retaining original freshness: {exc}')
+    try:
+        arrival_reports = compact_arrival_reports(fetch_json('https://services.swpc.noaa.gov/products/alerts.json', attempts=2), now)
+    except (RuntimeError, ValueError) as exc:
+        arrival_reports = previous.get('solarArrivalReports')
+        print(f'Warning: NOAA arrival reports unavailable; retaining original freshness: {exc}')
     kp = parse_observed_kp(kp_raw)
     wind = latest_record(wind_raw, "proton_speed")
     mag = latest_record(mag_raw, "bz_gsm")
@@ -338,6 +343,7 @@ def main():
         "hemisphericPower": hemispheric_power,
         "kp": kp,
         "solarEruptions": solar_eruptions,
+        "solarArrivalReports": arrival_reports,
         "geomagneticStorm": geomagnetic_storm,
         "kpForecast": kp_forecast,
         "solarWind": {

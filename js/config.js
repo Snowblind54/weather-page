@@ -16,7 +16,7 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
   if(!nav)return;
 
   const style=document.createElement('link');
-  style.rel='stylesheet';style.href='css/space-weather.css?v=cme-1';
+  style.rel='stylesheet';style.href='css/space-weather.css?v=arrival-reports-1';
   document.head.appendChild(style);
 
   const button=document.createElement('button');

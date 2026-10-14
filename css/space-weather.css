@@ -70,3 +70,9 @@
 .space-cme-analysis,.space-cme-help{margin-top:9px;font-size:10px;line-height:1.5;color:var(--muted,#aeb9c9)}
 .space-cme-analysis summary,.space-cme-help summary{cursor:pointer;color:#bfe9e0}.space-cme-analysis p{white-space:pre-line;overflow-wrap:anywhere}.space-cme-analysis a,.space-cme-help a{color:#83e5cd;margin-right:8px}
 .space-cme-empty{padding:10px 0}.space-g-rating strong{font-size:23px}
+
+.space-cme-arrival{margin:10px 0;padding:11px;border:1px solid #ffffff20;border-radius:12px;background:#0a121c66;font-size:11px;line-height:1.5}
+.space-cme-arrival strong{display:block;color:#d5f5eb;font-size:12px}.space-cme-arrival p{margin:7px 0}
+.space-cme-arrival.upstream{border-color:#ffbf6970}.space-cme-arrival.observed{border-color:#83e5cd80}
+.space-cme-arrival.stale{border-style:dashed}.space-cme-arrival.unknown strong{color:#ffbf69}
+#spaceCmeArrivalHistory article{padding:8px 0;border-bottom:1px solid #ffffff14}#spaceCmeArrivalHistory p{white-space:pre-line;overflow-wrap:anywhere}

@@ -6,11 +6,13 @@
   const section=root.document.createElement('details');section.className='section space-cme-section';section.id='solarCmeSection';
   section.innerHTML=`<summary><span>Solar eruptions · CMEs</span><small>Last 7 days <span id="spaceCmeCount"></span></small></summary>
     <div class="space-cme-content"><div class="row"><label class="small"><input type="checkbox" id="spaceCmeAll"> Show all recent CMEs</label></div>
+    <div id="spaceCmeArrival" class="space-cme-arrival" role="status" aria-live="polite"></div>
+    <details class="space-cme-help"><summary>NOAA arrival reports · last 7 days</summary><div id="spaceCmeArrivalHistory"></div></details>
     <div id="spaceCmeAge" class="space-data-age">Awaiting shared CME data</div>
     <div id="spaceCmeList" class="space-cme-list"></div>
-    <details class="space-cme-help"><summary>About CME arrivals &amp; sources</summary><p>NASA DONKI / Moon to Mars Space Weather Analysis Office supplies experimental CME analyses and WSA-ENLIL arrival forecasts. The list shows modelled Earth impacts first; enable “Show all” for other eruptions. Speed is not a storm-strength rating. Arrivals are estimates and can differ by hours. CMEs remain listed for four hours after their estimated arrival, then disappear automatically. An elapsed countdown does not confirm arrival. A combined simulation may give several CMEs the same arrival time.</p><p>Dates use your device’s local time. G1–G5 describes the resulting geomagnetic storm at Earth, not the CME itself.</p><a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI ↗</a></details></div>`;
+    <details class="space-cme-help"><summary>About CME arrivals &amp; sources</summary><p>NASA DONKI / Moon to Mars Space Weather Analysis Office supplies experimental CME analyses and WSA-ENLIL arrival forecasts. The list shows modelled Earth impacts first; enable “Show all” for other eruptions. Speed is not a storm-strength rating. Arrivals are estimates and can differ by hours. CMEs remain listed for four hours after their estimated arrival, then disappear automatically. An elapsed countdown does not confirm arrival. NOAA WARSUD reports a shock detected upstream and forecasts its Earth arrival window; SUMSUD reports a sudden impulse observed by ground magnetometers at Earth. These reports do not identify a particular CME, so the status above the list remains independent of individual forecast cards. A combined simulation may give several CMEs the same arrival time.</p><p>Dates use your device’s local time. G1–G5 describes the resulting geomagnetic storm at Earth, not the CME itself.</p><a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI ↗</a></details></div>`;
   panel.appendChild(section);
-  const $=id=>root.document.getElementById(id);let data=null,signature='';
+  const $=id=>root.document.getElementById(id);let data=null,signature='',arrivalHistorySignature=null;
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date=v=>api.time(v)?new Intl.DateTimeFormat(undefined,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false,timeZoneName:'short'}).format(new Date(api.time(v))):'Unavailable';
   const link=u=>{try{const p=new URL(u);return p.protocol==='https:'&&['ccmc.gsfc.nasa.gov','kauai.ccmc.gsfc.nasa.gov','webtools.ccmc.gsfc.nasa.gov'].includes(p.hostname)?esc(p.href):null;}catch{return null;}};
@@ -19,6 +21,20 @@
     const stale=api.stale(feed?.fetchedAt,now,2*3600),rows=api.recent(all,now,$('spaceCmeAll').checked);
     const age=api.time(feed?.fetchedAt);$('spaceCmeAge').textContent=age?(stale?'Updates overdue · ':'Updated ')+Math.max(0,Math.floor((now-age)/60000))+' min ago':'CME data unavailable';$('spaceCmeAge').classList.toggle('stale',stale);
     $('spaceCmeCount').textContent='· '+rows.length;
+    const arrivals=data.solarArrivalReports,arrival=api.arrivalState(arrivals,now);
+    const report=arrival.report;
+    let explanation=arrival.kind==='observed'
+      ?'Observed '+date(report.observedAt)+(report.station?' · '+report.station:'')+(Number.isFinite(report.deviationNt)?' · '+report.deviationNt+' nT':'')+'. Ground magnetometers detected a sudden impulse.'
+      :arrival.kind==='upstream'
+      ?'Shock observed upstream '+date(report.shockAt)+'. Expected Earth window: '+date(report.validFrom)+' – '+date(report.validTo)+'.'+(now>api.time(report.validTo)?' Window passed; arrival at Earth remains unconfirmed.':' Arrival at Earth is not yet confirmed.')
+      :arrival.kind==='unknown'?'Arrival-report feed unavailable or overdue. A missing report does not rule out an arrival.'
+      :'No upstream shock or ground impulse reported in the past four hours. A missing report does not rule out an arrival.';
+    $('spaceCmeArrival').className='space-cme-arrival '+arrival.kind+(arrival.stale?' stale':'');
+    $('spaceCmeArrival').innerHTML='<strong>'+esc(arrival.title)+'</strong><p>'+esc(explanation)+'</p><div class="small">'+(arrivals?.fetchedAt?'NOAA checked '+esc(date(arrivals.fetchedAt))+(arrival.stale?' · updates overdue':''):'Awaiting NOAA reports')+'</div><p class="small">These reports do not identify a particular CME.</p>';
+    const reports=api.arrivalReports(arrivals,now).slice(0,6);
+    const history=reports.map(r=>'<article><strong>'+esc(r.kind==='observed'?'Ground impulse observed':r.kind==='upstream'?'Upstream shock warning':'Cancelled '+r.code+' report')+'</strong><div>'+esc(date(r.observedAt||r.shockAt||r.issuedAt))+(now-api.time(r.observedAt||r.shockAt||r.issuedAt)<4*3600000?' · Recent report':' · Historical report')+'</div><details><summary>Official NOAA bulletin</summary><p>'+esc(r.message||'Bulletin text unavailable')+'</p></details></article>').join('');
+    if(arrivalHistorySignature!==history){arrivalHistorySignature=history;$('spaceCmeArrivalHistory').innerHTML=(history||'<p>No NOAA sudden-impulse reports in the available last-seven-day feed.</p>')+'<a href="https://www.swpc.noaa.gov/products/alerts-watches-and-warnings" target="_blank" rel="noopener">NOAA reports ↗</a>';}
+
     const next=JSON.stringify([feed?.fetchedAt,rows]);
     if(next!==signature){
       signature=next;const open=new Set([...section.querySelectorAll('.space-cme-analysis[open]')].map(e=>e.dataset.cmeId));
@@ -57,10 +73,23 @@
     if(days)return 'About '+days+' day'+(days===1?'':'s')+(hours%24?' '+hours%24+' h':'')+' remaining';
     return 'About '+(hours?hours+' h ':'')+(minutes%60?minutes%60+' min':'')+' remaining';
   }
+  function arrivalReports(feed,now){
+    return (Array.isArray(feed?.entries)?feed.entries:[]).filter(r=>['upstream','observed','cancelled'].includes(r?.kind)&&time(r.issuedAt)>=now-7*86400000&&time(r.issuedAt)<=now).sort((a,b)=>time(b.issuedAt)-time(a.issuedAt));
+  }
+  function arrivalState(feed,now){
+    const old=stale(feed?.fetchedAt,now,30*60),reports=arrivalReports(feed,now);
+    const cancelled=code=>Math.max(0,...reports.filter(r=>r.code===code&&r.kind==='cancelled').map(r=>time(r.issuedAt)));
+    const valid=(r,field,code)=>r.code===code&&time(r.issuedAt)>cancelled(code)&&time(r[field])!==null&&time(r[field])<=now&&now-time(r[field])<4*3600000;
+    const observed=reports.filter(r=>r.kind==='observed'&&valid(r,'observedAt','SUMSUD')).sort((a,b)=>time(b.observedAt)-time(a.observedAt))[0];
+    const upstream=reports.filter(r=>r.kind==='upstream'&&valid(r,'shockAt','WARSUD')&&time(r.validFrom)!==null&&time(r.validTo)!==null&&time(r.validTo)>=time(r.validFrom)).sort((a,b)=>time(b.shockAt)-time(a.shockAt))[0];
+    if(observed&&(!upstream||time(observed.observedAt)>=time(upstream.shockAt)))return {kind:'observed',title:'Arrival observed at Earth',report:observed,stale:old};
+    if(upstream)return {kind:'upstream',title:'Shock detected upstream',report:upstream,stale:old};
+    return {kind:old?'unknown':'none',title:old?'Arrival reports unavailable or overdue':'No recent arrival report',report:null,stale:old};
+  }
   function gState(g,now){
     const n=g?.scale,valid=Number.isInteger(n)&&n>=0&&n<=5;
     if(!valid)return {value:'—',label:'Awaiting NOAA current rating',time:null,stale:true,color:'#8fa4b8'};
     const old=stale(g.time,now,30*60);return {value:'G'+n,label:(old?'Last reported · ':'')+['No geomagnetic storm','Minor storm','Moderate storm','Strong storm','Severe storm','Extreme storm'][n],time:g.time,stale:old,color:['#8fa4b8','#83e5cd','#d7e86d','#ffbf69','#ff946d','#ff82ce'][n]};
   }
-  return {time,stale,recent,impactLabel,uncertainty,countdown,gState};
+  return {time,stale,recent,impactLabel,uncertainty,countdown,arrivalReports,arrivalState,gState};
 });

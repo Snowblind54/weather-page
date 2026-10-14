@@ -10,6 +10,8 @@ on:
       - scripts/update_space_weather.py
       - scripts/solar_eruptions.py
       - tests/test_solar_eruptions.py
+      - tests/solar-eruptions.test.cjs
+      - js/solar-eruptions.js
       - scripts/publish_generated_data.sh
       - .github/workflows/update-space-weather.yml
 
@@ -52,6 +54,8 @@ jobs:
         run: python3 scripts/hydrate_r2_data.py data/space-weather.json
       - name: Check CME forecasts and NOAA storm scale
         run: python3 -m unittest discover -s tests -p 'test_solar_eruptions.py' -v
+      - name: Check CME arrival display
+        run: node --check js/solar-eruptions.js && node --test tests/solar-eruptions.test.cjs
       - name: Fetch NOAA SWPC aurora, solar wind and NASA CME analyses
         run: python3 scripts/update_space_weather.py
       - name: Publish shared space-weather snapshot

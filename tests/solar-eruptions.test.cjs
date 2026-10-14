@@ -22,3 +22,29 @@ test('Arrivals remain for four hours, then expire even with show all',()=>{
  assert.match(c.countdown(rows[2],now),/arrival unconfirmed/);
  assert.deepEqual(c.recent([rows[3]],now+4*3600000),[]);
 });
+
+const shock={code:'WARSUD',kind:'upstream',issuedAt:'2026-10-13T15:10Z',shockAt:'2026-10-13T15:05Z',validFrom:'2026-10-13T15:15Z',validTo:'2026-10-13T15:50Z'};
+const impulse={code:'SUMSUD',kind:'observed',issuedAt:'2026-10-13T15:40Z',observedAt:'2026-10-13T15:30Z'};
+const feed=entries=>({fetchedAt:now/1000,entries});
+test('upstream shock stays unconfirmed after forecast window; ground report confirms observation',()=>{
+ assert.equal(c.arrivalState(feed([shock]),now).kind,'upstream');
+ assert.equal(c.arrivalState(feed([shock,impulse]),now).kind,'observed');
+ assert.equal(c.arrivalState(feed([shock,impulse]),now).report,impulse);
+ assert.equal(c.countdown({estimatedArrival:'2026-10-13T15:20Z'},now).includes('unconfirmed'),true);
+});
+test('new upstream shock supersedes an older ground impulse; cancellation clears warning',()=>{
+ const later={...shock,issuedAt:'2026-10-13T15:55Z',shockAt:'2026-10-13T15:50Z'};
+ assert.equal(c.arrivalState(feed([later,impulse]),now).kind,'upstream');
+ const cancelled={code:'WARSUD',kind:'cancelled',issuedAt:'2026-10-13T15:59Z'};
+ assert.equal(c.arrivalState(feed([later,cancelled]),now).kind,'none');
+});
+test('arrival indicators expire at four hours and flag retained stale reports',()=>{
+ const after=Date.parse(impulse.observedAt)+4*3600000;
+ assert.equal(c.arrivalState({fetchedAt:after/1000,entries:[impulse]},after).kind,'none');
+ assert.equal(c.arrivalState(undefined,now).kind,'unknown');
+ assert.equal(c.arrivalState({fetchedAt:(now-3600000)/1000,entries:[impulse]},now).stale,true);
+ assert.equal(c.arrivalState(feed([]),now).kind,'none');
+ const future={...impulse,observedAt:'2026-10-13T17:00Z'};
+ assert.equal(c.arrivalState(feed([future]),now).kind,'none');
+ assert.equal(c.arrivalState(feed([{...shock,validTo:'invalid'}]),now).kind,'none');
+});
