@@ -24,6 +24,11 @@ SOURCES = {
     'IS': {'name': 'Icelandic Meteorological Office', 'url': 'https://www.vedur.is/vedur/athuganir/urkoma/'},
     'CA': {'name': 'Environment and Climate Change Canada / MSC', 'url': 'https://eccc-msc.github.io/open-data/msc-data/obs_station/readme_obs_insitu_en/'},
     'GL': {'name': 'Danish Meteorological Institute (DMI)', 'url': 'https://www.dmi.dk/friedata/dokumentation/meteorological-observations-data'},
+    'PL': {'name': 'IMGW station observations via DWD', 'url': 'https://opendata.dwd.de/weather/weather_reports/poi/'},
+    'UK': {'name': 'Met Office station observations via DWD', 'url': 'https://opendata.dwd.de/weather/weather_reports/poi/'},
+    'DK': {'name': 'Danish Meteorological Institute (DMI)', 'url': 'https://www.dmi.dk/friedata/dokumentation/meteorological-observations-data'},
+    'IE': {'name': 'Met Éireann', 'url': 'https://opendata2.met.ie/obs/', 'license': 'CC BY 4.0'},
+    'US': {'name': 'USDA / NRCS SNOTEL & SCAN', 'url': 'https://www.nrcs.usda.gov/programs-initiatives/sswsf-snow-survey-and-water-supply-forecasting-program/snow-and-water-products'},
 }
 
 
@@ -67,7 +72,7 @@ def depth(value, country):
             return 0, 'bare', 'No snow'
         if n == 0:
             return 0, 'nearby', 'Station ground bare; snow observed nearby'
-    if country == 'GL' and n == -1:
+    if country in ('GL', 'DK') and n == -1:
         return None, 'trace', 'Less than 0.5 cm (official DMI code)'
     if country == 'NO':
         if n == 0:
@@ -88,7 +93,7 @@ def depth(value, country):
 def record(country, code, name, lat, lon, time, value, quality='', precision='day'):
     parsed = depth(value, country)
     lat, lon = number(lat), number(lon)
-    south, north, west, east = {'CA': (41, 85, -142, -52), 'GL': (59, 85, -74, -10)}.get(country, (53, 81, -25, 33))
+    south, north, west, east = {'CA': (41, 85, -142, -52), 'GL': (59, 85, -74, -10), 'PL': (49, 55, 14, 25), 'DK': (54, 58, 7, 16), 'IE': (51, 56, -11, -5), 'UK': (49, 61, -9, 3), 'US': (18, 73, -180, -65)}.get(country, (53, 81, -25, 33))
     if parsed is None or lat is None or lon is None or not (south <= lat <= north and west <= lon <= east):
         return None
     cm, state, note = parsed
@@ -504,8 +509,11 @@ def main():
     now = dt.datetime.now(dt.timezone.utc)
     previous = json.loads(OUTPUT.read_text()) if OUTPUT.exists() else {}
     providers, records = {}, []
+    from snow_depth_expansion import SnowDepthExpansion
+    expansion = SnowDepthExpansion(download, record, latest, NoRecentSnowData, previous.get('stations', []))
     loaders = {'EE': load_estonia, 'FI': load_finland, 'SE': load_sweden,
-               'LV': load_latvia, 'LT': load_lithuania, 'NO': load_norway, 'IS': load_iceland, 'CA': load_canada, 'GL': load_greenland}
+               'LV': load_latvia, 'LT': load_lithuania, 'NO': load_norway, 'IS': load_iceland, 'CA': load_canada, 'GL': load_greenland, 'PL': expansion.load_poland, 'DK': expansion.load_denmark,
+               'IE': expansion.load_ireland, 'UK': expansion.load_uk, 'US': expansion.load_usa}
     with futures.ThreadPoolExecutor(max_workers=7) as pool:
         jobs = {country: pool.submit(load, now) for country, load in loaders.items()}
         for country, job in jobs.items():

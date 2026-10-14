@@ -9,6 +9,11 @@ const snowDepthSources={
   NO:{name:'MET Norway',url:'https://seklima.met.no/'},
   IS:{name:'Icelandic Meteorological Office',url:'https://www.vedur.is/vedur/athuganir/urkoma/'},
   CA:{name:'Environment and Climate Change Canada / MSC',url:'https://eccc-msc.github.io/open-data/msc-data/obs_station/readme_obs_insitu_en/'},
+  PL:{name:'IMGW station observations via DWD',url:'https://opendata.dwd.de/weather/weather_reports/poi/'},
+  UK:{name:'Met Office station observations via DWD',url:'https://opendata.dwd.de/weather/weather_reports/poi/'},
+  DK:{name:'Danish Meteorological Institute (DMI)',url:'https://www.dmi.dk/friedata/'},
+  IE:{name:'Met Éireann',url:'https://opendata2.met.ie/obs/'},
+  US:{name:'USDA / NRCS SNOTEL & SCAN',url:'https://www.nrcs.usda.gov/programs-initiatives/sswsf-snow-survey-and-water-supply-forecasting-program/snow-and-water-products'},
   GL:{name:'Danish Meteorological Institute (DMI)',url:'https://www.dmi.dk/friedata/'}
 };
 let snowDepthData=null,snowDepthLoadedAt=0,snowDepthRequest=null,snowDepthRenderTimer=null;
@@ -21,7 +26,7 @@ function snowDepthEscape(value){
 }
 function snowDepthValid(s,now=Date.now()/1000){
   if(!s || !snowDepthSources[s.country] || !s.name || !Number.isFinite(s.lat) || !Number.isFinite(s.lon))return false;
-  const [south,north,west,east]=s.country==='CA'?[41,85,-142,-52]:s.country==='GL'?[59,85,-74,-10]:[53,81,-25,33];
+  const [south,north,west,east]=s.country==='CA'?[41,85,-142,-52]:s.country==='GL'?[59,85,-74,-10]:s.country==='PL'?[49,55,14,25]:s.country==='DK'?[54,58,7,16]:s.country==='IE'?[51,56,-11,-5]:s.country==='UK'?[49,61,-9,3]:s.country==='US'?[18,73,-180,-65]:[53,81,-25,33];
   if(s.lat<south || s.lat>north || s.lon<west || s.lon>east || !Number.isFinite(s.time) || s.time>now || now-s.time>snowDepthMaxAge)return false;
   if(['trace','patchy'].includes(s.state))return s.depthCm===null;
   return Number.isFinite(s.depthCm) && s.depthCm>=0 && s.depthCm<=1500;

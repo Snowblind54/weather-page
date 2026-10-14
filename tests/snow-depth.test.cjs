@@ -62,3 +62,24 @@ test('Canadian zero toggle and country bounds preserve existing European rules',
   vm.runInContext('renderSnowDepth()', context);
   assert.equal(labels.length, 1);
 });
+
+test('new official countries validate coordinates and preserve zero filtering', () => {
+  const {context, nodes, labels} = snowContext();
+  const time = Math.floor(Date.now()/1000)-60;
+  for (const [country, lat, lon] of [['PL',50,20],['DK',56,10],['IE',52,-8],['UK',51,0],['US',65,-150],['US',39,-105]]) {
+    context.row = {country, name:'Official station',lat,lon,time,depthCm:0,state:'bare',quality:'provisional'};
+    assert.equal(vm.runInContext('snowDepthValid(row)',context),true,country);
+    context.snapshot={stations:[context.row],providers:{}};
+    nodes.snowDepthZero.checked=true;
+    vm.runInContext('snowDepthData=snapshot;renderSnowDepth()',context);
+    assert.equal(labels.length,1,country);
+    assert.match(labels[0].html,/Provisional official reading/);
+    nodes.snowDepthZero.checked=false;
+    vm.runInContext('renderSnowDepth()',context);
+    assert.equal(labels.length,0,country);
+  }
+  context.row={country:'DK',name:'Official station',lat:56,lon:10,time,depthCm:null,state:'trace'};
+  assert.equal(vm.runInContext('snowDepthValid(row)',context),true);
+  context.row={country:'US',name:'Misplaced',lat:52,lon:20,time,depthCm:10,state:'depth'};
+  assert.equal(vm.runInContext('snowDepthValid(row)',context),false);
+});

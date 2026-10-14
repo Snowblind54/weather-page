@@ -7,6 +7,9 @@ on:
     branches: [main]
     paths:
       - scripts/update_snow_depth.py
+      - scripts/snow_depth_expansion.py
+      - data/snow-dwd-stations.json
+      - tests/test_snow_depth_expansion.py
       - scripts/publish_generated_data.sh
       - tests/test_snow_depth.py
       - .github/workflows/update-snow-depth.yml
@@ -45,7 +48,7 @@ jobs:
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py data/official-snow-depth.json data/iceland-snow-stations.json
       - name: Test snow-depth adapters
-        run: python3 -m unittest discover -s tests -p test_snow_depth.py -v
+        run: python3 -m unittest discover -s tests -p 'test_snow_depth*.py' -v
       - name: Fetch official snow depth
         run: python3 scripts/update_snow_depth.py
       - name: Save station snow-depth snapshot
