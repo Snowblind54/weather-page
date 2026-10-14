@@ -119,7 +119,14 @@
   // Refresh the manifest on automatic checks, but use direct providers only
   // when prepared coverage is missing. Keep already displayed clouds in place.
   const visible=cloudVisibleTiles();
-  if(manifest?.records.length&&(visible.length?visible.every(t=>selection(t.coords,cloudRequestedTime)):manifest.products&&Object.keys(manifest.products).length))return;
+  // Before the layer exists there are no visible tile objects. An unrelated or
+  // stale product in the manifest must not suppress discovery for this view.
+  const ids=typeof cloudViewportSources==='function'?cloudViewportSources():Object.keys(cloudProducts);
+  const startupReady=ids.length>0&&ids.every(id=>{
+   const p=manifest?.products?.[id],stamp=Math.max(...Object.values(p?.latest||{}).filter(Number.isFinite));
+   return Number.isFinite(stamp)&&observationsFresh([{id,day:stamp}],Date.now()/1000);
+  });
+  if(manifest?.records.length&&(visible.length?visible.every(t=>selection(t.coords,cloudRequestedTime)):startupReady))return;
   return nativeMetadata(force||!visible.length);
  };
  cloudTileKey=function(coords,time){const s=selection(coords,time);return s?'prepared-cloud:'+s.path+':'+coords.z+'/'+coords.x+'/'+coords.y:nativeKey(coords,time);};
@@ -148,3 +155,4 @@
  // Immutable decoded blocks remain reusable across pans and zooms, bounded by imageBudget.
  $('cloudOn').addEventListener('change',()=>{if(!$('cloudOn').checked)images.clear();});
 })();
+

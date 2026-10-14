@@ -267,3 +267,25 @@ test('history quotas interleave North America and Europe despite GOES delay',()=
  assert.deepEqual(ordered.map(t=>t.id),['us0','eu0','ca0','us1','eu1']);
  assert.equal(ordered.length,tasks.length);
 });
+
+
+test('first activation discovers official timestamps when prepared products are stale or missing for this view',async()=>{
+ for(const products of [{eumet:{latest:{visible:100,ir:100}}},{gibs:{latest:{visible:4500,ir:4500}}}]){
+  const h=browser(false,true),fetch=h.ctx.fetch;let discoveries=0;
+  h.ctx.Date={now:()=>4500000};h.ctx.frames=[{time:4500}];
+  h.ctx.cloudProducts.eumet={metadataAt:0};h.ctx.cloudViewportSources=()=>['eumet'];
+  h.ctx.cloudEnsureMetadata=async()=>{discoveries++;h.ctx.cloudProducts.eumet.latest={visible:4500,ir:4500};};
+  h.ctx.fetch=async url=>{const r=await fetch(url);if(!url.includes('.json'))return r;const m=await r.json();return {ok:true,json:async()=>({...m,products})};};
+  vm.runInContext(fs.readFileSync('js/cloud-prepared.js','utf8'),h.ctx);
+  await h.ctx.cloudEnsureMetadata();assert.equal(discoveries,1);
+  assert.equal(h.ctx.cloudProducts.eumet.latest.visible,4500);
+ }
+});
+test('first activation still avoids official discovery when every viewport product is fresh',async()=>{
+ const h=browser(false,true),fetch=h.ctx.fetch;let discoveries=0;
+ h.ctx.cloudProducts.eumet={metadataAt:0};h.ctx.cloudViewportSources=()=>['eumet'];
+ h.ctx.cloudEnsureMetadata=async()=>{discoveries++;};
+ h.ctx.fetch=async url=>{const r=await fetch(url);if(!url.includes('.json'))return r;const m=await r.json();return {ok:true,json:async()=>({...m,products:{eumet:{latest:{visible:100,ir:100},times:{visible:[100],ir:[100]}}}})};};
+ vm.runInContext(fs.readFileSync('js/cloud-prepared.js','utf8'),h.ctx);
+ await h.ctx.cloudEnsureMetadata();assert.equal(discoveries,0);assert.equal(h.ctx.cloudProducts.eumet.latest.visible,100);
+});
