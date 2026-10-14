@@ -21,7 +21,7 @@
   function status(s,bad=false){$('forecastMapStatus').textContent=s;$('forecastMapStatus').className='status'+(bad?' bad':'');}
   function opacity(){overlay?.forEach(layer=>layer.setOpacity(Number($('forecastMapOpacity').value)/100));}
   function clearOverlay(){overlay?.forEach(layer=>map.removeLayer(layer));overlay=null;visibleRegions=[];visibleTime=null;visibleUrl=null;$('forecastMapLegend').hidden=true;}
-  function syncView(){document.body.classList.toggle('forecast-view',forecastMode);document.body.classList.toggle('forecast-model-view',active());$('nav-forecastSection').classList.toggle('layer-active',active());dock.hidden=!active();}
+  function syncView(){document.body.classList.toggle('forecast-view',forecastMode);document.body.classList.toggle('forecast-model-view',active());$('nav-forecastSection').classList.toggle('layer-active',active());dock.hidden=!forecastMode;for(const child of dock.children)child.hidden=child!==layerSwitch&&!active();}
   async function metadata(){
     if(meta&&Date.now()-metaChecked<15*60000)return meta;
     if(metaPromise)return metaPromise;
