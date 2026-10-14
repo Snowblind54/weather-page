@@ -8,7 +8,7 @@
     <div class="space-cme-content"><div class="row"><label class="small"><input type="checkbox" id="spaceCmeAll"> Show all recent CMEs</label></div>
     <div id="spaceCmeAge" class="space-data-age">Awaiting shared CME data</div>
     <div id="spaceCmeList" class="space-cme-list"></div>
-    <details class="space-cme-help"><summary>About CME arrivals &amp; sources</summary><p>NASA DONKI / Moon to Mars Space Weather Analysis Office supplies experimental CME analyses and WSA-ENLIL arrival forecasts. The list shows modelled Earth impacts first; enable “Show all” for other eruptions. Speed is not a storm-strength rating. Arrivals are estimates and can differ by hours. An elapsed countdown does not confirm arrival. A combined simulation may give several CMEs the same arrival time.</p><p>Dates use your device’s local time. G1–G5 describes the resulting geomagnetic storm at Earth, not the CME itself.</p><a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI ↗</a></details></div>`;
+    <details class="space-cme-help"><summary>About CME arrivals &amp; sources</summary><p>NASA DONKI / Moon to Mars Space Weather Analysis Office supplies experimental CME analyses and WSA-ENLIL arrival forecasts. The list shows modelled Earth impacts first; enable “Show all” for other eruptions. Speed is not a storm-strength rating. Arrivals are estimates and can differ by hours. CMEs remain listed for four hours after their estimated arrival, then disappear automatically. An elapsed countdown does not confirm arrival. A combined simulation may give several CMEs the same arrival time.</p><p>Dates use your device’s local time. G1–G5 describes the resulting geomagnetic storm at Earth, not the CME itself.</p><a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI ↗</a></details></div>`;
   panel.appendChild(section);
   const $=id=>root.document.getElementById(id);let data=null,signature='';
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -44,7 +44,7 @@
   'use strict';
   function time(v){if(typeof v==='number')return Number.isFinite(v)?(v<1e12?v*1000:v):null;if(!v)return null;const n=Date.parse(v);return Number.isFinite(n)?n:null;}
   function stale(v,now,seconds){const t=time(v);return !t||now-t>seconds*1000||t>now+300000;}
-  function recent(rows,now,all=false){return rows.filter(r=>time(r?.detectedAt)>=now-7*86400000&&time(r.detectedAt)<=now+300000&&(!time(r.estimatedArrival)||time(r.estimatedArrival)>now)&&(all||['expected','glancing','minor'].includes(r.earthImpact))).sort((a,b)=>time(b.detectedAt)-time(a.detectedAt));}
+  function recent(rows,now,all=false){return rows.filter(r=>time(r?.detectedAt)>=now-7*86400000&&time(r.detectedAt)<=now+300000&&(!time(r.estimatedArrival)||time(r.estimatedArrival)+4*3600000>now)&&(all||['expected','glancing','minor'].includes(r.earthImpact))).sort((a,b)=>time(b.detectedAt)-time(a.detectedAt));}
   function impactLabel(r){return ({expected:'Earth-directed CME',glancing:'Possible glancing Earth impact',minor:'Possible minor Earth impact','not-predicted':'No Earth impact predicted',unassessed:'CME · Earth impact not assessed'})[r?.earthImpact]||'CME · Earth impact not assessed';}
   function uncertainty(r){const n=r?.arrivalUncertaintyHours;return typeof n==='number'&&Number.isFinite(n)&&n>0&&n<=72?n:null;}
   function countdown(r,now,isStale=false){

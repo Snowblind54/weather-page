@@ -10,7 +10,15 @@ test('G0 is zero, missing is unknown, stale G5 is last reported',()=>{
  assert.equal(c.gState({scale:0,time:'2026-10-13T15:59Z'},now).value,'G0');assert.equal(c.gState({scale:null},now).value,'—');const g=c.gState({scale:5,time:'2026-10-13T14:00Z'},now);assert.equal(g.stale,true);assert.match(g.label,/Last reported/);
 });
 
-test('Past arrival forecasts stay hidden even with show all; future arrivals remain',()=>{
- const rows=[{id:'past',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-13T15:59Z',earthImpact:'expected'},{id:'now',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-13T16:00Z',earthImpact:'expected'},{id:'future',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-14T12:00Z',earthImpact:'expected'}];
- assert.deepEqual(c.recent(rows,now).map(r=>r.id),['future']);assert.deepEqual(c.recent(rows,now,true).map(r=>r.id),['future']);
+test('Arrivals remain for four hours, then expire even with show all',()=>{
+ const rows=[
+  {id:'expired',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-13T12:00Z',earthImpact:'expected'},
+  {id:'older',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-13T11:59Z',earthImpact:'expected'},
+  {id:'recent',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-13T12:01Z',earthImpact:'expected'},
+  {id:'now',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-13T16:00Z',earthImpact:'expected'},
+  {id:'future',detectedAt:'2026-10-12T12:00Z',estimatedArrival:'2026-10-14T12:00Z',earthImpact:'expected'}];
+ assert.deepEqual(c.recent(rows,now).map(r=>r.id),['recent','now','future']);
+ assert.deepEqual(c.recent(rows,now,true).map(r=>r.id),['recent','now','future']);
+ assert.match(c.countdown(rows[2],now),/arrival unconfirmed/);
+ assert.deepEqual(c.recent([rows[3]],now+4*3600000),[]);
 });
