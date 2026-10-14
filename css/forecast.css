@@ -74,3 +74,5 @@
 
 .forecast-map-layer-switch{padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid var(--border)}
 .forecast-map-layer-switch .source-card{max-height:180px;overflow:auto;overscroll-behavior:contain}
+
+@media(min-width:761px){body.forecast-view #forecastSection{max-height:calc(100dvh - 380px)}}
