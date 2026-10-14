@@ -43,3 +43,61 @@ test('ignored byte ranges retain one whole archive instead of downloading it rep
  const h=browser(300000);let calls=0;h.c.fetch=async()=>{calls++;return {ok:true,status:200,arrayBuffer:async()=>Uint8Array.from(h.body).buffer};};
  await h.run('cloudArchiveBlob(record,file)');await h.run('cloudArchiveBlob(record,file)');assert.equal(calls,1);
 });
+
+function multiBrowser(){
+ const tiles={},paths=[],originals=[];let offset=0;
+ for(let i=0;i<8;i++){const key=(i+1).toString(16).padStart(16,'0')+'-256.webp',bytes=Buffer.alloc(45000,i+10);bytes.write('RIFF');bytes.write('WEBP',8);tiles[key]=[offset,bytes.length];offset+=bytes.length;paths.push('data/cloud-tiles/'+key);originals.push(bytes);}
+ const index=Buffer.from(JSON.stringify({payloadBytes:offset,tiles})),header=Buffer.alloc(12);header.write('NWCLOUD1');header.writeUInt32LE(index.length,8);const body=Buffer.concat([header,index,...originals]);
+ const record={paths,archive:{version:1,path:'data/cloud-tiles/pack-aaaaaaaaaaaaaaaa.bin',bytes:body.length,index_bytes:12+index.length}},calls=[];
+ const c={Map,Set,Uint8Array,DataView,TextDecoder,Blob,Date,Number,Object,Array,String,Math,AbortController,setTimeout,clearTimeout,record,paths,cloudControllers:new Set(),navigator:{connection:{downlink:10}},matchMedia:()=>({matches:true}),fetch:async(url,options)=>{
+  const range=options.headers?.Range?.match(/bytes=(\d+)-(\d+)/);calls.push(range?[+range[1],+range[2]]:null);const b=range?body.subarray(+range[1],+range[2]+1):body;
+  return {ok:true,status:range?206:200,arrayBuffer:async()=>Uint8Array.from(b).buffer,headers:{get:()=>range?'bytes '+range[1]+'-'+range[2]+'/'+body.length:null}};
+ }};
+ vm.createContext(c);vm.runInContext(fs.readFileSync('js/cloud-archive.js','utf8'),c);
+ return {c,body,calls,originals,run:s=>vm.runInContext(s,c)};
+}
+test('nearby visible cloud blocks share ranges and retain their exact original bytes',async()=>{
+ const h=multiBrowser();const result=await h.run('Promise.all(paths.slice(0,4).map(p=>cloudArchiveBlob(record,p)))');
+ assert.equal(h.calls.length,2,'one index request plus one batch replaces four block requests');
+ for(let i=0;i<4;i++)assert.deepEqual(Buffer.from(await result[i].arrayBuffer()),h.originals[i]);
+ await h.run('Promise.all(paths.slice(0,4).map(p=>cloudArchiveBlob(record,p)))');assert.equal(h.calls.length,2);
+ assert.equal(h.c.cloudControllers.size,0);assert.equal(h.run('cloudArchiveCache.get(record.archive.path).pending.size'),0);
+});
+test('batching respects phone and slow-connection byte limits without downloading distant blocks',async()=>{
+ const h=multiBrowser();await h.run('Promise.all(paths.map(p=>cloudArchiveBlob(record,p)))');
+ assert.equal(h.calls.length,3);assert(h.calls.slice(1).every(([a,b])=>b-a+1<=256*1024));
+ const slow=multiBrowser();slow.c.navigator.connection.downlink=.5;await slow.run('Promise.all(paths.map(p=>cloudArchiveBlob(record,p)))');assert.equal(slow.calls.length,9);assert(slow.calls.slice(1).every(([a,b])=>b-a+1<=64*1024));
+ const separated=multiBrowser();await separated.run('Promise.all([paths[0],paths[7]].map(p=>cloudArchiveBlob(record,p)))');assert.equal(separated.calls.length,3);
+});
+test('failed batches reject all waiting blocks, release pending requests, and can retry',async()=>{
+ const h=multiBrowser(),fetch=h.c.fetch;let failed=true;h.c.fetch=async(url,options)=>{const range=options.headers?.Range?.match(/bytes=(\d+)-(\d+)/);if(failed&&range&&+range[1]>0)throw Error('offline');return fetch(url,options);};
+ const result=await h.run('Promise.allSettled(paths.slice(0,4).map(p=>cloudArchiveBlob(record,p)))');assert(result.every(r=>r.status==='rejected'));
+ assert.equal(h.run('cloudArchiveCache.get(record.archive.path).pending.size'),0);failed=false;
+ const blobs=await h.run('Promise.all(paths.slice(0,4).map(p=>cloudArchiveBlob(record,p)))');assert.equal(blobs.length,4);assert.equal(h.c.cloudControllers.size,0);
+});
+test('late requests contained in a running batch share its bytes',async()=>{
+ const h=multiBrowser(),fetch=h.c.fetch;let resolveStarted,finish;const started=new Promise(r=>resolveStarted=r),gate=new Promise(r=>finish=r);
+ h.c.fetch=async(url,options)=>{const range=options.headers?.Range?.match(/bytes=(\d+)-(\d+)/);if(range&&+range[1]>0){resolveStarted();await gate;}return fetch(url,options);};
+ // Artificial small intervening block falls within the bounded merged gap.
+ const entry=await h.run('openCloudArchive(record)');const key=h.c.paths[2].split('/').at(-1);entry.index[key]=[45000+100,10];
+ const first=h.run('Promise.all([paths[0],paths[1]].map(p=>cloudArchiveBlob(record,p)))');await started;
+ const late=h.run('cloudArchiveBlob(record,paths[2])');finish();await first;const blob=await late;
+ assert.equal(h.calls.length,2);assert.deepEqual(Buffer.from(await blob.arrayBuffer()),h.body.subarray(h.c.record.archive.index_bytes+45100,h.c.record.archive.index_bytes+45110));
+});
+
+test('new archives group same-resolution neighboring blocks without changing image bytes',()=>{
+ const f=fixture(),records=[];
+ try{
+  for(const [x,digest] of [[9,'0000000000000001'],[8,'ffffffffffffffff']]){
+   const paths=[];
+   for(const resolution of [256,512,1024]){const name=`data/cloud-tiles/${digest}-${resolution}.webp`;fs.writeFileSync(path.join(f.root,name),f.bytes);paths.push(name);}
+   records.push({key:`4/${x}/4`,time:100,paths,bytes:f.bytes.length*3});
+  }
+  packRecords(f.root,f.dir,records);
+  const body=fs.readFileSync(path.join(f.root,records[0].archive.path)),index=JSON.parse(body.subarray(12,records[0].archive.index_bytes));
+  const keys=Object.keys(index.tiles);
+  assert.deepEqual(keys.map(k=>Number(k.match(/-(\d+)\.webp$/)[1])),[256,256,512,512,1024,1024]);
+  assert.ok(keys[0].startsWith('ffffffffffffffff'),'geographic order instead of random digest order');
+  for(const key of keys){const [at,len]=index.tiles[key];assert.ok(body.subarray(records[0].archive.index_bytes+at,records[0].archive.index_bytes+at+len).equals(f.bytes));}
+ }finally{fs.rmSync(f.root,{recursive:true,force:true});}
+});

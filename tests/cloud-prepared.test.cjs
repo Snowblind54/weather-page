@@ -84,7 +84,7 @@ function browser(failed=false,archived=false){
   validCloudArchive:()=>true,cloudArchiveBlob:async()=>{if(failed)throw Error('archive unavailable');calls.push('archive-block');return {};},
   fetch:async url=>{calls.push(url);return url.split('?')[0].endsWith('.json')?{ok:true,json:async()=>({version:1,records:[record]})}:{ok:!failed,blob:async()=>({})};}
  };
- vm.createContext(ctx);vm.runInContext(fs.readFileSync('js/cloud-prepared.js','utf8'),ctx);return {ctx,calls,draws,cache,promises};
+ ctx.window=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('js/decoded-image-cache.js','utf8'),ctx);vm.runInContext(fs.readFileSync('js/cloud-prepared.js','utf8'),ctx);return {ctx,calls,draws,cache,promises};
 }
 test('CDN images are cropped at zoom 6, reuse one download and preserve exact observation times',async()=>{
  const {ctx,calls,draws}=browser();await ctx.cloudEnsureMetadata();

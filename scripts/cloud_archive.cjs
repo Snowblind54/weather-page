@@ -12,9 +12,13 @@ function packRecords(root,directory,records){
  }
  let written=0;
  function flush(batch){
-  const files=new Map();for(const r of batch)for(const p of r.paths)files.set(p,fs.readFileSync(path.join(root,p)));
+  const files=new Map(),positions=new Map();for(const r of batch)for(const p of r.paths){files.set(p,fs.readFileSync(path.join(root,p)));positions.set(p,r.key.split('/').map(Number));}
   const entries={},buffers=[];let offset=0;const hash=crypto.createHash('sha256');
-  for(const [p,b] of [...files].sort(([a],[b])=>a.localeCompare(b))){
+  // Keep each resolution contiguous, with nearby map blocks next to each other.
+  // Existing immutable archives are never repacked.
+  const resolution=p=>Number(p.match(/-(256|512|1024)\.webp$/)?.[1])||0;
+  const ordered=[...files].sort(([a],[b])=>{const x=positions.get(a),y=positions.get(b);return resolution(a)-resolution(b)||x[0]-y[0]||x[2]-y[2]||x[1]-y[1]||a.localeCompare(b);});
+  for(const [p,b] of ordered){
    if(b.toString('ascii',0,4)!=='RIFF'||b.toString('ascii',8,12)!=='WEBP')throw Error('Invalid cloud WebP');
    const key=path.basename(p);entries[key]=[offset,b.length];offset+=b.length;buffers.push(b);hash.update(key).update(b);
   }

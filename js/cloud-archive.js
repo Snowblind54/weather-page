@@ -1,4 +1,4 @@
-// Immutable indexed PNG archives. Whole downloads for small frames; byte ranges
+// Immutable indexed WebP archives. Whole downloads for small frames; byte ranges
 // for larger frames/slow connections. Decode only the currently visible tiles.
 const cloudArchiveCache=new Map(),cloudArchiveReaders=new Map();
 function validCloudArchive(record){
@@ -56,11 +56,43 @@ async function openCloudArchive(record){
   const promise=(async()=>{
     if(!validCloudArchive(record))throw new Error('Invalid cloud archive descriptor');
     let response=wholeCloudArchivePreferred(record)?await fetchCloudArchiveBytes(record):await fetchCloudArchiveBytes(record,0,Math.min(record.archive.bytes,Math.max(16384,record.archive.index_bytes))-1);
-    const entry={whole:response.whole,prefix:response.data,parts:new Map(),pending:new Map()};
+    const entry={whole:response.whole,prefix:response.data,parts:new Map(),pending:new Map(),queued:new Map(),active:new Set(),flushTimer:null};
     entry.index=parseCloudArchiveIndex(record,entry.whole||entry.prefix);
     touchCloudArchive(path,entry);return entry;
   })().finally(()=>cloudArchiveReaders.delete(path));
   cloudArchiveReaders.set(path,promise);return promise;
+}
+function cloudArchiveBatchGroups(jobs){
+  const connection=typeof navigator==='undefined'?null:navigator.connection;
+  const slow=connection?.saveData||['slow-2g','2g'].includes(connection?.effectiveType)||connection?.downlink<1.5;
+  const limit=(slow?64:cloudArchiveMobile()?256:512)*1024,groups=[];
+  for(const job of [...jobs].sort((a,b)=>a.start-b.start)){
+    let group=groups.at(-1);
+    const gap=group?Math.max(0,job.start-group.end):0,bytes=group?(group.requested+job.end-job.start):0;
+    if(!group||gap>4096||job.end-group.start>limit||group.extra+gap>Math.min(16384,bytes*.2)){
+      group={start:job.start,end:job.end,requested:job.end-job.start,extra:0,jobs:[job]};groups.push(group);
+    }else{group.end=Math.max(group.end,job.end);group.requested=bytes;group.extra+=gap;group.jobs.push(job);}
+  }
+  return groups;
+}
+function cacheCloudArchivePart(entry,key,start,end,result,rangeStart){
+  if(result.whole){entry.whole=result.whole;entry.prefix=null;entry.parts.clear();}
+  const bytes=entry.whole?entry.whole.slice(start,end):result.data.slice(start-rangeStart,end-rangeStart);
+  if(!entry.whole)entry.parts.set(key,bytes);
+  return bytes;
+}
+function flushCloudArchiveRequests(entry,record){
+  entry.flushTimer=null;
+  const groups=cloudArchiveBatchGroups(entry.queued.values());entry.queued.clear();
+  for(const group of groups){
+    // A server may have returned the entire archive for an earlier range.
+    if(entry.whole){for(const job of group.jobs)job.resolve(entry.whole.slice(job.start,job.end));continue;}
+    const batch={start:group.start,end:group.end,promise:fetchCloudArchiveBytes(record,group.start,group.end-1)};
+    entry.active.add(batch);
+    batch.promise.then(result=>{
+      for(const job of group.jobs)job.resolve(cacheCloudArchivePart(entry,job.key,job.start,job.end,result,group.start));
+    },error=>{for(const job of group.jobs)job.reject(error);}).finally(()=>{entry.active.delete(batch);touchCloudArchive(record.archive.path,entry);});
+  }
 }
 async function cloudArchiveTileBytes(record,path){
   const entry=await openCloudArchive(record),key=path.split('/').at(-1),row=entry.index[key];
@@ -70,10 +102,12 @@ async function cloudArchiveTileBytes(record,path){
   if(end<=entry.prefix.byteLength)return entry.prefix.slice(start,end);
   if(entry.parts.has(key))return entry.parts.get(key);
   if(entry.pending.has(key))return entry.pending.get(key);
-  const promise=fetchCloudArchiveBytes(record,start,end-1).then(result=>{
-    if(result.whole){entry.whole=result.whole;entry.prefix=null;entry.parts.clear();return entry.whole.slice(start,end);}
-    entry.parts.set(key,result.data);return result.data;
-  }).finally(()=>{entry.pending.delete(key);touchCloudArchive(record.archive.path,entry);});
+  const batch=[...entry.active].find(b=>start>=b.start&&end<=b.end);
+  const task=batch?batch.promise.then(result=>cacheCloudArchivePart(entry,key,start,end,result,batch.start)):new Promise((resolve,reject)=>{
+    entry.queued.set(key,{key,start,end,resolve,reject});
+    if(entry.flushTimer===null)entry.flushTimer=setTimeout(()=>flushCloudArchiveRequests(entry,record),8);
+  });
+  const promise=task.finally(()=>{entry.pending.delete(key);touchCloudArchive(record.archive.path,entry);});
   entry.pending.set(key,promise);return promise;
 }
 async function cloudArchiveBlob(record,path){
