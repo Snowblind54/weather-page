@@ -121,11 +121,11 @@
       if(intro)intro.textContent='EUMETSAT Meteosat GeoColour / FCI IR10.5 and cloud mask; NOAA nowCOAST GOES-19 / GOES-18 visible and longwave infrared mosaic over the contiguous USA; NASA GIBS full-disk GOES-East / GOES-West over Canada, Alaska, Hawaii and the wider North American domain; EUMETSAT Metop-C AVHRR IR10.8 for the Arctic handoff. Local daylight selects visible imagery; darkness selects infrared. Actual source observation times appear in the layer status.';
       const info=document.querySelector?.('#cloudSection-sources .small');
       if(info)info.textContent='Transparent satellite clouds across the USA, Canada, Greenland, the Atlantic and Europe (170°W–42°E, 18–85°N). NOAA nowCOAST is used only inside its reliable contiguous-US footprint. Canada, Alaska and Hawaii use NASA GIBS full-disk GOES-West / GOES-East so Canadian cloud pixels are never lost at the CONUS boundary. Metop-C increasingly fills the shallow geostationary viewing angle in the Arctic, and Meteosat covers the North Atlantic and Europe. Prepared cloud tiles and the two-hour timeline use the same routing. Missing imagery remains transparent. Snow, ice and warm low cloud can be difficult to separate in this visual cloud overlay.';
-      const canada=document.getElementById?.('cloudCanadaView');
-      if(canada && !document.getElementById('cloudUsView')){
+      const europe=document.getElementById?.('cloudEuropeView');
+      if(europe && !document.getElementById('cloudUsView')){
         const usa=document.createElement('button');usa.id='cloudUsView';usa.type='button';usa.textContent='View USA';
         usa.addEventListener('click',()=>map.fitBounds([[18,-161],[55,-66]],{padding:[24,100]}));
-        canada.after(usa);
+        europe.after(usa);
       }
     }
 
@@ -134,3 +134,4 @@
 
   root.installNordicCloudCoverage=installNordicCloudCoverage;
 })(typeof self!=='undefined'?self:globalThis);
+

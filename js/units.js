@@ -3,9 +3,9 @@
   'use strict';
   const key='northernWeatherUnitsV1';
   let saved={};try{saved=JSON.parse(localStorage.getItem(key)||'{}')||{};}catch(_){}
-  const state={temperature:saved.temperature==='F'?'F':'C',wind:saved.wind==='km/h'?'km/h':'m/s'};
+  const state={temperature:saved.temperature==='F'?'F':'C',wind:['m/s','km/h','mph'].includes(saved.wind)?saved.wind:'m/s'};
   const temperatureValue=value=>Number.isFinite(value)?(state.temperature==='F'?value*9/5+32:value):null;
-  const windValue=value=>Number.isFinite(value)?(state.wind==='km/h'?value*3.6:value):null;
+  const windValue=value=>Number.isFinite(value)?(state.wind==='km/h'?value*3.6:state.wind==='mph'?value/0.44704:value):null;
   const number=(value,digits)=>value===null?'Unavailable':(digits===0?String(Math.round(value)):value.toFixed(digits));
   globalThis.WeatherUnits={
     temperatureValue,windValue,
@@ -35,3 +35,4 @@
     if(typeof renderCyclones==='function'&&document.getElementById('cycloneOn')?.checked)renderCyclones();
   });
 })();
+

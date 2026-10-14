@@ -91,7 +91,7 @@
         <input id="cloudOpacity" type="range" min="0" max="100" value="100">
         <span id="cloudOpacityVal" class="value">100%</span>
       </div>
-      <button id="cloudCanadaView" type="button">View Canada</button>
+      <button id="cloudEuropeView" type="button">View Europe</button>
       <div id="cloudStatus" class="status">Cloud layer is off.</div>
     </div>
   </div>
@@ -192,8 +192,8 @@
   <div class="row"><label class="label"><input id="snowOn" type="checkbox"> Northern Hemisphere snow coverage</label><span class="badge">latest 1 km · history 4 km</span></div>
   <div class="details"><label class="small" for="snowOpacity">Snow layer opacity</label><div class="grid2"><input id="snowOpacity" type="range" min="10" max="100" value="85"><span id="snowOpacityVal" class="value">85%</span></div>
   <div class="snow-legend"><span><i class="snow-swatch"></i>Snow cover</span><span><i class="ice-swatch"></i>Sea ice</span></div>
-  <div class="section snow-history-controls"><div class="row"><label class="label" for="snowHistorySlider">14-day snow history</label><span id="snowHistorySelected" class="value">Latest · 1 km</span></div><input id="snowHistorySlider" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Daily snow analysis date"><div id="snowHistoryRange" class="small">Loading daily archive…</div><div class="row wrap snow-history-buttons"><button id="snowHistoryPrev" type="button" aria-label="Previous snow analysis" disabled>← Previous</button><button id="snowHistoryPlay" type="button" aria-pressed="false" disabled>Play</button><button id="snowHistoryNext" type="button" aria-label="Next snow analysis" disabled>Next →</button><button id="snowHistoryLatest" type="button" disabled>Latest</button></div><div id="snowHistoryNote" class="small">Daily 4 km archive. Station depths are shown in Latest only.</div></div>
   <div class="section snow-depth-controls"><div class="row"><label class="label"><input id="snowDepthOn" type="checkbox" checked> Station snow depth · cm</label><span class="badge">official observations</span></div><div class="row"><label class="label"><input id="snowDepthZero" type="checkbox" checked> Show stations reporting 0 cm</label></div><button id="snowDepthRegion" type="button">View depth stations</button><div id="snowDepthStatus" class="status" role="status" aria-live="polite">Station depths load when Snow opens.</div></div>
+  <div class="section snow-history-controls"><div class="row"><label class="label" for="snowHistorySlider">14-day snow history</label><span id="snowHistorySelected" class="value">Latest · 1 km</span></div><input id="snowHistorySlider" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Daily snow analysis date"><div id="snowHistoryRange" class="small">Loading daily archive…</div><div class="row wrap snow-history-buttons"><button id="snowHistoryPrev" type="button" aria-label="Previous snow analysis" disabled>← Previous</button><button id="snowHistoryPlay" type="button" aria-pressed="false" disabled>Play</button><button id="snowHistoryNext" type="button" aria-label="Next snow analysis" disabled>Next →</button><button id="snowHistoryLatest" type="button" disabled>Latest</button></div><div id="snowHistoryNote" class="small">Daily 4 km archive. Station depths are shown in Latest only.</div></div>
   <div id="snowDate" class="small">Latest daily IMS analysis</div><div class="row wrap"><button id="snowOverview" type="button">Hemisphere view</button><button id="snowRefresh" type="button">Refresh snow</button><button id="snowReturn" type="button">Return to weather</button></div><div id="snowStatus" class="status" role="status" aria-live="polite">Snow coverage is off.</div></div>
 </div>
 <div id="snowMapKey" class="snow-map-key" hidden><div class="snow-legend"><span><i class="snow-swatch"></i>Snow cover</span><span><i class="ice-swatch"></i>Sea ice</span></div><div id="snowMapStatus" role="status">Latest daily IMS analysis</div></div>
@@ -217,7 +217,7 @@
     </div>
     </div>
 
-  <div class="section"><div class="label">Units</div><div class="grid2" style="grid-template-columns:repeat(2,minmax(0,1fr));align-items:start"><div><label class="small" for="temperatureUnits">Temperature</label><select id="temperatureUnits"><option value="C">Celsius (°C)</option><option value="F">Fahrenheit (°F)</option></select></div><div><label class="small" for="windUnits">Wind speed</label><select id="windUnits"><option value="m/s">m/s</option><option value="km/h">km/h</option></select></div></div><div class="small">Applies to readings, forecasts, legends and history graphs. Saved on this device.</div></div>
+  <div class="section"><div class="label">Units</div><div class="grid2" style="grid-template-columns:repeat(2,minmax(0,1fr));align-items:start"><div><label class="small" for="temperatureUnits">Temperature</label><select id="temperatureUnits"><option value="C">Celsius (°C)</option><option value="F">Fahrenheit (°F)</option></select></div><div><label class="small" for="windUnits">Wind speed</label><select id="windUnits"><option value="m/s">m/s</option><option value="km/h">km/h</option><option value="mph">mph</option></select></div></div><div class="small">Applies to readings, forecasts, legends and history graphs. Saved on this device.</div></div>
   <div class="section">
     <div class="row">
       <div>
@@ -245,7 +245,7 @@
 
 <script>window.WEATHER_R2_BASE="https://data.northweather.app";</script>
 <script src="js/r2-storage.js?v=5"></script>
-<script src="js/units.js?v=8.103"></script>
+<script src="js/units.js?v=mph-1"></script>
 <script src="js/config.js?v=arrival-reports-1"></script>
 <script src="js/map.js?v=8.44"></script>
 <script src="js/latvia-warnings.js?v=8.31"></script>
@@ -260,10 +260,10 @@
 <script src="js/temperature.js?v=atlantic-stations-1"></script>
 <script src="js/stations.js?v=atlantic-stations-1"></script>
 <script src="js/cloud-pixels.js?v=8.112"></script>
-<script src="js/clouds.js?v=v8.140"></script>
+<script src="js/clouds.js?v=europe-view-1"></script>
 <script src="js/cloud-eumet-cleanup.js?v=8.135"></script>
 <script src="js/cloud-arctic-source.js?v=8.135"></script>
-<script src="js/cloud-nordic-coverage.js?v=8.135"></script>
+<script src="js/cloud-nordic-coverage.js?v=europe-view-1-8.135"></script>
 <script>
 if(typeof installEumetCleanClouds==='function')installEumetCleanClouds();
 if(typeof installArcticCloudSource==='function')installArcticCloudSource();
@@ -311,4 +311,5 @@ if(typeof installNordicCloudCoverage==='function')installNordicCloudCoverage();
 <script src="js/aurora-planner.js?v=space-tidy-1"></script>
 <script src="js/ui.js?v=daylight-1"></script><script src="js/auto-refresh.js?v=8.137"></script></body>
 </html>
+
 

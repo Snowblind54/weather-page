@@ -23,3 +23,15 @@ test('bad saved preferences fall back safely and storage failure does not block 
  const h=harness('{bad json');assert.equal(h.c.WeatherUnits.temperatureUnit(),'°C');
  h.c.localStorage.setItem=()=>{throw Error('private mode');};h.change('windUnits','km/h');assert.equal(h.c.WeatherUnits.wind(5),'18.0 km/h');
 });
+test('mph converts native wind values and survives reload without changing temperature',()=>{
+ const h=harness();h.change('windUnits','mph');
+ assert.equal(h.c.WeatherUnits.wind(10),'22.4 mph');
+ assert.equal(h.c.WeatherUnits.wind(0),'0.0 mph');
+ assert.equal(h.c.WeatherUnits.wind(null),'Unavailable');
+ assert.equal(h.c.WeatherUnits.windValue(0.44704),1);
+ const restored=harness(h.storage.get('northernWeatherUnitsV1'));
+ assert.equal(restored.controls.windUnits.value,'mph');
+ assert.equal(restored.c.WeatherUnits.windUnit(),'mph');
+ assert.equal(restored.c.WeatherUnits.temperature(0),'0.0°C');
+});
+
