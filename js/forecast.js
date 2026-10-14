@@ -18,10 +18,10 @@
       <label class="label" for="forecastSearchInput">Search location</label>
       <div class="forecast-search-row"><input id="forecastSearchInput" type="search" maxlength="120" placeholder="Town or city, e.g. Tallinn" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="forecastSearchResults" aria-describedby="forecastSearchStatus"><button type="submit">Search</button></div>
       <ul id="forecastSearchResults" class="forecast-search-results" role="listbox" aria-label="Matching locations" hidden></ul>
-      <div id="forecastSearchStatus" class="forecast-note" role="status" aria-live="polite">Search for a town or city.</div>
+      <div id="forecastSearchStatus" class="forecast-note" role="status" aria-live="polite"></div>
     </form>
     <div class="forecast-location" id="forecastLocation">Choose a location</div>
-    <div class="forecast-actions"><button type="button" id="forecastCenter">Use map centre</button><button type="button" id="forecastRetry">Check for updates</button></div>
+    <div class="forecast-actions"><button type="button" id="forecastRetry">Check for updates</button></div>
     <div id="forecastStatus" class="status" role="status" aria-live="polite">Open Forecast to load this map location.</div>
     <div id="forecastContent" hidden>
       <div class="forecast-tabs" role="tablist" aria-label="Forecast view"><button id="forecastHourlyTab" type="button" role="tab" aria-selected="true" aria-controls="forecastHourly">Next 72 hours</button><button id="forecastDailyTab" type="button" role="tab" aria-selected="false" aria-controls="forecastDaily" tabindex="-1">7-day overview</button></div>
@@ -260,7 +260,6 @@
     map.setView([place.lat,place.lon],9);
     choose({lat:place.lat,lng:place.lon},place.label);
   }});
-  $('forecastCenter').addEventListener('click',()=>choose(map.getCenter()));
   $('forecastRetry').addEventListener('click',()=>{gustChecked=0;canadaChecked=0;europeChecked=0;loadForecast();});
   $('forecastTimeline').addEventListener('input',renderSelected);
   function switchView(next){

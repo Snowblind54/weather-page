@@ -50,7 +50,7 @@
       }catch(error){if(id===generation)message('Location search unavailable. Try again, or choose a point on the map.');}
       finally{clearTimeout(timeout);if(controller===abort)controller=null;}
     }
-    input.addEventListener('input',()=>{cancel();hide();if(input.value.trim().length<2){message('Search for a town or city.');return;}message('');timer=setTimeout(search,450);});
+    input.addEventListener('input',()=>{cancel();hide();if(input.value.trim().length<2){message('');return;}message('');timer=setTimeout(search,450);});
     input.addEventListener('keydown',event=>{
       if(event.key==='Escape'){event.preventDefault();cancel();hide();message('');}
       else if(found.length&&['ArrowDown','ArrowUp','Enter'].includes(event.key)){

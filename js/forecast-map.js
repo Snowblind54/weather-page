@@ -8,6 +8,9 @@
   const dock=document.createElement('div');dock.className='forecast-map-dock';dock.hidden=true;
   dock.setAttribute('aria-label','Forecast map timeline');
   dock.innerHTML=`<div class="forecast-map-dock-heading"><strong>Forecast map</strong><time id="forecastMapTime"></time><button id="forecastMapPrevious" type="button" aria-label="Previous forecast hour">←</button><button id="forecastMapNext" type="button" aria-label="Next forecast hour">→</button></div><input id="forecastMapTimeline" type="range" min="0" max="0" value="0" step="1" aria-label="Forecast map time" aria-describedby="forecastMapTime"><div class="forecast-map-range"><span id="forecastMapStart"></span><span id="forecastMapEnd"></span></div><div id="forecastMapCycle" class="forecast-note"></div>`;
+  const layerSwitch=document.createElement('div');layerSwitch.className='forecast-map-layer-switch';
+  layerSwitch.append(controls.querySelector('.forecast-map-layer-heading'),$('forecastMapInfo'),$('forecastMapLayer'));
+  dock.prepend(layerSwitch);
   document.body.append(dock);L.DomEvent.disableClickPropagation(dock);L.DomEvent.disableScrollPropagation(dock);
   map.createPane('forecastModel');map.getPane('forecastModel').style.zIndex='430';map.getPane('forecastModel').style.pointerEvents='none';
   let meta=null,metaPromise=null,metaChecked=0,selectedTime=null,generation=0,overlay=null,visibleTime=null,visibleUrl=null,renderTimer=null,visibleRegions=[];
