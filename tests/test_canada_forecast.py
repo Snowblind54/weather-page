@@ -15,6 +15,24 @@ def frames():
  return result
 
 class CanadaForecast(unittest.TestCase):
+ def test_retirement_removes_old_versions_and_current_format_but_preserves_current_and_unrelated_files(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   root=pathlib.Path(tmp);current=root/canada.cycle_name(RUN);current.mkdir();(current/'keep.webp').write_bytes(b'current')
+   for version in ['canada-v1','northamerica-v2',canada.VERSION]:
+    old=root/('20261011T00Z-'+version);old.mkdir();(old/'old.webp').write_bytes(b'old')
+   unrelated=root/'_staging-test';unrelated.mkdir();(unrelated/'keep').write_bytes(b'keep')
+   canada.retire_previous_cycles(root,current)
+   self.assertEqual(set(p.name for p in root.iterdir()),{current.name,unrelated.name})
+   self.assertEqual((current/'keep.webp').read_bytes(),b'current')
+ def test_already_complete_cycle_still_retires_restored_old_runs(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   data=pathlib.Path(tmp)/'data';data.mkdir();(data/'forecast-map.json').write_text('{}');(data/'forecast-canada.json').write_text('{}')
+   root=data/canada.ASSET_ROOT;root.mkdir();current=root/canada.cycle_name(RUN);current.mkdir()
+   old=root/('20261011T00Z-'+canada.VERSION);old.mkdir()
+   with patch.object(canada,'DATA',data),patch.object(canada,'complete_previous',return_value=True),patch.object(canada,'datetime') as clock,patch.object(canada,'publish') as publish:
+    clock.now.return_value=RUN+dt.timedelta(hours=5)
+    canada.main();publish.assert_not_called()
+   self.assertTrue(current.is_dir());self.assertFalse(old.exists())
  def test_canada_render_reprojects_both_edges_without_changing_iceland(self):
   palette=np.array([[i,i,i,255] for i in range(64)],dtype=np.uint8)
   before=ifs.BOUNDS.copy()
@@ -41,10 +59,12 @@ class CanadaForecast(unittest.TestCase):
    root=pathlib.Path(tmp);data=root/'data';data.mkdir();legends={k:'data/forecast-cache/run/'+k+'-legend.webp' for k in ifs.FIELDS};palettes={k:np.full((64,4),255,dtype=np.uint8) for k in ifs.FIELDS}
    for p in legends.values():(root/p).parent.mkdir(parents=True,exist_ok=True);Image.new('RGBA',(256,18),(255,255,255,255)).save(root/p,format='WEBP')
    old={'reference_time':'older','marker':'keep'};(data/'forecast-canada.json').write_text(json.dumps(old))
+   old_cycle=data/canada.ASSET_ROOT/('20261011T00Z-'+canada.VERSION);old_cycle.mkdir(parents=True);(old_cycle/'last-good.webp').write_bytes(b'keep')
    with patch.object(canada,'MAX_BYTES',1):
     with self.assertRaisesRegex(ValueError,'200 MiB'):canada.publish(frames(),RUN,{'legends':legends},palettes,data,size=4)
-   self.assertEqual(json.loads((data/'forecast-canada.json').read_text()),old);self.assertEqual(list((data/canada.ASSET_ROOT).iterdir()),[])
+   self.assertEqual(json.loads((data/'forecast-canada.json').read_text()),old);self.assertEqual(list((data/canada.ASSET_ROOT).iterdir()),[old_cycle]);self.assertEqual((old_cycle/'last-good.webp').read_bytes(),b'keep')
    manifest=canada.publish(frames(),RUN,{'legends':legends},palettes,data,size=4)
+   self.assertFalse(old_cycle.exists())
    self.assertEqual(len(manifest['cached_times']),87);self.assertEqual(manifest['cached_times'][-1],'2026-10-15T23:00:00.000Z');self.assertEqual(manifest['periods']['2026-10-12T10:00:00.000Z']['gust_start'],'2026-10-12T06:00:00.000Z');self.assertEqual(len(manifest['images']['wind']),87);self.assertTrue(canada.complete_previous(manifest,RUN,root))
    (root/next(iter(manifest['images']['clouds'].values()))).unlink();self.assertFalse(canada.complete_previous(manifest,RUN,root))
 
@@ -64,3 +84,4 @@ class NorthAmericaCoverage(unittest.TestCase):
   with patch.object(ifs.ec,'codes_new_from_message',return_value=object()),patch.object(ifs.ec,'codes_get',side_effect=lambda g,key:keys[key]),patch.object(ifs.ec,'codes_get_array',side_effect=lambda g,key:lat if key=='latitudes' else lon),patch.object(ifs.ec,'codes_get_values',return_value=values),patch.object(ifs.ec,'codes_release'):
    la,lo,grid,*_=ifs.decode(b'grib',RUN,12,canada.BOUNDS)
   self.assertEqual(lo.tolist(),[-190.25,-190.,-180.25,-180.,-179.75,-30.25,-30.]);self.assertEqual(grid.shape,(2,7));self.assertEqual(grid[0,1],1);self.assertEqual(grid[0,-1],6)
+

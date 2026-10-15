@@ -29,6 +29,15 @@ def cycle_name(run):
     return run.strftime('%Y%m%dT%HZ')+'-'+VERSION
 
 
+def retire_previous_cycles(root, current):
+    # Only remove recognized forecast cycles after the current one is complete.
+    # Omitting them from publication lets central R2 expiry retire their assets.
+    pattern=r'\d{8}T\d{2}Z-(?:canada-v1|northamerica-v2|'+re.escape(VERSION)+r')'
+    for old in root.iterdir():
+        if old.is_dir() and not old.is_symlink() and old!=current and re.fullmatch(pattern,old.name):
+            shutil.rmtree(old)
+
+
 def gust_manifest(run):
     return [{'path':f'data/{ASSET_ROOT}/{cycle_name(run)}/gust-grid-{i}-v1.json',
              'bounds':bounds,'units':'m/s'}
@@ -143,8 +152,7 @@ def publish(frames, run, nordic, palettes, data=DATA, size=SIZE):
         temp=data/'forecast-canada.json.tmp';temp.write_text(json.dumps(manifest,indent=2)+'\n');temp.replace(data/'forecast-canada.json')
         # One current cycle keeps the independent GitHub mirror comfortably
         # within its existing 1 GiB limit. R2 keeps retired assets until expiry.
-        for old in root.iterdir():
-            if old.is_dir() and old!=target and re.fullmatch(r'\d{8}T\d{2}Z-(?:canada-v1|northamerica-v2)',old.name):shutil.rmtree(old)
+        retire_previous_cycles(root,target)
         print('Published North America:',len(times),'hours;',round(total/1024/1024,2),'MiB',flush=True)
         return manifest
     finally:
@@ -162,6 +170,7 @@ def main():
     for attempt in range(3):
         trial=candidate-timedelta(hours=6*attempt)
         if complete_previous(previous,trial,DATA.parent):
+            retire_previous_cycles(DATA/ASSET_ROOT,DATA/ASSET_ROOT/cycle_name(trial))
             print('North America ECMWF images already current; no field downloads.',flush=True);return
         # Never call a short/old cycle a 72-hour forecast.
         if trial+timedelta(hours=89)<now+timedelta(hours=72):continue
@@ -178,5 +187,6 @@ def main():
     publish(frames,run,nordic,palettes)
 
 if __name__=='__main__':main()
+
 
 
