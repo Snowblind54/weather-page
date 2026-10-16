@@ -391,3 +391,21 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 .forecast-search-results li:last-child{border-bottom:0}
 .forecast-search-results li:hover,.forecast-search-results li[aria-selected="true"]{background:#22434b;color:#a5f2df}
 .forecast-search input:focus-visible{outline:2px solid #78d8c0;outline-offset:2px}
+
+
+/* Current measured leaders, available without enabling warning polygons. */
+.weather-extremes{border:1px solid var(--border);border-radius:12px;padding:12px;margin:16px 0}
+.weather-extremes>summary{cursor:pointer;font-size:14px;font-weight:650;line-height:1.6}
+.weather-extremes>summary .badge{margin-left:6px;font-weight:400}
+.weather-extremes>summary:focus-visible,.weather-extreme-card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.weather-extremes-tools{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;margin:12px 0}
+.weather-extremes-tools select{min-width:0;width:100%}
+.weather-extremes-list{display:grid;gap:8px;margin-top:12px}
+.weather-panel .weather-extreme-card{display:grid;gap:5px;width:100%;text-align:left;padding:12px;border:1px solid var(--border);border-radius:10px;background:#ffffff05;color:inherit;white-space:normal;overflow-wrap:anywhere}
+.weather-panel button.weather-extreme-card:hover{background:#ffffff0c;border-color:#80dccc66}
+.weather-extreme-heading{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12px}
+.weather-extreme-heading strong{flex-shrink:0;font-size:19px;font-variant-numeric:tabular-nums;color:var(--accent)}
+.weather-extreme-place{font-size:12px;line-height:1.4}
+.weather-extreme-meta{font-size:10px;line-height:1.5;color:var(--muted)}
+.weather-extremes-popup{display:grid;gap:6px;max-width:260px}
+.weather-extremes-popup p{margin:4px 0}
