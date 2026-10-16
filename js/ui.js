@@ -20,6 +20,7 @@ let openedWeatherPanel=null;
 function syncTimelineForPanel(){
   const dock=document.querySelector('.timeline-dock');
   if(dock)dock.hidden=openedWeatherPanel==='spaceWeatherSection';
+  document.body.classList.toggle('has-weather-panel',!!openedWeatherPanel);
 }
 function closeWeatherPanel(returnFocus=false,refreshRain=true){
   if(!openedWeatherPanel)return;
@@ -32,6 +33,11 @@ function closeWeatherPanel(returnFocus=false,refreshRain=true){
   if(returnFocus)$('nav-'+id).focus();
 }
 function positionWeatherPanel(){
+  // A scaled display can change the header from one row to two. Measure its
+  // actual bottom instead of assuming every desktop has a 96 px panel offset.
+  const header=document.querySelector('.topbar');
+  if(header)document.documentElement.style.setProperty('--weather-panel-top',
+    Math.ceil(header.getBoundingClientRect().bottom+12)+'px');
   if(!openedWeatherPanel)return;
   const panel=$(openedWeatherPanel);
   panel.style.left='auto';
@@ -70,6 +76,11 @@ document.addEventListener('pointerdown',event=>{
   }
 });
 window.addEventListener('resize',positionWeatherPanel);
+if(typeof ResizeObserver!=='undefined'){
+  const header=document.querySelector('.topbar');
+  if(header)new ResizeObserver(positionWeatherPanel).observe(header);
+}
+positionWeatherPanel();
 function updateCategoryIndicators(){
   for(const [section,toggle] of weatherCategories){
     const active=$(toggle).checked ||

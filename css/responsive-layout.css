@@ -1,0 +1,61 @@
+/* Fit the usable CSS viewport, including when a window moves to a display
+   with different OS scaling. Keep native browser zoom and phone touch sizes. */
+@media(min-width:761px){
+  :root{--weather-drawer-width:clamp(300px,32vw,430px)}
+
+  /* The tools grow when Data Freshness is installed. Reserve their real width,
+     rather than the old 110 px slot, and contain any navigation overflow. */
+  body .topbar{display:grid;grid-template-columns:max-content minmax(0,1fr) max-content;gap:10px}
+  body .topbar-tools{min-width:max-content;margin-left:0;justify-self:end}
+  body .category-nav{width:100%;min-width:0;overflow-x:auto;justify-content:safe center;scrollbar-width:thin}
+  body .category-tab{flex:0 0 auto}
+
+  body .weather-panel,
+  body .weather-panel.modern-weather-panel,
+  body #forecastSection,
+  body.forecast-view #forecastSection{
+    top:var(--weather-panel-top,96px);
+    width:var(--weather-drawer-width);
+    max-width:calc(100vw - 32px);
+    max-height:calc(100dvh - var(--weather-panel-top,96px) - 96px);
+    overflow-y:auto;
+  }
+  body .freshness-panel{top:var(--weather-panel-top,96px);max-height:calc(100dvh - var(--weather-panel-top,96px) - 24px)}
+  body .leaflet-top.leaflet-left{top:var(--weather-panel-top,96px)}
+  .forecast-map-dock{max-height:calc(100dvh - var(--weather-panel-top,96px) - 40px);overflow-y:auto}
+}
+
+/* A second row keeps every category readable on scaled or smaller desktops. */
+@media(min-width:761px) and (max-width:1400px){
+  body .topbar{grid-template-columns:minmax(0,1fr) max-content;gap:4px 10px;padding:8px 12px}
+  body .brand{grid-column:1;grid-row:1;border-right:0;width:max-content}
+  body .topbar-tools{grid-column:2;grid-row:1}
+  body .category-nav{grid-column:1/-1;grid-row:2}
+  body .category-tab{padding:9px 10px;font-size:12px}
+}
+
+/* On narrower desktops, centre timelines in the map space beside the drawer.
+   Closing the drawer restores the full-screen centred timeline. */
+@media(min-width:761px) and (max-width:1700px){
+  body.has-weather-panel .timeline-dock,
+  body.has-weather-panel .forecast-map-dock{
+    left:calc((100% - var(--weather-drawer-width) - 32px)/2);
+    right:auto;
+    transform:translateX(-50%);
+    width:min(760px,calc(100vw - var(--weather-drawer-width) - 64px));
+  }
+}
+
+/* Short effective viewports need less decorative spacing, not smaller text
+   across the entire page or forced zoom that overrides accessibility settings. */
+@media(min-width:761px) and (max-height:760px){
+  body .weather-panel.modern-weather-panel>.panel-heading{padding:14px 16px 12px}
+  body .weather-panel.modern-weather-panel>.panel-heading h2{font-size:23px}
+  body .weather-panel.modern-weather-panel>.panel-heading~*{margin-left:12px;margin-right:12px}
+  body .modern-weather-panel>.row{min-height:46px;padding:9px 10px;margin-top:10px!important}
+  body .modern-weather-panel>.details,
+  body .modern-weather-panel>.section,
+  body .modern-weather-panel>.accumulation-controls{padding:10px!important}
+  .forecast-map-dock{padding:8px 12px}
+  .forecast-map-layer-switch{padding-bottom:4px;margin-bottom:4px}
+}
