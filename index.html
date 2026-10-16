@@ -7,7 +7,7 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=weather-extremes-1-place-search-1">
+<link rel="stylesheet" href="css/style.css?v=current-extremes-info-1">
 <link rel="stylesheet" href="css/cyclone-fronts.css?v=1">
 <link rel="stylesheet" href="css/mobile.css?v=1" media="(max-width:760px)">
 <link rel="stylesheet" href="css/forecast.css?v=forecast-centered-2">
@@ -174,14 +174,16 @@
       <label class="label"><input id="warningOn" type="checkbox"> Severe weather warnings</label>
       <span class="badge">EE · LV · LT · FI · SE · NO · IS · PL · DK · UK · IE · GL · CA · US</span>
     </div>
+    <div class="weather-extremes-shell">
+      <button class="info-button weather-extremes-info-button" data-info="weatherExtremesInfo" aria-controls="weatherExtremesInfo" aria-expanded="false" aria-label="About current extremes">i</button>
+      <div id="weatherExtremesInfo" class="source-card weather-extremes-info" hidden><h3>Current extremes</h3><p>Highest and lowest recent readings among reporting stations in our coverage, independent of the map timeline. Coverage varies by measurement; these are not worldwide records.</p><p>Temperature: past 95 minutes. Wind: past 3 hours; reporting periods differ between services. Precipitation: complete 24-hour totals ending within the past 3 hours, including melted snow where measured. Snow depth: past 36 hours.</p></div>
     <details id="weatherExtremes" class="weather-extremes">
-      <summary>Weather extremes <span class="badge">current observations</span></summary>
-      <p class="small">Highest and lowest recent readings among reporting stations in our coverage, independent of the map timeline. Coverage varies by measurement; these are not worldwide records.</p>
+      <summary>Current extremes</summary>
       <div class="weather-extremes-tools"><label class="small" for="weatherExtremesScope">Area</label><select id="weatherExtremesScope"><option value="all">All covered stations</option><option value="view">Current map view</option></select><button id="weatherExtremesRefresh" type="button">Refresh</button></div>
       <div id="weatherExtremesStatus" class="small" role="status" aria-live="polite">Expand to load current observations.</div>
       <div id="weatherExtremesList" class="weather-extremes-list"></div>
-      <p class="small">Temperature: past 95 minutes. Wind: past 3 hours; reporting periods differ between services. Precipitation: complete 24-hour totals ending within the past 3 hours, including melted snow where measured. Snow depth: past 36 hours.</p>
     </details>
+    </div>
     <div class="details">
       <div class="warning-legend">
         <span class="warning-key"><span class="warning-dot" style="background:#ffd43b"></span>Yellow</span>

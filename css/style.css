@@ -409,3 +409,9 @@ button.active{background:var(--accent);color:#0b3029;border-color:var(--accent)}
 .weather-extreme-meta{font-size:10px;line-height:1.5;color:var(--muted)}
 .weather-extremes-popup{display:grid;gap:6px;max-width:260px}
 .weather-extremes-popup p{margin:4px 0}
+
+.weather-extremes-shell{position:relative;margin:16px 0}
+.weather-extremes-shell .weather-extremes{margin:0}
+.weather-extremes-shell .weather-extremes>summary{padding-right:38px}
+.weather-extremes-info-button{position:absolute;top:10px;right:12px;z-index:2;width:28px;height:28px;padding:0;border-radius:50%;line-height:26px}
+.weather-extremes-info{position:absolute;top:48px;left:0;right:0;z-index:3;max-height:40vh;overflow:auto;background:var(--panel);box-shadow:var(--shadow)}
