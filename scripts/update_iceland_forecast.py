@@ -20,15 +20,16 @@ import eccodes as ec
 import numpy as np
 from PIL import Image
 from scipy.interpolate import RegularGridInterpolator
+from forecast_precipitation import ecmwf_phase,paint_phase
 
 ROOT = 'https://data.ecmwf.int/forecasts/'
 BOUNDS = [-30, 18, 60, 84]
-ASSET_VERSION = 'euroatlantic-v3'
+ASSET_VERSION = 'euroatlantic-v4'
 POINT_BOUNDS = [-28, 61, -12, 69]
 EUROPE_GUST_AREAS = [[west,south,west+30,south+22] for south in (18,40,62) for west in (-30,0,30)]
 GUST_FILE = 'gust-grid-v1.json'
 SIZE = 2048
-PARAMS = {'2t', '10u', '10v', 'tp', 'tcc', '10fg'}
+PARAMS = {'2t', '10u', '10v', 'tp', 'tcc', '10fg', 'ptype'}
 FIELDS = {'temperature':'air_temperature_2m', 'rain':'precipitation_amount',
           'wind':'wind_speed_10m', 'gusts':'wind_speed_of_gust', 'clouds':'cloud_area_fraction'}
 RANGES = {'temperature':(213.15,333.15), 'rain':(.1,10), 'wind':(0,30),
@@ -68,7 +69,7 @@ def request(address, start=None, length=None):
 def index(run, step):
     rows = [json.loads(line) for line in request(url(run,step,'index')).decode().splitlines()]
     selected = {r['param']:r for r in rows if r.get('levtype')=='sfc' and r.get('param') in PARAMS}
-    required = PARAMS - ({'10fg'} if step==0 else set())
+    required = PARAMS - ({'10fg','ptype'} if step==0 else set())
     if not required <= selected.keys(): raise ValueError('Missing ECMWF surface fields')
     return selected
 
@@ -96,13 +97,13 @@ def decode(raw, run, step, bounds=None):
 def read_step(run, step, rows=None, bounds=None):
     result = {}
     for name, row in (rows or index(run,step)).items():
-        if step==0 and name=='10fg': continue
+        if step==0 and name in {'10fg','ptype'}: continue
         offset,length = int(row['_offset']),int(row['_length'])
         if not 0 < length < 8*1024*1024: raise ValueError('Unexpected GRIB size')
         raw = request(url(run,step,'grib2'),offset,length)
         lat,lon,grid,unit,start,end,packing_error = decode(raw,run,step,bounds)
         expected = {'2t':{'K'},'10u':{'m s**-1'},'10v':{'m s**-1'},'tp':{'m'},
-                    'tcc':{'(0 - 1)','1'},'10fg':{'m s**-1'}}[name]
+                    'tcc':{'(0 - 1)','1'},'10fg':{'m s**-1'},'ptype':{'(Code table 4.201)','Code table 4.201','1'}}[name]
         if unit not in expected: raise ValueError(f'Unexpected {name} units: {unit}')
         if name=='tp' and (start!=0 or end!=step): raise ValueError('Rain is not accumulation since run start')
         if name=='tp':
@@ -114,7 +115,8 @@ def read_step(run, step, rows=None, bounds=None):
             result['gust_start']=start
             result['gust_end']=end
         limits = {'2t':(180,340),'10u':(-150,150),'10v':(-150,150),'tp':(-1e-7,5),
-                  'tcc':(-1e-6,1.000001),'10fg':(0,150)}[name]
+                  'tcc':(-1e-6,1.000001),'10fg':(0,150),'ptype':(0,255)}[name]
+        if name=='ptype' and not np.equal(grid,np.round(grid)).all():raise ValueError('Noncategorical precipitation type')
         if grid.min()<limits[0] or grid.max()>limits[1]: raise ValueError(f'Invalid {name} values')
         if 'lat' in result and (not np.array_equal(lat,result['lat']) or not np.array_equal(lon,result['lon'])):
             raise ValueError('ECMWF surface grids differ')
@@ -193,7 +195,7 @@ def nordic_exclusion_for_time(nordic, key, exclusion):
     # Beyond the Nordic forecast horizon ECMWF must fill its former footprint.
     return exclusion if key in nordic.get('images', {}).get('temperature', {}) else None
 
-def render(grid, lat, lon, kind, palette, destination, exclusion=None, bounds=None, size=None):
+def render(grid, lat, lon, kind, palette, destination, exclusion=None, bounds=None, size=None, precipitation_type=None):
     bounds = BOUNDS if bounds is None else bounds
     size = SIZE if size is None else size
     # Equal spacing in Mercator y is essential for Leaflet imageOverlay.
@@ -204,6 +206,8 @@ def render(grid, lat, lon, kind, palette, destination, exclusion=None, bounds=No
     lo,hi = RANGES[kind]
     sampler = RegularGridInterpolator((lat,lon),grid,bounds_error=True)
     pixels = np.empty((size,size,4),dtype=np.uint8)
+    phases=np.zeros((size,size),dtype=np.uint8) if kind=='rain' and precipitation_type is not None else None
+    phase_sampler=RegularGridInterpolator((lat,lon),precipitation_type,method='nearest',bounds_error=True) if phases is not None else None
     # Small row blocks avoid a large 2048² coordinate array on the runner.
     for first in range(0,size,64):
         la,ln = np.meshgrid(sample_lat[first:first+64],sample_lon,indexing='ij')
@@ -213,7 +217,10 @@ def render(grid, lat, lon, kind, palette, destination, exclusion=None, bounds=No
         if kind=='rain': rgba[values<lo,3]=0
         if exclusion is not None: rgba[exclusion[first:first+64],3]=0
         pixels[first:first+64] = rgba
-    Image.fromarray(pixels).save(destination,format='WEBP',lossless=True,method=4)
+        if phase_sampler is not None:phases[first:first+64]=ecmwf_phase(phase_sampler(np.stack((la,ln),axis=-1)))
+    image=Image.fromarray(pixels)
+    if phases is not None:image=paint_phase(image,phases)
+    image.save(destination,format='WEBP',lossless=True,method=4)
 
 def ensure_nordic_inputs(nordic, root, restore=None):
     """Hydrate just the domain mask and palettes referenced by this manifest.
@@ -309,13 +316,14 @@ def main():
             key = iso(valid);times.append(key)
             periods[key] = {'start':iso(run+timedelta(hours=lower)), 'end':iso(run+timedelta(hours=upper)),
                             'interpolated':hour%3!=0,
+                            'precipitation_type_time':iso(run+timedelta(hours=lower)),
                             'gust_start':iso(run+timedelta(hours=frames[gust_step]['gust_start'])),
                             'gust_end':iso(run+timedelta(hours=frames[gust_step]['gust_end'])),
                             'gust_sample_time':iso(run+timedelta(hours=gust_step))}
             for kind,grid in fields.items():
                 filename = kind+'-'+valid.strftime('%Y%m%dT%HZ')+'.webp'
                 render(grid,frames[lower]['lat'],frames[lower]['lon'],kind,palettes[kind],stage/filename,
-                       nordic_exclusion_for_time(nordic,key,exclusion))
+                       nordic_exclusion_for_time(nordic,key,exclusion),precipitation_type=frames[lower].get('ptype') if kind=='rain' else None)
                 images[kind][key] = f'data/forecast-iceland-cache/{cycle}/{filename}'
             if hour%6==0: print('Rendered hourly Iceland maps:',hour,'/ 90',flush=True)
         size = sum(p.stat().st_size for p in stage.iterdir())
@@ -331,13 +339,14 @@ def main():
                     'grid_spacing_degrees':.25,'native_step_hours':3,'cache_bytes':size,'licence':'CC BY 4.0',
                     'documentation':'https://www.ecmwf.int/en/forecasts/datasets/open-data',
                     'source_variables':sorted(PARAMS),
+                    'precipitation_types':{'version':1,'source':'ECMWF IFS precipitation type','method':'Nearest-neighbour categories, held from the preceding native three-hour valid time; no categorical interpolation. Intensity is the three-hour mean liquid-water-equivalent rate.'},
                     'gust_grid':gust_manifest(cycle),'europe_gust_grids':europe_gust_manifest(cycle),
                     'nordic_priority':{'bounds':nordic['bounds'],'coverage_source':str(coverage_path.relative_to(data.parent)),
                                        'method':'Nordic temperature-domain alpha excludes ECMWF under every layer, including dry rain pixels.'},
                     'processing':'Hourly temperature, wind components and cloud cover are linearly interpolated. Rain is a native three-hour mean rate; gusts use the nearest native forecast and retain its maximum interval.'}
         temp=data/'forecast-iceland.json.tmp';temp.write_text(json.dumps(manifest,indent=2)+'\n');temp.replace(previous_path)
         # Mirror only the complete current cycle; retired R2 assets expire centrally.
-        cycles=[p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-(?:atlantic-v1|euroatlantic-v2|euroatlantic-v3))?',p.name)]
+        cycles=[p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-(?:atlantic-v1|euroatlantic-v2|euroatlantic-v3|euroatlantic-v4))?',p.name)]
         for old in cycles:
             if old!=target: shutil.rmtree(old)
         print('Published Europe and Arctic:',len(times),'hours;',round(size/1024/1024,2),'MiB',flush=True)
@@ -345,6 +354,7 @@ def main():
         if stage.exists(): shutil.rmtree(stage)
 
 if __name__=='__main__': main()
+
 
 
 

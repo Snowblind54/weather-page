@@ -11,7 +11,7 @@ RUN=dt.datetime(2026,10,12,6,tzinfo=dt.timezone.utc)
 def frames():
  lat=np.array([18.,40.,62.,84.]);lon=np.array([-190.,-150.,-110.,-70.,-30.]);result={}
  for hour in range(0,91,3):
-  shape=(4,5);result[hour]={'lat':lat,'lon':lon,'2t':np.full(shape,270+hour/10),'10u':np.full(shape,4),'10v':np.zeros(shape),'tcc':np.full(shape,.5),'tp':np.full(shape,hour*.001),'10fg':np.full(shape,12),'gust_start':max(0,hour-3),'gust_end':hour}
+  shape=(4,5);result[hour]={'lat':lat,'lon':lon,'2t':np.full(shape,270+hour/10),'10u':np.full(shape,4),'10v':np.zeros(shape),'tcc':np.full(shape,.5),'ptype':np.full(shape,5),'tp':np.full(shape,hour*.001),'10fg':np.full(shape,12),'gust_start':max(0,hour-3),'gust_end':hour}
  return result
 
 class CanadaForecast(unittest.TestCase):
@@ -84,4 +84,5 @@ class NorthAmericaCoverage(unittest.TestCase):
   with patch.object(ifs.ec,'codes_new_from_message',return_value=object()),patch.object(ifs.ec,'codes_get',side_effect=lambda g,key:keys[key]),patch.object(ifs.ec,'codes_get_array',side_effect=lambda g,key:lat if key=='latitudes' else lon),patch.object(ifs.ec,'codes_get_values',return_value=values),patch.object(ifs.ec,'codes_release'):
    la,lo,grid,*_=ifs.decode(b'grib',RUN,12,canada.BOUNDS)
   self.assertEqual(lo.tolist(),[-190.25,-190.,-180.25,-180.,-179.75,-30.25,-30.]);self.assertEqual(grid.shape,(2,7));self.assertEqual(grid[0,1],1);self.assertEqual(grid[0,-1],6)
+
 

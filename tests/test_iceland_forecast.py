@@ -4,6 +4,8 @@ import json
 from datetime import datetime,timezone
 import unittest
 from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 from unittest.mock import patch
 
 import numpy as np
@@ -18,7 +20,7 @@ class IcelandForecastTests(unittest.TestCase):
         self.assertEqual(west,-30)
         for lat,lon in [(78.2,15.6),(82.,-25.),(40.4,-3.7),(41.9,12.5),(55.8,37.6),(30.,31.2)]:
             self.assertTrue(west<=lon<=east and south<=lat<=north)
-        self.assertEqual(m.ASSET_VERSION,'euroatlantic-v3')
+        self.assertEqual(m.ASSET_VERSION,'euroatlantic-v4')
 
     def test_ecmwf_fills_the_nordic_domain_when_its_forecast_has_ended(self):
         exclusion=np.ones((16,16),dtype=bool)
@@ -153,3 +155,18 @@ if __name__=='__main__':unittest.main()
 
 
 
+
+
+class SnowRenderingTests(unittest.TestCase):
+    def test_categorical_snow_uses_nearest_neighbour_and_does_not_bleed_into_dry_pixels(self):
+        lat=np.array([18.,84.]);lon=np.array([-30.,60.]);rate=np.ones((2,2))
+        phase=np.array([[1.,5.],[1.,5.]])
+        palette=np.array([[0,120,240,255]]*64,dtype=np.uint8)
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'rain.webp'
+            m.render(rate,lat,lon,'rain',palette,path,size=32,precipitation_type=phase)
+            with Image.open(path) as image:
+                self.assertEqual(image.getpixel((1,1))[:3],(0,120,240))
+                self.assertEqual(image.getpixel((30,1))[:3],(234,94,218))
+            m.render(np.zeros((2,2)),lat,lon,'rain',palette,path,size=32,precipitation_type=phase)
+            with Image.open(path) as image:self.assertEqual(np.array(image)[:,:,3].max(),0)

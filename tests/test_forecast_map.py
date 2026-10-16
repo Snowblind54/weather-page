@@ -5,6 +5,8 @@ import json
 from unittest.mock import patch
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 
 spec = importlib.util.spec_from_file_location('forecast_map', Path(__file__).resolve().parents[1] / 'scripts/update_forecast_map.py')
 module = importlib.util.module_from_spec(spec)
@@ -64,3 +66,24 @@ class ForecastMapTests(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
+
+
+class SnowPhasePublication(unittest.TestCase):
+    def test_probability_map_uses_the_rain_ending_hour_and_explicit_probability_thresholds(self):
+        from urllib.parse import urlparse,parse_qs
+        m={'endpoint':'https://thredds.met.no/example','bounds':[-11,52,42,74],'layers':{'rain':'precipitation_amount'},'snow_phase_variable':'probability_of_snow_phase'}
+        p=parse_qs(urlparse(module.snow_phase_url(m,datetime(2026,10,7,18,tzinfo=timezone.utc))).query)
+        self.assertEqual(p['time'],['2026-10-07T19:00:00.000Z']);self.assertEqual(p['colorscalerange'],['0.3,0.7'])
+        self.assertEqual(p['layers'],['probability_of_snow_phase']);self.assertEqual(p['nodatacolor'],['transparent'])
+    def test_complete_publication_colours_snow_and_does_not_publish_intermediate_phase_maps(self):
+        from PIL import Image
+        from urllib.parse import urlparse,parse_qs
+        m={'reference_time':'2026-10-07T18:00:00+00:00','endpoint':'https://thredds.met.no/example','time_dimension':'2026-10-07T18:00:00Z/2026-10-07T20:00:00Z/PT1H','bounds':[-11,52,42,74],'layers':{'rain':'precipitation_amount'},'snow_phase_variable':'probability_of_snow_phase'}
+        def save(url,path,size):
+            query=parse_qs(urlparse(url).query);colour=(255,0,255,255) if query.get('layers')==['probability_of_snow_phase'] else (0,120,240,255)
+            Image.new('RGBA',size,colour).save(path,lossless=True)
+        with tempfile.TemporaryDirectory() as tmp,patch.object(module,'WIDTH',32),patch.object(module,'HEIGHT',32):
+            data=Path(tmp)/'data';data.mkdir();result=module.publish_cache(m,data,save)
+            self.assertEqual(result['precipitation_types']['version'],1)
+            self.assertFalse(list((data/'forecast-cache').rglob('phase-*.webp')))
+            with Image.open(data.parent/next(iter(result['images']['rain'].values()))) as im:self.assertEqual(im.getpixel((0,0))[:3],(234,94,218))

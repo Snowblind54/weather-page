@@ -7,6 +7,7 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/forecast_precipitation.py
       - scripts/update_forecast_map.py
       - .github/workflows/update-forecast-map.yml
 
@@ -49,8 +50,11 @@ jobs:
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py data/forecast-map.json data/forecast-cache
       - name: Install image encoder
-        run: python3 -m pip install Pillow==11.3.0
+        run: python3 -m pip install Pillow==11.3.0 numpy==2.3.5
+      - name: Check precipitation phase colours
+        run: PYTHONPATH=scripts python3 -m unittest discover -s tests -p test_forecast_precipitation.py -v
       - name: Save shared MET Nordic forecast images
         run: python3 scripts/update_forecast_map.py
       - name: Publish shared forecast maps
         run: bash scripts/publish_generated_data.sh 'Refresh shared MET Nordic forecast maps' data/forecast-map.json data/forecast-cache
+

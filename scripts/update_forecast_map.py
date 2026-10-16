@@ -15,6 +15,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
+from forecast_precipitation import recolour_nordic
 
 ROOT = 'https://thredds.met.no/thredds/'
 VARIABLES = {'temperature': ('air_temperature_2m', 'K'), 'rain': ('precipitation_amount', 'kg/m^2'),
@@ -62,7 +63,10 @@ def build_manifest(path, capabilities, das, now=None):
             layers[key] = name
     if not all(key in layers for key in ['temperature', 'rain', 'wind']):
         raise ValueError('Required forecast map variables or units unavailable')
+    snow=re.search(r'\bprobability_of_snow_phase\s*\{([^}]+)\}',das)
+    snow_available='probability_of_snow_phase' in capabilities and snow and 'String units "1"' in snow.group(1)
     meta = capabilities[layers['temperature']]
+    if snow_available and capabilities['probability_of_snow_phase']['dimension']!=meta['dimension']:snow_available=False
     parts = meta['dimension'].split('/')
     if len(parts) != 3 or parts[2] != 'PT1H':
         raise ValueError('Expected hourly forecast grid')
@@ -77,6 +81,7 @@ def build_manifest(path, capabilities, das, now=None):
             'reference_time': reference.isoformat(), 'endpoint': ROOT + 'wms/' + path,
             'time_dimension': meta['dimension'], 'bounds': meta['bounds'], 'layers': layers,
             'grid_spacing_km': 1, 'precipitation_period': 'one hour ending at source timestamp',
+            'snow_phase_variable':'probability_of_snow_phase' if snow_available else None,
             'licence': 'CC BY 4.0', 'documentation': 'https://github.com/metno/NWPdocs/wiki/MET-Nordic-dataset'}
 
 # Keep colour scales aligned with js/forecast-map-data.js. Rain ends one hour
@@ -132,8 +137,15 @@ def download_image(url, dest, expected_size):
         image.convert('RGBA').save(dest, format='WEBP', lossless=True, method=4)
     time.sleep(0.4)
 
+def snow_phase_url(manifest,valid):
+    from urllib.parse import parse_qsl,urlsplit,urlunsplit
+    url=urlsplit(image_url(manifest,'rain',valid));params=dict(parse_qsl(url.query))
+    params.update(layers=manifest['snow_phase_variable'],styles='raster/greyscale',colorscalerange='0.3,0.7',numcolorbands=2,
+                  belowmincolor='0xFF0088FF',abovemaxcolor='0xFFFF00FF')
+    return urlunsplit((url.scheme,url.netloc,url.path,urlencode(params),url.fragment))
+
 def publish_cache(manifest, data_dir, downloader=download_image):
-    cycle = datetime.fromisoformat(manifest['reference_time']).strftime('%Y%m%dT%HZ')+'-temperature-v1'
+    cycle = datetime.fromisoformat(manifest['reference_time']).strftime('%Y%m%dT%HZ')+'-precipitation-v2'
     root = data_dir / 'forecast-cache'
     root.mkdir(parents=True, exist_ok=True)
     times = forecast_times(manifest)
@@ -145,6 +157,8 @@ def publish_cache(manifest, data_dir, downloader=download_image):
             filename = key + '-' + valid.strftime('%Y%m%dT%HZ') + '.webp'
             frames[key][iso(valid)] = 'data/forecast-cache/' + cycle + '/' + filename
             tasks.append((image_url(manifest,key,valid), filename, (WIDTH,HEIGHT)))
+            if key=='rain' and manifest.get('snow_phase_variable'):
+                tasks.append((snow_phase_url(manifest,valid),'phase-'+filename,(WIDTH,HEIGHT)))
         filename = key + '-legend.webp'
         legends[key] = 'data/forecast-cache/' + cycle + '/' + filename
         tasks.append((image_url(manifest,key), filename, (256,18)))
@@ -162,6 +176,10 @@ def publish_cache(manifest, data_dir, downloader=download_image):
                     raise
             for i, _ in enumerate(pool.map(work,tasks), 1):
                 if i % 25 == 0: print('Saved',i,'/',len(tasks),'forecast images',flush=True)
+        if manifest.get('snow_phase_variable'):
+            for valid in times:
+                filename='rain-'+valid.strftime('%Y%m%dT%HZ')+'.webp'
+                phase=stage/('phase-'+filename);recolour_nordic(stage/filename,phase);phase.unlink()
         size = sum(p.stat().st_size for p in stage.iterdir())
         if size > 200*1024*1024:
             raise ValueError('Forecast cache exceeds 200 MiB publishing budget')
@@ -169,7 +187,8 @@ def publish_cache(manifest, data_dir, downloader=download_image):
         if destination.exists(): shutil.rmtree(destination)
         stage.rename(destination)
         cached = {**manifest, 'delivery':'static-regional-images', 'images':frames,
-                  'asset_version':'temperature-v1', 'temperature_range_celsius':[-60,60],
+                  'asset_version':'precipitation-v2', 'temperature_range_celsius':[-60,60],
+                  'precipitation_types':{'version':1,'source':'MET Nordic snow-phase probability','method':'Snow above 70%; rain below 30%; 30–70% is an uncertain rain/snow transition. Valid at the end of the hourly precipitation period.'} if manifest.get('snow_phase_variable') else None,
                   'legends':legends, 'image_size':[WIDTH,HEIGHT], 'cache_bytes':size,
                   'cached_times':[iso(t) for t in times], 'refresh_interval_hours':6}
         # Images are complete before the new manifest becomes visible.
@@ -177,7 +196,7 @@ def publish_cache(manifest, data_dir, downloader=download_image):
         temp.write_text(json.dumps(cached,indent=2)+'\n')
         temp.replace(data_dir/'forecast-map.json')
         # Retain this and the preceding cycle so open tabs can finish loading.
-        cycles = sorted(p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-temperature-v1)?',p.name))
+        cycles = sorted(p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-(?:temperature-v1|precipitation-v2))?',p.name))
         for old in cycles[:-2]: shutil.rmtree(old)
         print('Published',len(tasks),'shared forecast images;',round(size/1024/1024,2),'MiB')
         return cached
@@ -185,6 +204,7 @@ def publish_cache(manifest, data_dir, downloader=download_image):
         if stage.exists(): shutil.rmtree(stage)
 
 def cache_complete(previous, data_dir):
+    if previous.get('asset_version')!='precipitation-v2':return False
     if previous.get('delivery') != 'static-regional-images' or previous.get('temperature_range_celsius') != [-60,60]: return False
     files = [p for frames in previous.get('images',{}).values() for p in frames.values()]
     files += list(previous.get('legends',{}).values())
@@ -216,4 +236,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 

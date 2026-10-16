@@ -68,6 +68,8 @@ test('Extended Europe maps stay on the shared 72-hour timeline when the menu clo
 function harness({iceland=false,europe=false,wide=false,canada=false,canadaView=false,nordicMissing=false,america=false,viewBounds=null}={}){
   const ids={},classes=new Set(),images=[],overlays=[],timers=new Map(),listeners={};let tid=0,observer;
   class Element{
+    set id(value){this._id=value;ids[value]=this;}get id(){return this._id;}
+    querySelector(){return new Element();}prepend(...xs){this.children.unshift(...xs);}
     constructor(){this.children=[];this.options=[];this.value='0';this.events={};this.hidden=false;this.dataset={};this.classList={toggle:(name,on)=>on?classes.add(name):classes.delete(name)};}
     set innerHTML(s){for(const m of s.matchAll(/id="([^"]+)"/g))ids[m[1]]=new Element();if(ids.forecastMapLayer)ids.forecastMapLayer.value='temperature';if(ids.forecastMapOpacity)ids.forecastMapOpacity.value='55';}
     append(...xs){this.children.push(...xs);}before(){}setAttribute(k,v){this[k]=v;}addEventListener(k,f){this.events[k]=f;}replaceChildren(...xs){this.children=xs;}
@@ -190,4 +192,21 @@ test('expanded temperatures use their actual cached scale and versioned assets',
   assert.deepEqual(D.temperatureTicks(wide),['−60','−40','−20','0','20','40','60+']);
   assert(D.assetUrl(wide,'temperature',first).includes(version));
  }
+});
+
+
+test('snow-capable forecast versions have immutable URLs while old caches remain readable',()=>{
+ for(const [base,version] of [[manifest,'precipitation-v2'],[americaManifest,'northamerica-v4'],[europeManifest,'euroatlantic-v4']]){
+  const next=structuredClone(base),old=next.asset_version;next.asset_version=version;
+  const cycle=new Date(next.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z-'+version;
+  const change=path=>{const parts=path.split('/');parts[2]=cycle;return parts.join('/');};
+  for(const kind of Object.keys(next.images)){for(const key of Object.keys(next.images[kind]))next.images[kind][key]=change(next.images[kind][key]);next.legends[kind]=change(next.legends[kind]);}
+  assert.match(D.assetUrl(next,'rain',first),new RegExp(version));
+ }
+});
+test('precipitation exposes the snowflake key and warns when old caches lack precipitation type',async()=>{
+ const h=harness();h.open();await h.run();h.ids.forecastMapLayer.value='rain';h.ids.forecastMapLayer.events.change();await h.run();await h.loaded(h.images.length-1);
+ assert.equal(h.ids.forecastPrecipKey.hidden,false);assert.match(h.ids.forecastMapVisibleTime.textContent,/type unavailable/);
+ assert.match(h.ids.forecastMapVisibleTime.textContent,/forecast snow, not snow already on the ground/);
+ h.ids.forecastMapLayer.value='wind';h.ids.forecastMapLayer.events.change();await h.run();assert.equal(h.ids.forecastPrecipKey.hidden,true);
 });

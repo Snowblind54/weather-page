@@ -18,7 +18,7 @@ import update_iceland_forecast as ifs
 DATA = Path(__file__).resolve().parents[1]/'data'
 BOUNDS = [-190, 18, -30, 84]
 SIZE = 2048
-VERSION = 'northamerica-v3'
+VERSION = 'northamerica-v4'
 ASSET_ROOT = 'forecast-canada-cache'
 MAX_BYTES = 200*1024*1024
 GUST_AREAS = [[west,south,east,north] for south,north in [(18,40),(40,62),(62,84)]
@@ -32,7 +32,7 @@ def cycle_name(run):
 def retire_previous_cycles(root, current):
     # Only remove recognized forecast cycles after the current one is complete.
     # Omitting them from publication lets central R2 expiry retire their assets.
-    pattern=r'\d{8}T\d{2}Z-(?:canada-v1|northamerica-v2|'+re.escape(VERSION)+r')'
+    pattern=r'\d{8}T\d{2}Z-(?:canada-v1|northamerica-v2|northamerica-v3|'+re.escape(VERSION)+r')'
     for old in root.iterdir():
         if old.is_dir() and not old.is_symlink() and old!=current and re.fullmatch(pattern,old.name):
             shutil.rmtree(old)
@@ -119,12 +119,13 @@ def publish(frames, run, nordic, palettes, data=DATA, size=SIZE):
             key=ifs.iso(valid);times.append(key)
             periods[key]={'start':ifs.iso(run+timedelta(hours=lower)),
                           'end':ifs.iso(run+timedelta(hours=upper)), 'interpolated':hour%3!=0,
+                          'precipitation_type_time':ifs.iso(run+timedelta(hours=lower)),
                           'gust_start':ifs.iso(run+timedelta(hours=frames[gust_step]['gust_start'])),
                           'gust_end':ifs.iso(run+timedelta(hours=frames[gust_step]['gust_end'])),
                           'gust_sample_time':ifs.iso(run+timedelta(hours=gust_step))}
             for kind,grid in fields.items():
                 filename=kind+'-'+valid.strftime('%Y%m%dT%HZ')+'.webp'
-                ifs.render(grid,frames[lower]['lat'],frames[lower]['lon'],kind,palettes[kind],stage/filename,bounds=BOUNDS,size=size)
+                ifs.render(grid,frames[lower]['lat'],frames[lower]['lon'],kind,palettes[kind],stage/filename,bounds=BOUNDS,size=size,precipitation_type=frames[lower].get('ptype') if kind=='rain' else None)
                 images[kind][key]=f'data/{ASSET_ROOT}/{cycle_name(run)}/{filename}'
             if hour%6==0:print('Rendered North America maps:',hour,'/ 90 hours',flush=True)
         total=sum(p.stat().st_size for p in stage.iterdir())
@@ -137,6 +138,7 @@ def publish(frames, run, nordic, palettes, data=DATA, size=SIZE):
                   'grid_spacing_degrees':.25,'native_step_hours':3,'cache_bytes':total,'licence':'CC BY 4.0',
                   'documentation':'https://www.ecmwf.int/en/forecasts/datasets/open-data',
                   'gust_grids':gust_manifest(run),
+                  'precipitation_types':{'version':1,'source':'ECMWF IFS precipitation type','method':'Nearest-neighbour categories held from the preceding native three-hour valid time; intensity is a three-hour mean liquid-water-equivalent rate.'},
                   'processing':'Same palettes as MET Nordic. Hourly instantaneous fields are numerically interpolated between native three-hour forecasts. Rain is the three-hour mean rate. Gusts retain the maximum from the nearest native forecast period.'}
         target=root/cycle_name(run)
         if target.exists():
@@ -187,6 +189,7 @@ def main():
     publish(frames,run,nordic,palettes)
 
 if __name__=='__main__':main()
+
 
 
 
