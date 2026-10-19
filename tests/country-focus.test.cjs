@@ -47,7 +47,7 @@ test('temperature masks use the selected country within a shared multi-country r
  added.length=0;c.NorthernCountryFocus=null;vm.runInContext("clipTemperatureToCountries(ctx,{id:'scandinavia'},100,100,features)",c);assert.deepEqual(added,['578','752','246']);
 });
 test('country catalogue supports existing observation countries and common search aliases',()=>{
- const data=JSON.parse(fs.readFileSync(__dirname+'/../data/country-search.json','utf8'));
+ const data=JSON.parse(fs.readFileSync(__dirname+'/../assets/country-search.json','utf8'));
  for(const [iso2,id] of [['EE','233'],['NO','578'],['DE','276'],['CZ','203'],['SK','703'],['GB','826'],['US','840'],['CA','124']])assert.equal(data.countries.find(c=>c.iso2===iso2).id,id);
  assert.equal(focus.normal('Česká republika'),'ceskarepublika');
 });

@@ -62,7 +62,7 @@
     function message(s){status.textContent=s;}
     async function load(){
       if(ready)return ready;
-      ready=Promise.all([fetch('data/country-search.json',{cache:'force-cache'}).then(r=>{if(!r.ok)throw Error('Country list unavailable');return r.json();}),loadTemperatureCountryFeatures()]).then(([data,geo])=>{
+      ready=Promise.all([fetch('assets/country-search.json',{cache:'force-cache'}).then(r=>{if(!r.ok)throw Error('Country list unavailable');return r.json();}),loadTemperatureCountryFeatures()]).then(([data,geo])=>{
         features=geo;for(const f of geo)byId.set(String(f.id).padStart(3,'0'),f);
         catalogue=data.countries.filter(c=>byId.has(c.id)).map(c=>({...c,feature:byId.get(c.id)}));
         for(const c of catalogue)byIso.set(c.iso2,c);return catalogue;
@@ -139,7 +139,7 @@
           show([...local,...places].slice(0,10));message(items.length?'Select a result to show its country.':'No matching country or place.');
         }catch(error){if(id===generation)message(local.length?'Choose a country above. Place search is unavailable.':'Search unavailable. Try a country name.');}
         finally{clearTimeout(timeout);if(controller===abort)controller=null;}
-      }catch(error){if(id===generation)message('Country boundaries could not load. Try again.');}
+      }catch(error){if(id===generation){message('Country boundaries could not load. Try again.');console.warn('Country search:',error);}}
     }
     form.addEventListener('submit',e=>{e.preventDefault();if(items.length)select(items[active<0?0:active]);else search();});
     input.addEventListener('input',()=>{cancel();hide();message(current?current.name+' only':'');if(input.value.trim().length>=2)timer=setTimeout(search,350);});
