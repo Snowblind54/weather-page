@@ -3,6 +3,24 @@
   'use strict';
 
   const HISTORY_SECONDS=24*60*60;
+  let archive=null,archiveAt=0,pending=null;
+  const stationKey=station=>station.country+'|'+station.code;
+
+  function loadHistory(){
+    if(archive&&Date.now()-archiveAt<10*60*1000)return Promise.resolve(archive);
+    if(pending)return pending;
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+    pending=(async()=>{
+      const response=await fetch('data/official-temperature-history.json',{cache:'no-cache',signal:controller.signal});
+      if(!response.ok)throw new Error('Temperature history HTTP '+response.status);
+      const snapshot=await response.json();
+      if(snapshot?.version!==1||!Array.isArray(snapshot.stations))throw new Error('Invalid temperature history');
+      const index=new Map();
+      for(const station of snapshot.stations)index.set(stationKey(station),station);
+      archive=index;archiveAt=Date.now();return archive;
+    })().finally(()=>{clearTimeout(timer);pending=null;});
+    return pending;
+  }
 
   function sameStation(a,b){
     if(!a||!b)return false;
@@ -14,7 +32,9 @@
   function historyRows(station,endUnix){
     if(typeof officialTemperatureStations==='undefined')return [];
     const end=Math.min(Number(endUnix)||Date.now()/1000,Date.now()/1000),start=end-HISTORY_SECONDS;
-    return officialTemperatureStations
+    const stored=archive?.get(stationKey(station));
+    const observations=stored?(stored.rows||[]).map(row=>({...station,time:row[0],temp:row[1]})):officialTemperatureStations;
+    return observations
       .filter(row=>sameStation(row,station)&&Number.isFinite(row.time)&&Number.isFinite(row.temp)&&row.time>=start&&row.time<=end)
       .sort((a,b)=>a.time-b.time);
   }
@@ -66,9 +86,17 @@
   function install(){
     if(typeof officialTemperaturePopup!=='function'||officialTemperaturePopup._historyInstalled)return;
     const base=officialTemperaturePopup;
-    const wrapped=function(station){
+    const wrapped=function(station,popup){
       const html=base(station);
       const end=Number.isFinite(station.time)?station.time:Date.now()/1000;
+      if(globalThis.__officialTemperatureHistoryFile&&(!archive||Date.now()-archiveAt>=10*60*1000)&&popup){
+        loadHistory().then(()=>{
+          if(popup.isOpen())popup.setContent(html.replace(/<\/div>\s*$/,historyGraph(station,end)+'</div>'));
+        }).catch(()=>{
+          if(popup.isOpen())popup.setContent(html.replace(/<\/div>\s*$/,historyGraph(station,end)+'<div class="wind-popup-meta">Full history is temporarily unavailable. Showing recent observations.</div></div>'));
+        });
+        return html.replace(/<\/div>\s*$/,'<div class="wind-popup-meta" style="margin-top:9px">Loading measured history…</div></div>');
+      }
       return html.replace(/<\/div>\s*$/,historyGraph(station,end)+'</div>');
     };
     wrapped._historyInstalled=true;

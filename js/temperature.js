@@ -697,8 +697,28 @@ function invalidateTemperatureHeatmapCache(){
   temperatureStatsCache.clear();
 }
 
+function visibleTemperatureRegions(){
+  if(typeof map.getBounds!=='function')return TEMP_REGIONS;
+  const bounds=map.getBounds(),south=bounds.getSouth(),north=bounds.getNorth();
+  const west=bounds.getWest();
+  let east=bounds.getEast();
+  if(east<west)east+=360;
+  return TEMP_REGIONS.filter(region=>{
+    const [[s,w],[n,e]]=region.bounds;
+    if(n<south||s>north)return false;
+    // Leaflet longitudes can extend outside -180..180 when the map wraps.
+    return east-west>=360||Math.ceil((west-e)/360)<=Math.floor((east-w)/360);
+  });
+}
+
+function temperatureViewportCacheKey(unix,regions=visibleTemperatureRegions()){
+  return nearestQuarterHour(unix)+'|'+regions.map(region=>region.id).join(',');
+}
+
 async function createTemperatureImage(unix, token){
-  const cacheKey=nearestQuarterHour(unix);
+  const regions=visibleTemperatureRegions();
+  const sampleTime=nearestQuarterHour(unix);
+  const cacheKey=temperatureViewportCacheKey(unix,regions);
 
   if(temperatureImageCache.has(cacheKey)){
     const cached=temperatureImageCache.get(cacheKey);
@@ -706,14 +726,14 @@ async function createTemperatureImage(unix, token){
     return {key:cacheKey,regions:cached,minT:stats.minT,maxT:stats.maxT,correctionCount:stats.correctionCount||0};
   }
 
-  const corrections=temperatureHeatmapCorrections(cacheKey);
+  const corrections=temperatureHeatmapCorrections(sampleTime);
   const rendered=[];
   let globalMin=Infinity,globalMax=-Infinity;
   // Never display rectangular heatmap tiles over the sea if the mask fails.
   const countryFeatures=await loadTemperatureCountryFeatures();
 
   const usStations=globalThis.NorthernUSTemperature?.stations(unix)||[];
-  for(const region of TEMP_REGIONS){
+  for(const region of regions){
     const spec=TEMP_GRID_SPECS.find(item=>item.id===region.id);
     const sourceSeries=temperatureGridData.get(region.id);
     const regionStations=region.stationBased?usStations.filter(s=>(region.countries||['US']).includes(s.country)):[];
@@ -721,7 +741,7 @@ async function createTemperatureImage(unix, token){
 
     // Sample the model timeline only once per source point for this frame.
     // Pixel interpolation below is then just four-number bilinear blending.
-    const gridValues=region.stationBased?null:sourceSeries.map(item=>sampleTemperatureGridPoint(spec,item,cacheKey));
+    const gridValues=region.stationBased?null:sourceSeries.map(item=>sampleTemperatureGridPoint(spec,item,sampleTime));
     const cols=spec?.longitudes.length;
 
     const W=region.w,H=region.h;
@@ -740,7 +760,7 @@ async function createTemperatureImage(unix, token){
     const latValues=Array.from({length:H},(_,y)=>rasterLatitudeForRow(region,y,H));
     const latLookup=region.stationBased?null:latValues.map(lat=>axisBracket(spec.latitudes,lat));
     const correctionRaster=region.stationBased?null:buildTemperatureCorrectionRaster(region,W,H,corrections,latValues,lonValues);
-    const stationRaster=region.stationBased?await globalThis.NorthernUSTemperature.raster(region,regionStations,cacheKey,()=>token===temperatureRenderToken,()=>new Promise(requestAnimationFrame)):null;
+    const stationRaster=region.stationBased?await globalThis.NorthernUSTemperature.raster(region,regionStations,sampleTime,()=>token===temperatureRenderToken,()=>new Promise(requestAnimationFrame)):null;
     if(region.stationBased&&!stationRaster)return null;
 
     for(let y=0;y<H;y++){
@@ -801,7 +821,7 @@ async function createTemperatureImage(unix, token){
 }
 
 async function buildTemperatureOverlay(unix,{precache=false}={}){
-  if(!temperatureEnabled() || (!temperatureSeries.length&&!globalThis.NorthernUSTemperature?.stations(unix).length))return;
+  if(!temperatureEnabled())return;
 
   // Station readings do not depend on loading or rendering a heatmap.
   if(!$('heatmapOn')?.checked){
@@ -841,7 +861,13 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   // Numeric readings stay visible even when the heatmap is switched off.
   renderTemperatureLabels(unix);
 
-  const usNote=result.regions.some(r=>r.stationBased)?' · USA: NOAA station heatmap':'';
+  if(!Number.isFinite(result.minT)||!Number.isFinite(result.maxT)){
+    $('tempStatus').textContent='Temperature: no current heatmap coverage in this view';
+    $('tempStatus').className='status';
+    if($('tempStatus').dataset)delete $('tempStatus').dataset.unitRange;
+    weatherFront();return;
+  }
+  const usNote=result.regions.some(r=>r.stationBased)?' · official station heatmap':'';
   const observationNote=result.correctionCount?` + ${result.correctionCount} fresh official station corrections`:'';
   if($('tempStatus').dataset)$('tempStatus').dataset.unitRange=JSON.stringify([result.minT,result.maxT]);
   $('tempStatus').textContent=
@@ -885,7 +911,7 @@ function scheduleTemperaturePrecache(centerUnix){
 
     for(const t of candidates){
       if(!$('heatmapOn').checked) break;
-      if(temperatureImageCache.has(t)) continue;
+      if(temperatureImageCache.has(temperatureViewportCacheKey(t))) continue;
 
       // Give the UI a moment between background frames.
       await new Promise(resolve=>setTimeout(resolve,40));
@@ -1082,7 +1108,7 @@ async function prefetchTemperatures(){
   try{
     await loadTemperatureCountryFeatures().catch(()=>null);
     const frame=frames[Number($('timeline').value)] || frames.at(-1);
-    if(frame && !temperatureImageCache.has(nearestQuarterHour(frame.time))){
+    if(frame && !temperatureImageCache.has(temperatureViewportCacheKey(frame.time))){
       const token=temperatureRenderToken;
       await createTemperatureImage(frame.time,token);
     }
@@ -1092,10 +1118,11 @@ async function prefetchTemperatures(){
 }
 
 
-// Panning reveals nearby labels without rebuilding the heatmap or fetching data.
+// Reuse cached rasters while panning within a region; build newly visible ones.
 map.on('moveend',()=>{
   const frame=frames[Number($('timeline').value)];
   if(frame && $('tempOn').checked) renderTemperatureLabels(frame.time);
+  if(frame&&temperatureEnabled()&&$('heatmapOn')?.checked)queueTemperatureRender(frame.time);
 });
 
 if(typeof document!=='undefined'&&typeof document.getElementById==='function'){

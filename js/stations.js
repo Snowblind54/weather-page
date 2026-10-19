@@ -17,6 +17,8 @@ let officialTemperatureLoadedAt=0;
 let officialTemperatureLoadPromise=null;
 let officialTemperatureSourceState={};
 const officialTempFetches=new Map();
+const officialTemperatureSelectionCache=new Map();
+let officialTemperatureSelectionSource=null;
 
 function officialTempProxyUrl(url){
   return 'https://proxy.cors.dev/'+url;
@@ -152,6 +154,7 @@ function saveOfficialTemperatureCache(){
     localStorage.setItem(OFFICIAL_TEMP_CACHE_KEY,JSON.stringify({
       savedAt:Date.now(),
       stations:officialTemperatureStations,
+      historyFile:window.__officialTemperatureHistoryFile,
       sources:officialTemperatureSourceState
     }));
   }catch(_){}
@@ -164,6 +167,7 @@ function restoreOfficialTemperatureCache(){
     const cached=JSON.parse(raw);
     if(!cached?.savedAt || Date.now()-cached.savedAt>OFFICIAL_TEMP_CACHE_MAX_AGE || !Array.isArray(cached.stations)) return false;
     officialTemperatureStations=cached.stations;
+    window.__officialTemperatureHistoryFile=cached.historyFile==='data/official-temperature-history.json'?cached.historyFile:null;
     officialTemperatureSourceState=cached.sources||{};
     officialTemperatureLoadedAt=cached.savedAt;
     return officialTemperatureStations.length>0;
@@ -523,6 +527,7 @@ async function loadOfficialTemperatureStations(force=false){
       officialTemperatureStations=officialTempDedup(records);
       officialTemperatureSourceState=snapshot.sources||{};
       window.__officialTemperatureGeneratedAt=snapshot.generatedAt;
+      window.__officialTemperatureHistoryFile=snapshot.historyFile==='data/official-temperature-history.json'?snapshot.historyFile:null;
       officialTemperatureLoadedAt=Date.now();
       saveOfficialTemperatureCache();
       if(typeof invalidateTemperatureHeatmapCache==='function') invalidateTemperatureHeatmapCache();
@@ -544,6 +549,12 @@ async function loadOfficialTemperatureStations(force=false){
 }
 
 function officialStationsNearTime(unix){
+  if(officialTemperatureSelectionSource!==officialTemperatureStations){
+    officialTemperatureSelectionSource=officialTemperatureStations;
+    officialTemperatureSelectionCache.clear();
+  }
+  const selectionKey=unix+'|'+(frames.at(-1)?.time??'');
+  if(officialTemperatureSelectionCache.has(selectionKey))return officialTemperatureSelectionCache.get(selectionKey);
   // Choose one observation per station for the selected playback frame.
   // Prefer the newest reading at/before the frame. A small future tolerance
   // covers provider timestamp rounding, but never reuses the newest reading
@@ -584,7 +595,10 @@ function officialStationsNearTime(unix){
     if(score<currentScore) selected.set(key,{...station,_playbackScore:score});
   }
 
-  return [...selected.values()].map(({_playbackScore,...station})=>station);
+  const result=[...selected.values()].map(({_playbackScore,...station})=>station);
+  officialTemperatureSelectionCache.set(selectionKey,result);
+  if(officialTemperatureSelectionCache.size>8)officialTemperatureSelectionCache.delete(officialTemperatureSelectionCache.keys().next().value);
+  return result;
 }
 
 function officialStationSourceSummary(){
@@ -659,7 +673,7 @@ renderTemperatureLabels=function(unix){
         iconAnchor:[27,11]
       })
     });
-    marker.bindPopup(officialTemperaturePopup(station),{maxWidth:340,className:'wind-popup-container',autoPan:false});
+    marker.bindPopup(layer=>officialTemperaturePopup(station,layer.getPopup()),{maxWidth:340,className:'wind-popup-container',autoPan:false});
     marker.addTo(temperatureLabels);
   }
 

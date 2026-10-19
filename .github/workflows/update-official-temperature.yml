@@ -12,6 +12,8 @@ on:
       - scripts/update_us_temperature.py
       - scripts/update_atlantic_temperature.py
       - scripts/update_western_temperature.py
+      - scripts/split_official_temperature.py
+      - tests/test_temperature_split.py
       - tests/test_western_temperature.py
       - tests/test_atlantic_temperature.py
       - scripts/publish_generated_data.sh
@@ -48,13 +50,20 @@ jobs:
         with:
           path: |
             data/official-temperature.json
+            data/official-temperature-history.json
             data/noaa-temperature-stations.json
           key: r2-input-${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: r2-input-${{ github.workflow }}-
       - name: Verify scan-free storage publication safeguards
         run: python3 -m unittest discover -s tests -p test_r2_storage.py -q
       - name: Restore verified last successful R2 data
-        run: python3 scripts/hydrate_r2_data.py data/official-temperature.json
+        run: |
+          python3 scripts/hydrate_r2_data.py data/official-temperature.json data/official-temperature-history.json
+          python3 scripts/split_official_temperature.py --restore
+      - name: Check temperature snapshot splitting and lazy loading
+        run: |
+          python3 -m unittest discover -s tests -p test_temperature_split.py -q
+          node --test tests/temperature-performance.test.cjs
       - name: Check Atlantic station parsers
         run: python3 -m unittest discover -s tests -p test_atlantic_temperature.py -q
       - name: Check Western European station parsers
@@ -81,8 +90,9 @@ jobs:
               assert -90 < s['rows'][-1][1] < 55
           print('stations',len(p['stations']),p['sources'])
           PY
-      - name: Save official temperature snapshot
-        if: ${{ !cancelled() }}
-        run: bash scripts/publish_generated_data.sh 'Refresh official station temperature observations' data/official-temperature.json
+      - name: Separate map playback from full station history
+        run: python3 scripts/split_official_temperature.py
+      - name: Save official temperature snapshots
+        run: bash scripts/publish_generated_data.sh 'Refresh official station temperature observations' data/official-temperature.json data/official-temperature-history.json
 
 

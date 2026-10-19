@@ -191,7 +191,8 @@
   createTemperatureImage=async function(unix,token){
     if(!windChillMode())return baseCreateTemperatureImage(unix,token);
     await ensureWindChillInputs(false);
-    const cacheTime=nearestQuarterHour(unix),cacheKey='windchill/'+cacheTime;
+    const regions=visibleTemperatureRegions();
+    const cacheTime=nearestQuarterHour(unix),cacheKey='windchill/'+temperatureViewportCacheKey(unix,regions);
     if(temperatureImageCache.has(cacheKey)){
       const cached=temperatureImageCache.get(cacheKey),stats=temperatureStatsCache.get(cacheKey);
       return {key:cacheKey,regions:cached,minT:stats.minT,maxT:stats.maxT,correctionCount:stats.correctionCount||0};
@@ -201,7 +202,7 @@
     let globalMin=Infinity,globalMax=-Infinity;
     const countryFeatures=await loadTemperatureCountryFeatures();
 
-    for(const region of TEMP_REGIONS){
+    for(const region of regions){
       const spec=TEMP_GRID_SPECS.find(item=>item.id===region.id),sourceSeries=temperatureGridData.get(region.id);
       if(!spec||!sourceSeries?.length)continue;
       const tempValues=sourceSeries.map(item=>sampleTemperatureGridPoint(spec,item,cacheTime));
