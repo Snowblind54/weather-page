@@ -8,10 +8,13 @@ across providers beyond the provider's published wind/gust definitions.
 import concurrent.futures as futures
 import datetime as dt
 import gzip
+import http.client
 import json
 import math
 import pathlib
 import tempfile
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -38,7 +41,7 @@ SOURCES = {
                license='CC BY 4.0'),
     'SE': dict(name='Swedish Meteorological and Hydrological Institute (SMHI)',
                url='https://www.smhi.se/data/meteorologi/vind', timeKind='observation',
-               period='10-minute mean wind and reported hourly maximum gust from SMHI stations.'),
+               period='10-minute mean wind reported hourly, and hourly maximum gust from SMHI stations. Collection every 10 minutes does not change the provider observation time.'),
     'NO': dict(name='MET Norway', url='https://seklima.met.no/', timeKind='observation',
                period='10-minute mean wind and reported hourly maximum gust from MET Norway stations.', license='CC BY 4.0'),
     'IS': dict(name='Icelandic Meteorological Office (IMO)', url='https://api.vedur.is/weather/',
@@ -87,9 +90,30 @@ def local(el):
 
 
 def download(url):
+    """Retry transient transport errors without retrying bad request URLs."""
+    for attempt in range(3):
+        try:
+            return download_once(url)
+        except urllib.error.HTTPError as error:
+            if attempt == 2 or error.code not in (408, 429, 500, 502, 503, 504):
+                raise
+            delay = 5 * (attempt + 1)
+            retry_after = error.headers.get('Retry-After') if error.headers else None
+            if retry_after and retry_after.isdigit():
+                delay = max(delay, min(60, int(retry_after)))
+        except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.IncompleteRead):
+            if attempt == 2:
+                raise
+            delay = 5 * (attempt + 1)
+        print('Wind provider connection failed; retrying in', delay, 'seconds', flush=True)
+        time.sleep(delay)
+
+
+def download_once(url):
     req = urllib.request.Request(url, headers={
         'User-Agent': 'NorthernWeather/8.58 (github.com/Snowblind54/weather-page)',
         'Accept-Encoding': 'gzip',
+        'Cache-Control': 'no-cache',
     })
     with urllib.request.urlopen(req, timeout=35) as response:
         raw = response.read(8 * 1024 * 1024 + 1)

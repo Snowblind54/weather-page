@@ -1,7 +1,9 @@
 name: Update official Northern Europe wind
 on:
   schedule:
-    - cron: '6,16,26,36,46,56 * * * *'
+    # Each scheduled runner publishes six ten-minute cycles. A half-hourly
+    # trigger keeps a successor queued without depending on six punctual crons.
+    - cron: '6,36 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -11,10 +13,12 @@ on:
       - scripts/official_wind_atlantic.py
       - scripts/update_us_temperature.py
       - scripts/update_official_wind.py
+      - scripts/run_official_wind.py
       - scripts/add_florida_coastal_wind.py
       - scripts/split_official_wind.py
       - scripts/publish_generated_data.sh
       - tests/test_official_wind.py
+      - tests/test_official_wind_cycles.py
       - tests/test_official_wind_us.py
       - tests/test_official_wind_atlantic.py
       - tests/official-wind.test.cjs
@@ -37,7 +41,7 @@ env:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,23 +61,13 @@ jobs:
           restore-keys: r2-input-${{ github.workflow }}-
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py data/official-wind.json data/official-wind-history.json --allow-empty
-      - name: Restore full history for the updater merge
-        run: |
-          if [[ -f data/official-wind-history.json ]]; then
-            cp data/official-wind-history.json data/official-wind.json
-          fi
       - name: Check official wind adapters
         run: python3 -m unittest discover -s tests -p 'test_official_wind*.py' -v
       - name: Check measured wind labels
         run: node --test tests/official-wind.test.cjs tests/test_wind_observation_blend.js tests/wind-chill-americas.test.cjs
-      - name: Fetch measured station wind
-        run: python3 scripts/update_official_wind.py
-      - name: Add Florida NOAA coastal stations
-        run: python3 scripts/add_florida_coastal_wind.py
-      - name: Split operational readings from 24 h history
-        run: python3 scripts/split_official_wind.py
-      - name: Save official wind snapshots
-        if: ${{ !cancelled() }}
-        run: bash scripts/publish_generated_data.sh 'Refresh official Northern Europe wind observations' data/official-wind.json data/official-wind-history.json
+      - name: Collect and publish measured wind at ten-minute intervals
+        env:
+          WIND_CYCLES: ${{ github.event_name == 'schedule' && '6' || '1' }}
+        run: python3 scripts/run_official_wind.py --cycles "$WIND_CYCLES"
 
 

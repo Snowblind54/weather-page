@@ -2,6 +2,8 @@ import datetime as dt
 import pathlib
 import sys
 import unittest
+import urllib.error
+from unittest.mock import patch
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'scripts'))
 import update_official_wind as w
 
@@ -9,6 +11,31 @@ STAMP = 1791183600
 
 
 class OfficialWind(unittest.TestCase):
+    def test_network_failure_is_retried_and_recovers(self):
+        error = urllib.error.URLError(OSError(101, 'Network is unreachable'))
+        with patch.object(w, 'download_once', side_effect=[error, b'fresh']) as fetch, patch.object(w.time, 'sleep') as sleep:
+            self.assertEqual(w.download('https://provider.example/observations'), b'fresh')
+            self.assertEqual(fetch.call_count, 2)
+            sleep.assert_called_once_with(5)
+
+    def test_retries_are_bounded_and_permanent_http_errors_are_not_retried(self):
+        error = urllib.error.URLError('unreachable')
+        with patch.object(w, 'download_once', side_effect=error) as fetch, patch.object(w.time, 'sleep') as sleep:
+            with self.assertRaises(urllib.error.URLError): w.download('url')
+            self.assertEqual(fetch.call_count, 3)
+            self.assertEqual([call.args[0] for call in sleep.call_args_list], [5, 10])
+        for code, calls in ((400, 1), (404, 1), (503, 3)):
+            error = urllib.error.HTTPError('url', code, 'provider error', {}, None)
+            with self.subTest(code=code), patch.object(w, 'download_once', side_effect=error) as fetch, patch.object(w.time, 'sleep'):
+                with self.assertRaises(urllib.error.HTTPError): w.download('url')
+                self.assertEqual(fetch.call_count, calls)
+
+    def test_rate_limit_obeys_bounded_retry_after(self):
+        error = urllib.error.HTTPError('url', 429, 'slow down', {'Retry-After': '120'}, None)
+        with patch.object(w, 'download_once', side_effect=[error, b'fresh']), patch.object(w.time, 'sleep') as sleep:
+            self.assertEqual(w.download('url'), b'fresh')
+            sleep.assert_called_once_with(60)
+
     def test_missing_values_are_not_calm_and_gust_only_stations_survive(self):
         for value in [None, '', False, 'NaN', -1, 999]:
             self.assertIsNone(w.number(value))
