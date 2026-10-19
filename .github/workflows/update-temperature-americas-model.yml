@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - scripts/update_temperature_americas_model.py
+      - tests/test_temperature_americas_model.py
       - .github/workflows/update-temperature-americas-model.yml
 permissions:
   contents: write
@@ -44,6 +45,9 @@ jobs:
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py data/temperature-americas-model.json
       - name: Build shared hourly temperature grid
-        run: python3 scripts/update_temperature_americas_model.py
+        # Run parser/retry checks before any provider calls or publication.
+        run: |
+          python3 -m unittest discover -s tests -p test_temperature_americas_model.py -q
+          python3 scripts/update_temperature_americas_model.py
       - name: Publish shared heatmap samples
         run: bash scripts/publish_generated_data.sh 'Refresh Canada and Greenland temperature heatmap' data/temperature-americas-model.json
