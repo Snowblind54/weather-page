@@ -572,7 +572,8 @@ const WindHeatmapLayer=L.Layer.extend({
     const low=document.createElement('canvas');low.width=cols;low.height=rows;
     const lowCtx=low.getContext('2d'),img=lowCtx.createImageData(cols,rows),palette=WIND_COLOUR_PALETTES[this.mode];
     const rgb=palette.map(hex=>[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]);
-    const corrections=windHeatmapCorrections(this.unix,slice,this.mode);
+    const focus=globalThis.NorthernCountryFocus;
+    const corrections=windHeatmapCorrections(this.unix,slice,this.mode).filter(c=>!focus?.active()||focus.allowsPoint(c.lat,c.lon));
     const correctionIndex=windHeatmapCorrectionIndex(corrections);
     let shown=0;
     for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
@@ -596,7 +597,7 @@ const WindHeatmapLayer=L.Layer.extend({
     // Source pixel centres line up with the anchored sample coordinates.
     this.ctx.drawImage(low,0,0,cols,rows,startX-step/2,startY-step/2,cols*step,rows*step);
     this.ctx.restore();
-    const source=corrections.length?`model + ${corrections.length} fresh official readings`:'model field';
+    const source=(corrections.length?`model + ${corrections.length} fresh official readings`:'model field')+(focus?.active()?' · '+focus.current().name:'');
     $('windHeatmapStatus').textContent=shown?`${this.mode==='gust'?'Gust':'Sustained wind'} heatmap · ${source} · ${fmt(slice.time??this.unix)}${slice.cached?' · last available model hour':''}`:'Wind heatmap unavailable in this view.';
   }
 });
