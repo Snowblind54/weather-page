@@ -13,14 +13,8 @@ jobs:
       - name: Inspect public official feed schemas
         run: |
           python3 - <<'PY'
-          import json,urllib.request,re
-          url='https://www.shmu.sk/dist/assets/shmu_conf-DzJhfyPs.js'
-          with urllib.request.urlopen(url,timeout=25) as response:config=response.read().decode()
-          print('SHMU CONFIG',config,flush=True)
-          match=re.search('API_BASE_URL:"([^"]+)"',config)
-          if match:
-           url=match[1]+'meteo/getweathergeojson'
-           with urllib.request.urlopen(url,timeout=30) as response:data=json.load(response)
-           print(json.dumps({'url':url,'keys':list(data),'count':len(data.get('features',[])),'sample':data.get('features',[])[:3]},ensure_ascii=False),flush=True)
+          import json,urllib.request
+          with urllib.request.urlopen('https://www.shmu.sk/api/v1/meteo/getweathergeojson',timeout=30) as response:data=json.load(response)
+          print(json.dumps({'keys':list(data),'count':len(data.get('features',[])),'sample':data.get('features',[])[:3]},ensure_ascii=False),flush=True)
           
           PY
