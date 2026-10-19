@@ -31,17 +31,15 @@ jobs:
               z=zipfile.ZipFile(io.BytesIO(get(base+'now/'+name)))
               print('DWD ZIP',name,z.namelist(),z.read(z.namelist()[0]).decode()[:1000],flush=True)
           except Exception as e:print('DWD ZIP ERROR',str(e),flush=True)
-          try:
-              import netCDF4
-              key='eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6IjUzYTg1ZDBhMmQ5YzRkYzJiYWNlNzQ4NTQ2Zjk4ODExIiwiaCI6Im11cm11cjEyOCJ9'
-              api='https://api.dataplatform.knmi.nl/open-data/v1/datasets/10-minute-in-situ-meteorological-observations/versions/1.0/files'
-              files=json.loads(get(api+'?maxKeys=1&sorting=desc',{'Authorization':key}))
-              filename=files['files'][0]['filename']
-              link=json.loads(get(api+'/'+p.quote(filename,safe='')+'/url',{'Authorization':key}))['temporaryDownloadUrl']
-              nc=netCDF4.Dataset('memory',memory=get(link))
-              print('KNMI FILE',filename,'VARIABLES',[(n,v.dimensions,str(v.dtype),getattr(v,'units',None)) for n,v in nc.variables.items() if n in ('time','ta','t10','lat','lon','station','stationname','wsi')],flush=True)
-              for n in ['time','ta','t10','lat','lon','station','stationname','wsi']:
-                  if n in nc.variables:print('KNMI VALUE',n,str(nc.variables[n][:])[:1500],flush=True)
-              nc.close()
-          except Exception as e:print('KNMI ERROR',type(e).__name__,str(e),flush=True)
+          import datetime as dt
+          now=dt.datetime.now(dt.timezone.utc)
+          day=(now-dt.timedelta(days=1)).strftime('%Y%m%d')
+          for url in ['https://www.knmi.nl/nederland-nu/weer/waarnemingen/','https://www.daggegevens.knmi.nl/klimatologie/uurgegevens?'+p.urlencode({'start':day+'01','end':day+'24','vars':'T','stns':'ALL'})]:
+              try:
+                  raw=get(url).decode('utf-8',errors='replace')
+                  if '<html' in raw.lower():
+                      print('KNMI HTML',re.findall(r'<table.*?</table>',raw,re.S)[:1],flush=True)
+                      print('KNMI TIME',re.findall(r'.{0,60}Waarnemingen.{0,150}',raw),flush=True)
+                  else:print('KNMI METADATA',raw[:18000],flush=True)
+              except Exception as e:print('KNMI PUBLIC ERROR',str(e),flush=True)
           PY
