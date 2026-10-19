@@ -726,7 +726,7 @@ async function loadWarnings(force=false){
   const parts=[`${allRecords.length} active warning records`];
   for(const [country,label] of [
     ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
-    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['United Kingdom','UK'],['Ireland','IE'],['Germany','DE'],['Netherlands','NL'],['Belgium','BE'],['Luxembourg','LU'],['Greenland','GL'],['Canada','CA'],['USA','US']
+    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['United Kingdom','UK'],['Ireland','IE'],['Germany','DE'],['Netherlands','NL'],['Belgium','BE'],['Luxembourg','LU'],['Czechia','CZ'],['Slovakia','SK'],['Greenland','GL'],['Canada','CA'],['USA','US']
   ]){
     if(counts.get(country)) parts.push(`${label} ${counts.get(country)}`);
   }
@@ -1644,7 +1644,7 @@ async function loadNordicWarnings(force=false){
       {country:'Denmark',run:()=>loadNationalWarningCountry('DK')},
       {country:'United Kingdom',run:()=>loadNationalWarningCountry('UK')},
       {country:'Ireland',run:()=>loadNationalWarningCountry('IE')},
-      ...[['Germany','DE'],['Netherlands','NL'],['Belgium','BE'],['Luxembourg','LU']].map(([country,code])=>({country,run:()=>loadNationalWarningCountry(code)})),
+      ...[['Germany','DE'],['Netherlands','NL'],['Belgium','BE'],['Luxembourg','LU'],['Czechia','CZ'],['Slovakia','SK']].map(([country,code])=>({country,run:()=>loadNationalWarningCountry(code)})),
       {country:'Greenland',run:()=>loadNationalWarningCountry('GL')},
       {country:'Canada',run:()=>loadNationalWarningCountry('CA')},
       {country:'USA',run:()=>loadNationalWarningCountry('US')},

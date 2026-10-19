@@ -113,3 +113,48 @@ class WesternWarnings(unittest.TestCase):
   with patch.object(w,'download',side_effect=urllib.error.HTTPError('url',404,'not found',{},None)) as dl,patch.object(w.time,'sleep'):
    with self.assertRaises(urllib.error.HTTPError):w.fetch_warning('url')
    self.assertEqual(dl.call_count,1)
+
+class CentralWarnings(unittest.TestCase):
+ def setUp(self):
+  d=json.loads(gzip.decompress(w.CENTRAL_REGIONS.read_bytes()))
+  self.regions=d['regions']
+  for code,aliases in d['aliases'].items():
+   for key,targets in aliases.items():self.regions[code][key]=[shape for target in targets for shape in self.regions[code][target]]
+ def test_actual_shmu_mountain_warning_maps_poprad_once_in_english(self):
+  xml=(pathlib.Path(__file__).parent/'fixtures/slovakia-official-warning.xml').read_bytes()
+  now=dt.datetime(2026,10,19,13,tzinfo=dt.timezone.utc)
+  rows=w.parse_cap(xml,'SK','https://feeds.meteoalarm.org/official',now,regions=self.regions)
+  self.assertEqual(len(rows),1);r=rows[0]
+  self.assertEqual(r['country'],'Slovakia');self.assertEqual(r['area'],'Poprad')
+  self.assertEqual(r['polygons'],self.regions['SK']['EMMA_ID:SK706'])
+  self.assertEqual(r['timeZone'],'Europe/Bratislava');self.assertFalse(r['marine']);self.assertFalse(r['geometryIncomplete'])
+  self.assertIn('mountain',r['description'].lower());self.assertIn('SHMÚ',r['sourceName'])
+ def test_multiple_czech_municipalities_take_priority_over_province_alias(self):
+  area=''.join(f'<geocode><valueName>{kind}</valueName><value>{value}</value></geocode>' for kind,value in [('CISORP','6104'),('CISORP','6105'),('NUTS3','CZ063')])
+  r=w.parse_cap(CAP.replace('AREA',area),'CZ','url',NOW,regions=self.regions)[0]
+  self.assertEqual(r['polygons'],self.regions['CZ']['CISORP:6104']+self.regions['CZ']['CISORP:6105'])
+  self.assertEqual(r['timeZone'],'Europe/Prague');self.assertFalse(r['geometryIncomplete'])
+  r=w.parse_cap(CAP.replace('AREA',area.replace('6104','9999')),'CZ','url',NOW,regions=self.regions)[0]
+  self.assertTrue(r['geometryIncomplete']);self.assertEqual(r['polygons'],self.regions['CZ']['CISORP:6105'])
+ def test_czech_meteoalarm_codes_and_province_membership(self):
+  self.assertEqual(self.regions['CZ']['EMMA_ID:CZ06104'],self.regions['CZ']['CISORP:6104'])
+  self.assertEqual(self.regions['CZ']['NUTS3:CZ010'],self.regions['CZ']['CISORP:1100'])
+  for kind,value in [('EMMA_ID','CZ06104'),('EMMAID','CZ06104'),('NUTS3','CZ010')]:
+   area=f'<geocode><valueName>{kind}</valueName><value>{value}</value></geocode>'
+   r=w.parse_cap(CAP.replace('AREA',area),'CZ','url',NOW,regions=self.regions)[0]
+   self.assertTrue(r['polygons']);self.assertFalse(r['geometryIncomplete'])
+ def test_all_official_municipalities_and_districts_are_valid(self):
+  import math
+  self.assertEqual(sum(k.startswith('CISORP:') for k in self.regions['CZ']),206)
+  self.assertEqual(len(self.regions['SK']),72)
+  for country,areas in self.regions.items():
+   for key,shapes in areas.items():
+    self.assertTrue(shapes,(country,key))
+    for shape in shapes:
+     for ring in shape:
+      self.assertGreaterEqual(len(ring),4);self.assertEqual(ring[0],ring[-1])
+      for lat,lon in ring:self.assertTrue(math.isfinite(lat) and math.isfinite(lon) and 47<lat<52 and 11<lon<23)
+ def test_empty_czech_feed_is_healthy_and_no_cap_requests_are_made(self):
+  feed='<feed xmlns="http://www.w3.org/2005/Atom"><id>tag:meteoalarm.org:CZ</id></feed>'
+  with patch.object(w,'download',return_value=feed) as dl:r=w.load_europe('CZ',NOW)
+  self.assertEqual(r['records'],[]);self.assertEqual(r['country'],'Czechia');self.assertEqual(dl.call_count,1)

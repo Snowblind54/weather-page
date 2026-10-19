@@ -19,10 +19,13 @@ SOURCES = {
     'NL': ('Netherlands', '🇳🇱', 'netherlands', 'Europe/Amsterdam', 'KNMI'),
     'BE': ('Belgium', '🇧🇪', 'belgium', 'Europe/Brussels', 'Royal Meteorological Institute (RMI/KMI)'),
     'LU': ('Luxembourg', '🇱🇺', 'luxembourg', 'Europe/Luxembourg', 'MeteoLux / ANA'),
+    'CZ': ('Czechia', '🇨🇿', 'czechia', 'Europe/Prague', 'Czech Hydrometeorological Institute (ČHMÚ)'),
+    'SK': ('Slovakia', '🇸🇰', 'slovakia', 'Europe/Bratislava', 'Slovak Hydrometeorological Institute (SHMÚ)'),
 }
 ATOM = {'a': 'http://www.w3.org/2005/Atom'}
 COUNTIES = pathlib.Path(__file__).resolve().parents[1] / 'data/ireland-warning-counties.json.gz'
 REGIONS = pathlib.Path(__file__).resolve().parents[1] / 'data/western-warning-regions.json.gz'
+CENTRAL_REGIONS = pathlib.Path(__file__).resolve().parents[1] / 'data/central-warning-regions.json.gz'
 
 
 def fetch_warning(url):
@@ -105,6 +108,19 @@ def parse_cap(payload, code, url, now, counties=None, regions=None):
                         shapes.extend(geometry)
                         break  # Alternate geocodes describe the same area.
                 if not shapes: missing.extend(value for _,value in geocodes)
+            if not shapes and code in ('CZ','SK'):
+                # Multiple codes of one kind identify separate warned areas.
+                # Prefer municipalities over province aliases; an unknown
+                # municipality must never fall back to painting its whole region.
+                for kind in ('CISORP','EMMA_ID','EMMAID','NUTS3'):
+                    values=list(dict.fromkeys(value for key,value in geocodes if key==kind))
+                    if not values: continue
+                    for value in values:
+                        key=('EMMA_ID' if kind=='EMMAID' else kind)+':'+value
+                        geometry=(regions or {}).get(code,{}).get(key)
+                        if geometry: shapes.extend(geometry)
+                        else: missing.append(value)
+                    break
             # Never replace an unknown official area with a guessed rectangle.
             rows.append({
                 'country':name,'flag':flag,'identifier':f'{identifier}:{info_index}:{area_index}',
@@ -140,6 +156,11 @@ def load_europe(code, now):
             if url not in urls: urls.append(url)
     counties=json.loads(gzip.decompress(COUNTIES.read_bytes())) if code=='IE' else None
     regions=json.loads(gzip.decompress(REGIONS.read_bytes()))['regions'] if code in ('DE','BE') else None
+    if code in ('CZ','SK'):
+        catalogue=json.loads(gzip.decompress(CENTRAL_REGIONS.read_bytes()))
+        regions=catalogue['regions']
+        for key,targets in catalogue.get('aliases',{}).get(code,{}).items():
+            regions[code][key]=[shape for target in targets for shape in regions[code][target]]
     rows=[];superseded=set()
     def fetch(url):
         data=fetch_warning(url);alert=ET.fromstring(data)

@@ -1,4 +1,4 @@
-name: Update official Latvia, Poland, Denmark, UK, Ireland, Germany, Netherlands, Belgium, Luxembourg, Greenland, Canada and USA warnings
+name: Update official Latvia, Poland, Denmark, UK, Ireland, Germany, Netherlands, Belgium, Luxembourg, Czechia, Slovakia, Greenland, Canada and USA warnings
 
 on:
   schedule:
@@ -10,6 +10,9 @@ on:
       - scripts/update_latvia_warnings.py
       - scripts/update_national_warnings.py
       - scripts/update_europe_warnings.py
+      - scripts/build_central_warning_regions.py
+      - data/central-warning-regions.json.gz
+      - tests/fixtures/slovakia-official-warning.xml
       - scripts/build_western_warning_regions.py
       - data/western-warning-regions.json.gz
       - data/ireland-warning-counties.json.gz
@@ -62,7 +65,7 @@ jobs:
         run: python3 -m unittest discover -s tests -p 'test_*warnings.py' -v
       - name: Fetch official LVGMC warnings and polygons
         run: python3 scripts/update_latvia_warnings.py
-      - name: Fetch official IMGW, DMI, UK Met Office, Met Éireann, DWD, KNMI, RMI/KMI, MeteoLux, ECCC and NWS warnings and polygons
+      - name: Fetch official IMGW, DMI, UK Met Office, Met Éireann, DWD, KNMI, RMI/KMI, MeteoLux, ČHMÚ, SHMÚ, ECCC and NWS warnings and polygons
         if: ${{ !cancelled() }}
         run: python3 scripts/update_national_warnings.py
       - name: Save updated warning snapshots

@@ -212,7 +212,7 @@ def parse_canada(payload, now):
 
 
 def update_country(code, now):
-    if code in ('UK', 'IE', 'DE', 'NL', 'BE', 'LU'):
+    if code in ('UK', 'IE', 'DE', 'NL', 'BE', 'LU', 'CZ', 'SK'):
         from update_europe_warnings import load_europe
         return load_europe(code, now)
     if code == 'US':
@@ -241,7 +241,7 @@ def main():
     previous = json.loads(OUTPUT.read_text()) if OUTPUT.exists() else {'countries': {}}
     countries = dict(previous.get('countries', {}))
     failed = []
-    codes = ('PL', 'DK', 'GL', 'CA', 'US', 'UK', 'IE', 'DE', 'NL', 'BE', 'LU')
+    codes = ('PL', 'DK', 'GL', 'CA', 'US', 'UK', 'IE', 'DE', 'NL', 'BE', 'LU', 'CZ', 'SK')
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         jobs = {pool.submit(update_country, code, now): code for code in codes}
         for job in concurrent.futures.as_completed(jobs):

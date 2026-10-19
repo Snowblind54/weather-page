@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.703.0.SK.261018081100.6ad47f33_PP</identifier>
+  <sender>http://www.shmu.sk</sender>
+  <sent>2026-10-18T09:50:04-00:00</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <scope>Public</scope>
+  <info>
+    <language>sk</language>
+    <category>Met</category>
+    <event>Výstraha pred vetrom na horách</event>
+    <responseType>None</responseType>
+    <urgency>Future</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <effective>2026-10-18T08:11:00-00:00</effective>
+    <onset>2026-10-20T19:00:00-00:00</onset>
+    <expires>2026-10-21T22:00:00-00:00</expires>
+    <senderName>Slovenský Hydrometeorologický ústav</senderName>
+    <headline>Na horách očakávame nárazy vetra s rýchlosťou až 37 m/s</headline>
+    <description>V okrese Poprad sa na horách, nad pásmom lesa MIESTAMI očakáva výskyt vetra,
+ktorý dosiahne krátkodobo (v nárazoch) rýchlosť 30 - 37 m/s (110 - 135 km/h)
+a/alebo priemernú rýchlosť 20 - 24 m/s (70 - 85 km/h), t.j. až víchrica.
+
+Predpokladaná rýchlosť vetra je v danej ročnej dobe a oblasti bežná,
+no predstavuje potenciálne nebezpečenstvo pre ľudské aktivity
+(najmä pre pešiu turistiku, horolezectvo a pod.).</description>
+    <instruction>ZVÝŠTE POZORNOSŤ, sledujte najčerstvejšie predpovede počasia.
+Očakávajte menšie obmedzenia aktivít vonku.</instruction>
+    <web>http://www.shmu.sk/?page=987</web>
+    <contact>Slovenský Hydrometeorologický ústav, Jeséniova 17, 833 15 Bratislava, +421 2 59 415 111</contact>
+    <parameter>
+      <valueName>awareness_level</valueName>
+      <value>2; yellow; Moderate</value>
+    </parameter>
+    <parameter>
+      <valueName>awareness_type</valueName>
+      <value>1; Wind</value>
+    </parameter>
+    <area>
+      <areaDesc>Poprad</areaDesc>
+      <geocode>
+        <valueName>EMMA_ID</valueName>
+        <value>SK706</value>
+      </geocode>
+    </area>
+  </info>
+  <info>
+    <language>en-GB</language>
+    <category>Met</category>
+    <event>Moderate wind on mountains warning</event>
+    <responseType>None</responseType>
+    <urgency>Future</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <effective>2026-10-18T08:11:00-00:00</effective>
+    <onset>2026-10-20T19:00:00-00:00</onset>
+    <expires>2026-10-21T22:00:00-00:00</expires>
+    <senderName>Slovak Hydrometeorological Institute</senderName>
+    <headline>On the mountains wind gusts up to 37 m/s are expected</headline>
+    <description>In the Poprad district winds are expected to rise in some mountain areas
+reaching in short blows impact speed of up to 30 - 37 m/s (110 - 135 km/h).
+The predicted wind speed is typical for the area and time of the year
+it can however pose potential risk for human activities.</description>
+    <instruction>BE AWARE, keep up to date with the latest weather forecast.
+Expect some minor disruption to outdoor activities.</instruction>
+    <web>http://www.shmu.sk/?page=987</web>
+    <contact>Slovak Hydrometeorological Institute, Jeseniova 17, 833 15 Bratislava, Slovakia, +421 2 59 415 111</contact>
+    <parameter>
+      <valueName>awareness_level</valueName>
+      <value>2; yellow; Moderate</value>
+    </parameter>
+    <parameter>
+      <valueName>awareness_type</valueName>
+      <value>1; Wind</value>
+    </parameter>
+    <area>
+      <areaDesc>Poprad</areaDesc>
+      <geocode>
+        <valueName>EMMA_ID</valueName>
+        <value>SK706</value>
+      </geocode>
+    </area>
+  </info>
+</alert>
