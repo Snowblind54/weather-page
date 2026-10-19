@@ -1,16 +1,17 @@
-// Station shading estimates temperatures between official US and Atlantic stations, without a model
+// Station shading estimates temperatures between official US, Atlantic and Western European stations, without a model
 // download. Each station touches only pixels within 125 km; gaps stay clear.
 (function(root){
   'use strict';
   const radiusKm=125;
-  const measuredCountries=new Set(['US','GB','IE','FO']);
+  const measuredCountries=new Set(['US','GB','IE','FO','DE','NL','BE']);
   const regions=[
     {id:'usa',bounds:[[24,-125],[50,-66]],w:450,h:260,stationBased:true},
     {id:'usa-alaska',bounds:[[50,-180],[72,-129]],w:350,h:240,stationBased:true},
     {id:'usa-hawaii',bounds:[[18,-161],[23,-154]],w:150,h:130,stationBased:true},
     {id:'usa-aleutians',bounds:[[50,170],[55,180]],w:90,h:120,stationBased:true},
     {id:'british-isles',countries:['GB','IE'],bounds:[[49,-11],[61,3]],w:240,h:310,stationBased:true},
-    {id:'faroes',countries:['FO'],bounds:[[61.3,-7.8],[62.5,-6.1]],w:130,h:170,stationBased:true}
+    {id:'faroes',countries:['FO'],bounds:[[61.3,-7.8],[62.5,-6.1]],w:130,h:170,stationBased:true},
+    {id:'western-europe',countries:['DE','NL','BE'],bounds:[[47,2.4],[55.2,15.6]],w:340,h:330,stationBased:true}
   ];
   const rad=Math.PI/180;
   const mercator=lat=>Math.log(Math.tan(Math.PI/4+lat*rad/2));

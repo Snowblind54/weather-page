@@ -11,6 +11,8 @@ on:
       - scripts/update_north_america_temperature.py
       - scripts/update_us_temperature.py
       - scripts/update_atlantic_temperature.py
+      - scripts/update_western_temperature.py
+      - tests/test_western_temperature.py
       - tests/test_atlantic_temperature.py
       - scripts/publish_generated_data.sh
       - js/stations.js
@@ -55,6 +57,10 @@ jobs:
         run: python3 scripts/hydrate_r2_data.py data/official-temperature.json
       - name: Check Atlantic station parsers
         run: python3 -m unittest discover -s tests -p test_atlantic_temperature.py -q
+      - name: Check Western European station parsers
+        run: python3 -m unittest discover -s tests -p test_western_temperature.py -q
+      - name: Check Western European readings, shading and extremes
+        run: node --test tests/western-temperature.test.cjs tests/temperature-us.test.cjs tests/weather-extremes.test.cjs
       - name: Fetch official temperature observations
         run: python3 scripts/update_official_temperature_all.py
       - name: Validate snapshot
@@ -69,6 +75,7 @@ jobs:
           assert 'LV' in p['sources'], 'Latvia source missing from temperature snapshot'
           assert 'US' in p['sources'], 'NOAA USA source missing from temperature snapshot'
           assert all(code in p['sources'] for code in ('FO','GB','IE')), 'Atlantic sources missing'
+          assert all(code in p['sources'] for code in ('DE','NL','BE')), 'Western European sources missing'
           for s in p['stations']:
               assert s['rows']
               assert -90 < s['rows'][-1][1] < 55
