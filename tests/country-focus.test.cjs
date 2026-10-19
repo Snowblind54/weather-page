@@ -72,3 +72,12 @@ test('Latvia source summary respects a different country and returns when the fi
  assert.deepEqual(Array.from(c.officialStationSourceSummary().good),['DE']);
  c.NorthernCountryFocus=null;assert.deepEqual(Array.from(c.officialStationSourceSummary().good),['DE','LV']);
 });
+
+
+test('wind corrections use only the selected country and restore all stations when cleared',()=>{
+ const source=read('wind.js'),start=source.indexOf('function windHeatmapCorrections('),end=source.indexOf('function windHeatmapCorrectionIndex(',start);
+ const c={WindObservationBlend:{makeCorrection:(lat,lon)=>({lat,lon})},officialWindData:{stations:[{country:'NO',lat:60,lon:10},{country:'SE',lat:60,lon:15}]},officialWindReading:()=>[100,8,12],windAt:()=>[3,4],windGustAt:()=>7,NorthernCountryFocus:{allowsStation:s=>s.country==='NO'}};
+ vm.createContext(c);vm.runInContext(source.slice(start,end),c);
+ assert.equal(c.windHeatmapCorrections(100,{},'wind').length,1);
+ c.NorthernCountryFocus=null;assert.equal(c.windHeatmapCorrections(100,{},'wind').length,2);
+});

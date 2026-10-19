@@ -540,8 +540,9 @@ const WindHeatmapLayer=L.Layer.extend({
   setTime(unix){
     const mode=currentWindMode();
     const observations=typeof officialWindData!=='undefined'&&officialWindData?officialWindData.generatedAt:0;
-    if(this.unix===unix&&this.data===windData&&this.mode===mode&&this.observations===observations)return;
-    this.unix=unix;this.data=windData;this.mode=mode;this.observations=observations;
+    const country=globalThis.NorthernCountryFocus?.key()||'all';
+    if(this.unix===unix&&this.data===windData&&this.mode===mode&&this.observations===observations&&this.country===country)return;
+    this.unix=unix;this.data=windData;this.mode=mode;this.observations=observations;this.country=country;
     if(this._map)this.scheduleReset();
   },
   setOpacity(value){if(this.canvas)this.canvas.style.opacity=String(value);},
