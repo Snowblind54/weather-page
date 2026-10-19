@@ -1,4 +1,6 @@
 import importlib.util
+import http.client
+import io
 import json
 import sys
 import tempfile
@@ -13,6 +15,22 @@ import update_temperature_europe_model as model
 
 
 class EuropeModelTests(unittest.TestCase):
+    def test_broken_json_response_is_retried_and_recovers(self):
+        for body in (b'', b'<html>upstream unavailable</html>', b'[{"hourly":'):
+            with self.subTest(body=body), patch.object(model.urllib.request, 'urlopen', side_effect=[
+                    io.BytesIO(body), io.BytesIO(b'{"ok":true}')]) as fetch, patch.object(model.time, 'sleep') as sleep:
+                self.assertEqual(model.fetch_samples('request'), {'ok': True})
+                self.assertEqual(fetch.call_count, 2)
+                sleep.assert_called_once_with(20)
+
+    def test_incomplete_read_and_broken_encoding_are_retried(self):
+        for first in (http.client.IncompleteRead(b'{'), io.BytesIO(b'\xff')):
+            with self.subTest(first=first), patch.object(model.urllib.request, 'urlopen', side_effect=[
+                    first, io.BytesIO(b'[]')]) as fetch, patch.object(model.time, 'sleep') as sleep:
+                self.assertEqual(model.fetch_samples('request'), [])
+                self.assertEqual(fetch.call_count, 2)
+                sleep.assert_called_once_with(20)
+
     def test_timeout_is_retried_and_recovers(self):
         import io
         with patch.object(model.urllib.request, 'urlopen', side_effect=[
@@ -32,7 +50,12 @@ class EuropeModelTests(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError): model.fetch_samples('request')
             self.assertEqual(fetch.call_count, 1)
 
-    def test_exhausted_timeout_preserves_snapshot_and_skips_publish(self):
+    def test_exhausted_provider_failures_preserve_snapshot_and_skip_publish(self):
+        for failure in (TimeoutError('slow'), json.JSONDecodeError('empty response', '', 0)):
+            with self.subTest(failure=type(failure).__name__):
+                self.check_preserved_snapshot(failure)
+
+    def check_preserved_snapshot(self, failure):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             config = root/'config.json'
@@ -44,7 +67,7 @@ class EuropeModelTests(unittest.TestCase):
             result = root/'result'; summary = root/'summary'
             with patch.object(model, 'OUTPUT', output), patch.object(model, 'CONFIG', config), patch.dict(model.os.environ,
                     {'GITHUB_OUTPUT': str(result), 'GITHUB_STEP_SUMMARY': str(summary)}), patch.object(
-                    model.urllib.request, 'urlopen', side_effect=TimeoutError('slow')) as fetch, patch.object(model.time, 'sleep'):
+                    model.urllib.request, 'urlopen', side_effect=failure) as fetch, patch.object(model.time, 'sleep'):
                 model.main()
                 self.assertEqual(fetch.call_count, 3)
                 self.assertEqual(output.read_bytes(), original)
@@ -55,8 +78,9 @@ class EuropeModelTests(unittest.TestCase):
 
     def test_invalid_provider_payload_is_not_hidden_as_outage(self):
         import io
-        with patch.object(model.urllib.request, 'urlopen', return_value=io.BytesIO(b'not json')), patch.object(model.time, 'sleep'):
-            with self.assertRaises(ValueError): model.main()
+        with patch.object(model.urllib.request, 'urlopen', return_value=io.BytesIO(b'{}')) as fetch, patch.object(model.time, 'sleep'):
+            with self.assertRaisesRegex(ValueError, 'Incomplete temperature samples'): model.main()
+            self.assertEqual(fetch.call_count, 1)
 
     def test_preserves_geometry_city_samples_and_land_downscaling(self):
         from urllib.parse import parse_qs, urlsplit

@@ -4,6 +4,7 @@ Retain the existing grid spacing and land-cell selection. Failed collections
 never replace the previous successful snapshot.
 """
 import datetime as dt
+import http.client
 import json
 import math
 import os
@@ -20,7 +21,7 @@ CONFIG = ROOT / 'scripts/temperature_europe_points.json'
 
 
 class ProviderUnavailable(RuntimeError):
-    """The provider is temporarily unreachable, rather than a code/data error."""
+    """The provider is unreachable or could not deliver a decodable response."""
 
 
 def fetch_samples(request):
@@ -35,7 +36,11 @@ def fetch_samples(request):
             retry_after = error.headers.get('Retry-After') if error.headers else None
             if retry_after and retry_after.isdigit():
                 delay = max(delay, min(120, int(retry_after)))
-        except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+        # A successful HTTP status can still carry an empty, cut-off or HTML
+        # response. Retry response decoding/transport failures here, while
+        # keeping the decoded weather-data validation in collect() strict.
+        except (urllib.error.URLError, TimeoutError, ConnectionError,
+                http.client.IncompleteRead, json.JSONDecodeError, UnicodeDecodeError) as error:
             delay = 20 * (attempt + 1)
         if attempt == 2:
             raise ProviderUnavailable('Temperature provider unavailable after three attempts')
