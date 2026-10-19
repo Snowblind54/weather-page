@@ -310,6 +310,7 @@ function clipTemperatureToCountries(ctx,region,w,h,countryFeatures){
   let matched=0;
   for(const feature of countryFeatures){
     if(!wanted.has(String(feature.id))) continue;
+    if(globalThis.NorthernCountryFocus?.matchesCountry && !globalThis.NorthernCountryFocus?.matchesCountry(String(feature.id).padStart(3,'0')))continue;
     addMaskGeometry(ctx,feature.geometry,region,w,h);
     matched++;
   }
@@ -585,6 +586,7 @@ function renderTemperatureLabels(unix){
   const gapY=28;
 
   for(const [lat,lon] of labelPts){
+    if(globalThis.NorthernCountryFocus?.allowsPoint && !globalThis.NorthernCountryFocus?.allowsPoint(lat,lon))continue;
     const key=temperatureCoordKey(lat,lon);
     if(seen.has(key) || !bounds.contains([lat,lon])) continue;
     seen.add(key);
@@ -705,6 +707,8 @@ function visibleTemperatureRegions(){
   let east=bounds.getEast();
   if(east<west)east+=360;
   return TEMP_REGIONS.filter(region=>{
+    const focus=globalThis.NorthernCountryFocus?.current();
+    if(focus && !TEMP_REGION_COUNTRY_IDS[region.id]?.has(focus.id))return false;
     const [[s,w],[n,e]]=region.bounds;
     if(n<south||s>north)return false;
     // Leaflet longitudes can extend outside -180..180 when the map wraps.
@@ -713,7 +717,7 @@ function visibleTemperatureRegions(){
 }
 
 function temperatureViewportCacheKey(unix,regions=visibleTemperatureRegions()){
-  return nearestQuarterHour(unix)+'|'+regions.map(region=>region.id).join(',');
+  return nearestQuarterHour(unix)+'|'+regions.map(region=>region.id).join(',')+'|'+(globalThis.NorthernCountryFocus?.key()||'all');
 }
 
 async function createTemperatureImage(unix, token){
@@ -751,6 +755,7 @@ async function createTemperatureImage(unix, token){
     const ctx=canvas.getContext('2d',{alpha:true});
     const img=ctx.createImageData(W,H);
     const d=img.data;
+    const focusValues=globalThis.NorthernCountryFocus?.active()?new Float32Array(W*H).fill(NaN):null;
 
     const west=region.bounds[0][1];
     const east=region.bounds[1][1];
@@ -785,8 +790,8 @@ async function createTemperatureImage(unix, token){
           );
         }
 
-        globalMin=Math.min(globalMin,value);
-        globalMax=Math.max(globalMax,value);
+        if(focusValues)focusValues[y*W+x]=value;
+        else{globalMin=Math.min(globalMin,value);globalMax=Math.max(globalMax,value);}
         const c=tempColor(value);
         d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=stationRaster?stationRaster.alpha[y*W+x]:205;
       }
@@ -798,6 +803,7 @@ async function createTemperatureImage(unix, token){
     ctx.putImageData(img,0,0);
     const coastlineClipped=clipTemperatureToCountries(ctx,region,W,H,countryFeatures);
     if(!coastlineClipped) throw new Error('coastline mask missing for '+region.id);
+    if(focusValues){const r=globalThis.NorthernCountryFocus.range(focusValues,ctx.getImageData(0,0,W,H).data);globalMin=Math.min(globalMin,r.min);globalMax=Math.max(globalMax,r.max);}
 
     rendered.push({
       id:region.id,

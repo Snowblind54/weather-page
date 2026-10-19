@@ -122,7 +122,7 @@ function renderOfficialWind(){
   if(!officialWindData){$('officialWindStatus').textContent=officialWindFailed?'Official wind observations could not load.':'Loading official station wind…';return;}
   const unix=officialWindTime(),sustained=$('officialWindSustained').checked,gusts=$('officialWindGusts').checked,bounds=map.getBounds();
   const key=[officialWindData.generatedAt,Math.floor(unix/60),bounds.toBBoxString(),map.getZoom(),sustained,gusts].join('/');
-  const available=officialWindData.stations.map(s=>({s,r:officialWindReading(s,unix)})).filter(({r})=>r&&((sustained&&r[1]!==null)||(gusts&&r[2]!==null)));
+  const available=officialWindData.stations.filter(s=>!globalThis.NorthernCountryFocus?.allowsStation||globalThis.NorthernCountryFocus?.allowsStation(s)).map(s=>({s,r:officialWindReading(s,unix)})).filter(({r})=>r&&((sustained&&r[1]!==null)||(gusts&&r[2]!==null)));
   if(key!==officialWindRenderKey){
     officialWindLabels.clearLayers();const occupied=new Map(),width=(globalThis.WeatherUnits?.windUnit()==='km/h')?(sustained&&gusts?142:82):(sustained&&gusts?105:62),height=25;
     const candidates=available.filter(({s})=>bounds.contains([s.lat,s.lon])).sort((a,b)=>(gusts?b.r[2]??-1:b.r[1]??-1)-(gusts?a.r[2]??-1:a.r[1]??-1));
@@ -155,7 +155,7 @@ function renderOfficialWind(){
     }
     if(!map.hasLayer(officialWindLabels))officialWindLabels.addTo(map);officialWindRenderKey=key;
   }
-  const countries=OFFICIAL_WIND_COUNTRIES.map(c=>{
+  const countries=OFFICIAL_WIND_COUNTRIES.filter(c=>!globalThis.NorthernCountryFocus?.matchesCountry||globalThis.NorthernCountryFocus?.matchesCountry(c)).map(c=>{
     const source=officialWindData.sources?.[c],rows=available.filter(({s})=>s.country===c),latest=rows.length?Math.max(...rows.map(({r})=>r[0])):null;
     if(!source)return OFFICIAL_WIND_COUNTRY_NAMES[c]+': awaiting first refresh';
     return OFFICIAL_WIND_COUNTRY_NAMES[c]+': '+rows.length+' stations'+(latest?' · '+fmt(latest):' · no readings at this time')+(source.status==='unavailable'?' · source refresh failed':'');

@@ -557,7 +557,7 @@ function officialStationsNearTime(unix){
     officialTemperatureSelectionSource=officialTemperatureStations;
     officialTemperatureSelectionCache.clear();
   }
-  const selectionKey=unix+'|'+(frames.at(-1)?.time??'');
+  const selectionKey=unix+'|'+(frames.at(-1)?.time??'')+'|'+(globalThis.NorthernCountryFocus?.key()||'all');
   if(officialTemperatureSelectionCache.has(selectionKey))return officialTemperatureSelectionCache.get(selectionKey);
   // Choose one observation per station for the selected playback frame.
   // Prefer the newest reading at/before the frame. A small future tolerance
@@ -567,6 +567,7 @@ function officialStationsNearTime(unix){
   const latestFrame=frames.at(-1);
 
   for(const station of officialTemperatureStations){
+    if(globalThis.NorthernCountryFocus?.allowsStation && !globalThis.NorthernCountryFocus?.allowsStation(station))continue;
     if(!Number.isFinite(station.time)){
       if(latestFrame && unix===latestFrame.time && !selected.has(officialTempStationKey(station))){
         selected.set(officialTempStationKey(station),station);
@@ -609,6 +610,7 @@ function officialStationSourceSummary(){
   const good=[];
   const bad=[];
   for(const [code] of OFFICIAL_TEMP_LOADERS){
+    if(globalThis.NorthernCountryFocus?.matchesCountry && !globalThis.NorthernCountryFocus?.matchesCountry(code))continue;
     const state=officialTemperatureSourceState[code];
     if(state?.ok && state.count) good.push(code);
     else if(state && !state.ok) bad.push(code);
@@ -682,6 +684,7 @@ renderTemperatureLabels=function(unix){
   }
 
   for(const [lat,lon] of modelPoints){
+    if(globalThis.NorthernCountryFocus?.allowsPoint && !globalThis.NorthernCountryFocus?.allowsPoint(lat,lon))continue;
     const key=temperatureCoordKey(lat,lon);
     if(seen.has(key) || !bounds.contains([lat,lon]) || !freeAt(lat,lon)) continue;
     const t=interpolateTemp(lat,lon,unix);

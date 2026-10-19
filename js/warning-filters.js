@@ -99,7 +99,7 @@ function warningIsTodayOrTomorrow(record){
 }
 
 function warningsForTodayAndTomorrow(records){
-  return (records||[]).filter(warningIsTodayOrTomorrow);
+  return (records||[]).filter(r=>(!globalThis.NorthernCountryFocus?.matchesCountry||globalThis.NorthernCountryFocus?.matchesCountry(warningCountry(r)))&&warningIsTodayOrTomorrow(r));
 }
 
 // Filter Estonia and Lithuania at render time without destroying the full
@@ -286,6 +286,7 @@ function overdueWarningCountries(){
   if(latviaWarningSnapshotUpdatedAt) updates.set('Latvia',latviaWarningSnapshotUpdatedAt);
   for(const country of Object.values(nationalWarningSnapshot?.countries||{})) updates.set(country.country,country.updatedAt);
   return [...updates].filter(([country,updated])=>{
+    if(globalThis.NorthernCountryFocus?.matchesCountry && !globalThis.NorthernCountryFocus?.matchesCountry(country))return false;
     const age=Date.now()-Date.parse(updated);
     return Number.isFinite(age) && age>(country==='Latvia'?LATVIA_WARNING_MAX_AGE:NATIONAL_WARNING_MAX_AGE);
   }).map(([country])=>country);
@@ -313,6 +314,7 @@ function updateVisibleWarningStatus(){
     ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
     ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['United Kingdom','UK'],['Ireland','IE'],['Germany','DE'],['Netherlands','NL'],['Belgium','BE'],['Luxembourg','LU'],['Czechia','CZ'],['Slovakia','SK'],['Greenland','GL'],['Canada','CA'],['USA','US']
   ]){
+    if(globalThis.NorthernCountryFocus?.matchesCountry && !globalThis.NorthernCountryFocus?.matchesCountry(country))continue;
     const count=counts.get(country)||0;
     if(count || (['Denmark','Canada','Greenland','USA','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia'].includes(country) && nationalWarningSnapshot?.countries?.[label])) parts.push(`${label} ${count}`);
   }

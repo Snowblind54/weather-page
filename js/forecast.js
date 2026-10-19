@@ -247,6 +247,7 @@
     }finally{clearTimeout(timer);if(controller===abort)controller=null;}
   }
   function choose(latlng,placeName){
+    if(globalThis.NorthernCountryFocus?.allowsPoint&&!globalThis.NorthernCountryFocus.allowsPoint(latlng.lat,latlng.lng)){setStatus('Choose a location inside '+globalThis.NorthernCountryFocus.current().name+'.');return;}
     searchScrollPending=!!placeName;
     requestId++;controller?.abort();controller=null;payload=null;refreshAfter=0;
     const longitude=((latlng.lng+180)%360+360)%360-180;
@@ -256,10 +257,14 @@
     marker=L.marker([Number(point.lat),Number(point.markerLon??point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
     clearTimeout(choose.timer);choose.timer=setTimeout(loadForecast,350);
   }
-  const locationSearch=window.NorthernForecastSearch?.attach({form:$('forecastSearchForm'),input:$('forecastSearchInput'),results:$('forecastSearchResults'),status:$('forecastSearchStatus'),onChoose:place=>{
+  const locationSearch=window.NorthernForecastSearch?.attach({countryScope:true,form:$('forecastSearchForm'),input:$('forecastSearchInput'),results:$('forecastSearchResults'),status:$('forecastSearchStatus'),onChoose:place=>{
     map.setView([place.lat,place.lon],9);
     choose({lat:place.lat,lng:place.lon},place.label);
   }});
+  document.addEventListener('country-focus-change',()=>{
+    if(point&&!globalThis.NorthernCountryFocus.allowsPoint(point.lat,point.lon)){requestId++;controller?.abort();payload=null;point=null;if(marker){map.removeLayer(marker);marker=null;}$('forecastContent').hidden=true;$('forecastLocation').textContent='Choose a place in '+globalThis.NorthernCountryFocus.current().name;setStatus('Click inside the selected country for its forecast.');}
+    locationSearch?.cancel();
+  });
   $('forecastRetry').addEventListener('click',()=>{gustChecked=0;canadaChecked=0;europeChecked=0;loadForecast();});
   $('forecastTimeline').addEventListener('input',renderSelected);
   function switchView(next){

@@ -1,3 +1,4 @@
+if(!map.getPane('auroraPlannerPane')){map.createPane('auroraPlannerPane');map.getPane('auroraPlannerPane').style.zIndex='640';}
 (function(){
   'use strict';
   const panel=document.getElementById('spaceWeatherSection'),D=window.NorthernAuroraPlannerData;
@@ -62,7 +63,7 @@
   }
   function viewingPoint(p){
     if(marker)map.removeLayer(marker);
-    marker=L.circleMarker([p.lat,p.lon],{radius:8,color:'#b7ffe0',fillColor:'#53cfaa',fillOpacity:.8,weight:2}).addTo(map);
+    marker=L.circleMarker([p.lat,p.lon],{pane:'auroraPlannerPane',radius:8,color:'#b7ffe0',fillColor:'#53cfaa',fillOpacity:.8,weight:2}).addTo(map);
     marker.bindTooltip(p.distance?p.distance+' km '+p.direction:point.label);map.setView([p.lat,p.lon],9);
   }
   function gridFor(grids,p){return grids.get(Math.min(11,Math.floor((D.longitude(p.lon)+180)/30)));}
@@ -128,7 +129,7 @@
       const facts=document.createElement('p');facts.className='aurora-planner-facts';facts.textContent='Dark sky · '+Math.round(w.cloud)+'% cloud · forecast Kp '+w.kp.toFixed(1);
       const button=document.createElement('button');button.type='button';button.textContent='Show viewing point';button.addEventListener('click',()=>{
         if(marker)map.removeLayer(marker);
-        marker=L.circleMarker([w.point.lat,w.point.lon],{radius:8,color:'#b7ffe0',fillColor:'#53cfaa',fillOpacity:.8,weight:2}).addTo(map);
+        marker=L.circleMarker([w.point.lat,w.point.lon],{pane:'auroraPlannerPane',radius:8,color:'#b7ffe0',fillColor:'#53cfaa',fillOpacity:.8,weight:2}).addTo(map);
         marker.bindTooltip((w.point.distance?w.point.distance+' km '+w.point.direction:point.label)+' · '+w.label);map.setView([w.point.lat,w.point.lon],9);
       });
       const confidence=D.planningConfidence({grid:gridFor(grids,w.point),point:w.point,time:w.start+3600000,snapshot});

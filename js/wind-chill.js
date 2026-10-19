@@ -209,6 +209,7 @@
       const cols=spec.longitudes.length,W=region.w,H=region.h;
       const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
       const ctx=canvas.getContext('2d',{alpha:true}),img=ctx.createImageData(W,H),d=img.data;
+      const focusValues=globalThis.NorthernCountryFocus?.active()?new Float32Array(W*H).fill(NaN):null;
       const west=region.bounds[0][1],east=region.bounds[1][1];
       const lonValues=Array.from({length:W},(_,x)=>west+(x/(W-1))*(east-west));
       const lonLookup=lonValues.map(lon=>axisBracket(spec.longitudes,lon));
@@ -225,13 +226,14 @@
           let value=modelWindChillAt(lat,lonValues[x],cacheTime,temp);
           if(!Number.isFinite(value)){d[i+3]=0;continue;}
           if(corrections.length){const p=y*W+x;value=temperatureAdjustedFromRaster(value,p,correctionRaster.weightedBias,correctionRaster.weightTotal);}
-          globalMin=Math.min(globalMin,value);globalMax=Math.max(globalMax,value);
+          if(focusValues)focusValues[y*W+x]=value;else{globalMin=Math.min(globalMin,value);globalMax=Math.max(globalMax,value);}
           const c=tempColor(value);d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=205;
         }
         if(y%64===0)await new Promise(requestAnimationFrame);
       }
       ctx.putImageData(img,0,0);
       if(!clipTemperatureToCountries(ctx,region,W,H,countryFeatures))throw new Error('coastline mask missing for '+region.id);
+      if(focusValues){const r=globalThis.NorthernCountryFocus.range(focusValues,ctx.getImageData(0,0,W,H).data);globalMin=Math.min(globalMin,r.min);globalMax=Math.max(globalMax,r.max);}
       rendered.push({id:region.id,bounds:region.bounds,coastlineClipped:true,dataUrl:canvas.toDataURL('image/png')});
     }
     if(token!==temperatureRenderToken)return null;

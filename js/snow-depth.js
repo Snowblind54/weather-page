@@ -60,7 +60,7 @@ function renderSnowDepth(){
   const status=$('snowDepthStatus');
   if(!snowDepthData){status.textContent='Loading station snow depths…';return;}
   const now=Date.now()/1000;
-  const stations=snowDepthData.stations.filter(s=>snowDepthValid(s,now));
+  const stations=snowDepthData.stations.filter(s=>snowDepthValid(s,now)&&(!globalThis.NorthernCountryFocus?.allowsStation||globalThis.NorthernCountryFocus?.allowsStation(s)));
   const zero=$('snowDepthZero').checked;
   const visible=stations.filter(s=>zero || !snowDepthIsZero(s));
   // Higher depths take precedence when labels would overlap in the overview.
@@ -81,7 +81,7 @@ function renderSnowDepth(){
     L.marker(ll,{icon,title:s.name+' · '+label,keyboard:true}).bindPopup(snowDepthPopup(s),{maxWidth:300}).addTo(snowDepthLabels);
   }
   snowDepthLabels.addTo(map);
-  const counts=Object.entries(snowDepthSources).map(([country,source])=>{
+  const counts=Object.entries(snowDepthSources).filter(([country])=>!globalThis.NorthernCountryFocus?.matchesCountry||globalThis.NorthernCountryFocus.matchesCountry(country)).map(([country,source])=>{
     const n=stations.filter(s=>s.country===country).length;
     const provider=snowDepthData.providers?.[country];
     return country+': '+n+(provider?.status==='no-data'?' (no recent measurements)':provider?.status==='unavailable'?' (feed unavailable)':'');
@@ -118,7 +118,7 @@ $('snowDepthOn').addEventListener('change',()=>loadSnowDepth());
 $('snowDepthZero').addEventListener('change',renderSnowDepth);
 $('snowDepthRegion').addEventListener('click',()=>{
   $('snowDepthOn').checked=true;
-  const stations=(snowDepthData?.stations||[]).filter(s=>snowDepthValid(s));
+  const stations=(snowDepthData?.stations||[]).filter(s=>snowDepthValid(s)&&(!globalThis.NorthernCountryFocus?.allowsStation||globalThis.NorthernCountryFocus?.allowsStation(s)));
   map.fitBounds(stations.length?stations.map(s=>[s.lat,s.lon]):[[54,-25],[71,33]],{padding:[30,30],animate:false});
   loadSnowDepth();
 });

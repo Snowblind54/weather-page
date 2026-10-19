@@ -92,6 +92,7 @@ function updateWindPopup(){
 }
 
 map.on('click',event=>{
+  if(globalThis.NorthernCountryFocus?.allowsPoint && !globalThis.NorthernCountryFocus?.allowsPoint(event.latlng.lat,event.latlng.lng))return;
   if(!windVisualEnabled()) return;
   // The rainfall popup includes both wind readings when both layers are on.
   if(typeof activeAccumulationHours==='function' && activeAccumulationHours()) return;
@@ -488,6 +489,7 @@ function windHeatmapCorrections(unix,slice,mode){
   if(!blend||typeof officialWindData==='undefined'||!officialWindData||typeof officialWindReading!=='function')return [];
   const target=Math.min(unix,Date.now()/1000),corrections=[];
   for(const station of officialWindData.stations){
+    if(globalThis.NorthernCountryFocus?.allowsStation&&!globalThis.NorthernCountryFocus.allowsStation(station))continue;
     const reading=officialWindReading(station,unix);if(!reading)continue;
     const observed=mode==='gust'?reading[2]:reading[1];if(!Number.isFinite(observed))continue;
     const vector=windAt(station.lat,station.lon,slice);

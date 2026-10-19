@@ -10,7 +10,7 @@
         label:[p.name,...new Set([p.admin1,p.country].filter(v=>typeof v==='string'&&v&&v!==p.name))].join(', ')
       }));
   }
-  function attach({form,input,results,status,onChoose,fetcher=fetch}){
+  function attach({form,input,results,status,onChoose,fetcher=fetch,countryScope=false}){
     let timer=null,controller=null,generation=0,found=[],active=-1;
     const cache=new Map();
     const message=value=>{status.textContent=value;};
@@ -24,6 +24,7 @@
       cancel();hide();input.value=place.label;input.blur?.();message('Showing forecast for '+place.label+'.');onChoose(place);
     }
     function show(items){
+      items=items.filter(p=>!countryScope||!globalThis.NorthernCountryFocus?.allowsPoint||globalThis.NorthernCountryFocus.allowsPoint(p.lat,p.lon));
       hide();found=items;
       for(const [i,p] of items.entries()){
         const e=document.createElement('li');e.id=results.id+'-'+i;e.setAttribute('role','option');

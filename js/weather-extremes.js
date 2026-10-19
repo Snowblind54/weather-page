@@ -28,7 +28,7 @@
   L.popup({autoPan:false}).setLatLng([r.lat,r.lon]).setContent(content).openOn(map);
  }
  function render(){
-  const options={country:scope.value==='all'||scope.value==='view'?null:scope.value};
+  const options={country:globalThis.NorthernCountryFocus?.current()?.iso2||(scope.value==='all'||scope.value==='view'?null:scope.value)};
   if(scope.value==='view'){const b=map.getBounds();options.bounds={south:b.getSouth(),north:b.getNorth(),west:b.getWest(),east:b.getEast()};}
   results=WeatherExtremesData.summarize(snapshots,options);list.replaceChildren();
   for(const metric of results){
@@ -61,6 +61,7 @@
   })().finally(()=>{pending=null;refresh.disabled=false;render();});return pending;
  }
  section.addEventListener('toggle',()=>{if(active())load();});
+ document.addEventListener('country-focus-change',()=>{scope.disabled=!!globalThis.NorthernCountryFocus?.active();render();});
  scope.addEventListener('change',render);refresh.addEventListener('click',()=>load(true));
  document.addEventListener('weather-units-change',()=>{if(section.open)render();});
  document.addEventListener('visibilitychange',()=>{if(active())load();});

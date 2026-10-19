@@ -238,12 +238,14 @@ function rainTotalsAt(lat,lon,end){
 
 async function createRainfallImages(hours,end,generation){
   const officialVersion=officialRainData && Date.now()/1000-officialRainData.generatedAt<=3*3600?officialRainData.generatedAt:0;
-  const key=hours+'|'+end+'|'+officialVersion;
+  const key=hours+'|'+end+'|'+officialVersion+'|'+(globalThis.NorthernCountryFocus?.key()||'all');
   if(rainImageCache.has(key)) return rainImageCache.get(key);
   const features=await loadTemperatureCountryFeatures();
   rainCountryFeatures=features;
   const rendered=[];
   for(const region of RAIN_REGIONS){
+    const focus=globalThis.NorthernCountryFocus?.current();
+    if(focus&&!TEMP_REGION_COUNTRY_IDS[region.id]?.has(focus.id))continue;
     const officialOnly=region.id==='canada',spec=TEMP_GRID_SPECS.find(s=>s.id===region.id);
     const series=rainData?.grids[region.id]||[];
     if((!officialOnly&&!rainData?.grids[region.id]) || ![...TEMP_REGION_COUNTRY_IDS[region.id]].every(id=>features.some(f=>String(f.id)===id))){
@@ -300,7 +302,7 @@ async function renderRainfall(){
   const opacity=Number($('rainAccumOpacity').value)/100;
   rainLayer=L.layerGroup(images.map(region=>L.imageOverlay(region.dataUrl,region.bounds,
     {pane:'rainAccumulationPane',interactive:false,opacity}))).addTo(map);
-  $('rainAccumStatus').textContent=hours+' h accumulation · selected end '+fmt(end)+' · official gauges + model fallback';
+  $('rainAccumStatus').textContent=images.length?hours+' h accumulation · selected end '+fmt(end)+' · official gauges + model fallback':'No accumulation coverage for the selected country.';
   $('rainSourceStatus').textContent=officialRainSourceSummary(hours,end)+(rainModelError?' Model refresh unavailable: '+rainModelError:'');
   renderOfficialRainLabels();
   $('rainAccumStatus').className='status ok';
@@ -362,6 +364,7 @@ function updateAccumulationPopup(){
 }
 
 map.on('click',event=>{
+  if(globalThis.NorthernCountryFocus?.allowsPoint && !globalThis.NorthernCountryFocus?.allowsPoint(event.latlng.lat,event.latlng.lng))return;
   if(!activeAccumulationHours() || !rainData || !rainCountryFeatures) return;
   if(event.originalEvent?.target?.closest?.('.leaflet-interactive,.leaflet-marker-icon,.leaflet-popup')) return;
   rainProbe=event.latlng;

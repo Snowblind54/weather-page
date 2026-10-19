@@ -8,10 +8,10 @@ class Element{
  replaceChildren(){this.children=[];}
  appendChild(e){this.children.push(e);}
 }
-function ui(fetcher){
+function ui(fetcher,options={}){
  global.document={createElement:()=>new Element()};
  const form=new Element(),input=new Element(),results=new Element(),status=new Element(),selected=[];
- const search=attach({form,input,results,status,fetcher,onChoose:p=>selected.push(p)});
+ const search=attach({...options,form,input,results,status,fetcher,onChoose:p=>selected.push(p)});
  return {form,input,results,status,selected,search};
 }
 const point=(name='Tallinn',latitude=59.44,longitude=24.75)=>({name,latitude,longitude,admin1:'Harjumaa',country:'Estonia'});
@@ -46,4 +46,13 @@ test('empty searches and provider failures do not select a place',async()=>{
  let calls=0;const h=ui(async()=>{calls++;throw new Error('offline');});
  h.input.value='T';await h.search.search();assert.equal(calls,0);
  h.input.value='Tallinn';await h.search.search();assert.match(h.status.textContent,/unavailable/);assert.equal(h.selected.length,0);
+});
+
+test('forecast place results follow the country selection while space-weather searches remain global',async()=>{
+ global.NorthernCountryFocus={allowsPoint:lat=>lat>55};
+ try{
+  const fetcher=async()=>({ok:true,json:async()=>({results:[point(),point('London',51.5,-.1)]})});
+  const forecast=ui(fetcher,{countryScope:true});forecast.input.value='Place';await forecast.search.search();assert.equal(forecast.results.children.length,1);assert.match(forecast.results.children[0].textContent,/Tallinn/);
+  const aurora=ui(fetcher);aurora.input.value='Place';await aurora.search.search();assert.equal(aurora.results.children.length,2);
+ }finally{delete global.NorthernCountryFocus;}
 });

@@ -76,7 +76,8 @@ function enterSnowView(){
   document.body.classList.add('snow-view');
   $('snowMapKey').hidden=false;
   map.closePopup();
-  map.fitBounds([[0,-180],[83,180]],{padding:[16,16],animate:false});
+  if(globalThis.NorthernCountryFocus?.active())globalThis.NorthernCountryFocus.fit();
+  else map.fitBounds([[0,-180],[83,180]],{padding:[16,16],animate:false});
   snowLayer.addTo(map);
   refreshSnowCoverage();
   if(typeof loadSnowHistory==='function')loadSnowHistory();

@@ -131,6 +131,7 @@ function rainCountryMask(region,features){
 function officialRainSourceSummary(hours,end){
   const official=[],model=[];
   for(const [country,name] of Object.entries(RAIN_COUNTRY_NAMES)){
+    if(globalThis.NorthernCountryFocus?.matchesCountry && !globalThis.NorthernCountryFocus?.matchesCountry(country))continue;
     const window=officialRainWindow(country,hours,end);
     if(window) official.push(name+' ('+window.rows.length+' gauges; ending '+fmt(window.end)+')');
     else if(country!=='CA') model.push(name);
@@ -167,6 +168,7 @@ function renderOfficialRainLabels(){
   const panel=document.querySelector('.weather-panel:not([hidden])')?.getBoundingClientRect();
   const mapRect=map.getContainer().getBoundingClientRect();
   for(const s of officialRainData.stations){
+      if(globalThis.NorthernCountryFocus?.allowsStation && !globalThis.NorthernCountryFocus?.allowsStation(s))continue;
       if(!map.getBounds().contains([s.lat,s.lon]))continue;
       const window=officialStationRainWindow(s,hours,end);if(!window)continue;
       const value=window.value,source=officialRainData.sources[s.country]?.name||s.country;

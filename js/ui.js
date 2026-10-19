@@ -36,8 +36,12 @@ function positionWeatherPanel(){
   // A scaled display can change the header from one row to two. Measure its
   // actual bottom instead of assuming every desktop has a 96 px panel offset.
   const header=document.querySelector('.topbar');
-  if(header)document.documentElement.style.setProperty('--weather-panel-top',
-    Math.ceil(header.getBoundingClientRect().bottom+12)+'px');
+  if(header){
+    const top=Math.ceil(header.getBoundingClientRect().bottom+12);
+    document.documentElement.style.setProperty('--country-search-top',top+'px');
+    const search=document.querySelector('.country-search');
+    document.documentElement.style.setProperty('--weather-panel-top',Math.ceil(search?search.getBoundingClientRect().bottom+10:top)+'px');
+  }
   if(!openedWeatherPanel)return;
   const panel=$(openedWeatherPanel);
   panel.style.left='auto';
@@ -71,7 +75,7 @@ for(const button of document.querySelectorAll('[data-info]')){
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeWeatherPanel(true);});
 document.addEventListener('pointerdown',event=>{
   // Map interactions keep every category panel open, including marker popups.
-  if(!event.target.closest('.topbar,.weather-panel,.forecast-map-dock,#map')){
+  if(!event.target.closest('.topbar,.country-search,.weather-panel,.forecast-map-dock,#map')){
     closeWeatherPanel();
   }
 });
