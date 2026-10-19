@@ -1,0 +1,43 @@
+name: Inspect central European temperature feeds
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/check-central-temperature.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect public official feed schemas
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, concurrent.futures, re
+          urls=[
+          'https://opendata.chmi.cz/meteorology/climate/now/metadata/meta1-20261019.json',
+          'https://opendata.chmi.cz/meteorology/climate/now/metadata/meta2-20261019.json',
+          'https://opendata.chmi.cz/meteorology/climate/now/data/',
+          'https://opendata.chmi.cz/meteorology/climate/now/data/10m-0-20000-0-11406-20261019.json',
+          'https://opendata.shmu.sk/meteorology/climate/now/metadata/aws1min_metadata.json',
+          'https://opendata.shmu.sk/meteorology/climate/now/metadata/aws1min-metadata.txt',
+          'https://opendata.shmu.sk/meteorology/climate/now/data/20261019/',
+          'https://metapi.ana.lu/api/v1/hvd/observations',
+          'https://metapi.ana.lu/api/v1/hvd/observations/metadata',
+          'https://metapi.ana.lu/api/v1/hvd/stations/LUX0000001']
+          def brief(x,depth=0):
+           if isinstance(x,list):return {'length':len(x),'sample':[brief(v,depth+1) for v in x[:2]]}
+           if isinstance(x,dict):return {k:brief(v,depth+1) for k,v in list(x.items())[:20]}
+           return x
+          def fetch(url):
+           try:
+            request=urllib.request.Request(url,headers={'User-Agent':'NorthernWeather official station integration'})
+            with urllib.request.urlopen(request,timeout=30) as r:raw=r.read(5000000).decode('utf-8-sig')
+            try: result=brief(json.loads(raw))
+            except ValueError:result=raw[:6500]
+            return {'url':url,'sample':result}
+           except Exception as e:return {'url':url,'error':str(e)}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+           for result in pool.map(fetch,urls):print(json.dumps(result,ensure_ascii=False),flush=True)
+          
+          PY
