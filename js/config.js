@@ -150,7 +150,7 @@ window.addEventListener('load',()=>{
   document.body.appendChild(cloudNordicScript);
 
   const windChillScript=document.createElement('script');
-  windChillScript.src='js/wind-chill.js?v=country-focus-1';
+  windChillScript.src='js/wind-chill.js?v=country-focus-2';
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');

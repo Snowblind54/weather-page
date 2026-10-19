@@ -61,7 +61,14 @@
   })().finally(()=>{pending=null;refresh.disabled=false;render();});return pending;
  }
  section.addEventListener('toggle',()=>{if(active())load();});
- document.addEventListener('country-focus-change',()=>{scope.disabled=!!globalThis.NorthernCountryFocus?.active();render();});
+ document.addEventListener('country-focus-change',()=>{
+  scope.querySelector('[data-country-focus-option]')?.remove();
+  const country=globalThis.NorthernCountryFocus?.current();
+  if(country&&!Array.from(scope.options).some(o=>o.value===country.iso2)){
+   const option=el('option',country.name);option.value=country.iso2;option.dataset.countryFocusOption='';scope.append(option);
+  }
+  scope.disabled=!!country;scope.value=country?country.iso2:'all';render();
+ });
  scope.addEventListener('change',render);refresh.addEventListener('click',()=>load(true));
  document.addEventListener('weather-units-change',()=>{if(section.open)render();});
  document.addEventListener('visibilitychange',()=>{if(active())load();});

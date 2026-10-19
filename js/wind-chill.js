@@ -310,6 +310,7 @@
   if(baseOfficialStationSourceSummary){
     officialStationSourceSummary=function(){
       const summary=baseOfficialStationSourceSummary();
+      if(globalThis.NorthernCountryFocus?.matchesCountry&&!globalThis.NorthernCountryFocus.matchesCountry('LV'))return summary;
       const lv=officialTemperatureSourceState?.LV;
       if(lv?.ok&&lv.count&&!summary.good.includes('LV'))summary.good.push('LV');
       else if(lv&&!lv.ok&&!summary.bad.includes('LV'))summary.bad.push('LV');

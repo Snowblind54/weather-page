@@ -63,3 +63,12 @@ test('country heatmap statistics ignore pixels outside its mask, including extre
  const values=new Float32Array([-80,0,7,50,NaN]);const rgba=new Uint8ClampedArray(20);rgba[7]=255;rgba[11]=128;rgba[19]=255;
  assert.deepEqual(focus.range(values,rgba),{min:0,max:7});
 });
+
+
+test('Latvia source summary respects a different country and returns when the filter clears',()=>{
+ const source=read('wind-chill.js'),start=source.indexOf('  const baseOfficialStationSourceSummary='),end=source.indexOf('  // Add one compact selector',start);
+ const c={officialStationSourceSummary:()=>({good:['DE'],bad:[]}),officialTemperatureSourceState:{LV:{ok:true,count:50}},NorthernCountryFocus:{matchesCountry:code=>code==='DE'}};
+ vm.createContext(c);vm.runInContext(source.slice(start,end),c);
+ assert.deepEqual(Array.from(c.officialStationSourceSummary().good),['DE']);
+ c.NorthernCountryFocus=null;assert.deepEqual(Array.from(c.officialStationSourceSummary().good),['DE','LV']);
+});

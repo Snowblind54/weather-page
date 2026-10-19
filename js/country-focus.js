@@ -46,7 +46,9 @@
     return d;
   }
   function range(values,pixels){let min=Infinity,max=-Infinity;for(let i=0;i<values.length;i++)if(pixels[i*4+3]&&Number.isFinite(values[i])){min=Math.min(min,values[i]);max=Math.max(max,values[i]);}return {min,max};}
-  const scopedPanes=['overlayPane','markerPane','shadowPane','warningPane','warningFillPane','officialWindPane','windPane','windHeatmapPane','snowPane','forecastModel','forecastPoint','rainAccumulationPane'];
+  // Observation markers are filtered before rendering. Let their labels extend
+  // across a border so an in-country station remains readable at the edge.
+  const scopedPanes=['overlayPane','warningPane','warningFillPane','windPane','windHeatmapPane','snowPane','forecastModel','forecastPoint','rainAccumulationPane'];
   function install(root){
     const form=document.getElementById('countrySearchForm');if(!form||typeof map==='undefined')return;
     const input=document.getElementById('countrySearchInput'),results=document.getElementById('countrySearchResults'),status=document.getElementById('countrySearchStatus'),clear=document.getElementById('countrySearchClear');
