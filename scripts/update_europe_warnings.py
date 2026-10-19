@@ -1,4 +1,4 @@
-"""Official UK/Irish CAP alerts distributed by Meteoalarm; stdlib only."""
+"""Official European CAP alerts distributed by Meteoalarm; stdlib only."""
 import concurrent.futures
 import datetime as dt
 import json
@@ -6,6 +6,8 @@ import gzip
 import html
 import re
 import pathlib
+import time
+import urllib.error
 import urllib.parse
 import xml.etree.ElementTree as ET
 from update_latvia_warnings import download, text, polygon, NS
@@ -13,12 +15,31 @@ from update_latvia_warnings import download, text, polygon, NS
 SOURCES = {
     'UK': ('United Kingdom', '🇬🇧', 'united-kingdom', 'Europe/London', 'UK Met Office'),
     'IE': ('Ireland', '🇮🇪', 'ireland', 'Europe/Dublin', 'Met Éireann'),
+    'DE': ('Germany', '🇩🇪', 'germany', 'Europe/Berlin', 'Deutscher Wetterdienst (DWD)'),
+    'NL': ('Netherlands', '🇳🇱', 'netherlands', 'Europe/Amsterdam', 'KNMI'),
+    'BE': ('Belgium', '🇧🇪', 'belgium', 'Europe/Brussels', 'Royal Meteorological Institute (RMI/KMI)'),
+    'LU': ('Luxembourg', '🇱🇺', 'luxembourg', 'Europe/Luxembourg', 'MeteoLux / ANA'),
 }
 ATOM = {'a': 'http://www.w3.org/2005/Atom'}
 COUNTIES = pathlib.Path(__file__).resolve().parents[1] / 'data/ireland-warning-counties.json.gz'
+REGIONS = pathlib.Path(__file__).resolve().parents[1] / 'data/western-warning-regions.json.gz'
 
 
-def parse_cap(payload, code, url, now, counties=None):
+def fetch_warning(url):
+    """A temporary failure of one CAP file must not lose the whole country."""
+    for attempt in range(3):
+        try:
+            return download(url)
+        except urllib.error.HTTPError as error:
+            if error.code not in (408, 429, 500, 502, 503, 504) or attempt == 2:
+                raise
+        except (urllib.error.URLError, TimeoutError):
+            if attempt == 2:
+                raise
+        time.sleep(attempt + 1)
+
+
+def parse_cap(payload, code, url, now, counties=None, regions=None):
     root = ET.fromstring(payload)
     if root.tag != '{'+NS['cap']+'}alert':
         raise ValueError('Expected official CAP alert')
@@ -27,14 +48,26 @@ def parse_cap(payload, code, url, now, counties=None):
     name, flag, _, timezone, service = SOURCES[code]
     infos = root.findall('cap:info', NS)
     english = [i for i in infos if text(i, 'language').lower().startswith('en')]
+    # Retain official text if a service publishes only its national language.
     if not english:
-        raise ValueError('English official warning information missing')
+        if code in ('UK', 'IE') or not infos:
+            raise ValueError('English official warning information missing')
+        language = text(infos[0], 'language')
+        english = [i for i in infos if text(i, 'language') == language]
     identifier = text(root, 'identifier')
     if not identifier:
         raise ValueError('Warning identifier missing')
     rows=[]
     for info_index, info in enumerate(english):
-        level = text(info, 'severity')
+        official_severity = text(info, 'severity')
+        level = official_severity
+        awareness = next((text(p, 'value').split(';')[0].strip()
+                          for p in info.findall('cap:parameter', NS)
+                          if text(p, 'valueName') == 'awareness_level'), None)
+        if awareness is not None:
+            # In DWD CAP, Minor can be an actual yellow warning. Use the
+            # service's explicit Meteoalarm awareness level, never severity alone.
+            level = {'2':'Moderate', '3':'Severe', '4':'Extreme'}.get(awareness)
         if level not in ('Moderate', 'Severe', 'Extreme'):
             continue
         expires = text(info, 'expires')
@@ -52,8 +85,11 @@ def parse_cap(payload, code, url, now, counties=None):
                 if not ring:
                     raise ValueError('Empty CAP warning polygon')
                 shapes.append([ring])
-            codes=[text(g,'value') for g in area.findall('cap:geocode',NS) if text(g,'valueName') in ('EMMA_ID','FIPS')]
-            marine = code=='IE' and any(c.startswith('EI8') for c in codes)
+            geocodes=[(text(g,'valueName'), text(g,'value')) for g in area.findall('cap:geocode',NS)]
+            codes=[value for kind,value in geocodes if kind in ('EMMA_ID','FIPS')]
+            marine = ((code=='IE' and any(c.startswith('EI8') for c in codes)) or
+                      (code=='NL' and any(c.startswith('NL8') for c in codes)) or
+                      (code=='DE' and any(kind=='WARNCELLID' and value.startswith(('2','5')) for kind,value in geocodes)))
             missing=[]
             if code=='IE' and not shapes and not marine:
                 for geocode in dict.fromkeys(codes):
@@ -61,12 +97,21 @@ def parse_cap(payload, code, url, now, counties=None):
                     geometry=(counties or {}).get('counties',{}).get(county)
                     if geometry: shapes.extend(geometry)
                     else: missing.append(geocode)
+            if not shapes and code in ('DE','BE'):
+                # Match exact official codes, preserving islands and holes.
+                for kind,value in dict.fromkeys(geocodes):
+                    geometry=(regions or {}).get(code,{}).get(kind+':'+value)
+                    if geometry:
+                        shapes.extend(geometry)
+                        break  # Alternate geocodes describe the same area.
+                if not shapes: missing.extend(value for _,value in geocodes)
             # Never replace an unknown official area with a guessed rectangle.
             rows.append({
                 'country':name,'flag':flag,'identifier':f'{identifier}:{info_index}:{area_index}',
                 'capIdentifier':identifier,'area':text(area,'areaDesc'),
                 'event':text(info,'event'),'headline':text(info,'headline') or text(info,'event'),
-                'level':level,'effective':effective,'onset':onset,'expires':expires,
+                'level':level,'officialSeverity':official_severity,
+                'language':text(info,'language'),'effective':effective,'onset':onset,'expires':expires,
                 'description':html.unescape(re.sub(r'<[^>]*>', ' ', text(info,'description'))).strip(),
                 'instruction':html.unescape(re.sub(r'<[^>]*>', ' ', text(info,'instruction'))).strip(),
                 'certainty':text(info,'certainty'),'timeZone':timezone,
@@ -81,7 +126,7 @@ def parse_cap(payload, code, url, now, counties=None):
 def load_europe(code, now):
     name, _, slug, _, _ = SOURCES[code]
     feed='https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-'+slug
-    root=ET.fromstring(download(feed))
+    root=ET.fromstring(fetch_warning(feed))
     if root.tag!='{'+ATOM['a']+'}feed' or root.findtext('a:id','',ATOM).split(':')[-1] != code:
         raise ValueError('Unexpected country warning Atom feed')
     urls=[]
@@ -94,12 +139,13 @@ def load_europe(code, now):
                 raise ValueError('Unexpected warning CAP URL')
             if url not in urls: urls.append(url)
     counties=json.loads(gzip.decompress(COUNTIES.read_bytes())) if code=='IE' else None
+    regions=json.loads(gzip.decompress(REGIONS.read_bytes()))['regions'] if code in ('DE','BE') else None
     rows=[];superseded=set()
     def fetch(url):
-        data=download(url);alert=ET.fromstring(data)
+        data=fetch_warning(url);alert=ET.fromstring(data)
         references=text(alert,'references').split()
         old=[r.split(',')[1] for r in references if len(r.split(','))==3]
-        return parse_cap(data,code,url,now,counties),old
+        return parse_cap(data,code,url,now,counties,regions),old
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         for records,old in pool.map(fetch,urls):rows.extend(records);superseded.update(old)
     rows=[r for r in rows if r['capIdentifier'] not in superseded]

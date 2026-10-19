@@ -17,7 +17,7 @@ function validNationalWarningPolygon(polygon){
 }
 
 function validateNationalWarningCountry(data,code){
-  const name=({PL:'Poland',DK:'Denmark',GL:'Greenland',CA:'Canada',US:'USA',UK:'United Kingdom',IE:'Ireland'})[code];
+  const name=({PL:'Poland',DK:'Denmark',GL:'Greenland',CA:'Canada',US:'USA',UK:'United Kingdom',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg'})[code];
   const country=data?.countries?.[code];
   const updated=Date.parse(country?.updatedAt);
   if(data?.version!==1 || country?.country!==name || !Array.isArray(country.records) ||
@@ -28,7 +28,7 @@ function validateNationalWarningCountry(data,code){
     if(record.country!==name || !['Moderate','Severe','Extreme',...(['CA','US'].includes(code)?['Information']:[])].includes(record.level) ||
        !Number.isFinite(Date.parse(record.expires)) || !Number.isFinite(Date.parse(record.effective)) ||
        (['CA','US'].includes(code) && !Number.isFinite(Date.parse(record.messageExpires))) ||
-       !Array.isArray(record.polygons) || (!['US','UK','IE'].includes(code)&&!record.polygons.length) || !record.polygons.every(validNationalWarningPolygon)){
+       !Array.isArray(record.polygons) || (!['US','UK','IE','DE','NL','BE','LU'].includes(code)&&!record.polygons.length) || !record.polygons.every(validNationalWarningPolygon)){
       throw new Error(name+' official warning data invalid');
     }
   }
