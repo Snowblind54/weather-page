@@ -13,21 +13,26 @@ jobs:
       - name: Inspect public official feed schemas
         run: |
           python3 - <<'PY'
-          import json, urllib.request, re, concurrent.futures
-          urls=['https://opendata.chmi.cz/meteorology/climate/now/metadata/meta4-20261019.json','https://opendata.chmi.cz/meteorology/climate/now/metadata/meta2-20261019.json','https://metapi.ana.lu/api/v1/hvd/observations','https://www.shmu.sk/dist/assets/meteo/main_akt_map_sk-BEk13x-B.js','http://opendata.shmu.sk/meteorology/climate/now/data/20261019/','http://opendata.shmu.sk/meteorology/climate/','https://www.shmu.sk/sk/?page=1&id=meteo_apocasie_sk']
+          import json,urllib.request,re,concurrent.futures
+          urls=['https://www.shmu.sk/dist/assets/meteo/main_akt_map_sk-BEk13x-B.js','https://www.shmu.sk/sk/?page=1&id=meteo_apocasie_sk','http://opendata.shmu.sk/meteorology/climate/now/','http://opendata.shmu.sk/meteorology/climate/now/data/20261019/aws1min%20-%202026-10-19%2014-15-00.json']
           def get(url):
            try:
-            with urllib.request.urlopen(url,timeout=30) as r:raw=r.read(6000000).decode('utf-8-sig')
-            if 'meta2' in url:
-             d=json.loads(raw)['data']['data'];v=[x for x in d['values'] if x[2]=='T'];s={'header':d['header'],'count':len(v),'values':v[:4]}
-            elif 'ana.lu' in url or 'meta4' in url:s=json.loads(raw)
-            elif url.endswith('.js'):s={'length':len(raw),'snippets':[raw[max(0,m.start()-180):m.end()+400] for m in re.finditer(r'(?i)\.json|fetch\\(|axios|https:|station|geogr|\.php',raw)][-40:]}
-            elif 'meteo_apocasie_sk' in url:
-             s=[raw[max(0,m.start()-150):m.end()+200] for m in list(re.finditer(r'(?i)aktualiz|LSE|SEC|SEČ|datetime|h_stanica',raw))[:10]]
-            else:s=raw[:9000]
+            with urllib.request.urlopen(url,timeout=25) as r:s=r.read(3000000).decode('utf-8-sig')
+            if 'meteo_apocasie_sk' in url:s=s[s.find('<h1'):s.find('<h1')+5000]
+            elif url.endswith('.js'):
+             chunks=[]
+             for term in ['.json','fetch','axios','api','station','http','import','lat','lon']:
+              start=0
+              for i in range(8):
+               p=s.find(term,start)
+               if p<0:break
+               chunks.append(s[max(0,p-100):p+250]);start=p+len(term)
+             s={'bytes':len(s),'begin':s[:5000],'snippets':chunks}
+            elif 'aws1min' in url:
+             d=json.loads(s);s={k:(v[:2] if isinstance(v,list) else v) for k,v in d.items()} if isinstance(d,dict) else d[:2]
             return {'url':url,'sample':s}
            except Exception as e:return {'url':url,'error':str(e)}
-          with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
            for x in pool.map(get,urls):print(json.dumps(x,ensure_ascii=False),flush=True)
           
           PY
