@@ -13,31 +13,28 @@ jobs:
       - name: Inspect public official feed schemas
         run: |
           python3 - <<'PY'
-          import json, urllib.request, concurrent.futures, re
+          import json, urllib.request, concurrent.futures, re, ssl
           urls=[
           'https://opendata.chmi.cz/meteorology/climate/now/metadata/meta1-20261019.json',
-          'https://opendata.chmi.cz/meteorology/climate/now/metadata/meta2-20261019.json',
-          'https://opendata.chmi.cz/meteorology/climate/now/data/',
           'https://opendata.chmi.cz/meteorology/climate/now/data/10m-0-20000-0-11406-20261019.json',
-          'https://opendata.shmu.sk/meteorology/climate/now/metadata/aws1min_metadata.json',
-          'https://opendata.shmu.sk/meteorology/climate/now/metadata/aws1min-metadata.txt',
-          'https://opendata.shmu.sk/meteorology/climate/now/data/20261019/',
-          'https://metapi.ana.lu/api/v1/hvd/observations',
           'https://metapi.ana.lu/api/v1/hvd/observations/metadata',
-          'https://metapi.ana.lu/api/v1/hvd/stations/LUX0000001']
-          def brief(x,depth=0):
-           if isinstance(x,list):return {'length':len(x),'sample':[brief(v,depth+1) for v in x[:2]]}
-           if isinstance(x,dict):return {k:brief(v,depth+1) for k,v in list(x.items())[:20]}
-           return x
+          'https://metapi.ana.lu/api/v1/hvd/observations',
+          'https://www.shmu.sk/sk/?page=1&id=meteo_apocasie_sk',
+          'https://www.shmu.sk/sk/?page=1&id=meteo_apocasie_map',
+          'http://opendata.shmu.sk/meteorology/climate/now/metadata/aws1min_metadata.json']
           def fetch(url):
            try:
-            request=urllib.request.Request(url,headers={'User-Agent':'NorthernWeather official station integration'})
-            with urllib.request.urlopen(request,timeout=30) as r:raw=r.read(5000000).decode('utf-8-sig')
-            try: result=brief(json.loads(raw))
-            except ValueError:result=raw[:6500]
-            return {'url':url,'sample':result}
+            with urllib.request.urlopen(url,timeout=25) as r:raw=r.read(5000000).decode('utf-8-sig'); final=r.url
+            if 'chmi' in url:
+             d=json.loads(raw)['data']['data'];v=d['values'];sample={'header':d['header'],'values':v[:4] if 'meta1' in url else [x for x in v if x[1]=='T'][-4:]}
+            elif 'ana.lu' in url:
+             d=json.loads(raw); sample=[x for x in d['data'] if 'temp' in str(x).lower() or str(x.get('id','')).startswith('t')]
+            elif raw.lstrip().startswith('{'):sample=json.loads(raw)
+            else:
+             sample={'scripts':re.findall(r'<script[^>]*src=[\\\"\\\']([^\\\"\\\']+)',raw),'snippets':[raw[max(0,m.start()-150):m.end()+450] for m in list(re.finditer(r'(?i)ajax|json|11810|latitude|longitude|stations|meteo_apocasie',raw))[-25:]]}
+            return {'url':url,'final':final,'sample':sample}
            except Exception as e:return {'url':url,'error':str(e)}
           with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-           for result in pool.map(fetch,urls):print(json.dumps(result,ensure_ascii=False),flush=True)
+           for x in pool.map(fetch,urls):print(json.dumps(x,ensure_ascii=False),flush=True)
           
           PY
