@@ -14,6 +14,7 @@ import update_north_america_temperature
 import update_atlantic_temperature
 import update_us_temperature
 import update_western_temperature
+import update_central_temperature
 
 LATVIA_DATASTORE = "https://data.gov.lv/dati/api/3/action/datastore_search?"
 LATVIA_STATIONS_RESOURCE = "c32c7afd-0d05-44fd-8b24-1de85b4bf11d"

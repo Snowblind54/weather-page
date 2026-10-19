@@ -118,7 +118,8 @@ function officialTempCoord(record){
 
 function officialTempValid(lat,lon,temp,country){
   const bounds=country==='GL'?[59,84,-74,-10]:country==='CA'?[41,84,-142,-52]:country==='US'?[18,72,-180,180]:
-    country==='DE'?[47,55.2,5.5,15.6]:country==='NL'?[50.5,54,2,8]:country==='BE'?[49.4,51.6,2.4,6.5]:[48.5,72.5,-26,33];
+    country==='DE'?[47,55.2,5.5,15.6]:country==='NL'?[50.5,54,2,8]:country==='BE'?[49.4,51.6,2.4,6.5]:
+    country==='CZ'?[48.5,51.1,12,18.9]:country==='SK'?[47.6,49.7,16.7,22.7]:country==='LU'?[49.4,50.2,5.7,6.6]:[48.5,72.5,-26,33];
   return Number.isFinite(lat) && Number.isFinite(lon) &&
     lat>=bounds[0] && lat<=bounds[1] && lon>=bounds[2] && lon<=bounds[3] &&
     Number.isFinite(temp) && temp>(country==='GL'||country==='CA'||country==='US'?-90:-70) && temp<55;
@@ -495,7 +496,10 @@ const OFFICIAL_TEMP_LOADERS=[
   ['IE',null],
   ['DE',null],
   ['NL',null],
-  ['BE',null]
+  ['BE',null],
+  ['CZ',null],
+  ['SK',null],
+  ['LU',null]
 ];
 
 async function loadOfficialTemperatureStations(force=false){

@@ -12,6 +12,8 @@ on:
       - scripts/update_us_temperature.py
       - scripts/update_atlantic_temperature.py
       - scripts/update_western_temperature.py
+      - scripts/update_central_temperature.py
+      - tests/test_central_temperature.py
       - scripts/split_official_temperature.py
       - tests/test_temperature_split.py
       - tests/test_western_temperature.py
@@ -68,6 +70,10 @@ jobs:
         run: python3 -m unittest discover -s tests -p test_atlantic_temperature.py -q
       - name: Check Western European station parsers
         run: python3 -m unittest discover -s tests -p test_western_temperature.py -q
+      - name: Check Central European station parsers and map coverage
+        run: |
+          python3 -m unittest discover -s tests -p test_central_temperature.py -q
+          node --test tests/central-temperature.test.cjs
       - name: Check Western European readings, shading and extremes
         run: node --test tests/western-temperature.test.cjs tests/temperature-us.test.cjs tests/weather-extremes.test.cjs
       - name: Fetch official temperature observations
@@ -85,6 +91,7 @@ jobs:
           assert 'US' in p['sources'], 'NOAA USA source missing from temperature snapshot'
           assert all(code in p['sources'] for code in ('FO','GB','IE')), 'Atlantic sources missing'
           assert all(code in p['sources'] for code in ('DE','NL','BE')), 'Western European sources missing'
+          assert all(code in p['sources'] for code in ('CZ','SK','LU')), 'Central European sources missing'
           for s in p['stations']:
               assert s['rows']
               assert -90 < s['rows'][-1][1] < 55
