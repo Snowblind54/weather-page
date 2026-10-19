@@ -1,0 +1,47 @@
+name: Check Western European observation formats
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/check-western-temperature.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install netCDF4==1.7.2
+      - name: Inspect official provider formats
+        run: |
+          python3 - <<'PY'
+          import urllib.request as r, urllib.parse as p, json, re, io, zipfile
+          def get(url, headers=None):
+              with r.urlopen(r.Request(url,headers={'User-Agent':'NorthernWeather (github.com/Snowblind54/weather-page)',**(headers or {})}),timeout=40) as f:return f.read()
+          base='https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/air_temperature/'
+          for url in [base+'recent/zehn_min_tu_Beschreibung_Stationen.txt','https://opendata.meteo.be/service/aws/ows?'+p.urlencode({'service':'WFS','version':'2.0.0','request':'DescribeFeatureType','typeNames':'aws:aws_10min'}),'https://opendata.meteo.be/service/aws/ows?'+p.urlencode({'service':'WFS','version':'2.0.0','request':'GetFeature','typeNames':'aws:aws_station','count':2,'outputFormat':'application/json'}),'https://opendata.meteo.be/service/aws/ows?'+p.urlencode({'service':'WFS','version':'2.0.0','request':'GetFeature','typeNames':'aws:aws_10min','count':1,'sortBy':'timestamp D','outputFormat':'application/json'})]:
+              try: print('FORMAT',url,get(url).decode('utf-8',errors='replace')[:7000],flush=True)
+              except Exception as e:print('FAILED',url,str(e),flush=True)
+          try:
+              listing=get(base+'now/').decode()
+              name=re.findall(r'href="(10minutenwerte_TU_[0-9]+_now.zip)"',listing)[0]
+              z=zipfile.ZipFile(io.BytesIO(get(base+'now/'+name)))
+              print('DWD ZIP',name,z.namelist(),z.read(z.namelist()[0]).decode()[:1000],flush=True)
+          except Exception as e:print('DWD ZIP ERROR',str(e),flush=True)
+          try:
+              import netCDF4
+              key='eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6IjUzYTg1ZDBhMmQ5YzRkYzJiYWNlNzQ4NTQ2Zjk4ODExIiwiaCI6Im11cm11cjEyOCJ9'
+              api='https://api.dataplatform.knmi.nl/open-data/v1/datasets/10-minute-in-situ-meteorological-observations/versions/1.0/files'
+              files=json.loads(get(api+'?maxKeys=1&sorting=desc',{'Authorization':key}))
+              filename=files['files'][0]['filename']
+              link=json.loads(get(api+'/'+p.quote(filename,safe='')+'/url',{'Authorization':key}))['temporaryDownloadUrl']
+              nc=netCDF4.Dataset('memory',memory=get(link))
+              print('KNMI FILE',filename,'VARIABLES',[(n,v.dimensions,str(v.dtype),getattr(v,'units',None)) for n,v in nc.variables.items() if n in ('time','ta','t10','lat','lon','station','stationname','wsi')],flush=True)
+              for n in ['time','ta','t10','lat','lon','station','stationname','wsi']:
+                  if n in nc.variables:print('KNMI VALUE',n,str(nc.variables[n][:])[:1500],flush=True)
+              nc.close()
+          except Exception as e:print('KNMI ERROR',type(e).__name__,str(e),flush=True)
+          PY
