@@ -118,6 +118,19 @@ class EuropeanRainfallTests(unittest.TestCase):
         self.assertEqual(s['amounts'],[1.5,0]);self.assertEqual(s['traces'],[s['times'][1]])
         with self.assertRaises(ValueError):europe.parse_netherlands(raw.replace('0.1 mm','inches'))
 
+    def test_dutch_current_synop_and_delayed_hourly_archive_merge_as_one_station(self):
+        now=dt.datetime(2026,10,20,16,tzinfo=UTC);end=int(now.timestamp())
+        hourly=core.station('NL','260','De Bilt',52.1,5.18,[(end-48*3600,1.5,False)])
+        current=core.station('NL','06260','De Bilt',52.1,5.18,[(end,0.2,False)])
+        current['periods']=[{'end':end-10*3600,'hours':24,'value':4}]
+        with patch.object(core,'download',return_value=(FIX/'rainfall-knmi.txt').read_bytes()), \
+             patch.object(europe,'parse_netherlands',return_value=[hourly]), \
+             patch.object(europe,'load_synop',return_value=[current]):
+            out=core.merge([],europe.load_netherlands(now,[]),now)
+        self.assertEqual(len(out),1);self.assertEqual(out[0]['code'],'260')
+        self.assertEqual(out[0]['amounts'],[1.5,0.2])
+        self.assertIn({'end':end-10*3600,'hours':24,'value':4},out[0]['accumulations'])
+
     def test_complete_short_intervals_no_duplicates_missing_zero_or_hour_shift(self):
         end=core.unix('2026-10-20T12:00:00Z')
         samples=[(end-i*600,0.2) for i in range(6)]
@@ -148,7 +161,7 @@ class EuropeanRainfallTests(unittest.TestCase):
         self.assertEqual(p['stations']['11934']['country'],'SK')
         self.assertAlmostEqual(p['stations']['11934']['lat'],49+4/60,places=5)
         self.assertAlmostEqual(p['stations']['06590']['lat'],49+37/60,places=5)
-        self.assertEqual({s['country'] for s in p['stations'].values()},{'GB','DE','PL','SK','LU'})
+        self.assertEqual({s['country'] for s in p['stations'].values()},{'GB','DE','PL','SK','LU','NL'})
 
 
 if __name__=='__main__':unittest.main()

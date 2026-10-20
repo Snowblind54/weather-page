@@ -28,7 +28,7 @@ SOURCE_INFO = {
     'SK': ('SHMÚ SYNOP observations distributed by DWD', POI),
     'LU': ('MeteoLux / Luxembourg-Findel SYNOP observations distributed by DWD', POI),
     'IE': ('Met Éireann / official hourly rain gauges', IRELAND),
-    'NL': ('KNMI / official hourly precipitation', KNMI),
+    'NL': ('KNMI / hourly precipitation and official SYNOP gauges', KNMI),
     'BE': ('Royal Meteorological Institute / RMI-KMI gauges', 'https://opendata.meteo.be/documentation/?dataset=aws'),
     'CZ': ('Czech Hydrometeorological Institute / ČHMÚ', CHMI+'now/'),
 }
@@ -151,8 +151,22 @@ def parse_netherlands(raw):
 
 
 def load_netherlands(now,previous):
+    # The validated hourly archive can lag by several days. Supplement it with
+    # current KNMI SYNOP reports, using the same national station IDs.
+    hourly,current=[],[]
     params={'stns':'ALL','vars':'RH','start':(now-dt.timedelta(days=3)).strftime('%Y%m%d')+'01','end':now.strftime('%Y%m%d')+'24'}
-    return trimmed(parse_netherlands(core.download(KNMI+urllib.parse.urlencode(params),False)),now)
+    try:hourly=trimmed(parse_netherlands(core.download(KNMI+urllib.parse.urlencode(params),False)),now)
+    except Exception as error:print('NL hourly archive unavailable:',str(error)[:120],flush=True)
+    try:current=load_synop('NL',now,previous)
+    except Exception as error:print('NL current SYNOP unavailable:',str(error)[:120],flush=True)
+    metadata={s['code']:s for s in hourly}
+    for s in current:
+        # WMO 06260 is KNMI 260 (De Bilt), not a second colocated gauge.
+        s['code']=str(int(s['code'])-6000)
+        if s['code'] in metadata:
+            s.update({k:metadata[s['code']][k] for k in ('name','lat','lon')})
+    if not hourly and not current:raise ValueError('No Dutch hourly or SYNOP rainfall observations')
+    return current+hourly
 
 
 def complete_hours(samples,step):
@@ -266,7 +280,7 @@ PERIODS={
     **{c:'National SYNOP precipitation: reported 1-, 3-, 6-, 12- and 24-hour intervals, with UTC observation times. Only complete, non-overlapping intervals form longer totals; missing intervals stay unavailable. Reporting frequency varies by station.' for c in ('GB','PL','DE','SK')},
     'LU':'Luxembourg-Findel SYNOP gauge. Currently reports 6- and 12-hour precipitation; 24 and 48 hours require complete adjacent intervals. No hourly total is inferred from these longer reports.',
     'IE':'Met Éireann total hourly rainfall in mm, excluding event-driven tips. Complete measured hours are required for longer totals.',
-    'NL':'KNMI RH hourly precipitation in 0.1 mm, converted to mm; hour 24 ends at midnight UTC. Trace below 0.05 mm is flagged; missing values stay unavailable.',
+    'NL':'KNMI RH hourly archive in 0.1 mm, converted to mm, supplemented with current KNMI SYNOP precipitation distributed by DWD. Identical station IDs are merged. Hour 24 ends at midnight UTC; traces below 0.05 mm are flagged. Native longer intervals are retained without inventing hourly totals.',
     'BE':'RMI/KMI precipitation in mm for each ten-minute interval. All six samples are required for a completed clock hour; near-real-time observations are provisional.',
     'CZ':'ČHMÚ SRA1H hourly precipitation in mm with UTC observation times. Quality 0 and provisional 5 accepted; suspect, estimated and missing observations excluded.'
 }
