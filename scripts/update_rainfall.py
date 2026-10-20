@@ -422,6 +422,10 @@ def merge(previous, incoming, now):
     end = int(now.timestamp()) // 3600 * 3600
     merged = {}
     for s in previous + incoming:
+        # Exclude foreign records from a former broad WMO prefix selection.
+        # Poland is WMO 121xx–126xx; 127xx–129xx belong to Hungary.
+        if s['country'] == 'PL' and not (49 <= float(s['lat']) <= 55.3 and 14 <= float(s['lon']) <= 24.3):
+            continue
         key = s['country'] + '|' + s['code']
         target = merged.setdefault(key, {**s, '_hours': {}, '_traces': set(), '_totals': {}, '_periods': {}})
         # New metadata wins; revising a reading replaces it rather than adding it.

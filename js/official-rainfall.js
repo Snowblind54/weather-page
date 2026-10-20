@@ -134,10 +134,15 @@ function officialRainSourceSummary(hours,end){
     if(globalThis.NorthernCountryFocus?.matchesCountry && !globalThis.NorthernCountryFocus?.matchesCountry(country))continue;
     const window=officialRainWindow(country,hours,end);
     if(window) official.push(name+' ('+window.rows.length+' gauges; ending '+fmt(window.end)+')');
-    else if(!OFFICIAL_ONLY_RAIN_COUNTRIES.has(country)) model.push(name);
+    else {
+      const measured=(officialRainData?.stations||[]).filter(s=>s.country===country)
+        .map(s=>officialStationRainWindow(s,hours,end)).filter(Boolean);
+      if(measured.length)official.push(name+' ('+measured.length+' gauges; latest complete end '+fmt(Math.max(...measured.map(w=>w.end)))+'; delayed readings)');
+      if(!OFFICIAL_ONLY_RAIN_COUNTRIES.has(country))model.push(name);
+    }
   }
   return 'Official precipitation: '+(official.join('; ')||'none for this period')+'. Open-Meteo rain fallback: '+
-    (model.join(', ')||'gaps only')+'. Model also fills areas beyond 100 km from a reporting gauge. '+
+    (model.join(', ')||'none for this country/period')+'. Model fallback is limited to the original Baltic, Nordic and Polish coverage. '+
     'Gauge shading stays within 100 km and within national borders. The added European countries use measured gauges only; missing periods stay unavailable. Official precipitation can include snow water equivalent; model fallback is rain + showers.';
 }
 

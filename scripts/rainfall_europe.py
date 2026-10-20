@@ -110,7 +110,7 @@ def parse_ireland(features,metadata):
 
 
 def load_ireland(now,previous):
-    definitions=core.download(IRELAND+'?f=json').get('parameter_names',{})
+    definitions=core.download(IRELAND.rstrip('/')+'?f=json').get('parameter_names',{})
     if definitions.get('precipitation_amount',{}).get('unit',{}).get('symbol')!='mm':
         raise ValueError('Irish hourly precipitation units changed')
     locations=core.download(IRELAND+'locations?f=json')

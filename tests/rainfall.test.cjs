@@ -356,6 +356,7 @@ test('all nine European countries validate and country search isolates measured 
  h.context.NorthernCountryFocus={allowsStation:s=>s.country==='SK',matchesCountry:c=>c==='SK'};
  h.run('renderOfficialRainLabels()');
  assert.equal(h.run('officialRainLabels.children.length'),1);
+ assert.match(h.run('officialRainSourceSummary(24,rainWindowEnd())'),/Slovakia .*1 gauges.*delayed readings/);
  assert.match(h.run('officialRainLabels.children[0].options.title'),/^SK .*delayed reading/);
  const popup=h.run('rainfallPopupContent({lat:47.75,lng:18.5,station:officialRainData.stations[7]},rainWindowEnd())');
  assert.match(popup,/2.0/);assert.match(popup,/Unavailable/);assert(!popup.includes('Open-Meteo · model'));

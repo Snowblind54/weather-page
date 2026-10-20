@@ -82,6 +82,30 @@ class EuropeanRainfallTests(unittest.TestCase):
         offhour=copy.deepcopy(features[0]);offhour['properties']['observed_at']='2026-10-19T00:10:00Z'
         self.assertFalse(europe.parse_ireland([offhour],metadata))
 
+    def test_irish_loader_uses_collection_url_without_trailing_slash(self):
+        fixture=SAMPLE['ie'];seen=[]
+        def download(url,*args):
+            seen.append(url)
+            if url==europe.IRELAND.rstrip('/')+'?f=json':
+                return {'parameter_names':{'precipitation_amount':{'unit':{'symbol':'mm'}}}}
+            if url==europe.IRELAND+'locations?f=json':return {'features':fixture['metadata']}
+            if url.startswith(europe.IRELAND+'items?'):return {'features':fixture['observations']}
+            raise ValueError('Unexpected Irish URL: '+url)
+        with patch.object(core,'download',side_effect=download):
+            rows=europe.load_ireland(dt.datetime(2026,10,20,16,tzinfo=UTC),[])
+        self.assertEqual(len(rows),1)
+        self.assertFalse(any('/?f=json' in url for url in seen))
+
+    def test_polish_country_scope_excludes_hungarian_wmo_prefixes(self):
+        now=dt.datetime(2026,10,20,16,tzinfo=UTC);end=int(now.timestamp())
+        foreign=core.station('PL','12843','Budapest',47.43,19.18,[(end,1,False)])
+        domestic=core.station('PL','12375','Warsaw',52.16,20.96,[(end,2,False)])
+        out=core.merge([foreign],[domestic],now)
+        self.assertEqual([s['code'] for s in out],['12375'])
+        metadata=json.loads((pathlib.Path(__file__).parents[1]/'scripts/rainfall_synop_stations.json').read_text())['stations']
+        self.assertTrue(all(12100<=int(code)<12700 for code,s in metadata.items() if s['country']=='PL'))
+        self.assertEqual(metadata['03917']['country'],'GB')
+
     def test_knmi_tenths_trace_and_hour_24_at_next_utc_midnight(self):
         raw=(FIX/'rainfall-knmi.txt').read_bytes()
         out=europe.parse_netherlands(raw)
