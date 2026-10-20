@@ -1,14 +1,16 @@
 // Measured station labels load independently of the modeled particle animation.
 const OFFICIAL_WIND_CHECK_MS=5*60*1000,OFFICIAL_WIND_MAX_AGE=3*3600;
-const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL','CA','GL','US','FO','GB','IE'];
-const OFFICIAL_WIND_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland',CA:'Canada',GL:'Greenland',US:'USA',FO:'Faroe Islands',GB:'UK',IE:'Ireland'};
+const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL','CA','GL','US','FO','GB','IE','DE','NL','BE','LU'];
+const OFFICIAL_WIND_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland',CA:'Canada',GL:'Greenland',US:'USA',FO:'Faroe Islands',GB:'UK',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg'};
 const OFFICIAL_WIND_GUST_LABELS={
+  DE:'Gust max · 10 min',NL:'Reported gust · 10 min',BE:'Max 3-sec gust · 10 min',LU:'Max 3-sec gust · 2 min',
   EE:'Gust max · latest feed period',FI:'Gust max · 10 min',SE:'Gust max · 1 hour',NO:'Gust max · 1 hour',
   IS:'Gust max · latest observation',LV:'Gust max · observation period',LT:'Gust max · 1 hour',DK:'Max 3-sec mean · 10 min',
   FO:'Max 3-sec gust · 1 hour',GB:'Reported METAR gust',IE:'Max 3-sec gust · 1 hour',
   GL:'Max 3-sec mean · 10 min',CA:'Instantaneous wind max · 10 min',US:'Measured gust',PL:'Gust max · 10 min'
 };
 const OFFICIAL_WIND_SOURCE_LINKS={
+  DE:'https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/',NL:'https://www.knmi.nl/nederland-nu/weer/waarnemingen/',BE:'https://opendata.meteo.be/documentation/?dataset=aws',LU:'https://metapi.ana.lu/api/v1/docs',
   FO:'https://www.dmi.dk/friedata/',GB:'https://aviationweather.gov/data/metar/',IE:'https://opendata2.met.ie/edr/',
   US:'https://aviationweather.gov/data/metar/',EE:'https://www.ilmateenistus.ee/',FI:'https://en.ilmatieteenlaitos.fi/open-data',
   SE:'https://www.smhi.se/data/meteorologi/vind',NO:'https://seklima.met.no/',IS:'https://api.vedur.is/weather/',
@@ -45,7 +47,7 @@ function validateOfficialWind(data,{maxRows=200}={}){
   if(data?.version!==1||data.units!=='m/s'||data.refreshMinutes!==10||!Number.isInteger(data.generatedAt)||data.generatedAt>now+300||!Array.isArray(data.stations)||data.stations.length>10000)throw new Error('Invalid official wind snapshot');
   const ids=new Set();
   for(const s of data.stations){
-    const [south,north,west,east]=({CA:[41,84,-142,-52],GL:[59,84,-74,-10],US:[18,72,-180,180],FO:[61,63,-8,-6],GB:[49,61,-9,3],IE:[51,56,-11,-5]})[s.country]||[48.5,72.5,-26,33];
+    const [south,north,west,east]=({CA:[41,84,-142,-52],GL:[59,84,-74,-10],US:[18,72,-180,180],FO:[61,63,-8,-6],GB:[49,61,-9,3],IE:[51,56,-11,-5],DE:[47,55.2,5.5,15.6],NL:[50.5,54,2,8],BE:[49.4,51.6,2.4,6.5],LU:[49.4,50.2,5.7,6.6]})[s.country]||[48.5,72.5,-26,33];
     if(!OFFICIAL_WIND_COUNTRIES.includes(s.country)||!data.sources?.[s.country]||typeof s.code!=='string'||!s.code||typeof s.name!=='string'||!Number.isFinite(s.lat)||s.lat<south||s.lat>north||!Number.isFinite(s.lon)||s.lon<west||s.lon>east||!Array.isArray(s.rows)||s.rows.length>maxRows)throw new Error('Invalid official wind station');
     const id=s.country+'/'+s.code;if(ids.has(id))throw new Error('Duplicate official wind station');ids.add(id);
     s.rows.forEach((r,i)=>{
@@ -104,9 +106,9 @@ function officialWindHistoryPanel(s,endUnix){
   return station?officialWindHistoryGraph(station,endUnix):'<div class="wind-popup-meta" style="padding:10px 0 2px">24 h measured history is unavailable for this station.</div>';
 }
 function officialWindPopup(s,r){
-  const source=officialWindData.sources[s.country],value=n=>n===null?'Unavailable':(globalThis.WeatherUnits?.windValue(n)??n).toFixed(1)+' <span>'+(globalThis.WeatherUnits?.windUnit()??'m/s')+'</span>';
+  const baseSource=officialWindData.sources[s.country],source={...baseSource,name:s.sourceName||baseSource.name,period:s.period||baseSource.period},value=n=>n===null?'Unavailable':(globalThis.WeatherUnits?.windValue(n)??n).toFixed(1)+' <span>'+(globalThis.WeatherUnits?.windUnit()??'m/s')+'</span>';
   const direction=r[3]===null?'':`<div class="wind-popup-meta">Wind from ${Math.round(r[3])}°</div>`,old=officialWindTime()-r[0]>90*60;
-  const gustLabel=OFFICIAL_WIND_GUST_LABELS[s.country]||'Wind gusts',sourceLink=s.code.startsWith('NDBC-')?'https://www.ndbc.noaa.gov/':OFFICIAL_WIND_SOURCE_LINKS[s.country],history=officialWindHistoryPanel(s,r[0]);
+  const gustLabel=s.gustLabel||OFFICIAL_WIND_GUST_LABELS[s.country]||'Wind gusts',sourceLink=s.code.startsWith('SYNOP-')?'https://opendata.dwd.de/weather/weather_reports/poi/':s.code.startsWith('NDBC-')?'https://www.ndbc.noaa.gov/':OFFICIAL_WIND_SOURCE_LINKS[s.country],history=officialWindHistoryPanel(s,r[0]);
   return `<div class="wind-popup official-wind-popup"><div class="wind-popup-heading">${htmlEscape(s.name)}</div><div class="wind-popup-meta">Official station · ${OFFICIAL_WIND_COUNTRY_NAMES[s.country]}</div>
     <div class="wind-popup-readings"><div><div class="wind-popup-label">Sustained wind</div><div class="wind-popup-speed">${value(r[1])}</div></div><div><div class="wind-popup-label">${htmlEscape(gustLabel)}</div><div class="wind-popup-speed">${value(r[2])}</div></div></div>
     ${direction}<div class="wind-popup-meta">${source.timeKind==='feed'?'Source feed timestamp':'Observed'}: ${htmlEscape(fmt(r[0]))}${old?' · delayed reading':''}</div>

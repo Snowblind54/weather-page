@@ -11,6 +11,10 @@ on:
       - scripts/official_wind_americas.py
       - scripts/official_wind_us.py
       - scripts/official_wind_atlantic.py
+      - scripts/official_wind_western.py
+      - scripts/official_wind_scotland.py
+      - scripts/update_western_temperature.py
+      - scripts/scotland_wind_stations.json
       - scripts/update_us_temperature.py
       - scripts/update_official_wind.py
       - scripts/run_official_wind.py
@@ -21,6 +25,10 @@ on:
       - tests/test_official_wind_cycles.py
       - tests/test_official_wind_us.py
       - tests/test_official_wind_atlantic.py
+      - tests/test_official_wind_western.py
+      - tests/test_official_wind_scotland.py
+      - tests/fixtures/scotland-wind.csv
+      - tests/fixtures/meteolux-wind.json
       - tests/official-wind.test.cjs
       - js/official-wind.js
       - .github/workflows/update-official-wind.yml

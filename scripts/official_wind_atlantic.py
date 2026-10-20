@@ -20,11 +20,24 @@ def load_faroes(now):
 
 
 def load_britain(now):
-    payload = core.download_json(NOAA+'stations.cache.json.gz')
-    if not isinstance(payload, list):
-        raise ValueError('Invalid NOAA station metadata')
-    metadata = {s['icaoId']:s for s in payload if s.get('icaoId') and s.get('country') == 'GB'}
-    return parse_us_metars(core.download(NOAA+'metars.cache.csv.gz'), metadata, now, country='GB')
+    from official_wind_scotland import load_scotland
+    results = []
+    try:
+        payload = core.download_json(NOAA+'stations.cache.json.gz')
+        if not isinstance(payload, list):
+            raise ValueError('Invalid NOAA station metadata')
+        metadata = {s['icaoId']:s for s in payload if s.get('icaoId') and s.get('country') == 'GB'}
+        results = parse_us_metars(core.download(NOAA+'metars.cache.csv.gz'), metadata, now, country='GB')
+        for s in results:
+            s.update(sourceName='Official UK airport METAR/SPECI observations via NOAA Aviation Weather Center',
+                     period='Airport mean wind and reported METAR/SPECI gusts. Unreported gusts remain unavailable.',
+                     gustLabel='Reported METAR gust')
+    except Exception as error:
+        print('UK airport wind unavailable:', str(error)[:150], flush=True)
+    results.extend(load_scotland(now))
+    if not results:
+        raise ValueError('No recent UK airport or Scottish SYNOP wind observations')
+    return results
 
 
 def parse_ireland(observations, metadata):

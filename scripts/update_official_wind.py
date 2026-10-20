@@ -26,8 +26,12 @@ LATVIA_DATASTORE = 'https://data.gov.lv/dati/api/3/action/datastore_search?'
 LATVIA_OBS_RESOURCE = '17460efb-ae99-4d1d-8144-1068f184b05f'
 LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
+    'DE': dict(name='DWD Climate Data Center',url='https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/',timeKind='observation',period='10-minute mean wind and maximum wind speed over the same ten-minute period; UTC observation time; provisional.',license='CC BY 4.0'),
+    'NL': dict(name='KNMI',url='https://www.knmi.nl/nederland-nu/weer/waarnemingen/',timeKind='observation',period='Official ten-minute observation table: mean wind in m/s, reported gusts converted from km/h. The table observation time is converted from Europe/Amsterdam to UTC; provisional.'),
+    'BE': dict(name='Royal Meteorological Institute of Belgium / RMI-KMI',url='https://opendata.meteo.be/documentation/?dataset=aws',timeKind='observation',period='10-minute mean wind at 10 m and maximum 3-second gust over the last ten minutes; provisional.',license='CC BY 4.0'),
+    'LU': dict(name='MeteoLux / ANA Luxembourg-Findel Airport',url='https://metapi.ana.lu/api/v1/docs',timeKind='observation',period='Two-minute mean wind at 10 m and highest 3-second gust over the preceding two minutes, from the runway-midpoint sensor. Published every minute; source observation time; provisional.',license='CC0'),
     'FO': dict(name='DMI / Faroe Islands municipal weather stations',url='https://www.dmi.dk/friedata/',timeKind='observation',period='10-minute mean wind and highest 3-second mean gust over the latest hour. Hourly gusts retain their own timestamp; missing values remain unavailable.'),
-    'GB': dict(name='Official UK airport METAR/SPECI observations via NOAA Aviation Weather Center',url='https://aviationweather.gov/data/metar/',timeKind='observation',period='UK airport mean wind and reported METAR/SPECI gusts. Unreported gusts remain unavailable.'),
+    'GB': dict(name='Official UK airport METAR/SPECI and Met Office Scottish SYNOP observations',url='https://aviationweather.gov/data/metar/',timeKind='observation',period='UK airport METAR/SPECI wind and gusts, plus hourly Scottish SYNOP wind and gusts distributed by DWD. Measurement periods are identified by station; missing gusts remain unavailable.'),
     'IE': dict(name='Met Éireann – Irish Meteorological Service',url='https://opendata2.met.ie/edr/',timeKind='observation',period='Hourly mean of 3-second wind speeds and maximum 3-second gust over the hour. Direction is the reported 3-second direction at the top of the hour.'),
     'US': dict(name='NOAA / National Weather Service Aviation Weather Center',
                url='https://aviationweather.gov/data/metar/', timeKind='observation',
@@ -128,7 +132,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5)}.get(country,(48.5,72.5,-26,33))
+    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6)}.get(country,(48.5,72.5,-26,33))
     if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
@@ -533,6 +537,7 @@ def main():
     from official_wind_americas import load_canada, load_greenland
     from official_wind_us import load_usa
     from official_wind_atlantic import load_faroes, load_britain, load_ireland
+    from official_wind_western import load_germany, load_netherlands, load_belgium, load_luxembourg
     now = dt.datetime.now(dt.timezone.utc)
     try:
         previous = json.loads(OUTPUT.read_text())
@@ -543,7 +548,8 @@ def main():
     loaders = [('EE', load_estonia), ('FI', load_finland), ('SE', load_sweden), ('NO', load_norway),
                ('IS', load_iceland), ('LV', load_latvia), ('LT', load_lithuania), ('PL', load_poland),
                ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_usa),
-               ('FO', load_faroes), ('GB', load_britain), ('IE', load_ireland)]
+               ('FO', load_faroes), ('GB', load_britain), ('IE', load_ireland),
+               ('DE', load_germany), ('NL', load_netherlands), ('BE', load_belgium), ('LU', load_luxembourg)]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):

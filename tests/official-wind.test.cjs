@@ -89,3 +89,23 @@ test('clicking measured wind controls loads the shared snapshot without enabling
   h.elements.officialWindGusts.change();assert.equal(h.group.children.length,0);
 });
 
+
+
+test('Germany and Benelux official gusts validate in their national bounds with correct periods',()=>{
+ const h=harness();h.fixture.stations=[];
+ for(const [country,lat,lon,name,period] of [['DE',47.97,8.52,'Germany','10 min'],['NL',52.1,5.18,'Netherlands','10 min'],['BE',50.8,4.35,'Belgium','10 min'],['LU',49.63,6.23,'Luxembourg','2 min']]){
+  h.fixture.sources[country]={status:'ok',timeKind:'observation',name:'Official '+name,period:'Native observation period'};
+  h.fixture.stations.push({country,code:country+'1',name,lat,lon,rows:[[h.now-600,4,8,180]]});
+  h.context.selected=h.fixture.stations.at(-1);h.run('officialWindData=validateOfficialWind(fixture)');
+  const popup=h.run('officialWindPopup(selected,selected.rows[0])');assert(popup.includes('Official '+name));assert(popup.includes(period));
+ }
+ h.elements.officialWindGusts.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,4);
+ h.fixture.stations.at(-1).lat=52;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+});
+
+test('Scottish SYNOP popups retain their hourly gust period and provider instead of airport definitions',()=>{
+ const h=harness();h.fixture.sources.GB={status:'ok',timeKind:'observation',name:'UK observations',period:'Airport default'};
+ h.fixture.stations=[{country:'GB',code:'SYNOP-03044',name:'Altnaharra',lat:58.28,lon:-4.43,sourceName:'Met Office SYNOP observations distributed by DWD',period:'10-minute mean wind and maximum gust over the preceding hour.',gustLabel:'Gust max · 1 hour',rows:[[h.now-1800,10,16.67,110]]}];
+ h.run('officialWindData=validateOfficialWind(fixture)');const popup=h.run('officialWindPopup(fixture.stations[0],fixture.stations[0].rows[0])');
+ assert.match(popup,/Gust max · 1 hour/);assert.match(popup,/preceding hour/);assert.match(popup,/SYNOP observations/);assert.match(popup,/weather_reports\/poi/);assert.doesNotMatch(popup,/Airport default/);
+});

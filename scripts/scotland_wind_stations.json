@@ -1,0 +1,75 @@
+{
+  "source": "Official Met Office station observations distributed by DWD; metadata reused from verified snow-dwd-stations.json. WMO 030xx and 031xx Scottish stations.",
+  "stations": {
+    "03005": {
+      "name": "Lerwick",
+      "lat": 60.133333,
+      "lon": -1.183333
+    },
+    "03017": {
+      "name": "Kirkwall",
+      "lat": 58.95,
+      "lon": -2.9
+    },
+    "03026": {
+      "name": "Stornoway",
+      "lat": 58.216667,
+      "lon": -6.316667
+    },
+    "03044": {
+      "name": "Altnaharra",
+      "lat": 58.283333,
+      "lon": -4.433333
+    },
+    "03066": {
+      "name": "Kinloss",
+      "lat": 57.65,
+      "lon": -3.566667
+    },
+    "03068": {
+      "name": "Lossiemouth",
+      "lat": 57.716667,
+      "lon": -3.316667
+    },
+    "03075": {
+      "name": "Wick",
+      "lat": 58.45,
+      "lon": -3.083333
+    },
+    "03091": {
+      "name": "Aberdeen",
+      "lat": 57.2,
+      "lon": -2.216667
+    },
+    "03100": {
+      "name": "Tiree",
+      "lat": 56.5,
+      "lon": -6.883333
+    },
+    "03132": {
+      "name": "West Freugh",
+      "lat": 54.866667,
+      "lon": -4.933333
+    },
+    "03136": {
+      "name": "Prestwick/Rnas",
+      "lat": 55.516667,
+      "lon": -4.583333
+    },
+    "03158": {
+      "name": "Charterhall",
+      "lat": 55.716667,
+      "lon": -2.383333
+    },
+    "03162": {
+      "name": "Eskdalemuir",
+      "lat": 55.316667,
+      "lon": -3.2
+    },
+    "03171": {
+      "name": "Leuchars",
+      "lat": 56.383333,
+      "lon": -2.866667
+    }
+  }
+}
