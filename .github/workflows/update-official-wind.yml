@@ -13,6 +13,8 @@ on:
       - scripts/official_wind_atlantic.py
       - scripts/official_wind_western.py
       - scripts/official_wind_scotland.py
+      - scripts/official_wind_central.py
+      - scripts/update_central_temperature.py
       - scripts/update_western_temperature.py
       - scripts/scotland_wind_stations.json
       - scripts/update_us_temperature.py
@@ -27,6 +29,8 @@ on:
       - tests/test_official_wind_atlantic.py
       - tests/test_official_wind_western.py
       - tests/test_official_wind_scotland.py
+      - tests/test_official_wind_central.py
+      - tests/fixtures/central-wind.json
       - tests/fixtures/scotland-wind.csv
       - tests/fixtures/meteolux-wind.json
       - tests/official-wind.test.cjs
@@ -36,7 +40,8 @@ permissions:
   contents: write
 concurrency:
   group: update-official-wind
-  cancel-in-progress: false
+  # A code update replaces an older collector so the new adapters can publish promptly.
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   R2_PAUSED: ${{ vars.R2_PAUSED }}

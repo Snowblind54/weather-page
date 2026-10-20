@@ -109,3 +109,18 @@ test('Scottish SYNOP popups retain their hourly gust period and provider instead
  h.run('officialWindData=validateOfficialWind(fixture)');const popup=h.run('officialWindPopup(fixture.stations[0],fixture.stations[0].rows[0])');
  assert.match(popup,/Gust max · 1 hour/);assert.match(popup,/preceding hour/);assert.match(popup,/SYNOP observations/);assert.match(popup,/weather_reports\/poi/);assert.doesNotMatch(popup,/Airport default/);
 });
+
+
+test('Czech and Slovak wind observations retain country scope, native gust labels and missing values',()=>{
+ const h=harness();h.fixture.stations=[];
+ for(const [country,lat,lon,name] of [['CZ',50.07,12.39,'Czechia'],['SK',48.16,17.1,'Slovakia']]){
+  h.fixture.sources[country]={status:'ok',timeKind:'observation',name:'Official '+name,period:'Native measured wind'};
+  h.fixture.stations.push({country,code:country+'1',name,lat,lon,rows:[[h.now-60,0,5.1,95]]});
+ }
+ h.run('officialWindData=validateOfficialWind(fixture)');h.elements.officialWindGusts.checked=true;
+ h.context.NorthernCountryFocus={allowsStation:s=>s.country==='CZ',matchesCountry:c=>c==='CZ'};
+ h.run('renderOfficialWind()');assert.equal(h.group.children.length,1);assert.match(h.group.children[0].popup,/Czechia/);assert.match(h.group.children[0].popup,/Gust max · 10 min/);
+ const sk=h.run('officialWindPopup(fixture.stations[1],fixture.stations[1].rows[0])');assert.match(sk,/Slovakia/);assert.match(sk,/Measured wind max · 1 min/);
+ h.fixture.stations[1].rows[0][2]=null;assert.match(h.run('officialWindPopup(fixture.stations[1],fixture.stations[1].rows[0])'),/Unavailable/);
+ h.fixture.stations[1].lon=12;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+});

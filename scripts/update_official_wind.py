@@ -26,6 +26,8 @@ LATVIA_DATASTORE = 'https://data.gov.lv/dati/api/3/action/datastore_search?'
 LATVIA_OBS_RESOURCE = '17460efb-ae99-4d1d-8144-1068f184b05f'
 LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
+    'CZ': dict(name='Czech Hydrometeorological Institute / ČHMÚ',url='https://opendata.chmi.cz/meteorology/climate/now/',timeKind='observation',period='Ten-minute mean wind (Fprum), maximum gust (Fmax), and mean wind direction. Published hourly with UTC observation times; provisional. Suspect, estimated and missing values are excluded.'),
+    'SK': dict(name='Slovak Hydrometeorological Institute / SHMÚ',url='https://www.shmu.sk/sk/?page=1&id=meteo_apocasie_sk',timeKind='observation',period='Official automatic-station one-minute scalar mean wind and measured one-minute maximum wind speed. Published in five-minute batches. Source SEČ/CET timestamps (UTC+1 throughout the year) are converted to UTC; provisional.'),
     'DE': dict(name='DWD Climate Data Center',url='https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/',timeKind='observation',period='10-minute mean wind and maximum wind speed over the same ten-minute period; UTC observation time; provisional.',license='CC BY 4.0'),
     'NL': dict(name='KNMI',url='https://www.knmi.nl/nederland-nu/weer/waarnemingen/',timeKind='observation',period='Official ten-minute observation table: mean wind in m/s, reported gusts converted from km/h. The table observation time is converted from Europe/Amsterdam to UTC; provisional.'),
     'BE': dict(name='Royal Meteorological Institute of Belgium / RMI-KMI',url='https://opendata.meteo.be/documentation/?dataset=aws',timeKind='observation',period='10-minute mean wind at 10 m and maximum 3-second gust over the last ten minutes; provisional.',license='CC BY 4.0'),
@@ -132,7 +134,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6)}.get(country,(48.5,72.5,-26,33))
+    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
     if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
@@ -538,6 +540,7 @@ def main():
     from official_wind_us import load_usa
     from official_wind_atlantic import load_faroes, load_britain, load_ireland
     from official_wind_western import load_germany, load_netherlands, load_belgium, load_luxembourg
+    from official_wind_central import load_czechia, load_slovakia
     now = dt.datetime.now(dt.timezone.utc)
     try:
         previous = json.loads(OUTPUT.read_text())
@@ -549,7 +552,8 @@ def main():
                ('IS', load_iceland), ('LV', load_latvia), ('LT', load_lithuania), ('PL', load_poland),
                ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_usa),
                ('FO', load_faroes), ('GB', load_britain), ('IE', load_ireland),
-               ('DE', load_germany), ('NL', load_netherlands), ('BE', load_belgium), ('LU', load_luxembourg)]
+               ('DE', load_germany), ('NL', load_netherlands), ('BE', load_belgium), ('LU', load_luxembourg),
+               ('CZ', load_czechia), ('SK', load_slovakia)]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):

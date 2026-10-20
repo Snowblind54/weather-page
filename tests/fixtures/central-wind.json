@@ -1,0 +1,485 @@
+{
+  "cz": {
+    "payload": {
+      "zaznamID": "27e2ecd9-d35f-c5f1-7c03-6f58f6cc3c96",
+      "datovyZdrojID": "meteorologie",
+      "datovyTokID": "Open.Data.10M",
+      "datumVytvoreni": "2026-10-20T11:01:00.703Z",
+      "verzeDat": "1.0",
+      "data": {
+        "type": "DataCollection",
+        "data": {
+          "header": "STATION,ELEMENT,DT,VAL,FLAG,QUALITY",
+          "values": [
+            [
+              "0-20000-0-11406",
+              "D",
+              "2026-10-20T10:40:00Z",
+              94.0,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "D",
+              "2026-10-20T10:50:00Z",
+              94.0,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "Dprum",
+              "2026-10-20T10:40:00Z",
+              95.0,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "Dprum",
+              "2026-10-20T10:50:00Z",
+              95.0,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "F",
+              "2026-10-20T10:40:00Z",
+              3.1,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "F",
+              "2026-10-20T10:50:00Z",
+              3.3,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "Fmax",
+              "2026-10-20T10:40:00Z",
+              5.2,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "Fmax",
+              "2026-10-20T10:50:00Z",
+              5.1,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "Fprum",
+              "2026-10-20T10:40:00Z",
+              3.0,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "Fprum",
+              "2026-10-20T10:50:00Z",
+              3.2,
+              "",
+              5.0
+            ]
+          ]
+        }
+      }
+    },
+    "code": "0-20000-0-11406",
+    "metadata": {
+      "name": "Cheb",
+      "lat": 50.068333,
+      "lon": 12.391389
+    },
+    "elements": {
+      "Dprum": {
+        "OBS_TYPE": "10M",
+        "WSI": "0-20000-0-11406",
+        "EG_EL_ABBREVIATION": "Dprum",
+        "NAME": "Směr větru prům",
+        "UN_DESCRIPTION": "stupně",
+        "HEIGHT": 10.15,
+        "SCHEDULE": "10M"
+      },
+      "Fmax": {
+        "OBS_TYPE": "10M",
+        "WSI": "0-20000-0-11406",
+        "EG_EL_ABBREVIATION": "Fmax",
+        "NAME": "Max rychlost",
+        "UN_DESCRIPTION": "m/s",
+        "HEIGHT": 10.15,
+        "SCHEDULE": "10M"
+      },
+      "Fprum": {
+        "OBS_TYPE": "10M",
+        "WSI": "0-20000-0-11406",
+        "EG_EL_ABBREVIATION": "Fprum",
+        "NAME": "Rychlost prům",
+        "UN_DESCRIPTION": "m/s",
+        "HEIGHT": 10.15,
+        "SCHEDULE": "10M"
+      }
+    }
+  },
+  "sk": {
+    "payload": {
+      "dataset": "Automatic stations",
+      "interval": "1 minute",
+      "frequency": "5 minute",
+      "data": [
+        {
+          "ind_kli": 11800,
+          "minuta": "2026-10-20T12:25:00",
+          "t": 12.5,
+          "tprz": 13.0,
+          "t_pod5": 9.8,
+          "t_pod10": 9.8,
+          "t_pod20": 10.5,
+          "t_pod50": 12.7,
+          "t_pod100": 14.4,
+          "tlak": null,
+          "vie_min_rych": 6.7,
+          "vie_max_rych": 9.4,
+          "vie_pr_rych": 8.0,
+          "vie_vp_rych": 7.9,
+          "vie_smer_min": 125.0,
+          "vie_smer_max": 153.0,
+          "vie_pr_smer": 140.0,
+          "vie_vp_smer": 139.8,
+          "vie_smer_min_rych": 153.0,
+          "vie_smer_max_rych": 128.0,
+          "vlh_rel": 60.9,
+          "zglo": null,
+          "zra_trv": 0.0,
+          "zra_uhrn": 0.0,
+          "sln_trv": 0.0,
+          "dohl": null,
+          "stav_poc": null,
+          "sneh_pokr": null,
+          "vlh_pod10": 10.2,
+          "vlh_pod20": 10.0,
+          "vlh_pod50": 8.1,
+          "el_vod_pod10": 4.1,
+          "el_vod_pod20": 3.8,
+          "el_vod_pod50": 2.9,
+          "zgama": null
+        },
+        {
+          "ind_kli": 11800,
+          "minuta": "2026-10-20T12:26:00",
+          "t": 12.5,
+          "tprz": 12.9,
+          "t_pod5": 9.8,
+          "t_pod10": 9.8,
+          "t_pod20": 10.5,
+          "t_pod50": 12.7,
+          "t_pod100": 14.4,
+          "tlak": null,
+          "vie_min_rych": 6.6,
+          "vie_max_rych": 10.3,
+          "vie_pr_rych": 8.7,
+          "vie_vp_rych": 8.7,
+          "vie_smer_min": 128.0,
+          "vie_smer_max": 155.0,
+          "vie_pr_smer": 144.5,
+          "vie_vp_smer": 144.7,
+          "vie_smer_min_rych": 143.0,
+          "vie_smer_max_rych": 148.0,
+          "vlh_rel": 60.8,
+          "zglo": null,
+          "zra_trv": 0.0,
+          "zra_uhrn": 0.0,
+          "sln_trv": 0.0,
+          "dohl": null,
+          "stav_poc": null,
+          "sneh_pokr": null,
+          "vlh_pod10": 10.4,
+          "vlh_pod20": 10.1,
+          "vlh_pod50": 8.2,
+          "el_vod_pod10": 4.0,
+          "el_vod_pod20": 3.8,
+          "el_vod_pod50": 2.9,
+          "zgama": null
+        },
+        {
+          "ind_kli": 11800,
+          "minuta": "2026-10-20T12:27:00",
+          "t": 12.5,
+          "tprz": 12.9,
+          "t_pod5": 9.8,
+          "t_pod10": 9.8,
+          "t_pod20": 10.5,
+          "t_pod50": 12.7,
+          "t_pod100": 14.4,
+          "tlak": null,
+          "vie_min_rych": 7.4,
+          "vie_max_rych": 10.3,
+          "vie_pr_rych": 8.8,
+          "vie_vp_rych": 8.8,
+          "vie_smer_min": 130.0,
+          "vie_smer_max": 153.0,
+          "vie_pr_smer": 140.3,
+          "vie_vp_smer": 139.9,
+          "vie_smer_min_rych": 153.0,
+          "vie_smer_max_rych": 132.0,
+          "vlh_rel": 61.0,
+          "zglo": null,
+          "zra_trv": 0.0,
+          "zra_uhrn": 0.0,
+          "sln_trv": 0.0,
+          "dohl": null,
+          "stav_poc": null,
+          "sneh_pokr": null,
+          "vlh_pod10": 10.4,
+          "vlh_pod20": 10.1,
+          "vlh_pod50": 8.1,
+          "el_vod_pod10": 4.0,
+          "el_vod_pod20": 3.8,
+          "el_vod_pod50": 2.9,
+          "zgama": null
+        }
+      ]
+    },
+    "locations": {
+      "type": "FeatureCollection",
+      "crs": {
+        "type": "name",
+        "properties": {
+          "name": "EPSG:4326"
+        }
+      },
+      "features": [
+        {
+          "type": "Feature",
+          "id": 11800,
+          "properties": {
+            "prop_name": "Holíč",
+            "prop_weather": {
+              "station_id": "11800",
+              "dt": 1792494000,
+              "ttt": 12,
+              "v_smer": "JV",
+              "v_rychlost": 6,
+              "zra": null,
+              "zra_1h": null,
+              "tlak": null,
+              "trb": null,
+              "rh": "63.5",
+              "fx": null,
+              "fm": null,
+              "synop_n": null,
+              "synop_ww": null,
+              "icon_id": 0
+            }
+          },
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              17.176128,
+              48.818783
+            ]
+          }
+        }
+      ]
+    },
+    "parameters": {
+      "owner": "Slovenský hydrometeorologický ústav",
+      "dataset": "https://data.slovensko.sk/datasety/9bdd8179-9cb0-46c6-a0d0-a52e50d2e2bc",
+      "issued": "2025-06-25",
+      "modified": "2025-06-25",
+      "abstract": "Dátová špecifikácia poskytovaných údajov",
+      "data": [
+        {
+          "m_column_name": "ind_kli",
+          "popis": "klimatologicky indikativ stanice",
+          "unit": ""
+        },
+        {
+          "m_column_name": "minuta",
+          "popis": "termin v case SEC",
+          "unit": ""
+        },
+        {
+          "m_column_name": "t",
+          "popis": "teplota vzduchu vo vyske 2m - minutovy priemer",
+          "unit": "st.C"
+        },
+        {
+          "m_column_name": "tprz",
+          "popis": "prizemna teplota vzduchu vo vyske 5 cm - minutovy priemer",
+          "unit": "st.C"
+        },
+        {
+          "m_column_name": "t_pod5",
+          "popis": "teplota pody v hlbke 5 cm - minutovy priemer",
+          "unit": "st.C"
+        },
+        {
+          "m_column_name": "t_pod10",
+          "popis": "teplota pody v hlbke 10 cm - minutovy priemer",
+          "unit": "st.C"
+        },
+        {
+          "m_column_name": "t_pod20",
+          "popis": "teplota pody v hlbke 20 cm - minutovy priemer",
+          "unit": "st.C"
+        },
+        {
+          "m_column_name": "t_pod50",
+          "popis": "teplota pody v hlbke 50 cm - minutovy priemer",
+          "unit": "st.C"
+        },
+        {
+          "m_column_name": "t_pod100",
+          "popis": "teplota pody v hlbke 100 cm - minutovy priemer",
+          "unit": "st.C"
+        },
+        {
+          "m_column_name": "tlak",
+          "popis": "tlak vzduchu - minutovy priemer",
+          "unit": "hPa"
+        },
+        {
+          "m_column_name": "vie_min_rych",
+          "popis": "rychlost vetra - minutove minimum",
+          "unit": "m/s"
+        },
+        {
+          "m_column_name": "vie_max_rych",
+          "popis": "rychlost vetra - minutove maximum",
+          "unit": "m/s"
+        },
+        {
+          "m_column_name": "vie_pr_rych",
+          "popis": "rychlost vetra - minutovy priemer - skalarny",
+          "unit": "m/s"
+        },
+        {
+          "m_column_name": "vie_vp_rych",
+          "popis": "rychlost vetra - minutovy priemer - vektorovy",
+          "unit": "m/s"
+        },
+        {
+          "m_column_name": "vie_smer_min",
+          "popis": "smer vetra - minutove minimum",
+          "unit": "dg"
+        },
+        {
+          "m_column_name": "vie_smer_max",
+          "popis": "smer vetra - minutove maximum",
+          "unit": "dg"
+        },
+        {
+          "m_column_name": "vie_pr_smer",
+          "popis": "smer vetra - minutovy priemer - skalarny",
+          "unit": "dg"
+        },
+        {
+          "m_column_name": "vie_vp_smer",
+          "popis": "smer vetra - minutovy priemer - vektorovy",
+          "unit": "dg"
+        },
+        {
+          "m_column_name": "vie_smer_min_rych",
+          "popis": "smer vetra pri minimalnej rychlosti",
+          "unit": "dg"
+        },
+        {
+          "m_column_name": "vie_smer_max_rych",
+          "popis": "smer vetra pri maximalnej rychlosti",
+          "unit": "dg"
+        },
+        {
+          "m_column_name": "vlh_rel",
+          "popis": "relativna vlhkost vzduchu - minutovy priemer",
+          "unit": "%"
+        },
+        {
+          "m_column_name": "zglo",
+          "popis": "globalne ziarenie - minutovy priemer",
+          "unit": "W/m2"
+        },
+        {
+          "m_column_name": "zra_trv",
+          "popis": "trvanie zrazok - minutova suma",
+          "unit": "sekunda"
+        },
+        {
+          "m_column_name": "zra_uhrn",
+          "popis": "uhrn zrazok - minutova suma",
+          "unit": "mm"
+        },
+        {
+          "m_column_name": "sln_trv",
+          "popis": "slnecny svit - minutova suma",
+          "unit": "sekunda"
+        },
+        {
+          "m_column_name": "dohl",
+          "popis": "dohladnost MOR - minutovy priemer",
+          "unit": "m"
+        },
+        {
+          "m_column_name": "stav_poc",
+          "popis": "stav pocasia",
+          "unit": ""
+        },
+        {
+          "m_column_name": "sneh_pokr",
+          "popis": "vyska snehovej pokryvky - minutovy priemer",
+          "unit": "cm"
+        },
+        {
+          "m_column_name": "vlh_pod10",
+          "popis": "obj. vlhkost pody v hlbke 10 cm - minutovy priemer",
+          "unit": "%"
+        },
+        {
+          "m_column_name": "vlh_pod20",
+          "popis": "obj. vlhkost pody v hlbke 20 cm - minutovy priemer",
+          "unit": "%"
+        },
+        {
+          "m_column_name": "vlh_pod50",
+          "popis": "obj. vlhkost pody v hlbke 50 cm - minutovy priemer",
+          "unit": "%"
+        },
+        {
+          "m_column_name": "el_vod_pod10",
+          "popis": "elektricka vodivost pody v hlbke 10 cm - minutovy priemer",
+          "unit": "dS/m"
+        },
+        {
+          "m_column_name": "el_vod_pod20",
+          "popis": "elektricka vodivost pody v hlbke 20 cm - minutovy priemer",
+          "unit": "dS/m"
+        },
+        {
+          "m_column_name": "el_vod_pod50",
+          "popis": "elektricka vodivost pody v hlbke 50 cm - minutovy priemer",
+          "unit": "dS/m"
+        },
+        {
+          "m_column_name": "zgama",
+          "popis": "davkovy prikon gama ziarenia",
+          "unit": "nSv/h"
+        },
+        {
+          "m_column_name": "cas",
+          "popis": "cas aktualizacie",
+          "unit": ""
+        }
+      ]
+    }
+  }
+}
