@@ -1,8 +1,10 @@
 // Completed-hour rain + showers, independent of the two-hour radar archive.
-// Rainfall retains its existing coverage independently of temperature expansion.
+// Model coverage stays bounded; additional European countries use official gauges.
 const RAIN_REGION_IDS=new Set(['baltics','scandinavia','iceland','poland','denmark']);
 const RAIN_GRID_SPECS=TEMP_GRID_SPECS.filter(spec=>RAIN_REGION_IDS.has(spec.id));
-const RAIN_REGIONS=TEMP_REGIONS.filter(region=>RAIN_REGION_IDS.has(region.id)||region.id==='canada');
+const OFFICIAL_ONLY_RAIN_COUNTRIES=new Set(['CA','GB','IE','DE','NL','BE','LU','CZ','SK']);
+const RAIN_REGIONS=[...TEMP_REGIONS.filter(region=>RAIN_REGION_IDS.has(region.id)||region.id==='canada'),
+  ...(globalThis.NorthernUSTemperature?.regions||[]).filter(region=>['british-isles','western-europe','central-europe'].includes(region.id))];
 const RAIN_CACHE_KEY='balticWeatherRainAccumulationV814';
 const RAIN_CACHE_TTL=30*60*1000;
 const RAIN_PERIODS=[1,24,48];
@@ -120,9 +122,8 @@ async function loadRainfall(force=false){
   await loadOfficialRainfall(force);
   // Station numbers are usable before the slower model grid has loaded.
   renderOfficialRainLabels();
-  // Canadian shading uses the shared gauge snapshot and can appear before
-  // unrelated European model requests finish. No Canadian model requests.
-  if(officialRainData?.stations?.some(s=>s.country==='CA')){
+  // Measured station shading appears before unrelated model downloads finish.
+  if(officialRainData?.stations?.length){
     if(!rainData) rainData={version:0,grids:Object.fromEntries(RAIN_GRID_SPECS.map(spec=>[spec.id,
       spec.points.map(([lat,lon])=>({lat,lon,times:[],amounts:[]}))]))};
     queueRainfallRender(0);
@@ -246,14 +247,14 @@ async function createRainfallImages(hours,end,generation){
   for(const region of RAIN_REGIONS){
     const focus=globalThis.NorthernCountryFocus?.current();
     if(focus&&!TEMP_REGION_COUNTRY_IDS[region.id]?.has(focus.id))continue;
-    const officialOnly=region.id==='canada',spec=TEMP_GRID_SPECS.find(s=>s.id===region.id);
+    const officialOnly=region.id==='canada'||Boolean(region.stationBased),spec=TEMP_GRID_SPECS.find(s=>s.id===region.id);
     const series=rainData?.grids[region.id]||[];
     if((!officialOnly&&!rainData?.grids[region.id]) || ![...TEMP_REGION_COUNTRY_IDS[region.id]].every(id=>features.some(f=>String(f.id)===id))){
       throw new Error('Rainfall coverage/coastline missing for '+region.id);
     }
     const values=series.map(s=>rollingRainTotal(s,end,hours));
     const countryMask=officialVersion?rainCountryMask(region,features):null;
-    const cols=spec.longitudes.length,W=region.w,H=region.h;
+    const cols=officialOnly?0:spec.longitudes.length,W=region.w,H=region.h;
     const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
     const ctx=canvas.getContext('2d',{alpha:true}),image=ctx.createImageData(W,H);
     const west=region.bounds[0][1],east=region.bounds[1][1];
@@ -302,7 +303,7 @@ async function renderRainfall(){
   const opacity=Number($('rainAccumOpacity').value)/100;
   rainLayer=L.layerGroup(images.map(region=>L.imageOverlay(region.dataUrl,region.bounds,
     {pane:'rainAccumulationPane',interactive:false,opacity}))).addTo(map);
-  $('rainAccumStatus').textContent=images.length?hours+' h accumulation · selected end '+fmt(end)+' · official gauges + model fallback':'No accumulation coverage for the selected country.';
+  $('rainAccumStatus').textContent=images.length?hours+' h accumulation · selected end '+fmt(end)+' · official gauge readings; source details below':'No accumulation coverage for the selected country.';
   $('rainSourceStatus').textContent=officialRainSourceSummary(hours,end)+(rainModelError?' Model refresh unavailable: '+rainModelError:'');
   renderOfficialRainLabels();
   $('rainAccumStatus').className='status ok';
@@ -333,7 +334,7 @@ function rainfallPopupContent(point,end){
   const readings='<div class="rain-popup-readings">'+RAIN_PERIODS.map(hours=>{
     const official=officialRainAt(point.lat,point.lng,hours,end,country);
     let value=official?.value??totals?.[hours];
-    let source=official?official.source+(official.distance<0.1?' · measured':' · gauge estimate'):country==='CA'?'No complete official Canadian measurement':'Open-Meteo · model';
+    let source=official?official.source+(official.distance<0.1?' · measured':' · gauge estimate'):OFFICIAL_ONLY_RAIN_COUNTRIES.has(country)?'No complete official measurement':'Open-Meteo · model';
     let actualEnd=official?.end||end;
     // A gauge popup reports this gauge's measurements, not a nearby gauge or
     // model value presented as a measurement when this gauge has gaps.
@@ -352,11 +353,11 @@ function rainfallPopupContent(point,end){
   const gauge=!point.station&&official?'<br>Nearest gauge: '+htmlEscape(official.nearest.name)+' ('+official.distance.toFixed(1)+' km) · '+
     official.nearestValue.toFixed(1)+' mm'+(official.trace?'<br>Includes trace precipitation below 0.1 mm.':''):'';
   const note=country?'Official totals: precipitation including snow water equivalent. Model totals: rain + showers, excluding snow.':
-    'Accumulation data is available on land in the nine supported countries.';
+    'Accumulation data is available on land in the supported countries.';
   const wind=$('windOn').checked?'<hr>'+windPopupContent(point,selectedWindTime()):'';
   return '<div class="rain-popup"><b>'+(point.station?htmlEscape(point.station.name)+' · measured precipitation':'Accumulated rainfall / precipitation')+'</b>'+readings+
     '<div class="rain-popup-meta">'+point.lat.toFixed(3)+'°, '+point.lng.toFixed(3)+'°'+gauge+
-    '<br>'+note+'<br>'+(country==='CA'?'Canadian shading estimates between gauges within 100 km. Station totals require complete measured hours.':'Between gauges: interpolated estimate. Model fallback beyond 100 km or when a period is incomplete.')+'</div></div>'+wind;
+    '<br>'+note+(country?'<br>Official reporting periods: '+htmlEscape(officialRainData?.sources[country]?.period||'Complete hourly measurements; gaps stay unavailable.'):'')+'<br>'+(OFFICIAL_ONLY_RAIN_COUNTRIES.has(country)?'Shading estimates between reporting gauges within 100 km. Incomplete measurement periods stay unavailable.':'Between gauges: interpolated estimate. Model fallback beyond 100 km or when a period is incomplete.')+'</div></div>'+wind;
 }
 
 function updateAccumulationPopup(){

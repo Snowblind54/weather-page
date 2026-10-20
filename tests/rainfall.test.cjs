@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const {test}=require('node:test');
 const root=path.join(__dirname,'..');
 
-function harness(){
+function harness(europe=false){
   const elements={},layers=new Set(),canvases=[],events={},storage=new Map(),panes=new Map();
   for(const id of ['rain1h','rain24h','rain48h','rainAccumOpacity','rainAccumOpacityVal','rainAccumStatus','rainSourceStatus','rainGaugeStatus','radarSection','windOn']){
     elements[id]={checked:false,value:'65',classList:{toggle(){}},listeners:{},addEventListener(n,f){this.listeners[n]=f;}};
@@ -32,10 +32,11 @@ function harness(){
   };
   vm.createContext(context);const run=s=>vm.runInContext(s,context);
   run(fs.readFileSync(path.join(root,'js/temperature.js'),'utf8'));
+  if(europe){run(fs.readFileSync(path.join(root,'js/temperature-us.js'),'utf8'));context.NorthernUSTemperature=context.window.NorthernUSTemperature;}
   // Small grids exercise the complete renderer and loader without costly fixture images.
   run(`TEMP_GRID_SPECS.splice(0,TEMP_GRID_SPECS.length,...TEMP_REGIONS.map(r=>makeStructuredGrid(r.id,r.bounds,
     r.bounds[1][0]-r.bounds[0][0],r.bounds[1][1]-r.bounds[0][1])));TEMP_REGIONS.forEach(r=>{r.w=8;r.h=6;});sleep=async()=>{};`);
-  const features=run(`TEMP_REGIONS.flatMap(r=>[...TEMP_REGION_COUNTRY_IDS[r.id]].map(id=>({id,
+  const features=run(`([...TEMP_REGIONS,...(globalThis.NorthernUSTemperature?.regions||[]).filter(r=>['british-isles','western-europe','central-europe'].includes(r.id))]).flatMap(r=>[...TEMP_REGION_COUNTRY_IDS[r.id]].map(id=>({id,
     geometry:{type:'Polygon',coordinates:[[[r.bounds[0][1],r.bounds[0][0]],[r.bounds[1][1],r.bounds[0][0]],
     [r.bounds[1][1],r.bounds[1][0]],[r.bounds[0][1],r.bounds[1][0]],[r.bounds[0][1],r.bounds[0][0]]]]}})))`);
   context.fixtureFeatures=features;
@@ -137,7 +138,7 @@ test('popup has all totals and keeps wind readings; radar and period controls st
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   assert(html.indexOf('id="rain1h"')>html.indexOf('id="radarSection"'));
   assert(html.indexOf('id="rain48h"')<html.indexOf('id="warningSection"'));
-  assert.match(html,/script src="js\/rainfall\.js\?v=[\d.]+"/);
+  assert.match(html,/script src="js\/rainfall\.js\?v=[\w.-]+"/);
 });
 
 test('loader requests past hours once, validates cache coverage, and respects disable while fetching',async()=>{
@@ -342,4 +343,34 @@ test('Canadian nearby-station index matches full interpolation at southern and A
   const nearest=neighbours[0],full=nearest.d2<=.01?nearest.value:neighbours.reduce((s,r)=>s+r.value/Math.max(.01,r.d2),0)/neighbours.reduce((s,r)=>s+1/Math.max(.01,r.d2),0);
   assert(Math.abs(indexed.value-full)<1e-12);assert.equal(indexed.count,neighbours.length);
  }
+});
+
+
+test('all nine European countries validate and country search isolates measured station labels',()=>{
+ const h=harness(true);h.elements.rain24h.checked=true;
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{},stations:[
+ ['GB',55,-3],['IE',53,-8],['PL',52,19],['DE',50,10],['NL',52,5],['BE',50.5,4.5],['LU',49.62,6.22],['SK',47.75,18.5],['CZ',50,15]
+ ].map(([country,lat,lon])=>({country,lat,lon,name:country,code:country,times:[],amounts:[],
+ accumulations:[{end:rainWindowEnd()-3*3600,hours:24,value:2}]}))};`);
+ assert(h.run('validOfficialRainSnapshot(officialRainData)'));
+ h.context.NorthernCountryFocus={allowsStation:s=>s.country==='SK',matchesCountry:c=>c==='SK'};
+ h.run('renderOfficialRainLabels()');
+ assert.equal(h.run('officialRainLabels.children.length'),1);
+ assert.match(h.run('officialRainLabels.children[0].options.title'),/^SK .*delayed reading/);
+ const popup=h.run('rainfallPopupContent({lat:47.75,lng:18.5,station:officialRainData.stations[7]},rainWindowEnd())');
+ assert.match(popup,/2.0/);assert.match(popup,/Unavailable/);assert(!popup.includes('Open-Meteo · model'));
+});
+
+test('European gauge-only regions render without model grids and never fall back to model data',async()=>{
+ const h=harness(true);h.seed();h.elements.rain24h.checked=true;
+ h.run(`RAIN_REGIONS.forEach(r=>{r.w=8;r.h=6;});
+ officialRainData={version:1,generatedAt:Date.now()/1000,sources:{DE:{name:'DWD'}},stations:[]};
+ rainCountryMask=region=>({ids:[...TEMP_REGION_COUNTRY_IDS[region.id]],pixels:new Uint8ClampedArray(region.w*region.h*4).fill(1)});`);
+ h.context.NorthernCountryFocus={current:()=>({id:'276'}),key:()=> 'DE'};
+ await h.run('renderRainfall()');
+ assert.equal(h.run('rainLayer.children.length'),1);
+ assert(!h.canvases.at(-1).pixels.some((v,i)=>i%4===3&&v>0));
+ assert(!h.run('RAIN_GRID_SPECS.some(s=>s.id==="western-europe")'));
+ assert(h.run('RAIN_REGIONS.some(s=>s.id==="central-europe")'));
+ assert(h.run('RAIN_REGIONS.some(s=>s.id==="british-isles")'));
 });

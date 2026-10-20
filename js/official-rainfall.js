@@ -1,6 +1,6 @@
 // Official gauge histories are published as a same-origin snapshot by Actions.
-const RAIN_COUNTRY_CODES={'233':'EE','428':'LV','440':'LT','246':'FI','752':'SE','578':'NO','352':'IS','616':'PL','208':'DK','124':'CA'};
-const RAIN_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',CA:'Canada'};
+const RAIN_COUNTRY_CODES={'233':'EE','428':'LV','440':'LT','246':'FI','752':'SE','578':'NO','352':'IS','616':'PL','208':'DK','124':'CA','826':'GB','372':'IE','276':'DE','528':'NL','056':'BE','442':'LU','703':'SK','203':'CZ'};
+const RAIN_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',CA:'Canada',GB:'United Kingdom',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg',SK:'Slovakia',CZ:'Czechia'};
 const OFFICIAL_RAIN_RADIUS_KM=100;
 let officialRainData=null,officialRainLoadedAt=0,officialRainLoadPromise=null;
 let officialRainLabels=null;
@@ -11,11 +11,11 @@ function validOfficialRainSnapshot(data){
   if(data?.version!==1 || !Number.isFinite(data.generatedAt) || data.generatedAt>Date.now()/1000+300 ||
      !Array.isArray(data.stations) || !data.sources) return false;
   return data.stations.every(s=>RAIN_COUNTRY_NAMES[s.country] && Number.isFinite(s.lat) && Number.isFinite(s.lon) &&
-    (s.country==='CA'?s.lat>=41&&s.lat<=84&&s.lon>=-142&&s.lon<=-52:s.lat>=48&&s.lat<=72.5&&s.lon>=-26&&s.lon<=33) && typeof s.code==='string' &&
+    (s.country==='CA'?s.lat>=41&&s.lat<=84&&s.lon>=-142&&s.lon<=-52:s.lat>=47&&s.lat<=72.5&&s.lon>=-26&&s.lon<=33) && typeof s.code==='string' &&
     Array.isArray(s.times) && Array.isArray(s.amounts) && s.times.length===s.amounts.length &&
     s.times.every((t,i)=>Number.isFinite(t)&&t%3600===0&&(!i||t>s.times[i-1])) &&
     s.amounts.every(v=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1000) &&
-    (s.accumulations===undefined || (s.country==='IS' && Array.isArray(s.accumulations) &&
+    (s.accumulations===undefined || (Array.isArray(s.accumulations) &&
       s.accumulations.every((v,i)=>Number.isFinite(v.end)&&v.end%3600===0&&[24,48].includes(v.hours)&&
         typeof v.value==='number'&&Number.isFinite(v.value)&&v.value>=0&&v.value<=1000&&
         (!i||v.end>s.accumulations[i-1].end||(v.end===s.accumulations[i-1].end&&v.hours>s.accumulations[i-1].hours))))));
@@ -62,7 +62,7 @@ function officialRainWindow(country,hours,end){
     for(let offset=0;offset<=2;offset++){
       const actualEnd=end-offset*3600;
       const rows=stations.map(station=>({station,value:officialGaugeRainTotal(station,actualEnd,hours)})).filter(s=>Number.isFinite(s.value));
-      if(rows.length>=3){result={rows,end:actualEnd,country,source:officialRainData.sources[country]?.name||country};break;}
+      if(rows.length>=(country==='LU'?1:3)){result={rows,end:actualEnd,country,source:officialRainData.sources[country]?.name||country};break;}
     }
   }
   officialRainWindows.set(key,result);
@@ -134,11 +134,11 @@ function officialRainSourceSummary(hours,end){
     if(globalThis.NorthernCountryFocus?.matchesCountry && !globalThis.NorthernCountryFocus?.matchesCountry(country))continue;
     const window=officialRainWindow(country,hours,end);
     if(window) official.push(name+' ('+window.rows.length+' gauges; ending '+fmt(window.end)+')');
-    else if(country!=='CA') model.push(name);
+    else if(!OFFICIAL_ONLY_RAIN_COUNTRIES.has(country)) model.push(name);
   }
   return 'Official precipitation: '+(official.join('; ')||'none for this period')+'. Open-Meteo rain fallback: '+
     (model.join(', ')||'gaps only')+'. Model also fills areas beyond 100 km from a reporting gauge. '+
-    'Official precipitation includes snow water equivalent; model fallback is rain + showers.';
+    'Gauge shading stays within 100 km and within national borders. The added European countries use measured gauges only; missing periods stay unavailable. Official precipitation can include snow water equivalent; model fallback is rain + showers.';
 }
 
 function removeOfficialRainLabels(){

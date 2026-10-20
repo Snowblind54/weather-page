@@ -1,0 +1,178 @@
+{
+  "ie": {
+    "metadata": [
+      {
+        "type": "Feature",
+        "id": 1,
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            -7.361944,
+            53.537222
+          ]
+        },
+        "properties": {
+          "station_id": 1,
+          "station_name": "Mullingar",
+          "wigos_station_id": "0-20000-0-03971",
+          "wmo_synop_no": 3971,
+          "climate_number": 903,
+          "station_type": "Land (fixed). TUCSON",
+          "county": "Westmeath",
+          "elevation": 101,
+          "dd_lat": 53.537222,
+          "dd_lon": -7.361944
+        }
+      }
+    ],
+    "observations": [
+      {
+        "type": "Feature",
+        "id": "1:2026-10-19T00:00:00+00:00",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            -7.361944,
+            53.537222
+          ]
+        },
+        "properties": {
+          "collection_id": "observations-swob-nrt-60min",
+          "station_id": 1,
+          "parameter_name": "precipitation_amount",
+          "observed_at": "2026-10-19T00:00:00+00:00",
+          "value_num": 0.0,
+          "value_text": null,
+          "sensor_source": "suit_a",
+          "raw_parameter_code": "60_Suit_A_HourRainA"
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "1:2026-10-19T01:00:00+00:00",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            -7.361944,
+            53.537222
+          ]
+        },
+        "properties": {
+          "collection_id": "observations-swob-nrt-60min",
+          "station_id": 1,
+          "parameter_name": "precipitation_amount",
+          "observed_at": "2026-10-19T01:00:00+00:00",
+          "value_num": 0.0,
+          "value_text": null,
+          "sensor_source": "suit_a",
+          "raw_parameter_code": "60_Suit_A_HourRainA"
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "1:2026-10-19T02:00:00+00:00",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            -7.361944,
+            53.537222
+          ]
+        },
+        "properties": {
+          "collection_id": "observations-swob-nrt-60min",
+          "station_id": 1,
+          "parameter_name": "precipitation_amount",
+          "observed_at": "2026-10-19T02:00:00+00:00",
+          "value_num": 0.0,
+          "value_text": null,
+          "sensor_source": "suit_a",
+          "raw_parameter_code": "60_Suit_A_HourRainA"
+        }
+      }
+    ]
+  },
+  "be": {
+    "metadata": [
+      {
+        "type": "Feature",
+        "id": "aws_station.6414",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            3.122,
+            50.904
+          ]
+        },
+        "geometry_name": "the_geom",
+        "properties": {
+          "code": 6414,
+          "name": "BEITEM",
+          "date_begin": "2003-07-26T00:10:00Z",
+          "date_end": null,
+          "altitude": 24.8,
+          "wigos_id": "0-20000-0-06414"
+        },
+        "bbox": [
+          3.122,
+          50.904,
+          3.122,
+          50.904
+        ]
+      }
+    ]
+  },
+  "cz": {
+    "metadata": {
+      "name": "Cheb",
+      "lat": 50.068333,
+      "lon": 12.391389
+    },
+    "payload": {
+      "zaznamID": "1578829b-ef28-998a-97e1-69274665b7a8",
+      "datovyZdrojID": "meteorologie",
+      "datovyTokID": "Open.Data.1H",
+      "datumVytvoreni": "2026-10-20T15:11:02.350Z",
+      "verzeDat": "1.0",
+      "data": {
+        "type": "DataCollection",
+        "data": {
+          "header": "STATION,ELEMENT,DT,VAL,FLAG,QUALITY",
+          "values": [
+            [
+              "0-20000-0-11406",
+              "SRA1H",
+              "2026-10-20T00:00:00Z",
+              0.0,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "SRA1H",
+              "2026-10-20T01:00:00Z",
+              0.0,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "SRA1H",
+              "2026-10-20T02:00:00Z",
+              0.0,
+              "",
+              5.0
+            ],
+            [
+              "0-20000-0-11406",
+              "SRA1H",
+              "2026-10-20T03:00:00Z",
+              0.0,
+              "",
+              5.0
+            ]
+          ]
+        }
+      }
+    }
+  }
+}

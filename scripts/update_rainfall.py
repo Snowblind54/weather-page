@@ -14,6 +14,7 @@ import json
 import math
 import pathlib
 import re
+import sys
 import threading
 import time
 import urllib.parse
@@ -62,7 +63,7 @@ def amount(value):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    valid = (41 <= lat <= 84 and -142 <= lon <= -52) if country == 'CA' else (48 <= lat <= 72.5 and -26 <= lon <= 33)
+    valid = (41 <= lat <= 84 and -142 <= lon <= -52) if country == 'CA' else (47 <= lat <= 72.5 and -26 <= lon <= 33)
     if not valid:
         raise ValueError('Invalid precipitation station coordinates')
     readings, traces = {}, set()
@@ -246,7 +247,7 @@ def parse_norway(payload, metadata):
     for code, rows in grouped.items():
         s = stations[code]
         lon, lat = s['geometry']['coordinates'][:2]
-        if not (48 <= lat <= 72.5 and -26 <= lon <= 33):
+        if not (47 <= lat <= 72.5 and -26 <= lon <= 33):
             continue
         records.append(station('NO', code, s.get('shortName') or s['name'], lat, lon, rows))
     return records
@@ -422,7 +423,7 @@ def merge(previous, incoming, now):
     merged = {}
     for s in previous + incoming:
         key = s['country'] + '|' + s['code']
-        target = merged.setdefault(key, {**s, '_hours': {}, '_traces': set(), '_totals': {}})
+        target = merged.setdefault(key, {**s, '_hours': {}, '_traces': set(), '_totals': {}, '_periods': {}})
         # New metadata wins; revising a reading replaces it rather than adding it.
         target.update({k: s[k] for k in ('name', 'lat', 'lon')})
         for t, n in zip(s['times'], s['amounts']):
@@ -431,20 +432,29 @@ def merge(previous, incoming, now):
                 target['_traces'].discard(t)
                 if t in s.get('traces', []):
                     target['_traces'].add(t)
-        for total in s.get('accumulations', []):
+        for period in s.get('periods', []):
+            t, hours, value = period['end'], period['hours'], amount(period['value'])
+            if cutoff <= t <= end and t % 3600 == 0 and hours in (3, 6, 12, 24) and value is not None:
+                target['_periods'][(t, hours)] = {'end': t, 'hours': hours, 'value': value}
+        for total in ([] if 'periods' in s else s.get('accumulations', [])):
             t, hours, value = total['end'], total['hours'], amount(total['value'])
             if cutoff <= t <= end and t % 3600 == 0 and hours in (24, 48) and value is not None:
                 target['_totals'][(t, hours)] = {'end': t, 'hours': hours, 'value': value}
     result = []
     for s in merged.values():
         hours, traces, totals = s.pop('_hours'), s.pop('_traces'), s.pop('_totals')
-        if not hours and not totals:
+        periods = s.pop('_periods')
+        if not hours and not totals and not periods:
             continue
         s['times'] = sorted(hours)
         s['amounts'] = [hours[t] for t in s['times']]
         s['traces'] = sorted(traces.intersection(hours))
         if 'accumulations' in s or totals:
             s['accumulations'] = [totals[key] for key in sorted(totals)]
+        if 'periods' in s or periods:
+            from rainfall_europe import derived_totals
+            s['periods'] = [periods[key] for key in sorted(periods)]
+            s['accumulations'] = derived_totals(s)
         result.append(s)
     return sorted(result, key=lambda s: (s['country'], s['code']))
 
@@ -513,6 +523,8 @@ LOADERS = {'EE': load_estonia, 'LT': load_lithuania, 'FI': load_finland, 'SE': l
 
 
 def main():
+    from rainfall_europe import install, PERIODS
+    install(sys.modules[__name__])
     now = dt.datetime.now(dt.timezone.utc).replace(minute=0, second=0, microsecond=0)
     try:
         old = json.loads(OUTPUT.read_text())
@@ -524,7 +536,7 @@ def main():
         code, loader = item
         try:
             records = loader(now, previous)
-            if not any(s['times'] or s.get('accumulations') for s in records):
+            if not any(s['times'] or s.get('accumulations') or s.get('periods') for s in records):
                 raise ValueError('No measured hourly precipitation returned')
             return code, records, None
         except Exception as error:
@@ -533,7 +545,8 @@ def main():
         for code, records, error in pool.map(collect, LOADERS.items()):
             incoming.extend(records)
             states[code] = {'name': SOURCES[code][0], 'url': SOURCES[code][1], 'status': 'error' if error else 'ok',
-                            'checkedAt': int(dt.datetime.now(dt.timezone.utc).timestamp()), 'error': error}
+                            'checkedAt': int(dt.datetime.now(dt.timezone.utc).timestamp()), 'error': error,
+                            'period': PERIODS.get(code, 'Complete measured hourly precipitation; missing values stay unavailable.')}
             print(code, len(records), error or 'ok', flush=True)
     stations = merge(previous, incoming, now)
     result = dict(version=1, generatedAt=int(dt.datetime.now(dt.timezone.utc).timestamp()), sources=states, stations=stations)

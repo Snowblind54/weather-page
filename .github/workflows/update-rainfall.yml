@@ -7,14 +7,22 @@ on:
     branches: [main]
     paths:
       - scripts/update_rainfall.py
+      - scripts/rainfall_europe.py
+      - scripts/rainfall_synop_stations.json
+      - scripts/update_central_temperature.py
+      - scripts/update_western_temperature.py
+      - js/official-rainfall.js
+      - js/rainfall.js
+      - tests/fixtures/rainfall-*
+      - tests/rainfall.test.cjs
       - scripts/publish_generated_data.sh
-      - tests/test_rainfall.py
+      - 'tests/test_rainfall*.py'
       - .github/workflows/update-rainfall.yml
 permissions:
   contents: write
 concurrency:
   group: update-official-rainfall
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   R2_PAUSED: ${{ vars.R2_PAUSED }}
@@ -44,7 +52,9 @@ jobs:
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py data/official-rainfall.json
       - name: Check rainfall adapters
-        run: python3 -m unittest discover -s tests -p test_rainfall.py -v
+        run: python3 -m unittest discover -s tests -p 'test_rainfall*.py' -v
+      - name: Check rainfall maps and country filters
+        run: node --test tests/rainfall.test.cjs
       - name: Fetch official hourly precipitation and retain histories
         run: python3 scripts/update_rainfall.py
       - name: Save official precipitation snapshot
