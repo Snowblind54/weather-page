@@ -84,8 +84,8 @@ def decode(raw, run, step, bounds=None):
         valid = datetime.strptime(str(ec.codes_get(g,'validityDate'))+f"{ec.codes_get(g,'validityTime'):04d}",'%Y%m%d%H%M').replace(tzinfo=timezone.utc)
         reference = datetime.strptime(str(ec.codes_get(g,'dataDate'))+f"{ec.codes_get(g,'dataTime'):04d}",'%Y%m%d%H%M').replace(tzinfo=timezone.utc)
         if reference != run or valid != run+timedelta(hours=step): raise ValueError('ECMWF run/time mismatch')
-        lats = ec.codes_get_array(g,'latitudes')
-        lons = (ec.codes_get_array(g,'longitudes')+180)%360-180
+        lats = np.round(ec.codes_get_array(g,'latitudes'),8)
+        lons = np.round((ec.codes_get_array(g,'longitudes')+180)%360-180,8)
         if bounds[0]<-180:
             # One continuous grid across Alaska's date-line islands.
             lons = np.where(lons>bounds[2],lons-360,lons)

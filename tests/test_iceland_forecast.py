@@ -15,6 +15,18 @@ spec=importlib.util.spec_from_file_location('iceland',Path(__file__).resolve().p
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
 class IcelandForecastTests(unittest.TestCase):
+    def test_fine_longitude_rounding_keeps_atlantic_edge_in_date_line_crop(self):
+        run=datetime(2026,10,21,tzinfo=timezone.utc)
+        # A decoded 330-degree point can wrap to -29.999999999999943.
+        lat=np.repeat([18.,18.1],3)
+        lon=np.tile([170.,170.1,330.00000000000006],2)
+        keys={'validityDate':20261021,'validityTime':300,'dataDate':20261021,'dataTime':0,'units':'K','startStep':3,'endStep':3,'packingError':.001}
+        with patch.object(m.ec,'codes_new_from_message',return_value=1),patch.object(m.ec,'codes_release'),patch.object(m.ec,'codes_get',side_effect=lambda g,k:keys[k]),patch.object(m.ec,'codes_get_array',side_effect=lambda g,k:lat if k=='latitudes' else lon),patch.object(m.ec,'codes_get_values',return_value=np.full(6,280.)):
+            ys,xs,values,*_=m.decode(b'grib',run,3,[-190,18,-30,18.1])
+        self.assertEqual(xs[-1],-30.)
+        self.assertEqual(xs[0],-190.)
+        self.assertEqual(values.shape,(2,3))
+
     def test_extended_bounds_cover_europe_svalbard_and_northeast_greenland(self):
         west,south,east,north=m.BOUNDS
         self.assertEqual(west,-30)
