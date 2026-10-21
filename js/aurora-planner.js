@@ -13,7 +13,7 @@ if(!map.getPane('auroraPlannerPane')){map.createPane('auroraPlannerPane');map.ge
     <div class="aurora-planner-modes" role="group" aria-label="Planner mode"><button id="auroraPlannerOutlook" type="button" aria-pressed="true">Next 48 hours</button><button id="auroraPlannerNow" type="button" aria-pressed="false">Go now</button></div>
     <button id="auroraPlannerRun" class="aurora-planner-run" type="button">Find best viewing window</button>
     <p id="auroraPlannerStatus" class="small" role="status" aria-live="polite">Uses darkness, forecast clouds and NOAA forecast activity.</p><div id="auroraPlannerCloudTimeline"></div><div id="auroraPlannerResults"></div>
-    <details class="aurora-planner-info"><summary>How the planner works</summary><p>Compares two-hour windows at your location and eight surrounding map points. Natural Earth land boundaries and lakes exclude mapped water; if land verification fails, no viewing spots are recommended. Clouds use the nearest native 0.25° ECMWF grid point, with time interpolation between three-hour forecasts. Darkness is calculated locally; NOAA’s three-hour Kp forecast supplies the activity outlook.</p><p>Ratings are relative guidance, not a probability or a sighting guarantee. Magnetic latitude is approximated. Current OVATION and solar wind are short-term signals, not a forecast for the whole night. Mapped land is not a guarantee of public access or safe terrain: check access and a clear northern horizon. Light pollution, moonlight and terrain are not included.</p><p>Planning confidence uses lead time, cloud model age and cloud variability nearby and through time. It is capped at Moderate because only one cloud model is used; independent model agreement is not checked.</p><p>Go now checks the next hour using modelled clouds, darkness, fresh NOAA OVATION and solar wind/Bz. Live readings must be fresh; short-term signals are not carried into tomorrow’s outlook.</p></details></div>`;
+    <details class="aurora-planner-info"><summary>How the planner works</summary><p>Compares two-hour windows at your location and eight surrounding map points. Natural Earth land boundaries and lakes exclude mapped water; if land verification fails, no viewing spots are recommended. Clouds use the nearest native ECMWF grid point (9 km / 0.1° preferred, with a 0.25° fallback), with time interpolation between three-hour forecasts. Darkness is calculated locally; NOAA’s three-hour Kp forecast supplies the activity outlook.</p><p>Ratings are relative guidance, not a probability or a sighting guarantee. Magnetic latitude is approximated. Current OVATION and solar wind are short-term signals, not a forecast for the whole night. Mapped land is not a guarantee of public access or safe terrain: check access and a clear northern horizon. Light pollution, moonlight and terrain are not included.</p><p>Planning confidence uses lead time, cloud model age and cloud variability nearby and through time. It is capped at Moderate because only one cloud model is used; independent model agreement is not checked.</p><p>Go now checks the next hour using modelled clouds, darkness, fresh NOAA OVATION and solar wind/Bz. Live readings must be fresh; short-term signals are not carried into tomorrow’s outlook.</p></details></div>`;
   const daylight=document.getElementById('sunriseSunsetSection');daylight.after(section);
   const toggle=$('auroraPlannerOn'),settings=$('auroraPlannerSettings');
   L.DomEvent.disableClickPropagation(section);L.DomEvent.disableScrollPropagation(section);
@@ -44,7 +44,7 @@ if(!map.getPane('auroraPlannerPane')){map.createPane('auroraPlannerPane');map.ge
     if(meta&&Date.now()-checked<5*60000)return meta;
     if(!metaPromise)metaPromise=(async()=>{
       const next=D.validateManifest(await json('data/aurora-planner.json?v='+Math.floor(Date.now()/300000),{cache:'no-cache'}));
-      if(meta?.reference_time!==next.reference_time)cache.clear();meta=next;checked=Date.now();return next;
+      if(meta?.reference_time!==next.reference_time||meta?.asset_version!==next.asset_version)cache.clear();meta=next;checked=Date.now();return next;
     })().finally(()=>{metaPromise=null;});
     return metaPromise;
   }
@@ -136,7 +136,7 @@ if(!map.getPane('auroraPlannerPane')){map.createPane('auroraPlannerPane');map.ge
       card.append(title,date,location,facts,confidenceNode(confidence),button);output.append(card);
     });
     timeline(result.windows[0].point,grids,snapshot,result.windows[0]);
-    const note=document.createElement('p');note.className='small';note.textContent='Cloud model run '+time(Date.parse(m.reference_time),point)+'. NOAA activity updated '+time(snapshot.kpForecast.fetchedAt*1000,point)+'. Ratings compare available conditions; even the best window may have weak aurora activity.';output.append(note);
+    const note=document.createElement('p');note.className='small';note.textContent='ECMWF '+(m.resolution===.1?'9 km / 0.1°':'0.25° fallback')+' cloud model run '+time(Date.parse(m.reference_time),point)+'. NOAA activity updated '+time(snapshot.kpForecast.fetchedAt*1000,point)+'. Ratings compare available conditions; even the best window may have weak aurora activity.';output.append(note);
   }
   async function run(){
     if(!toggle.checked)return;

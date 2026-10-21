@@ -4,6 +4,7 @@ Only selected GRIB messages are fetched by range. Hourly instantaneous fields
 are interpolated numerically, not by blending coloured images. Precipitation
 is a three-hour mean rate; gusts retain the maximum over their native GRIB interval.
 """
+import base64
 import io
 import json
 import math
@@ -20,11 +21,12 @@ import eccodes as ec
 import numpy as np
 from PIL import Image
 from scipy.interpolate import RegularGridInterpolator
+import ecmwf_open_grid as tiers
 from forecast_precipitation import ecmwf_phase,paint_phase
 
 ROOT = 'https://data.ecmwf.int/forecasts/'
 BOUNDS = [-30, 18, 60, 84]
-ASSET_VERSION = 'euroatlantic-v4'
+ASSET_VERSION = 'euroatlantic-v5'
 POINT_BOUNDS = [-28, 61, -12, 69]
 EUROPE_GUST_AREAS = [[west,south,west+30,south+22] for south in (18,40,62) for west in (-30,0,30)]
 GUST_FILE = 'gust-grid-v1.json'
@@ -39,8 +41,12 @@ USER_AGENT = 'NorthernWeather/1.0 https://github.com/Snowblind54/weather-page'
 def iso(t):
     return t.isoformat(timespec='milliseconds').replace('+00:00','Z')
 
-def url(run, step, suffix):
-    return ROOT + f'{run:%Y%m%d}/{run:%H}z/ifs/0p25/oper/{run:%Y%m%d%H}0000-{step}h-oper-fc.{suffix}'
+def asset_version(resolution):
+    return ASSET_VERSION if resolution==.1 else 'euroatlantic-v4'
+
+def url(run, step, suffix, resolution=.1):
+    return tiers.url(ROOT,run,step,suffix,resolution)
+
 
 def request(address, start=None, length=None):
     headers = {'User-Agent':USER_AGENT}
@@ -66,12 +72,9 @@ def request(address, start=None, length=None):
             print('ECMWF provider requests slower downloads; waiting',delay,'seconds',flush=True)
             time.sleep(delay)
 
-def index(run, step):
-    rows = [json.loads(line) for line in request(url(run,step,'index')).decode().splitlines()]
-    selected = {r['param']:r for r in rows if r.get('levtype')=='sfc' and r.get('param') in PARAMS}
-    required = PARAMS - ({'10fg','ptype'} if step==0 else set())
-    if not required <= selected.keys(): raise ValueError('Missing ECMWF surface fields')
-    return selected
+def index(run, step, resolution=.1):
+    return tiers.index(ROOT,run,step,request,PARAMS,resolution)
+
 
 def decode(raw, run, step, bounds=None):
     bounds = BOUNDS if bounds is None else bounds
@@ -99,9 +102,13 @@ def read_step(run, step, rows=None, bounds=None):
     for name, row in (rows or index(run,step)).items():
         if step==0 and name in {'10fg','ptype'}: continue
         offset,length = int(row['_offset']),int(row['_length'])
-        if not 0 < length < 8*1024*1024: raise ValueError('Unexpected GRIB size')
-        raw = request(url(run,step,'grib2'),offset,length)
+        if not 0 < length < 32*1024*1024: raise ValueError('Unexpected GRIB size')
+        raw = request(row.get('_grib_url') or url(run,step,'grib2'),offset,length)
         lat,lon,grid,unit,start,end,packing_error = decode(raw,run,step,bounds)
+        spacing=row.get('_grid_spacing',.25)
+        if spacing not in (.1,.25) or any(not np.allclose(np.diff(axis),spacing,atol=1e-6) for axis in (lat,lon)):
+            raise ValueError('ECMWF grid spacing does not match selected tier')
+        result['grid_spacing_degrees']=spacing
         expected = {'2t':{'K'},'10u':{'m s**-1'},'10v':{'m s**-1'},'tp':{'m'},
                     'tcc':{'(0 - 1)','1'},'10fg':{'m s**-1'},'ptype':{'(Code table 4.201)','Code table 4.201','1'}}[name]
         if unit not in expected: raise ValueError(f'Unexpected {name} units: {unit}')
@@ -154,11 +161,11 @@ def gust_grid(frames, run, bounds=None, region=None):
         samples.append({'time':iso(run+timedelta(hours=step)),
                         'start':iso(run+timedelta(hours=frame['gust_start'])),
                         'end':iso(run+timedelta(hours=frame['gust_end'])),
-                        'values':np.round(values,3).ravel().tolist()})
+                        'values':gust_values(values,first.get('grid_spacing_degrees',.25))})
     return {'source':'ECMWF IFS open data','reference_time':run.isoformat(),'units':'m/s',
-            **({'region':region} if region else {}), 'bounds':bounds,'grid_spacing_degrees':.25,'latitudes':lats.tolist(),
+            **({'region':region} if region else {}), 'bounds':bounds,'grid_spacing_degrees':first.get('grid_spacing_degrees',.25),**gust_encoding(first.get('grid_spacing_degrees',.25)),'latitudes':lats.tolist(),
             'longitudes':lons.tolist(),'samples':samples,
-            'processing':'Nearest 0.25-degree grid point and nearest native forecast, within 90 minutes. Maxima retain their native interval; no temporal interpolation.'}
+            'processing':'Nearest native grid point and forecast within 90 minutes. Maxima retain their native interval; no temporal interpolation. Fine-grid speeds are rounded to 0.01 m/s.'}
 
 def write_gust_grid(frames, run, destination):
     destination.write_text(json.dumps(gust_grid(frames,run),separators=(',',':'))+'\n')
@@ -243,6 +250,14 @@ def ensure_nordic_inputs(nordic, root, restore=None):
             image.verify()
     return root / paths[0]
 
+def gust_encoding(resolution):
+    return {'encoding':'uint16-le-base64','scale':.01} if resolution==.1 else {}
+
+def gust_values(values,resolution):
+    if resolution==.1:
+        return base64.b64encode(np.rint(values*100).astype('<u2').tobytes()).decode('ascii')
+    return np.round(values,3).ravel().tolist()
+
 def main():
     data = Path(__file__).resolve().parents[1]/'data'
     nordic = json.loads((data/'forecast-map.json').read_text())
@@ -250,48 +265,21 @@ def main():
     previous = json.loads(previous_path.read_text()) if previous_path.exists() else {}
     coverage_path = ensure_nordic_inputs(nordic, data.parent)
     now = datetime.now(timezone.utc)
-    candidate = (now-timedelta(hours=5)).replace(minute=0,second=0,microsecond=0)
-    candidate = candidate.replace(hour=candidate.hour//6*6)
-    run = None
-    for attempt in range(3):
-        trial = candidate-timedelta(hours=6*attempt)
-        if (previous.get('reference_time')==trial.isoformat()
-                and previous.get('asset_version')==ASSET_VERSION and previous.get('bounds')==BOUNDS):
-            files = [p for frames in previous.get('images',{}).values() for p in frames.values()]
-            if files and all((data.parent/p).is_file() for p in files):
-                cycle=trial.strftime('%Y%m%dT%HZ')+'-'+ASSET_VERSION
-                info=gust_manifest(cycle)
-                europe=europe_gust_manifest(cycle)
-                if (previous.get('gust_grid')!=info or not (data.parent/info['path']).is_file()
-                        or previous.get('europe_gust_grids')!=europe
-                        or any(not (data.parent/g['path']).is_file() for g in europe)):
-                    # An existing complete image cycle only needs its gust messages.
-                    frames={}
-                    for step in range(3,91,3):
-                        row=index(trial,step)['10fg']
-                        frames[step]=read_step(trial,step,{'10fg':row})
-                        print('Downloaded point gusts:',step,'/ 90 hours',flush=True)
-                    target=data.parent/info['path'];temp=target.with_suffix('.json.tmp')
-                    write_gust_grid(frames,trial,temp);temp.replace(target)
-                    write_europe_gusts(frames,trial,target.parent)
-                    previous['gust_grid']=info
-                    previous['europe_gust_grids']=europe
-                    previous['cache_bytes']=sum(p.stat().st_size for p in target.parent.iterdir() if p.is_file())
-                    temp=data/'forecast-iceland.json.tmp';temp.write_text(json.dumps(previous,indent=2)+'\n');temp.replace(previous_path)
-                    print('Published cached Iceland point gusts:',target.stat().st_size,'bytes',flush=True)
-                    return
-                print('Iceland ECMWF images already current; no field downloads.');return
-        try:
-            first,last = index(trial,0),index(trial,90)
-            run = trial;break
-        except Exception as error: print('Cycle not ready:',trial,str(error),flush=True)
-    if run is None: raise RuntimeError('No complete ECMWF cycle; previous Iceland maps retained')
+    def cached(trial,resolution):
+        if previous.get('reference_time')!=trial.isoformat() or previous.get('asset_version')!=asset_version(resolution) or previous.get('bounds')!=BOUNDS:return False
+        cycle=trial.strftime('%Y%m%dT%HZ')+'-'+asset_version(resolution)
+        paths=[p for frames in previous.get('images',{}).values() for p in frames.values()]
+        info=gust_manifest(cycle);europe=europe_gust_manifest(cycle)
+        return len(paths)==435 and previous.get('gust_grid')==info and previous.get('europe_gust_grids')==europe and all((data.parent/p).is_file() for p in paths+[info['path']]+[g['path'] for g in europe])
+    run,resolution,first,last=tiers.choose_cycle(now,index,cached)
+    if first is None:
+        print('Europe and Arctic IFS tier already current:',resolution,run,flush=True);return
     frames = {}
     for step in range(0,91,3):
-        frames[step] = read_step(run,step,first if step==0 else last if step==90 else None)
+        frames[step] = read_step(run,step,first if step==0 else last if step==90 else index(run,step,resolution))
         print('Downloaded Iceland fields:',step,'/ 90 hours',flush=True)
     root = data/'forecast-iceland-cache';root.mkdir(exist_ok=True)
-    cycle = run.strftime('%Y%m%dT%HZ')+'-'+ASSET_VERSION
+    cycle = run.strftime('%Y%m%dT%HZ')+'-'+asset_version(resolution)
     stage = Path(tempfile.mkdtemp(prefix='_staging-',dir=root))
     try:
         write_gust_grid(frames,run,stage/GUST_FILE)
@@ -332,11 +320,11 @@ def main():
         if target.exists(): shutil.rmtree(target)
         stage.rename(target)
         manifest = {'delivery':'static-regional-images','asset_root':'forecast-iceland-cache',
-                    'asset_version':ASSET_VERSION,'temperature_range_celsius':[-60,60],'source':'ECMWF IFS open data · Europe, Iceland and Arctic','reference_time':run.isoformat(),
+                    'asset_version':asset_version(resolution),'temperature_range_celsius':[-60,60],'source':'ECMWF IFS open data · Europe, Iceland and Arctic','reference_time':run.isoformat(),
                     'generated_at':datetime.now(timezone.utc).isoformat(),'bounds':BOUNDS,'layers':FIELDS,
                     'images':images,'cached_times':times,'periods':periods,'image_size':[SIZE,SIZE],
                     'legends':{k:f'data/forecast-iceland-cache/{cycle}/{k}-legend.webp' for k in FIELDS},
-                    'grid_spacing_degrees':.25,'native_step_hours':3,'cache_bytes':size,'licence':'CC BY 4.0',
+                    'grid_spacing_degrees':resolution,'resolution_label':'9 km · 0.1°' if resolution==.1 else '0.25° fallback','native_step_hours':3,'cache_bytes':size,'licence':'CC BY 4.0',
                     'documentation':'https://www.ecmwf.int/en/forecasts/datasets/open-data',
                     'source_variables':sorted(PARAMS),
                     'precipitation_types':{'version':1,'source':'ECMWF IFS precipitation type','method':'Nearest-neighbour categories, held from the preceding native three-hour valid time; no categorical interpolation. Intensity is the three-hour mean liquid-water-equivalent rate.'},
@@ -346,7 +334,7 @@ def main():
                     'processing':'Hourly temperature, wind components and cloud cover are linearly interpolated. Rain is a native three-hour mean rate; gusts use the nearest native forecast and retain its maximum interval.'}
         temp=data/'forecast-iceland.json.tmp';temp.write_text(json.dumps(manifest,indent=2)+'\n');temp.replace(previous_path)
         # Mirror only the complete current cycle; retired R2 assets expire centrally.
-        cycles=[p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-(?:atlantic-v1|euroatlantic-v2|euroatlantic-v3|euroatlantic-v4))?',p.name)]
+        cycles=[p for p in root.iterdir() if p.is_dir() and re.fullmatch(r'\d{8}T\d{2}Z(?:-(?:atlantic-v1|euroatlantic-v2|euroatlantic-v3|euroatlantic-v4|euroatlantic-v5))?',p.name)]
         for old in cycles:
             if old!=target: shutil.rmtree(old)
         print('Published Europe and Arctic:',len(times),'hours;',round(size/1024/1024,2),'MiB',flush=True)

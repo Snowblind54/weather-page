@@ -41,7 +41,7 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
     </div>
     <div id="spaceWeatherSection-sources" class="source-card" hidden>
       <h3>Sources &amp; attribution</h3><p>Daylight and sunrise/sunset are calculated locally with SunCalc. Times assume a clear, level horizon.</p>
-      <p>NOAA Space Weather Prediction Center (SWPC): OVATION short-term aurora forecast, northern hemispheric auroral power, observed planetary Kp and real-time solar-wind measurements. ECMWF IFS Open Data supplies total cloud cover on a 0.25° global grid. Viewing conditions are a Northern Weather derived layer combining NOAA OVATION, astronomical darkness and ECMWF total cloud cover.</p>
+      <p>NOAA Space Weather Prediction Center (SWPC): OVATION short-term aurora forecast, northern hemispheric auroral power, observed planetary Kp and real-time solar-wind measurements. ECMWF IFS Open Data supplies total cloud cover on a 9 km / 0.1° global grid when available, with a 0.25° fallback. Viewing conditions are a Northern Weather derived layer combining NOAA OVATION, astronomical darkness and ECMWF total cloud cover.</p>
       <div class="source-links"><a href="https://www.spaceweather.gov/products/aurora-30-minute-forecast" target="_blank" rel="noopener">NOAA Aurora ↗</a><a href="https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt" target="_blank" rel="noopener">NOAA Aurora Power ↗</a><a href="https://www.spaceweather.gov/products/solar-wind" target="_blank" rel="noopener">NOAA Solar Wind ↗</a><a href="https://www.ecmwf.int/en/forecasts/datasets/open-data" target="_blank" rel="noopener">ECMWF Open Data ↗</a></div>
       <div class="small">OVATION is a forecast, not an observation of visible aurora. Hemispheric power is the modeled total auroral energy input over the northern hemisphere, not a local viewing percentage. The viewing layer reduces visibility for daylight/twilight and modelled cloud cover. Local light pollution, terrain, haze and horizon obstructions are not modelled.</div>
     </div>
@@ -154,7 +154,7 @@ window.addEventListener('load',()=>{
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');
-  spaceWeatherScript.src='js/space-weather-v4.js?v=aurora-planner-1';
+  spaceWeatherScript.src='js/space-weather-v4.js?v=ifs-9km-1';
   spaceWeatherScript.onload=()=>{
     const dashboardScript=document.createElement('script');
     dashboardScript.src='js/space-weather-dashboard.js?v=cme-1';

@@ -159,3 +159,13 @@ test('Rome fills missing gusts from only its regional grid and reuses the cached
 test('A late Europe grid cannot replace a newly selected location',async()=>{
  const h=harness();h.open();h.choose(41.8,12.3);h.runDebounce();h.reply(0);await flush();h.replyJson(1,europeGustMeta);await flush();h.choose(59,25);h.runDebounce();h.reply(3,9);await flush();h.replyJson(2,europeGustGrid());await flush();assert.equal(h.ids.forecastSelected.children[0].children[0].textContent,'9.0°');assert.equal(h.ids.forecastGustAttribution.hidden,true);
 });
+
+test('9 km encoded gusts preserve native points and zero while rejecting truncated bytes',()=>{
+ const g=gustGrid();g.grid_spacing_degrees=.1;g.latitudes=[65,65.1];g.longitudes=[-19.2,-19.1];g.encoding='uint16-le-base64';g.scale=.01;
+ for(const s of g.samples){const bytes=Buffer.alloc(8);s.values.forEach((v,i)=>bytes.writeUInt16LE(Math.round(v*100),i*2));s.values=bytes.toString('base64');}
+ const broken=structuredClone(g);broken.samples[0].values='AAAA';assert.throws(()=>forecast.validateGustGrid(broken,g.reference_time));
+ forecast.validateGustGrid(g,g.reference_time);forecast.validateGustGrid(g,g.reference_time);
+ const t=Date.parse(g.samples[0].time);assert.equal(forecast.gustSample(g,65,-19.2,t).value,0);
+ assert.equal(forecast.gustSample(g,65.1,-19.1,t).value,14);assert.equal(forecast.gustSample(g,65.1,-19.1,t).resolution,.1);
+ assert.equal(forecast.gustSample(g,65.2,-19.1,t),null);
+});

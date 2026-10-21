@@ -7,6 +7,8 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/ecmwf_open_grid.py
+      - tests/test_ecmwf_open_grid.py
       - scripts/forecast_precipitation.py
       - scripts/update_iceland_forecast.py
       - .github/workflows/update-iceland-forecast.yml
@@ -16,7 +18,7 @@ permissions:
 
 concurrency:
   group: forecast-iceland-cache
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,7 +55,9 @@ jobs:
       - name: Install GRIB decoder and image renderer
         run: python3 -m pip install numpy==2.3.5 scipy==1.17.0 eccodes==2.46.0 Pillow==11.3.0
       - name: Verify ECMWF rendering and shared decoder
-        run: python3 -m unittest discover -s tests -p '*forecast*.py' -v
+        run: python3 -m unittest discover -s tests -p 'test_*forecast*.py' -v
+      - name: Verify 9 km source selection
+        run: python3 -m unittest discover -s tests -p 'test_ecmwf_open_grid.py' -v
       - name: Generate shared Europe and Arctic forecast maps
         run: python3 scripts/update_iceland_forecast.py
       - name: Publish complete Europe and Arctic cache

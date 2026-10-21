@@ -85,3 +85,14 @@ test('Go now tolerates normal 25-minute solar-feed delays and rejects readings o
  assert.equal(D.goNow(inputs).windFresh,true);assert.equal(D.goNow(inputs).label,'Worth heading out now');
  s.solarWind.magTime=new Date(now-31*60000).toISOString();assert.equal(D.goNow(inputs).windFresh,false);assert.match(D.goNow(inputs).reason,/30 minutes/);
 });
+
+test('9 km planner validates immutable fine tiles and samples the actual 0.1 degree point',()=>{
+ const m=meta();m.asset_version='cloud-v2';m.resolution=.1;
+ for(const tile of m.grids){tile.width=301;tile.height=551;tile.path=tile.path.replace('cloud-v1','cloud-v2');}
+ D.validateManifest(m);
+ const bytes=Buffer.alloc(301*551,20);bytes[244*301+247]=0;
+ const g={...grid(),...m.grids[6],resolution:.1,samples:Array.from({length:25},(_,i)=>({time:new Date(now+i*3*hour).toISOString(),values:bytes.toString('base64')}))};
+ const decoded=D.decodeGrid(g,m,6);assert.equal(D.cloudAt(decoded,point,now),0);
+ assert.equal(D.cloudAt(decoded,{lat:59.5,lon:24.7},now),20);
+ const wrong=structuredClone(m);wrong.resolution=.25;assert.throws(()=>D.validateManifest(wrong));
+});

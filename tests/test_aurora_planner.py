@@ -15,9 +15,9 @@ import update_space_weather as space
 class AuroraPlannerTests(unittest.TestCase):
     def test_native_bands_overlap_and_wrap_date_line(self):
         values=bytes(x%101 for y in range(clouds.HEIGHT) for x in range(clouds.WIDTH))
-        self.assertEqual(len(clouds.split_cloud(values,0)),121*221)
-        self.assertEqual(clouds.split_cloud(values,0)[120],clouds.split_cloud(values,1)[0])
-        self.assertEqual(clouds.split_cloud(values,11)[120],clouds.split_cloud(values,0)[0])
+        self.assertEqual(len(clouds.split_cloud(values,0)),301*551)
+        self.assertEqual(clouds.split_cloud(values,0)[300],clouds.split_cloud(values,1)[0])
+        self.assertEqual(clouds.split_cloud(values,11)[300],clouds.split_cloud(values,0)[0])
         with self.assertRaises(ValueError):clouds.split_cloud(b'bad',0)
 
     def test_noaa_keeps_only_real_forecast_bins(self):
@@ -41,7 +41,7 @@ class AuroraPlannerTests(unittest.TestCase):
             def retrieve(self,**kwargs):raise RuntimeError('provider unavailable')
         with TemporaryDirectory() as directory:
             root=Path(directory);(root/'data').mkdir();path=root/'data/aurora-planner.json';path.write_text('{"previous":true}')
-            with patch.object(clouds,'ROOT',root),patch.object(clouds,'Client',Client),patch.object(clouds.time,'sleep'):
+            with patch.object(clouds,'ROOT',root),patch.object(clouds,'cloud_cycle',return_value=(datetime(2026,10,13,tzinfo=timezone.utc),.1,None,None)),patch.object(clouds,'read_cloud',side_effect=RuntimeError('provider unavailable')),patch.object(clouds.time,'sleep'):
                 with self.assertRaises(RuntimeError):clouds.main()
             self.assertEqual(json.loads(path.read_text()),{'previous':True})
             self.assertFalse(list((root/'data/aurora-planner-cloud').glob('*.tmp')))

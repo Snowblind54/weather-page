@@ -7,6 +7,11 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/ecmwf_open_grid.py
+      - scripts/update_iceland_forecast.py
+      - scripts/forecast_precipitation.py
+      - tests/test_ecmwf_open_grid.py
+      - tests/test_aurora_planner.py
       - scripts/update_aurora_cloud.py
       - scripts/update_aurora_planner.py
       - scripts/publish_generated_data.sh
@@ -17,7 +22,7 @@ permissions:
 
 concurrency:
   group: shared-aurora-cloud
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -54,11 +59,13 @@ jobs:
       - name: Restore planner forecasts when available
         run: python3 scripts/hydrate_r2_data.py --allow-empty data/aurora-planner.json data/aurora-planner-cloud
       - name: Install ECMWF GRIB tools
-        run: python3 -m pip install --disable-pip-version-check ecmwf-opendata eccodes
+        run: python3 -m pip install --disable-pip-version-check numpy==2.3.5 scipy==1.17.0 eccodes==2.46.0 Pillow==11.3.0
+      - name: Verify 9 km source selection
+        run: python3 -m unittest discover -s tests -p 'test_ecmwf_open_grid.py' -v
       - name: Fetch ECMWF IFS total cloud cover
         run: python3 scripts/update_aurora_cloud.py
       - name: Verify aurora planner data processing
-        run: python3 -m unittest discover -s tests -p 'test_aurora_planner.py' -v
+        run: python3 -m unittest discover -s tests -p 'test_aurora*.py' -v
       - name: Prepare shared aurora planner cloud forecasts
         run: python3 scripts/update_aurora_planner.py
       - name: Publish ECMWF aurora cloud field

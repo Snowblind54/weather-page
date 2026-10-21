@@ -20,7 +20,7 @@ class IcelandForecastTests(unittest.TestCase):
         self.assertEqual(west,-30)
         for lat,lon in [(78.2,15.6),(82.,-25.),(40.4,-3.7),(41.9,12.5),(55.8,37.6),(30.,31.2)]:
             self.assertTrue(west<=lon<=east and south<=lat<=north)
-        self.assertEqual(m.ASSET_VERSION,'euroatlantic-v4')
+        self.assertEqual(m.ASSET_VERSION,'euroatlantic-v5')
 
     def test_ecmwf_fills_the_nordic_domain_when_its_forecast_has_ended(self):
         exclusion=np.ones((16,16),dtype=bool)

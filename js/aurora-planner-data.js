@@ -17,22 +17,22 @@
     })];
   }
   function validateManifest(meta){
-    if(meta?.version!==1||meta.asset_version!=='cloud-v1'||!finite(Date.parse(meta.reference_time))||meta.resolution!==.25||!Array.isArray(meta.grids)||meta.grids.length!==12)throw Error('Shared cloud forecast unavailable');
-    const cycle=new Date(meta.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z-cloud-v1';
+    if(meta?.version!==1||!['cloud-v1','cloud-v2'].includes(meta.asset_version)||!finite(Date.parse(meta.reference_time))||meta.resolution!==(meta.asset_version==='cloud-v2'?.1:.25)||!Array.isArray(meta.grids)||meta.grids.length!==12)throw Error('Shared cloud forecast unavailable');
+    const cycle=new Date(meta.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z-'+meta.asset_version;
     meta.grids.forEach((g,i)=>{
-      if(g.path!==`data/aurora-planner-cloud/${cycle}/cloud-${i}-v1.json`||JSON.stringify(g.bounds)!==JSON.stringify([-180+i*30,35,-150+i*30,90])||g.width!==121||g.height!==221)throw Error('Invalid cloud forecast tile');
+      if(g.path!==`data/aurora-planner-cloud/${cycle}/cloud-${i}-v1.json`||JSON.stringify(g.bounds)!==JSON.stringify([-180+i*30,35,-150+i*30,90])||g.width!==Math.round(30/meta.resolution)+1||g.height!==Math.round(55/meta.resolution)+1)throw Error('Invalid cloud forecast tile');
     });
     return meta;
   }
   function decodeGrid(grid,meta,band){
     const spec=meta.grids[band];
-    if(grid?.version!==1||grid.reference_time!==meta.reference_time||grid.resolution!==.25||grid.encoding!=='uint8-base64'||grid.missing!==255||grid.width!==121||grid.height!==221||JSON.stringify(grid.bounds)!==JSON.stringify(spec.bounds)||!Array.isArray(grid.samples)||grid.samples.length!==25)throw Error('Invalid planner cloud grid');
+    if(grid?.version!==1||grid.reference_time!==meta.reference_time||grid.resolution!==meta.resolution||grid.encoding!=='uint8-base64'||grid.missing!==255||grid.width!==spec.width||grid.height!==spec.height||JSON.stringify(grid.bounds)!==JSON.stringify(spec.bounds)||!Array.isArray(grid.samples)||grid.samples.length!==25)throw Error('Invalid planner cloud grid');
     const run=Date.parse(meta.reference_time);
     const samples=grid.samples.map((sample,i)=>{
       const time=Date.parse(sample.time);
       if(time!==run+i*3*HOUR||typeof sample.values!=='string')throw Error('Invalid cloud forecast time');
       const raw=atob(sample.values);
-      if(raw.length!==121*221)throw Error('Incomplete cloud forecast tile');
+      if(raw.length!==grid.width*grid.height)throw Error('Incomplete cloud forecast tile');
       const values=Uint8Array.from(raw,c=>c.charCodeAt(0));
       if(values.some(v=>v>100&&v!==255))throw Error('Invalid cloud percentage');
       return {time,values};
@@ -41,7 +41,7 @@
   }
   function cloudAt(grid,point,time){
     if(!grid||point.lat<grid.bounds[1]||point.lat>grid.bounds[3]||point.lon<grid.bounds[0]||point.lon>grid.bounds[2])return null;
-    const x=Math.round((point.lon-grid.bounds[0])/.25),y=Math.round((point.lat-grid.bounds[1])/.25),index=y*grid.width+x;
+    const x=Math.round((point.lon-grid.bounds[0])/grid.resolution),y=Math.round((point.lat-grid.bounds[1])/grid.resolution),index=y*grid.width+x;
     const upper=grid.samples.findIndex(s=>s.time>=time);
     if(upper<0||time<grid.samples[0].time)return null;
     const b=grid.samples[upper],a=grid.samples[Math.max(0,upper-1)],av=a.values[index],bv=b.values[index];

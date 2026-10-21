@@ -18,28 +18,29 @@ import update_iceland_forecast as ifs
 DATA = Path(__file__).resolve().parents[1]/'data'
 BOUNDS = [-190, 18, -30, 84]
 SIZE = 2048
-VERSION = 'northamerica-v4'
+VERSION = 'northamerica-v5'
 ASSET_ROOT = 'forecast-canada-cache'
 MAX_BYTES = 200*1024*1024
 GUST_AREAS = [[west,south,east,north] for south,north in [(18,40),(40,62),(62,84)]
               for west,east in [(-190,-150),(-150,-110),(-110,-70),(-70,-30)]]
 
 
-def cycle_name(run):
-    return run.strftime('%Y%m%dT%HZ')+'-'+VERSION
+def cycle_name(run,resolution=.1):
+    version=VERSION if resolution==.1 else 'northamerica-v4'
+    return run.strftime('%Y%m%dT%HZ')+'-'+version
 
 
 def retire_previous_cycles(root, current):
     # Only remove recognized forecast cycles after the current one is complete.
     # Omitting them from publication lets central R2 expiry retire their assets.
-    pattern=r'\d{8}T\d{2}Z-(?:canada-v1|northamerica-v2|northamerica-v3|'+re.escape(VERSION)+r')'
+    pattern=r'\d{8}T\d{2}Z-(?:canada-v1|northamerica-v2|northamerica-v3|northamerica-v4|'+re.escape(VERSION)+r')'
     for old in root.iterdir():
         if old.is_dir() and not old.is_symlink() and old!=current and re.fullmatch(pattern,old.name):
             shutil.rmtree(old)
 
 
-def gust_manifest(run):
-    return [{'path':f'data/{ASSET_ROOT}/{cycle_name(run)}/gust-grid-{i}-v1.json',
+def gust_manifest(run,resolution=.1):
+    return [{'path':f'data/{ASSET_ROOT}/{cycle_name(run,resolution)}/gust-grid-{i}-v1.json',
              'bounds':bounds,'units':'m/s'}
             for i,bounds in enumerate(GUST_AREAS)]
 
@@ -64,9 +65,9 @@ def write_gusts(frames, run, destination):
             samples.append({'time':ifs.iso(run+timedelta(hours=step)),
                             'start':ifs.iso(run+timedelta(hours=frame['gust_start'])),
                             'end':ifs.iso(run+timedelta(hours=frame['gust_end'])),
-                            'values':np.round(values,3).ravel().tolist()})
+                            'values':ifs.gust_values(values,first.get('grid_spacing_degrees',.25))})
         payload={'source':'ECMWF IFS open data','region':'North America','reference_time':run.isoformat(),
-                 'units':'m/s','bounds':[west,south,east,north],'grid_spacing_degrees':.25,
+                 'units':'m/s','bounds':[west,south,east,north],'grid_spacing_degrees':first.get('grid_spacing_degrees',.25),**ifs.gust_encoding(first.get('grid_spacing_degrees',.25)),
                  'latitudes':lat.tolist(),'longitudes':lon.tolist(),'samples':samples}
         (destination/f'gust-grid-{band}-v1.json').write_text(json.dumps(payload,separators=(',',':'))+'\n')
 
@@ -89,8 +90,10 @@ def ensure_palettes(nordic, root, restore=None):
     return palettes
 
 
-def complete_previous(previous, run, root):
-    if previous.get('reference_time')!=run.isoformat() or previous.get('asset_version')!=VERSION or previous.get('bounds')!=BOUNDS:
+def complete_previous(previous, run, root, resolution=None):
+    resolution=previous.get('grid_spacing_degrees',.1) if resolution is None else resolution
+    version=VERSION if resolution==.1 else 'northamerica-v4'
+    if previous.get('reference_time')!=run.isoformat() or previous.get('asset_version')!=version or previous.get('bounds')!=BOUNDS:
         return False
     expected=87
     paths=[]
@@ -98,13 +101,15 @@ def complete_previous(previous, run, root):
         images=previous.get('images',{}).get(kind,{})
         if len(images)!=expected:return False
         paths.extend(images.values());paths.append(previous.get('legends',{}).get(kind,''))
-    if previous.get('gust_grids')!=gust_manifest(run):return False
+    if previous.get('gust_grids')!=gust_manifest(run,resolution):return False
     paths.extend(g['path'] for g in previous['gust_grids'])
-    prefix=f'data/{ASSET_ROOT}/{cycle_name(run)}/'
+    prefix=f'data/{ASSET_ROOT}/{cycle_name(run,resolution)}/'
     return all(isinstance(p,str) and p.startswith(prefix) and (root/p).is_file() and (root/p).stat().st_size>0 for p in paths)
 
 
 def publish(frames, run, nordic, palettes, data=DATA, size=SIZE):
+    resolution=frames[min(frames)].get('grid_spacing_degrees',.25)
+    version=VERSION if resolution==.1 else 'northamerica-v4'
     root=data/ASSET_ROOT;root.mkdir(parents=True,exist_ok=True)
     stage=Path(tempfile.mkdtemp(prefix='_staging-',dir=root))
     try:
@@ -126,21 +131,21 @@ def publish(frames, run, nordic, palettes, data=DATA, size=SIZE):
             for kind,grid in fields.items():
                 filename=kind+'-'+valid.strftime('%Y%m%dT%HZ')+'.webp'
                 ifs.render(grid,frames[lower]['lat'],frames[lower]['lon'],kind,palettes[kind],stage/filename,bounds=BOUNDS,size=size,precipitation_type=frames[lower].get('ptype') if kind=='rain' else None)
-                images[kind][key]=f'data/{ASSET_ROOT}/{cycle_name(run)}/{filename}'
+                images[kind][key]=f'data/{ASSET_ROOT}/{cycle_name(run,resolution)}/{filename}'
             if hour%6==0:print('Rendered North America maps:',hour,'/ 90 hours',flush=True)
         total=sum(p.stat().st_size for p in stage.iterdir())
         if total>MAX_BYTES:raise ValueError('Canada forecast cache exceeds 200 MiB; previous cycle retained')
-        manifest={'delivery':'static-regional-images','asset_root':ASSET_ROOT,'asset_version':VERSION,'temperature_range_celsius':[-60,60],
+        manifest={'delivery':'static-regional-images','asset_root':ASSET_ROOT,'asset_version':version,'temperature_range_celsius':[-60,60],
                   'source':'ECMWF IFS open data · North America and Atlantic','reference_time':run.isoformat(),
                   'generated_at':datetime.now(timezone.utc).isoformat(),'bounds':BOUNDS,'layers':ifs.FIELDS,
                   'images':images,'cached_times':times,'periods':periods,'image_size':[size,size],
-                  'legends':{k:f'data/{ASSET_ROOT}/{cycle_name(run)}/{k}-legend.webp' for k in ifs.FIELDS},
-                  'grid_spacing_degrees':.25,'native_step_hours':3,'cache_bytes':total,'licence':'CC BY 4.0',
+                  'legends':{k:f'data/{ASSET_ROOT}/{cycle_name(run,resolution)}/{k}-legend.webp' for k in ifs.FIELDS},
+                  'grid_spacing_degrees':resolution,'resolution_label':'9 km / 0.1°' if resolution==.1 else '0.25° fallback','native_step_hours':3,'cache_bytes':total,'licence':'CC BY 4.0',
                   'documentation':'https://www.ecmwf.int/en/forecasts/datasets/open-data',
-                  'gust_grids':gust_manifest(run),
+                  'gust_grids':gust_manifest(run,resolution),
                   'precipitation_types':{'version':1,'source':'ECMWF IFS precipitation type','method':'Nearest-neighbour categories held from the preceding native three-hour valid time; intensity is a three-hour mean liquid-water-equivalent rate.'},
                   'processing':'Same palettes as MET Nordic. Hourly instantaneous fields are numerically interpolated between native three-hour forecasts. Rain is the three-hour mean rate. Gusts retain the maximum from the nearest native forecast period.'}
-        target=root/cycle_name(run)
+        target=root/cycle_name(run,resolution)
         if target.exists():
             # A restore interrupted after image staging may leave missing files.
             # Repair only when every existing immutable asset matches exactly.
@@ -166,25 +171,14 @@ def main():
     previous_path=DATA/'forecast-canada.json'
     previous=json.loads(previous_path.read_text()) if previous_path.exists() else {}
     now=datetime.now(timezone.utc)
-    candidate=(now-timedelta(hours=5)).replace(minute=0,second=0,microsecond=0)
-    candidate=candidate.replace(hour=candidate.hour//6*6)
-    run=None
-    for attempt in range(3):
-        trial=candidate-timedelta(hours=6*attempt)
-        if complete_previous(previous,trial,DATA.parent):
-            retire_previous_cycles(DATA/ASSET_ROOT,DATA/ASSET_ROOT/cycle_name(trial))
-            print('North America ECMWF images already current; no field downloads.',flush=True);return
-        # Never call a short/old cycle a 72-hour forecast.
-        if trial+timedelta(hours=89)<now+timedelta(hours=72):continue
-        try:
-            first,last=ifs.index(trial,0),ifs.index(trial,90)
-            run=trial;break
-        except Exception as error:print('Canada cycle not ready:',trial,str(error),flush=True)
-    if run is None:raise RuntimeError('No complete ECMWF Canada cycle; previous maps retained')
+    run,resolution,first,last=ifs.tiers.choose_cycle(now,ifs.index,lambda run,res:complete_previous(previous,run,DATA.parent,res))
+    if first is None:
+        retire_previous_cycles(DATA/ASSET_ROOT,DATA/ASSET_ROOT/cycle_name(run,resolution))
+        print('North America IFS tier already current:',resolution,run,flush=True);return
     palettes=ensure_palettes(nordic,DATA.parent)
     frames={}
     for step in range(0,91,3):
-        frames[step]=ifs.read_step(run,step,first if step==0 else last if step==90 else None,bounds=BOUNDS)
+        frames[step]=ifs.read_step(run,step,first if step==0 else last if step==90 else ifs.index(run,step,resolution),bounds=BOUNDS)
         print('Downloaded Canada fields:',step,'/ 90 hours',flush=True)
     publish(frames,run,nordic,palettes)
 

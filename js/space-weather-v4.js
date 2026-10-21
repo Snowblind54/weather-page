@@ -348,7 +348,7 @@
       viewingLayer?.bringToFront?.();
 
       if(viewingOn){
-        setStatus(`Viewing conditions combine NOAA OVATION, astronomical darkness and ECMWF IFS total cloud cover · cloud valid ${shortTime(cloudData?.validTime)}.`+activityDescription(),'ok');
+        setStatus(`Viewing conditions combine NOAA OVATION, astronomical darkness and ECMWF IFS ${cloudData?.resolution===.1?'9 km / 0.1°':'0.25° fallback'} total cloud cover · cloud valid ${shortTime(cloudData?.validTime)}.`+activityDescription(),'ok');
       }else{
         setStatus('NOAA OVATION aurora forecast is displayed for the forecast time shown below.'+activityDescription(),'ok');
       }

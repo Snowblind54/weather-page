@@ -11,7 +11,7 @@ RUN=dt.datetime(2026,10,12,6,tzinfo=dt.timezone.utc)
 def frames():
  lat=np.array([18.,40.,62.,84.]);lon=np.array([-190.,-150.,-110.,-70.,-30.]);result={}
  for hour in range(0,91,3):
-  shape=(4,5);result[hour]={'lat':lat,'lon':lon,'2t':np.full(shape,270+hour/10),'10u':np.full(shape,4),'10v':np.zeros(shape),'tcc':np.full(shape,.5),'ptype':np.full(shape,5),'tp':np.full(shape,hour*.001),'10fg':np.full(shape,12),'gust_start':max(0,hour-3),'gust_end':hour}
+  shape=(4,5);result[hour]={'grid_spacing_degrees':.1,'lat':lat,'lon':lon,'2t':np.full(shape,270+hour/10),'10u':np.full(shape,4),'10v':np.zeros(shape),'tcc':np.full(shape,.5),'ptype':np.full(shape,5),'tp':np.full(shape,hour*.001),'10fg':np.full(shape,12),'gust_start':max(0,hour-3),'gust_end':hour}
  return result
 
 class CanadaForecast(unittest.TestCase):
@@ -44,7 +44,7 @@ class CanadaForecast(unittest.TestCase):
   with tempfile.TemporaryDirectory() as tmp:
    root=pathlib.Path(tmp);canada.write_gusts(frames(),RUN,root);files=list(root.glob('gust-grid*'));self.assertEqual(len(files),12)
    for path in files:
-    data=json.loads(path.read_text());self.assertEqual(data['region'],'North America');self.assertEqual(len(data['samples']),30);self.assertEqual(data['samples'][0]['values'][0],12);self.assertEqual(data['samples'][0]['start'],'2026-10-12T06:00:00.000Z');self.assertEqual(data['samples'][0]['end'],'2026-10-12T09:00:00.000Z');self.assertGreaterEqual(data['longitudes'][0],data['bounds'][0]);self.assertLessEqual(data['longitudes'][-1],data['bounds'][2])
+    data=json.loads(path.read_text());self.assertEqual(data['region'],'North America');self.assertEqual(len(data['samples']),30);self.assertEqual(__import__('struct').unpack('<H',__import__('base64').b64decode(data['samples'][0]['values'])[:2])[0],1200);self.assertEqual(data['samples'][0]['start'],'2026-10-12T06:00:00.000Z');self.assertEqual(data['samples'][0]['end'],'2026-10-12T09:00:00.000Z');self.assertGreaterEqual(data['longitudes'][0],data['bounds'][0]);self.assertLessEqual(data['longitudes'][-1],data['bounds'][2])
  def test_only_referenced_immutable_nordic_palettes_are_restored(self):
   with tempfile.TemporaryDirectory() as tmp:
    root=pathlib.Path(tmp);paths={k:'data/forecast-cache/run/'+k+'-legend.webp' for k in ifs.FIELDS};calls=[]

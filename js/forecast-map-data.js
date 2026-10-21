@@ -36,7 +36,7 @@
     const name=time===undefined?kind+'-legend.webp':kind+'-'+new Date(time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z.webp';
     const path=time===undefined?manifest.legends?.[kind]:manifest.images?.[kind]?.[new Date(time).toISOString()];
     let cycle=new Date(manifest.reference_time).toISOString().replace(/[-:]/g,'').slice(0,11)+'Z';
-    if(manifest.asset_version!==undefined){if(!((manifest.asset_root==='forecast-iceland-cache'&&['atlantic-v1','euroatlantic-v2','euroatlantic-v3','euroatlantic-v4'].includes(manifest.asset_version))||(manifest.asset_root==='forecast-canada-cache'&&['canada-v1','northamerica-v2','northamerica-v3','northamerica-v4'].includes(manifest.asset_version))||((manifest.asset_root||'forecast-cache')==='forecast-cache'&&['temperature-v1','precipitation-v2'].includes(manifest.asset_version))))throw Error('Invalid forecast asset version');cycle+='-'+manifest.asset_version;}
+    if(manifest.asset_version!==undefined){if(!((manifest.asset_root==='forecast-iceland-cache'&&['atlantic-v1','euroatlantic-v2','euroatlantic-v3','euroatlantic-v4','euroatlantic-v5'].includes(manifest.asset_version))||(manifest.asset_root==='forecast-canada-cache'&&['canada-v1','northamerica-v2','northamerica-v3','northamerica-v4','northamerica-v5'].includes(manifest.asset_version))||((manifest.asset_root||'forecast-cache')==='forecast-cache'&&['temperature-v1','precipitation-v2'].includes(manifest.asset_version))))throw Error('Invalid forecast asset version');cycle+='-'+manifest.asset_version;}
     const assetRoot=manifest.asset_root||'forecast-cache';
     if(!['forecast-cache','forecast-iceland-cache','forecast-canada-cache'].includes(assetRoot))throw Error('Invalid forecast asset root');
     if(typeof path!=='string'||!path.startsWith('data/'+assetRoot+'/'+cycle+'/')||path.split('/').length!==4||path.split('/').at(-1)!==name)throw Error('Invalid shared forecast image');
@@ -54,8 +54,8 @@
     return [...new Set(regions.flatMap(region=>cachedTimes(region,now)))].filter(t=>t<=end).sort((a,b)=>a-b);
   }
   function regionLabel(region){
-    if(region.region==='Iceland')return ['euroatlantic-v2','euroatlantic-v3','euroatlantic-v4'].includes(region.asset_version)?'Europe / Arctic':'Iceland / Atlantic';
-    if(region.region==='Canada'&&['northamerica-v2','northamerica-v3','northamerica-v4'].includes(region.asset_version))return 'North America / Atlantic';
+    if(region.region==='Iceland')return ['euroatlantic-v2','euroatlantic-v3','euroatlantic-v4','euroatlantic-v5'].includes(region.asset_version)?'Europe / Arctic':'Iceland / Atlantic';
+    if(region.region==='Canada'&&['northamerica-v2','northamerica-v3','northamerica-v4','northamerica-v5'].includes(region.asset_version))return 'North America / Atlantic';
     return region.region;
   }
   function visibleRegions(regions,bounds,kind,time){

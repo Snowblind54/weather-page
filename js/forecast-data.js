@@ -23,16 +23,25 @@
     if(europe&&grid?.region!=='Europe')throw Error('Invalid Europe gust grid');
     if(america&&grid?.region!=='North America')throw Error('Invalid North America gust grid');
     if(canada&&grid?.region!=='Canada')throw Error('Invalid Canada gust grid');
-    const ordered=(xs,min,max)=>Array.isArray(xs)&&xs.length>=2&&xs.length<=200&&xs.every((v,i)=>number(v)!==null&&v>=min&&v<=max&&(!i||v>xs[i-1]));
+    const ordered=(xs,min,max)=>Array.isArray(xs)&&xs.length>=2&&xs.length<=500&&xs.every((v,i)=>number(v)!==null&&v>=min&&v<=max&&(!i||v>xs[i-1]));
     const run=Date.parse(grid?.reference_time);
-    if(!Number.isFinite(run)||run!==Date.parse(reference)||grid.units!=='m/s'||grid.grid_spacing_degrees!==.25||!ordered(grid.latitudes,(america||europe)?18:canada?40:61,(america||canada||europe)?84:69)||!ordered(grid.longitudes,america?-190:canada?-142:europe?-30:-28,america?-30:canada?-50:europe?60:-12)||!Array.isArray(grid.samples)||!grid.samples.length||grid.samples.length>40)throw Error('Invalid Iceland gust grid');
-    for(const xs of [grid.latitudes,grid.longitudes])if(xs.some((v,i)=>i&&Math.abs(v-xs[i-1]-.25)>1e-8))throw Error('Invalid gust grid spacing');
+    if(!Number.isFinite(run)||run!==Date.parse(reference)||grid.units!=='m/s'||![.1,.25].includes(grid.grid_spacing_degrees)||!ordered(grid.latitudes,(america||europe)?18:canada?40:61,(america||canada||europe)?84:69)||!ordered(grid.longitudes,america?-190:canada?-142:europe?-30:-28,america?-30:canada?-50:europe?60:-12)||!Array.isArray(grid.samples)||!grid.samples.length||grid.samples.length>40)throw Error('Invalid Iceland gust grid');
+    for(const xs of [grid.latitudes,grid.longitudes])if(xs.some((v,i)=>i&&Math.abs(v-xs[i-1]-grid.grid_spacing_degrees)>1e-8))throw Error('Invalid gust grid spacing');
     const count=grid.latitudes.length*grid.longitudes.length;
-    if(count>((america||canada||europe)?30000:10000))throw Error('Oversized gust grid');
+    if(count>((america||canada||europe)?100000:20000))throw Error('Oversized gust grid');
     let previous=-Infinity;
     for(const sample of grid.samples){
+      if(grid.encoding==='uint16-le-base64'){
+        if(grid.scale!==.01)throw Error('Invalid gust quantization');
+        if(typeof sample.values==='string'){
+          const raw=atob(sample.values);if(raw.length!==count*2)throw Error('Incomplete gust bytes');
+          const values=new Float32Array(count);
+          for(let i=0;i<count;i++)values[i]=(raw.charCodeAt(i*2)+256*raw.charCodeAt(i*2+1))*.01;
+          sample.values=values;
+        }
+      }else if(grid.encoding!==undefined)throw Error('Invalid gust encoding');
       const time=Date.parse(sample.time),start=Date.parse(sample.start),end=Date.parse(sample.end);
-      if(!Number.isFinite(time)||!Number.isFinite(start)||time<=previous||time!==end||start<run||start>=end||end-start>3*3600000||(time-run)%(3*3600000)!==0||time<=run||time-run>90*3600000||!Array.isArray(sample.values)||sample.values.length!==count||sample.values.some(v=>number(v)===null||v<0||v>150))throw Error('Invalid native gust sample');
+      if(!Number.isFinite(time)||!Number.isFinite(start)||time<=previous||time!==end||start<run||start>=end||end-start>3*3600000||(time-run)%(3*3600000)!==0||time<=run||time-run>90*3600000||!(Array.isArray(sample.values)||(grid.encoding==='uint16-le-base64'&&sample.values instanceof Float32Array))||sample.values.length!==count||sample.values.some(v=>number(v)===null||v<0||v>150))throw Error('Invalid native gust sample');
       previous=time;
     }
     return grid;
@@ -44,13 +53,13 @@
     const sample=grid.samples.reduce((best,s)=>Math.abs(Date.parse(s.time)-time)<Math.abs(Date.parse(best.time)-time)?s:best);
     if(Math.abs(Date.parse(sample.time)-time)>90*60000)return null;
     const y=nearest(grid.latitudes,lat),x=nearest(grid.longitudes,lon);
-    return {value:sample.values[y*grid.longitudes.length+x],start:Date.parse(sample.start),end:Date.parse(sample.end),time:Date.parse(sample.time),run:Date.parse(grid.reference_time),lat:grid.latitudes[y],lon:grid.longitudes[x]};
+    return {value:sample.values[y*grid.longitudes.length+x],start:Date.parse(sample.start),end:Date.parse(sample.end),time:Date.parse(sample.time),run:Date.parse(grid.reference_time),resolution:grid.grid_spacing_degrees,lat:grid.latitudes[y],lon:grid.longitudes[x]};
   }
   function addGusts(series,grid,lat,lon){
     return series.map(row=>{
       if(row.gust!==null)return row;
       const sample=gustSample(grid,lat,lon,row.time);
-      return sample?{...row,gust:sample.value,gustSource:'ECMWF IFS',gustStart:sample.start,gustEnd:sample.end,gustRun:sample.run}:row;
+      return sample?{...row,gust:sample.value,gustSource:'ECMWF IFS',gustStart:sample.start,gustEnd:sample.end,gustRun:sample.run,gustResolution:sample.resolution}:row;
     });
   }
   function days(series,zone){
