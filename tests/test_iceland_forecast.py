@@ -110,6 +110,17 @@ class IcelandForecastTests(unittest.TestCase):
         b={**a,'tp':np.array([[-.001]]),'10fg':np.array([[5.]])}
         with self.assertRaises(ValueError):m.hourly_fields(a,b,.5)
 
+    def test_fine_precipitation_accepts_native_ccsds_precision_but_rejects_large_error(self):
+        run=datetime(2026,10,21,tzinfo=timezone.utc)
+        for spacing,error,accepted in [(.1,2**-13,True),(.25,2**-13,False),(.1,.001,False)]:
+            axis=np.array([0.,spacing]);grid=np.zeros((2,2))
+            decoded=(axis,axis,grid,'m',0,42,error)
+            rows={'tp':{'_offset':0,'_length':4,'_grid_spacing':spacing}}
+            with patch.object(m,'request',return_value=b'grib'),patch.object(m,'decode',return_value=decoded):
+                if accepted:self.assertEqual(m.read_step(run,42,rows)['tp_packing_error'],error)
+                else:
+                    with self.assertRaises(ValueError):m.read_step(run,42,rows)
+
     def test_grib_rounding_decrease_is_zero_within_both_error_bounds(self):
         a={k:np.array([[0.]]) for k in ['2t','10u','10v','tp','tcc']}
         a['tp_packing_error']=2**-18
