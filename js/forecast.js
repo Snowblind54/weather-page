@@ -78,7 +78,7 @@
     try{
       const response=await fetch(path,{signal:abort.signal,cache:'force-cache'});
       if(!response.ok)return null;
-      const grid=MetForecastData.validateGustGrid(await response.json(),reference,['northamerica-v2','northamerica-v3','northamerica-v4','northamerica-v5'].includes(canadaMeta.asset_version)?'North America':'Canada');
+      const grid=MetForecastData.validateGustGrid(await MetForecastData.prepareGustGrid(await response.json()),reference,['northamerica-v2','northamerica-v3','northamerica-v4','northamerica-v5'].includes(canadaMeta.asset_version)?'North America':'Canada');
       if(canadaMeta.reference_time===reference){canadaGrids.set(path,grid);while(canadaGrids.size>3)canadaGrids.delete(canadaGrids.keys().next().value);}
       return grid;
     }catch(error){console.warn('North America gust grid unavailable',error);return null;}
@@ -113,7 +113,7 @@
     try{
       const response=await fetch(path,{signal:abort.signal,cache:'force-cache'});
       if(!response.ok)return null;
-      const grid=MetForecastData.validateGustGrid(await response.json(),reference,'Europe');
+      const grid=MetForecastData.validateGustGrid(await MetForecastData.prepareGustGrid(await response.json()),reference,'Europe');
       if(europeMeta.reference_time===reference){europeGrids.set(path,grid);while(europeGrids.size>3)europeGrids.delete(europeGrids.keys().next().value);}
       return grid;
     }catch(error){console.warn('Europe gust grid unavailable',error);return null;}
@@ -134,7 +134,7 @@
         if(meta.gust_grid?.path!==path||meta.gust_grid.units!=='m/s')throw Error('No shared Iceland gust grid');
         const reply=await fetch(path,{signal:abort.signal,cache:'force-cache'});
         if(!reply.ok)throw Error('Iceland gust grid unavailable');
-        gustGrid=MetForecastData.validateGustGrid(await reply.json(),meta.reference_time);gustChecked=Date.now();
+        gustGrid=MetForecastData.validateGustGrid(await MetForecastData.prepareGustGrid(await reply.json()),meta.reference_time);gustChecked=Date.now();
       }catch{gustChecked=Date.now()-13*60000;}
       finally{clearTimeout(timer);}
       return gustGrid;

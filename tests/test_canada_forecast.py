@@ -44,7 +44,7 @@ class CanadaForecast(unittest.TestCase):
   with tempfile.TemporaryDirectory() as tmp:
    root=pathlib.Path(tmp);canada.write_gusts(frames(),RUN,root);files=list(root.glob('gust-grid*'));self.assertEqual(len(files),12)
    for path in files:
-    data=json.loads(path.read_text());self.assertEqual(data['region'],'North America');self.assertEqual(len(data['samples']),30);self.assertEqual(__import__('struct').unpack('<H',__import__('base64').b64decode(data['samples'][0]['values'])[:2])[0],1200);self.assertEqual(data['samples'][0]['start'],'2026-10-12T06:00:00.000Z');self.assertEqual(data['samples'][0]['end'],'2026-10-12T09:00:00.000Z');self.assertGreaterEqual(data['longitudes'][0],data['bounds'][0]);self.assertLessEqual(data['longitudes'][-1],data['bounds'][2])
+    data=json.loads(path.read_text());self.assertEqual(data['region'],'North America');self.assertEqual(len(data['samples']),30);self.assertEqual(__import__('struct').unpack('<H',__import__('gzip').decompress(__import__('base64').b64decode(data['samples'][0]['values']))[:2])[0],1200);self.assertEqual(data['samples'][0]['start'],'2026-10-12T06:00:00.000Z');self.assertEqual(data['samples'][0]['end'],'2026-10-12T09:00:00.000Z');self.assertGreaterEqual(data['longitudes'][0],data['bounds'][0]);self.assertLessEqual(data['longitudes'][-1],data['bounds'][2])
  def test_only_referenced_immutable_nordic_palettes_are_restored(self):
   with tempfile.TemporaryDirectory() as tmp:
    root=pathlib.Path(tmp);paths={k:'data/forecast-cache/run/'+k+'-legend.webp' for k in ifs.FIELDS};calls=[]

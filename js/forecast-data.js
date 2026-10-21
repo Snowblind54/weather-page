@@ -17,6 +17,23 @@
     const parts=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(time));
     return ['year','month','day'].map(key=>parts.find(p=>p.type===key).value).join('-');
   }
+  async function prepareGustGrid(grid){
+    if(grid?.encoding!=='uint16-le-gzip-base64')return grid;
+    const count=grid.latitudes?.length*grid.longitudes?.length;
+    if(!Number.isInteger(count)||count<4||count>100000||!Array.isArray(grid.samples)||grid.samples.length>40||grid.scale!==.01)throw Error('Invalid compressed gust grid');
+    for(const sample of grid.samples){
+      if(typeof sample.values!=='string'||sample.values.length>count*4+256)throw Error('Invalid compressed gust bytes');
+      const bytes=Uint8Array.from(atob(sample.values),c=>c.charCodeAt(0));
+      const reader=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')).getReader();
+      const raw=new Uint8Array(count*2);let length=0;
+      try{
+        while(true){const {value,done}=await reader.read();if(done)break;if(length+value.length>raw.length)throw Error('Oversized gust bytes');raw.set(value,length);length+=value.length;}
+      }finally{await reader.cancel();}
+      if(length!==raw.length)throw Error('Incomplete gust bytes');
+      sample.values=Float32Array.from({length:count},(_,i)=>(raw[i*2]+256*raw[i*2+1])*.01);
+    }
+    grid.encoding='uint16-le-base64';return grid;
+  }
   function validateGustGrid(grid,reference,region='Iceland'){
     if(!['Iceland','Canada','North America','Europe'].includes(region))throw Error('Invalid forecast gust region');
     const america=region==='North America',canada=region==='Canada',europe=region==='Europe';
@@ -81,7 +98,7 @@
     }
     return Array.from(groups.values()).slice(0,7).map(d=>({...d,partial:d.partial||d.rainHours<24}));
   }
-  const api={rows,days,dayKey,validateGustGrid,gustSample,addGusts};
+  const api={rows,days,dayKey,prepareGustGrid,validateGustGrid,gustSample,addGusts};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else root.MetForecastData=api;
 })(typeof window==='undefined'?{}:window);

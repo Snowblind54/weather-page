@@ -5,6 +5,7 @@ are interpolated numerically, not by blending coloured images. Precipitation
 is a three-hour mean rate; gusts retain the maximum over their native GRIB interval.
 """
 import base64
+import gzip
 import io
 import json
 import math
@@ -251,11 +252,11 @@ def ensure_nordic_inputs(nordic, root, restore=None):
     return root / paths[0]
 
 def gust_encoding(resolution):
-    return {'encoding':'uint16-le-base64','scale':.01} if resolution==.1 else {}
+    return {'encoding':'uint16-le-gzip-base64','scale':.01} if resolution==.1 else {}
 
 def gust_values(values,resolution):
     if resolution==.1:
-        return base64.b64encode(np.rint(values*100).astype('<u2').tobytes()).decode('ascii')
+        return base64.b64encode(gzip.compress(np.rint(values*100).astype('<u2').tobytes(),mtime=0)).decode('ascii')
     return np.round(values,3).ravel().tolist()
 
 def main():

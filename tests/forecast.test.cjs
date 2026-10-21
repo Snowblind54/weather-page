@@ -169,3 +169,13 @@ test('9 km encoded gusts preserve native points and zero while rejecting truncat
  assert.equal(forecast.gustSample(g,65.1,-19.1,t).value,14);assert.equal(forecast.gustSample(g,65.1,-19.1,t).resolution,.1);
  assert.equal(forecast.gustSample(g,65.2,-19.1,t),null);
 });
+
+
+test('Compressed 9 km gust payloads decode with bounded size before native validation',async()=>{
+ const g=gustGrid();g.grid_spacing_degrees=.1;g.latitudes=[65,65.1];g.longitudes=[-19.2,-19.1];g.encoding='uint16-le-gzip-base64';g.scale=.01;
+ for(const s of g.samples){const bytes=Buffer.alloc(8);s.values.forEach((v,i)=>bytes.writeUInt16LE(Math.round(v*100),i*2));s.values=require('node:zlib').gzipSync(bytes).toString('base64');}
+ const broken=structuredClone(g);broken.samples[0].values=require('node:zlib').gzipSync(Buffer.alloc(100)).toString('base64');
+ await assert.rejects(()=>forecast.prepareGustGrid(broken));
+ const ready=forecast.validateGustGrid(await forecast.prepareGustGrid(g),g.reference_time);
+ assert.equal(ready.samples[0].values[0],0);assert.equal(ready.samples[0].values[3],14);
+});
