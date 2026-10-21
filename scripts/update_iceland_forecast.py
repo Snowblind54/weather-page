@@ -115,9 +115,9 @@ def read_step(run, step, rows=None, bounds=None):
         if unit not in expected: raise ValueError(f'Unexpected {name} units: {unit}')
         if name=='tp' and (start!=0 or end!=step): raise ValueError('Rain is not accumulation since run start')
         if name=='tp':
-            # Fine surface TP uses 12-bit CCSDS packing. Later global totals
+            # Surface TP uses 12-bit CCSDS packing. Later global totals
             # need a larger quantum; retain that measured bound for deaccumulation.
-            maximum_error=.0005 if spacing==.1 else .0001
+            maximum_error=.0005
             if not math.isfinite(packing_error) or not 0<=packing_error<=maximum_error:
                 raise ValueError('Unexpected precipitation packing error')
             result['tp_packing_error']=packing_error

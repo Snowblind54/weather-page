@@ -110,9 +110,9 @@ class IcelandForecastTests(unittest.TestCase):
         b={**a,'tp':np.array([[-.001]]),'10fg':np.array([[5.]])}
         with self.assertRaises(ValueError):m.hourly_fields(a,b,.5)
 
-    def test_fine_precipitation_accepts_native_ccsds_precision_but_rejects_large_error(self):
+    def test_both_precipitation_tiers_accept_native_ccsds_precision_but_reject_large_error(self):
         run=datetime(2026,10,21,tzinfo=timezone.utc)
-        for spacing,error,accepted in [(.1,2**-13,True),(.25,2**-13,False),(.1,.001,False)]:
+        for spacing,error,accepted in [(.1,2**-13,True),(.25,2**-13,True),(.1,.001,False),(.25,.001,False)]:
             axis=np.array([0.,spacing]);grid=np.zeros((2,2))
             decoded=(axis,axis,grid,'m',0,42,error)
             rows={'tp':{'_offset':0,'_length':4,'_grid_spacing':spacing}}
