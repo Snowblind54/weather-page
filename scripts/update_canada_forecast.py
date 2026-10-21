@@ -18,6 +18,7 @@ import update_iceland_forecast as ifs
 DATA = Path(__file__).resolve().parents[1]/'data'
 BOUNDS = [-190, 18, -30, 84]
 SIZE = 2048
+FINE_SIZE = 1792
 VERSION = 'northamerica-v5'
 ASSET_ROOT = 'forecast-canada-cache'
 MAX_BYTES = 200*1024*1024
@@ -46,7 +47,7 @@ def gust_manifest(run,resolution=.1):
 
 
 def write_gusts(frames, run, destination):
-    # Preserve the native 0.25-degree samples; fetch only the regional grid
+    # Preserve the native grid samples; fetch only the regional grid
     # containing a clicked point instead of downloading all North America gusts.
     first=frames[min(frames)]
     for band,(west,south,east,north) in enumerate(GUST_AREAS):
@@ -107,9 +108,10 @@ def complete_previous(previous, run, root, resolution=None):
     return all(isinstance(p,str) and p.startswith(prefix) and (root/p).is_file() and (root/p).stat().st_size>0 for p in paths)
 
 
-def publish(frames, run, nordic, palettes, data=DATA, size=SIZE):
+def publish(frames, run, nordic, palettes, data=DATA, size=None):
     resolution=frames[min(frames)].get('grid_spacing_degrees',.25)
     version=VERSION if resolution==.1 else 'northamerica-v4'
+    size=(FINE_SIZE if resolution==.1 else SIZE) if size is None else size
     root=data/ASSET_ROOT;root.mkdir(parents=True,exist_ok=True)
     stage=Path(tempfile.mkdtemp(prefix='_staging-',dir=root))
     try:
