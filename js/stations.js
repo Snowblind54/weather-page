@@ -4,7 +4,7 @@
 // follow the selected playback frame without every visitor hitting national APIs.
 
 const OFFICIAL_TEMP_REFRESH_MS=10*60*1000;
-const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsV814';
+const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsFranceAndorraV1';
 const OFFICIAL_TEMP_SNAPSHOT_URL='data/official-temperature.json';
 const OFFICIAL_TEMP_CACHE_MAX_AGE=45*60*1000;
 const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;

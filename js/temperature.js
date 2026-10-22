@@ -234,6 +234,8 @@ const TEMP_REGION_COUNTRY_IDS={
   'british-isles':new Set(['826','372']),
   faroes:new Set(['234']),
   'western-europe':new Set(['276','528','056','442']),
+  france:new Set(['250']),
+  andorra:new Set(['020']),
   'central-europe':new Set(['203','703']),
   'usa-alaska':new Set(['840']),
   'usa-hawaii':new Set(['840']),

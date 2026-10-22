@@ -3,7 +3,7 @@
 (function(root){
   'use strict';
   const radiusKm=125;
-  const measuredCountries=new Set(['US','GB','IE','FO','DE','NL','BE','CZ','SK','LU']);
+  const measuredCountries=new Set(['US','GB','IE','FO','DE','NL','BE','CZ','SK','LU','FR','AD']);
   const regions=[
     {id:'usa',bounds:[[24,-125],[50,-66]],w:450,h:260,stationBased:true},
     {id:'usa-alaska',bounds:[[50,-180],[72,-129]],w:350,h:240,stationBased:true},
@@ -12,6 +12,8 @@
     {id:'british-isles',countries:['GB','IE'],bounds:[[49,-11],[61,3]],w:240,h:310,stationBased:true},
     {id:'faroes',countries:['FO'],bounds:[[61.3,-7.8],[62.5,-6.1]],w:130,h:170,stationBased:true},
     {id:'western-europe',countries:['DE','NL','BE','LU'],bounds:[[47,2.4],[55.2,15.6]],w:340,h:330,stationBased:true},
+    {id:'france',countries:['FR'],bounds:[[41,-5.5],[51.5,10]],w:360,h:350,stationBased:true},
+    {id:'andorra',countries:['AD'],bounds:[[42.4,1.4],[42.7,1.8]],w:200,h:200,stationBased:true},
     {id:'central-europe',countries:['CZ','SK'],bounds:[[47.6,12],[51.1,22.7]],w:350,h:200,stationBased:true}
   ];
   const rad=Math.PI/180;
@@ -19,7 +21,7 @@
   function stations(unix){
     return typeof officialStationsNearTime==='function'?officialStationsNearTime(unix).filter(s=>
       measuredCountries.has(s.country)&&Number.isFinite(s.temp)&&Number.isFinite(s.time)&&
-      Math.abs(s.time-unix)<=95*60):[];
+      Math.abs(s.time-unix)<=(s.country==='FR'?4*3600:95*60)):[];
   }
   async function raster(region,observations,unix,valid=()=>true,yieldFrame=()=>Promise.resolve()){
     const W=region.w,H=region.h,[south,west]=region.bounds[0],[north,east]=region.bounds[1];
@@ -31,7 +33,7 @@
     for(const s of observations){
       if(!valid())return null;
       if(!(region.countries||['US']).includes(s.country)||!Number.isFinite(s.temp)||!Number.isFinite(s.lat)||!Number.isFinite(s.lon)||!Number.isFinite(s.time))continue;
-      const age=Math.abs(unix-s.time),ageWeight=age<=3600?1:Math.max(0,(5700-age)/2100);
+      const age=Math.abs(unix-s.time),maxAge=s.country==='FR'?4*3600:5700,ageWeight=age<=3600?1:Math.max(0,(maxAge-age)/(maxAge-3600));
       if(!ageWeight)continue;
       let lon=s.lon;
       while(lon-(west+east)/2>180)lon-=360;

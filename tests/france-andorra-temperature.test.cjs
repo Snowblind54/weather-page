@@ -18,3 +18,12 @@ test('Andorran wind labels at other sensor heights do not bias the 10 m field',(
  vm.createContext(c);vm.runInContext(source.slice(start,end),c);const corrections=c.windHeatmapCorrections(1000,{},'sustained');
  assert.equal(corrections.length,1);assert.equal(corrections[0].lat,42.6);assert.equal(c.windHeatmapCorrections(1000,{},'gust').length,0);
 });
+
+test('French and Andorran official temperatures produce country-clipped station heatmaps',async()=>{
+ const now=1800000000,c={Date,Math,Number,Float32Array,Uint8Array,Promise};vm.createContext(c);vm.runInContext(fs.readFileSync('js/temperature-us.js','utf8'),c);
+ const api=c.NorthernUSTemperature;
+ for(const [id,country,lat,lon,age] of [['france','FR',43.6,1.4,3*3600],['andorra','AD',42.53,1.55,1800]]){
+  const spec=api.regions.find(r=>r.id===id);assert(spec);const raster=await api.raster(spec,[{country,lat,lon,temp:0,time:now-age}],now);
+  assert(raster.alpha.some(a=>a>0));assert([...raster.values].filter(Number.isFinite).every(v=>v===0));
+ }
+});
