@@ -877,10 +877,12 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
     weatherFront();return;
   }
   const usNote=result.regions.some(r=>r.stationBased)?' · official station heatmap':'';
+  const stationOnly=result.regions.length>0&&result.regions.every(r=>r.stationBased);
+  const fieldDescription=stationOnly?'official station interpolation':'terrain-aware hourly model';
   const observationNote=result.correctionCount?` + ${result.correctionCount} fresh official station corrections`:'';
   if($('tempStatus').dataset)$('tempStatus').dataset.unitRange=JSON.stringify([result.minT,result.maxT]);
   $('tempStatus').textContent=
-    `Temperature: terrain-aware hourly model${observationNote} + fast bilinear heatmap${usNote}${$('heatmapOn')?.checked?' · coastline clipped':''}${temperatureUsingStaleCache?' · cached fallback':''} · ${(globalThis.WeatherUnits?.temperature(result.minT,1)??result.minT.toFixed(1)+'°C')} to ${(globalThis.WeatherUnits?.temperature(result.maxT,1)??result.maxT.toFixed(1)+'°C')} · ${fmt(unix)}`;
+    `Temperature: ${fieldDescription}${stationOnly?'':observationNote} + ${stationOnly?'measured':'fast bilinear'} heatmap${usNote}${$('heatmapOn')?.checked?' · coastline clipped':''}${temperatureUsingStaleCache?' · cached fallback':''} · ${(globalThis.WeatherUnits?.temperature(result.minT,1)??result.minT.toFixed(1)+'°C')} to ${(globalThis.WeatherUnits?.temperature(result.maxT,1)??result.maxT.toFixed(1)+'°C')} · ${fmt(unix)}`;
   $('tempStatus').className='status ok';
   weatherFront();
 }
