@@ -4,10 +4,11 @@
 // follow the selected playback frame without every visitor hitting national APIs.
 
 const OFFICIAL_TEMP_REFRESH_MS=10*60*1000;
-const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsFranceAndorraV1';
+const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsMeteoFranceV1';
 const OFFICIAL_TEMP_SNAPSHOT_URL='data/official-temperature.json';
 const OFFICIAL_TEMP_CACHE_MAX_AGE=45*60*1000;
 const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;
+function officialTemperatureMaxAge(station){return station.country==='FR'&&String(station.code||'').startsWith('MF-')?95*60:(OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[station.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET);}
 const OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY=Object.freeze({NO:3*60*60,LV:4*60*60,FR:4*60*60});
 const OFFICIAL_TEMP_HISTORY_SEC=24*60*60;
 const OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC=10*60;
@@ -579,7 +580,7 @@ function officialStationsNearTime(unix){
     }
 
     const age=unix-station.time;
-    const maxOffset=OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[station.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET;
+    const maxOffset=officialTemperatureMaxAge(station);
     // The weather timeline is anchored to radar observations, whose newest
     // frame can trail station feeds. On the Latest frame, prefer the freshest
     // real station reading rather than hiding it merely because it is newer
@@ -596,7 +597,7 @@ function officialStationsNearTime(unix){
       continue;
     }
     const currentAge=unix-current.time;
-    const currentMaxOffset=OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[current.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET;
+    const currentMaxOffset=officialTemperatureMaxAge(current);
     const currentScore=Number.isFinite(current._playbackScore)
       ? current._playbackScore
       : (currentAge>=0?currentAge:currentMaxOffset+Math.abs(currentAge));

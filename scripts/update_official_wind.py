@@ -27,7 +27,7 @@ LATVIA_OBS_RESOURCE = '17460efb-ae99-4d1d-8144-1068f184b05f'
 LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
     'AD': dict(name='Servei Meteorològic Nacional (Andorra) / Meteo.ad',url='https://www.meteo.ad/',timeKind='observation',period='Official measured sustained wind at native station sensor height. Current gusts are unavailable; daily maxima are not used as current gusts.'),
-    'FR': dict(name='Météo-France official SYNOP observations distributed by DWD',url='https://opendata.dwd.de/weather/weather_reports/poi/',timeKind='observation',period='10-minute mean wind at 10 m and maximum gust over the preceding hour, at three-hourly UTC observation times. Mainland France and Corsica; missing gusts remain unavailable.'),
+    'FR': dict(name='Météo-France official national observations with SYNOP backup',url='https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesPaquetObservation',timeKind='observation',period='National six-minute observations when configured; official three-hourly SYNOP backup. Native mean-wind and gust periods are identified by station; missing gusts remain unavailable.'),
     'CZ': dict(name='Czech Hydrometeorological Institute / ČHMÚ',url='https://opendata.chmi.cz/meteorology/climate/now/',timeKind='observation',period='Ten-minute mean wind (Fprum), maximum gust (Fmax), and mean wind direction. Published hourly with UTC observation times; provisional. Suspect, estimated and missing values are excluded.'),
     'SK': dict(name='Slovak Hydrometeorological Institute / SHMÚ',url='https://www.shmu.sk/sk/?page=1&id=meteo_apocasie_sk',timeKind='observation',period='Official automatic-station one-minute scalar mean wind and measured one-minute maximum wind speed. Published in five-minute batches. Source SEČ/CET timestamps (UTC+1 throughout the year) are converted to UTC; provisional.'),
     'DE': dict(name='DWD Climate Data Center',url='https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/',timeKind='observation',period='10-minute mean wind and maximum wind speed over the same ten-minute period; UTC observation time; provisional.',license='CC BY 4.0'),
@@ -480,8 +480,17 @@ def load_andorra(now):
 
 
 def load_france(now):
-    from europe_synop import load_wind
-    return load_wind('FR',now,download)
+    import meteofrance_observations as mf
+    try:
+        rows=mf.load_wind(now,download)
+        print('FR: Météo-France national API:',len(rows),'wind stations',flush=True)
+        return rows
+    except Exception as error:
+        print('FR national wind API unavailable:',str(error)[:180],'; using official SYNOP backup',flush=True)
+        from europe_synop import load_wind
+        rows=load_wind('FR',now,download)
+        for s in rows:s['observationNetwork']='france-synop'
+        return rows
 
 
 def load_lithuania(now):
@@ -567,6 +576,13 @@ def merge(previous, current, now):
     cutoff = int(now.timestamp()) - 24 * 3600
     limit = int(now.timestamp()) + 60
     stations = {}
+    # A provider switch replaces that country's network, avoiding duplicated
+    # stations and mixed six-minute/three-hourly measurement definitions.
+    networks={}
+    for item in current:
+        if item.get('observationNetwork'):
+            networks.setdefault(item['country'],set()).add(item['observationNetwork'])
+    previous=[s for s in previous if len(networks.get(s['country'],()))!=1 or s.get('observationNetwork') in networks[s['country']]]
     for item in previous + current:
         key = (item['country'], item['code'])
         old = stations.get(key, {}).get('rows', [])

@@ -35,12 +35,13 @@ test('unavailable history preserves the reading and recent observations',async()
 
 test('station selection reuses work without changing playback or freshness after updates',()=>{
   const source=read('stations.js');
+  const freshness=source.slice(source.indexOf('function officialTemperatureMaxAge('),source.indexOf('const OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY='));
   const selection=source.slice(source.indexOf('function officialStationsNearTime('),source.indexOf('function officialStationSourceSummary('));
   const c={Map,Number,frames:[{time:now-7200},{time:now}],rows:[
     {country:'NO',code:'1',time:now-7200,temp:0},{country:'NO',code:'1',time:now,temp:10}],
     OFFICIAL_TEMP_LABEL_MAX_OFFSET:5700,OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY:{NO:10800},OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC:600,
     officialTempStationKey:s=>s.country+'|'+s.code};
-  vm.createContext(c);vm.runInContext('let officialTemperatureStations=rows,officialTemperatureSelectionSource=null;const officialTemperatureSelectionCache=new Map();'+selection,c);
+  vm.createContext(c);vm.runInContext('let officialTemperatureStations=rows,officialTemperatureSelectionSource=null;const officialTemperatureSelectionCache=new Map();'+freshness+selection,c);
   const latest=c.officialStationsNearTime(now);assert.equal(latest[0].temp,10);
   assert.equal(c.officialStationsNearTime(now),latest);assert.equal(c.officialStationsNearTime(now-7200)[0].temp,0);
   vm.runInContext('officialTemperatureStations=[{country:"NO",code:"1",time:frames[1].time,temp:15}]',c);

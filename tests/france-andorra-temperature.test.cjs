@@ -27,3 +27,11 @@ test('French and Andorran official temperatures produce country-clipped station 
   assert(raster.alpha.some(a=>a>0));assert([...raster.values].filter(Number.isFinite).every(v=>v===0));
  }
 });
+
+
+test('six-minute national French stations expire separately from three-hourly SYNOP backup',()=>{
+ const c={Date,Math,Number,Map,Set,Promise,JSON,AbortController,setTimeout,clearTimeout,window:{},localStorage:{getItem:()=>null,setItem(){}},loadTemperatures(){},buildTemperatureOverlay(){}};
+ vm.createContext(c);vm.runInContext(fs.readFileSync('js/stations.js','utf8'),c);
+ assert.equal(c.officialTemperatureMaxAge({country:'FR',code:'MF-01014002'}),95*60);
+ assert.equal(c.officialTemperatureMaxAge({country:'FR',code:'SYNOP-07149'}),4*3600);
+});

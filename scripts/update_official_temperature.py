@@ -355,7 +355,12 @@ def merge_country_history(previous, country, fresh, cutoff, now):
             return code
         return f'{station.get("lat")}:{station.get("lon")}'
 
-    for station in previous_country_stations(previous, country, cutoff, now) + list(fresh):
+    fresh=list(fresh)
+    prior=previous_country_stations(previous, country, cutoff, now)
+    networks={s['observationNetwork'] for s in fresh if s.get('observationNetwork')}
+    if len(networks)==1:
+        prior=[s for s in prior if s.get('observationNetwork') in networks]
+    for station in prior + fresh:
         station_key = key(station)
         current = merged.get(station_key)
         if current is None:

@@ -142,3 +142,14 @@ test('Andorran sustained wind displays with native sensor height and no fabricat
  assert.equal(h.group.children.length,1);assert.match(h.group.children[0].popup,/Andorra/);assert.match(h.group.children[0].popup,/20 m/);assert.match(h.group.children[0].popup,/Unavailable/);
  h.elements.officialWindSustained.checked=false;h.elements.officialWindGusts.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,0);
 });
+
+
+test('Meteo-France six-minute observations retain ten-minute gust periods and expire independently of SYNOP',()=>{
+ const h=harness();
+ h.fixture.sources.FR={status:'ok',timeKind:'observation',name:'Météo-France'};
+ h.fixture.stations=[{country:'FR',code:'MF-01014002',name:'Arbent',lat:46.278,lon:5.669,rows:[[h.now-600,0,null,0]],sourceName:'Météo-France national observations',gustLabel:'Gust max · 10 min',period:'Six-minute observations at actual UTC measurement time'}];
+ h.run('officialWindData=validateOfficialWind(fixture)');h.elements.officialWindSustained.checked=true;h.run('renderOfficialWind()');
+ assert.equal(h.group.children.length,1);assert.match(h.group.children[0].popup,/Gust max · 10 min/);assert.match(h.group.children[0].popup,/DonneesPubliquesPaquetObservation/);assert.match(h.group.children[0].popup,/Unavailable/);
+ h.fixture.stations[0].rows[0][0]=h.now-2*3600;assert.equal(h.run('officialWindReading(fixture.stations[0],fixture.generatedAt)'),null);
+ h.fixture.stations[0].code='SYNOP-07149';assert(h.run('officialWindReading(fixture.stations[0],fixture.generatedAt)'));
+});

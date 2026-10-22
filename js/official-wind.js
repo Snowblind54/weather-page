@@ -14,7 +14,7 @@ const OFFICIAL_WIND_GUST_LABELS={
 };
 const OFFICIAL_WIND_SOURCE_LINKS={
   AD:'https://www.meteo.ad/',
-  FR:'https://opendata.dwd.de/weather/weather_reports/poi/',
+  FR:'https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesPaquetObservation',
   CZ:'https://opendata.chmi.cz/meteorology/climate/now/',SK:'https://www.shmu.sk/sk/?page=1&id=meteo_apocasie_sk',
   DE:'https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/',NL:'https://www.knmi.nl/nederland-nu/weer/waarnemingen/',BE:'https://opendata.meteo.be/documentation/?dataset=aws',LU:'https://metapi.ana.lu/api/v1/docs',
   FO:'https://www.dmi.dk/friedata/',GB:'https://aviationweather.gov/data/metar/',IE:'https://opendata2.met.ie/edr/',
@@ -69,7 +69,7 @@ function validateOfficialWind(data,{maxRows=200}={}){
 }
 function officialWindReading(s,unix){
   const limit=Math.min(unix,Date.now()/1000);
-  for(let i=s.rows.length-1;i>=0;i--){const r=s.rows[i];if(r[0]<=limit)return limit-r[0]<=(['LV','FR'].includes(s.country)?4*3600:OFFICIAL_WIND_MAX_AGE)?r:null;}return null;
+  for(let i=s.rows.length-1;i>=0;i--){const r=s.rows[i];if(r[0]<=limit)return limit-r[0]<=(s.country==='FR'&&s.code.startsWith('MF-')?95*60:(['LV','FR'].includes(s.country)?4*3600:OFFICIAL_WIND_MAX_AGE))?r:null;}return null;
 }
 function officialWindHistoryRows(s,endUnix){
   const end=Math.min(endUnix,Date.now()/1000),start=end-24*3600;

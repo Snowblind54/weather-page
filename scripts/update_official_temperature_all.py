@@ -109,8 +109,18 @@ core.LOADERS["LV"] = parse_latvia
 
 
 def parse_france():
-    from europe_synop import load_temperature
-    return load_temperature('FR',core.dt.datetime.now(core.dt.timezone.utc),core.download)
+    import meteofrance_observations as mf
+    now=core.dt.datetime.now(core.dt.timezone.utc)
+    try:
+        rows=mf.load_temperature(now,core.download)
+        print('FR: Météo-France national API:',len(rows),'temperature stations',flush=True)
+        return rows
+    except Exception as error:
+        print('FR national temperature API unavailable:',str(error)[:180],'; using official SYNOP backup',flush=True)
+        from europe_synop import load_temperature
+        rows=load_temperature('FR',now,core.download)
+        for s in rows:s['observationNetwork']='france-synop'
+        return rows
 
 
 def parse_andorra():
@@ -118,7 +128,7 @@ def parse_andorra():
     return load_temperature(core.dt.datetime.now(core.dt.timezone.utc),core.download_json)
 
 
-core.SOURCES.update({'FR':'Météo-France / official SYNOP observations distributed by DWD (three-hourly)',
+core.SOURCES.update({'FR':'Météo-France / national six-minute API with official three-hourly SYNOP backup',
                      'AD':'Servei Meteorològic Nacional (Andorra) / Meteo.ad'})
 core.COUNTRY_BOUNDS.update({'FR':(41,51.5,-5.5,10),'AD':(42.4,42.7,1.4,1.8)})
 core.LOADERS.update({'FR':parse_france,'AD':parse_andorra})
