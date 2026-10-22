@@ -32,7 +32,7 @@ def datastore_records(resource_id: str, **params):
     return records
 
 
-def parse_latvia():
+def parse_latvia_ckan():
     metadata = datastore_records(LATVIA_STATIONS_RESOURCE, limit=1000)
     stations = {}
     for item in metadata:
@@ -76,6 +76,32 @@ def parse_latvia():
     if not out:
         raise ValueError("No current Latvian TDRY temperature observations")
     return out
+
+
+def parse_latvia_portal_or_synop():
+    try:
+        rows=parse_latvia_ckan()
+        now=core.dt.datetime.now(core.dt.timezone.utc)
+        if not any(s['rows'] and s['rows'][-1][0]>=int(now.timestamp())-3*3600 for s in rows):raise ValueError('No recent Latvian portal temperatures')
+        return rows
+    except Exception as error:
+        print('Latvian temperature portal unavailable; using official SYNOP:',str(error)[:150],flush=True)
+        from europe_synop import load_latvian_temperature
+        return load_latvian_temperature(core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+
+def parse_latvia():
+    try:
+        import latvia_observations as lv
+        result=[]
+        for s in lv.load(core.dt.datetime.now(core.dt.timezone.utc),core.download_json):
+            item=core.make_station('LV',s['code'],s['name'],s['lat'],s['lon'],[(r[0],r[1]) for r in s['rows']])
+            if item:item['source']=lv.SOURCE;result.append(item)
+        if not any(s['rows'][-1][0]>=int(core.dt.datetime.now(core.dt.timezone.utc).timestamp())-2*3600 for s in result):raise ValueError('No recent LVĢMC temperatures')
+        return result
+    except Exception as error:
+        print('LVĢMC website temperature feed unavailable:',str(error)[:150],flush=True)
+        return parse_latvia_portal_or_synop()
 
 
 core.SOURCES["LV"] = "Latvian Environment, Geology and Meteorology Centre (LVGMC)"

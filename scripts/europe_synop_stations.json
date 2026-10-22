@@ -1,0 +1,492 @@
+{
+  "source": "DWD station catalogue coordinates converted from degrees/minutes; only stations with published BEOB observation files. UK, metropolitan France and Latvia.",
+  "metadataUrl": "https://www.dwd.de/DE/leistungen/met_verfahren_mosmix/mosmix_stationskatalog.cfg?view=nasPublication",
+  "stations": {
+    "03005": {
+      "country": "GB",
+      "name": "Lerwick",
+      "lat": 60.133333,
+      "lon": -1.183333
+    },
+    "03017": {
+      "country": "GB",
+      "name": "Kirkwall",
+      "lat": 58.95,
+      "lon": -2.9
+    },
+    "03026": {
+      "country": "GB",
+      "name": "Stornoway",
+      "lat": 58.216667,
+      "lon": -6.316667
+    },
+    "03044": {
+      "country": "GB",
+      "name": "Altnaharra",
+      "lat": 58.283333,
+      "lon": -4.433333
+    },
+    "03066": {
+      "country": "GB",
+      "name": "Kinloss",
+      "lat": 57.65,
+      "lon": -3.566667
+    },
+    "03068": {
+      "country": "GB",
+      "name": "Lossiemouth",
+      "lat": 57.716667,
+      "lon": -3.316667
+    },
+    "03075": {
+      "country": "GB",
+      "name": "Wick",
+      "lat": 58.45,
+      "lon": -3.083333
+    },
+    "03091": {
+      "country": "GB",
+      "name": "Aberdeen",
+      "lat": 57.2,
+      "lon": -2.216667
+    },
+    "03100": {
+      "country": "GB",
+      "name": "Tiree",
+      "lat": 56.5,
+      "lon": -6.883333
+    },
+    "03132": {
+      "country": "GB",
+      "name": "West Freugh",
+      "lat": 54.866667,
+      "lon": -4.933333
+    },
+    "03136": {
+      "country": "GB",
+      "name": "Prestwick/Rnas",
+      "lat": 55.516667,
+      "lon": -4.583333
+    },
+    "03158": {
+      "country": "GB",
+      "name": "Charterhall",
+      "lat": 55.716667,
+      "lon": -2.383333
+    },
+    "03162": {
+      "country": "GB",
+      "name": "Eskdalemuir",
+      "lat": 55.316667,
+      "lon": -3.2
+    },
+    "03171": {
+      "country": "GB",
+      "name": "Leuchars",
+      "lat": 56.383333,
+      "lon": -2.866667
+    },
+    "03204": {
+      "country": "GB",
+      "name": "Isle Of Man/Roual.",
+      "lat": 54.083333,
+      "lon": -4.633333
+    },
+    "03220": {
+      "country": "GB",
+      "name": "Carlisle",
+      "lat": 54.933333,
+      "lon": -2.966667
+    },
+    "03257": {
+      "country": "GB",
+      "name": "Leeming",
+      "lat": 54.3,
+      "lon": -1.533333
+    },
+    "03261": {
+      "country": "GB",
+      "name": "Dishforth Airfield",
+      "lat": 54.133333,
+      "lon": -1.416667
+    },
+    "03292": {
+      "country": "GB",
+      "name": "Bridlington",
+      "lat": 54.083333,
+      "lon": -0.183333
+    },
+    "03302": {
+      "country": "GB",
+      "name": "Valley",
+      "lat": 53.25,
+      "lon": -4.533333
+    },
+    "03321": {
+      "country": "GB",
+      "name": "Hawarden",
+      "lat": 53.166667,
+      "lon": -2.983333
+    },
+    "03354": {
+      "country": "GB",
+      "name": "Nottingham/Met",
+      "lat": 53.0,
+      "lon": -1.25
+    },
+    "03377": {
+      "country": "GB",
+      "name": "Waddington",
+      "lat": 53.166667,
+      "lon": 0.516667
+    },
+    "03379": {
+      "country": "GB",
+      "name": "Cranwell",
+      "lat": 53.033333,
+      "lon": -0.5
+    },
+    "03405": {
+      "country": "GB",
+      "name": "Aberdaron",
+      "lat": 52.783333,
+      "lon": -4.733333
+    },
+    "03414": {
+      "country": "GB",
+      "name": "Shawbury",
+      "lat": 52.8,
+      "lon": -2.666667
+    },
+    "03462": {
+      "country": "GB",
+      "name": "Wittering",
+      "lat": 52.616667,
+      "lon": -0.466667
+    },
+    "03482": {
+      "country": "GB",
+      "name": "Marham",
+      "lat": 52.65,
+      "lon": 0.566667
+    },
+    "03502": {
+      "country": "GB",
+      "name": "Aberporth",
+      "lat": 52.133333,
+      "lon": -4.566667
+    },
+    "03520": {
+      "country": "GB",
+      "name": "Shobdon",
+      "lat": 52.25,
+      "lon": -2.883333
+    },
+    "03560": {
+      "country": "GB",
+      "name": "Bedford",
+      "lat": 52.216667,
+      "lon": -0.483333
+    },
+    "03590": {
+      "country": "GB",
+      "name": "Wattisham",
+      "lat": 52.116667,
+      "lon": 0.966667
+    },
+    "03604": {
+      "country": "GB",
+      "name": "Milford Haven",
+      "lat": 51.716667,
+      "lon": -5.05
+    },
+    "03628": {
+      "country": "GB",
+      "name": "Bristol/Filton",
+      "lat": 51.516667,
+      "lon": -2.583333
+    },
+    "03740": {
+      "country": "GB",
+      "name": "Lyneham",
+      "lat": 51.5,
+      "lon": -1.983333
+    },
+    "03743": {
+      "country": "GB",
+      "name": "Larkhill",
+      "lat": 51.2,
+      "lon": -1.816667
+    },
+    "03772": {
+      "country": "GB",
+      "name": "London",
+      "lat": 51.483333,
+      "lon": -0.45
+    },
+    "03781": {
+      "country": "GB",
+      "name": "Kenley",
+      "lat": 51.3,
+      "lon": -0.083333
+    },
+    "03797": {
+      "country": "GB",
+      "name": "Manston",
+      "lat": 51.35,
+      "lon": 1.35
+    },
+    "03808": {
+      "country": "GB",
+      "name": "Camborne",
+      "lat": 50.216667,
+      "lon": -5.333333
+    },
+    "03827": {
+      "country": "GB",
+      "name": "Plymouth",
+      "lat": 50.35,
+      "lon": -4.116667
+    },
+    "03839": {
+      "country": "GB",
+      "name": "Exeter Apt",
+      "lat": 50.733333,
+      "lon": -3.416667
+    },
+    "03853": {
+      "country": "GB",
+      "name": "Yeovilton",
+      "lat": 51.016667,
+      "lon": -2.633333
+    },
+    "03894": {
+      "country": "GB",
+      "name": "Guernsey",
+      "lat": 49.433333,
+      "lon": -2.6
+    },
+    "03895": {
+      "country": "GB",
+      "name": "Jersey-Airport",
+      "lat": 49.216667,
+      "lon": -2.2
+    },
+    "03917": {
+      "country": "GB",
+      "name": "Belfast",
+      "lat": 54.65,
+      "lon": -6.216667
+    },
+    "07005": {
+      "country": "FR",
+      "name": "Abbeville",
+      "lat": 50.133333,
+      "lon": 1.833333
+    },
+    "07015": {
+      "country": "FR",
+      "name": "Lille",
+      "lat": 50.566667,
+      "lon": 3.1
+    },
+    "07020": {
+      "country": "FR",
+      "name": "La Hague",
+      "lat": 49.716667,
+      "lon": -1.933333
+    },
+    "07027": {
+      "country": "FR",
+      "name": "Caen",
+      "lat": 49.183333,
+      "lon": -0.45
+    },
+    "07037": {
+      "country": "FR",
+      "name": "Rouen",
+      "lat": 49.383333,
+      "lon": 1.183333
+    },
+    "07110": {
+      "country": "FR",
+      "name": "Brest",
+      "lat": 48.45,
+      "lon": -4.416667
+    },
+    "07120": {
+      "country": "FR",
+      "name": "St.Brieuc",
+      "lat": 48.533333,
+      "lon": -2.85
+    },
+    "07130": {
+      "country": "FR",
+      "name": "Rennes",
+      "lat": 48.066667,
+      "lon": -1.733333
+    },
+    "07139": {
+      "country": "FR",
+      "name": "Alencon",
+      "lat": 48.433333,
+      "lon": 0.1
+    },
+    "07149": {
+      "country": "FR",
+      "name": "Paris",
+      "lat": 48.733333,
+      "lon": 2.4
+    },
+    "07168": {
+      "country": "FR",
+      "name": "Troyes",
+      "lat": 48.333333,
+      "lon": 4.016667
+    },
+    "07180": {
+      "country": "FR",
+      "name": "Nancy",
+      "lat": 48.683333,
+      "lon": 6.216667
+    },
+    "07190": {
+      "country": "FR",
+      "name": "Strassburg",
+      "lat": 48.55,
+      "lon": 7.633333
+    },
+    "07222": {
+      "country": "FR",
+      "name": "Nantes",
+      "lat": 47.166667,
+      "lon": -1.6
+    },
+    "07240": {
+      "country": "FR",
+      "name": "Tours",
+      "lat": 47.45,
+      "lon": 0.716667
+    },
+    "07255": {
+      "country": "FR",
+      "name": "Bourges",
+      "lat": 47.066667,
+      "lon": 2.366667
+    },
+    "07280": {
+      "country": "FR",
+      "name": "Dijon",
+      "lat": 47.266667,
+      "lon": 5.083333
+    },
+    "07299": {
+      "country": "FR",
+      "name": "Basel-Mlh.",
+      "lat": 47.6,
+      "lon": 7.516667
+    },
+    "07335": {
+      "country": "FR",
+      "name": "Poitiers",
+      "lat": 46.583333,
+      "lon": 0.3
+    },
+    "07434": {
+      "country": "FR",
+      "name": "Limoges",
+      "lat": 45.866667,
+      "lon": 1.183333
+    },
+    "07460": {
+      "country": "FR",
+      "name": "Clermont",
+      "lat": 45.783333,
+      "lon": 3.166667
+    },
+    "07481": {
+      "country": "FR",
+      "name": "Lyon/Satolas",
+      "lat": 45.733333,
+      "lon": 5.083333
+    },
+    "07510": {
+      "country": "FR",
+      "name": "Bordeaux",
+      "lat": 44.833333,
+      "lon": -0.7
+    },
+    "07558": {
+      "country": "FR",
+      "name": "Millau",
+      "lat": 44.116667,
+      "lon": 3.016667
+    },
+    "07577": {
+      "country": "FR",
+      "name": "Montelimar",
+      "lat": 44.583333,
+      "lon": 4.733333
+    },
+    "07621": {
+      "country": "FR",
+      "name": "Tarbes/Ossun",
+      "lat": 43.183333,
+      "lon": 0.0
+    },
+    "07630": {
+      "country": "FR",
+      "name": "Toulouse",
+      "lat": 43.633333,
+      "lon": 1.366667
+    },
+    "07643": {
+      "country": "FR",
+      "name": "Montpellier",
+      "lat": 43.583333,
+      "lon": 3.966667
+    },
+    "07650": {
+      "country": "FR",
+      "name": "Marseille",
+      "lat": 43.45,
+      "lon": 5.216667
+    },
+    "07690": {
+      "country": "FR",
+      "name": "Nizza",
+      "lat": 43.65,
+      "lon": 7.2
+    },
+    "07747": {
+      "country": "FR",
+      "name": "Perpignan",
+      "lat": 42.733333,
+      "lon": 2.866667
+    },
+    "07761": {
+      "country": "FR",
+      "name": "Ajaccio",
+      "lat": 41.916667,
+      "lon": 8.8
+    },
+    "07790": {
+      "country": "FR",
+      "name": "Bastia",
+      "lat": 42.55,
+      "lon": 9.483333
+    },
+    "26406": {
+      "country": "LV",
+      "name": "Liepaja",
+      "lat": 56.483333,
+      "lon": 21.016667
+    },
+    "26422": {
+      "country": "LV",
+      "name": "Riga",
+      "lat": 56.966667,
+      "lon": 24.066667
+    }
+  }
+}

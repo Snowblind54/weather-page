@@ -40,17 +40,6 @@ def parse_scotland(raw, code, metadata):
 
 
 def load_scotland(now):
-    metadata = json.loads(pathlib.Path(__file__).with_name('scotland_wind_stations.json').read_text())['stations']
-    def collect(pair):
-        code, station = pair
-        try:
-            return parse_scotland(core.download(POI+code+'-BEOB.csv'), code, station)
-        except Exception as error:
-            print('Scottish SYNOP', code, 'unavailable:', str(error)[:150], flush=True)
-            return None
-    with futures.ThreadPoolExecutor(max_workers=4) as pool:
-        stations = [s for s in pool.map(collect, metadata.items()) if s]
-    end = int(now.timestamp())
-    for s in stations:
-        s['rows'] = [r for r in s['rows'] if end-24*3600 <= r[0] <= end+60]
-    return [s for s in stations if s['rows'] and s['rows'][-1][0] >= end-3*3600]
+    # Compatibility entry point: the official SYNOP network now covers all UK regions.
+    from europe_synop import load_wind
+    return load_wind('GB',now,core.download)

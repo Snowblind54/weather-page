@@ -26,6 +26,7 @@ LATVIA_DATASTORE = 'https://data.gov.lv/dati/api/3/action/datastore_search?'
 LATVIA_OBS_RESOURCE = '17460efb-ae99-4d1d-8144-1068f184b05f'
 LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
+    'FR': dict(name='Météo-France official SYNOP observations distributed by DWD',url='https://opendata.dwd.de/weather/weather_reports/poi/',timeKind='observation',period='10-minute mean wind at 10 m and maximum gust over the preceding hour, at three-hourly UTC observation times. Mainland France and Corsica; missing gusts remain unavailable.'),
     'CZ': dict(name='Czech Hydrometeorological Institute / ČHMÚ',url='https://opendata.chmi.cz/meteorology/climate/now/',timeKind='observation',period='Ten-minute mean wind (Fprum), maximum gust (Fmax), and mean wind direction. Published hourly with UTC observation times; provisional. Suspect, estimated and missing values are excluded.'),
     'SK': dict(name='Slovak Hydrometeorological Institute / SHMÚ',url='https://www.shmu.sk/sk/?page=1&id=meteo_apocasie_sk',timeKind='observation',period='Official automatic-station one-minute scalar mean wind and measured one-minute maximum wind speed. Published in five-minute batches. Source SEČ/CET timestamps (UTC+1 throughout the year) are converted to UTC; provisional.'),
     'DE': dict(name='DWD Climate Data Center',url='https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/',timeKind='observation',period='10-minute mean wind and maximum wind speed over the same ten-minute period; UTC observation time; provisional.',license='CC BY 4.0'),
@@ -33,7 +34,7 @@ SOURCES = {
     'BE': dict(name='Royal Meteorological Institute of Belgium / RMI-KMI',url='https://opendata.meteo.be/documentation/?dataset=aws',timeKind='observation',period='10-minute mean wind at 10 m and maximum 3-second gust over the last ten minutes; provisional.',license='CC BY 4.0'),
     'LU': dict(name='MeteoLux / ANA Luxembourg-Findel Airport',url='https://metapi.ana.lu/api/v1/docs',timeKind='observation',period='Two-minute mean wind at 10 m and highest 3-second gust over the preceding two minutes, from the runway-midpoint sensor. Published every minute; source observation time; provisional.',license='CC0'),
     'FO': dict(name='DMI / Faroe Islands municipal weather stations',url='https://www.dmi.dk/friedata/',timeKind='observation',period='10-minute mean wind and highest 3-second mean gust over the latest hour. Hourly gusts retain their own timestamp; missing values remain unavailable.'),
-    'GB': dict(name='Official UK airport METAR/SPECI and Met Office Scottish SYNOP observations',url='https://aviationweather.gov/data/metar/',timeKind='observation',period='UK airport METAR/SPECI wind and gusts, plus hourly Scottish SYNOP wind and gusts distributed by DWD. Measurement periods are identified by station; missing gusts remain unavailable.'),
+    'GB': dict(name='Official UK airport METAR/SPECI and Met Office SYNOP observations',url='https://aviationweather.gov/data/metar/',timeKind='observation',period='UK airport METAR/SPECI wind and gusts, plus hourly UK SYNOP wind and gusts distributed by DWD. Measurement periods are identified by station; missing gusts remain unavailable.'),
     'IE': dict(name='Met Éireann – Irish Meteorological Service',url='https://opendata2.met.ie/edr/',timeKind='observation',period='Hourly mean of 3-second wind speeds and maximum 3-second gust over the hour. Direction is the reported 3-second direction at the top of the hour.'),
     'US': dict(name='NOAA / National Weather Service Aviation Weather Center',
                url='https://aviationweather.gov/data/metar/', timeKind='observation',
@@ -53,8 +54,8 @@ SOURCES = {
     'IS': dict(name='Icelandic Meteorological Office (IMO)', url='https://api.vedur.is/weather/',
                timeKind='observation', period='10-minute automatic-station mean wind and reported gust.', license='CC BY 4.0'),
     'LV': dict(name='Latvian Environment, Geology and Meteorology Centre (LVĢMC)',
-               url='https://data.gov.lv/dati/lv/dataset/hidrometeorologiskie-noverojumi', timeKind='observation',
-               period='Observed mean wind, maximum gust and direction from the operational meteorological feed.',
+               url='https://videscentrs.lvgmc.lv/', timeKind='observation',
+               period='Hourly station wind and maximum gust over the hour from the LVĢMC website. National-portal and three-hourly official SYNOP backups retain their native observation times.',
                license='CC0 1.0'),
     'LT': dict(name='Lithuanian Hydrometeorological Service (LHMT)', url='https://api.meteo.lt/',
                timeKind='observation', period='Hourly measured wind speed, maximum hourly gust and direction.'),
@@ -134,7 +135,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    south,north,west,east = {'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
+    south,north,west,east = {'FR':(41,51.5,-5.5,10),'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
     if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
@@ -431,7 +432,7 @@ def load_iceland(now):
     return parse_iceland(observations, metadata)
 
 
-def load_latvia(now):
+def load_latvia_ckan(now):
     metadata = download_json(LATVIA_DATASTORE + urllib.parse.urlencode({
         'resource_id': LATVIA_STATIONS_RESOURCE, 'limit': 1000
     }))['result']['records']
@@ -441,6 +442,40 @@ def load_latvia(now):
                   'filters': json.dumps({'ABBREVIATION': abbreviation})}
         payloads[abbreviation] = download_json(LATVIA_DATASTORE + urllib.parse.urlencode(params))['result']['records']
     return parse_latvia(payloads, metadata)
+
+
+def load_latvia_portal_or_synop(now):
+    try:
+        rows=load_latvia_ckan(now)
+        if not any(s['rows'] and s['rows'][-1][0]>=int(now.timestamp())-3*3600 for s in rows):raise ValueError('No recent Latvian portal observations')
+        return rows
+    except Exception as error:
+        print('Latvian portal unavailable; using official SYNOP observations:',str(error)[:150],flush=True)
+        from europe_synop import load_wind
+        rows=load_wind('LV',now,download)
+        if not rows:raise ValueError('No current Latvian portal or SYNOP wind observations')
+        return rows
+
+
+def load_latvia(now):
+    try:
+        import latvia_observations as lv
+        observations=lv.load(now,download_json)
+        result=[]
+        for s in observations:
+            item=station('LV',s['code'],s['name'],s['lat'],s['lon'],[(r[0],r[2],r[3],r[4]) for r in s['rows']])
+            item.update(sourceName=lv.SOURCE,sourceUrl='https://videscentrs.lvgmc.lv/',gustLabel='Gust max · 1 hour',period='Reported station wind speed and maximum gust over the hour, in m/s. Hourly observations retain their actual UTC times.')
+            if item['rows']:result.append(item)
+        if not any(s['rows'][-1][0]>=int(now.timestamp())-2*3600 for s in result):raise ValueError('No recent LVĢMC wind measurements')
+        return result
+    except Exception as error:
+        print('LVĢMC website wind feed unavailable:',str(error)[:150],flush=True)
+        return load_latvia_portal_or_synop(now)
+
+
+def load_france(now):
+    from europe_synop import load_wind
+    return load_wind('FR',now,download)
 
 
 def load_lithuania(now):
@@ -553,14 +588,14 @@ def main():
                ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_usa),
                ('FO', load_faroes), ('GB', load_britain), ('IE', load_ireland),
                ('DE', load_germany), ('NL', load_netherlands), ('BE', load_belgium), ('LU', load_luxembourg),
-               ('CZ', load_czechia), ('SK', load_slovakia)]
+               ('CZ', load_czechia), ('SK', load_slovakia), ('FR', load_france)]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):
             country = pending[task]
             try:
                 rows = task.result()
-                if not any(s['rows'] and s['rows'][-1][0] >= int(now.timestamp()) - 3 * 3600 for s in rows):
+                if not any(s['rows'] and s['rows'][-1][0] >= int(now.timestamp()) - (4 if country in ('LV','FR') else 3) * 3600 for s in rows):
                     raise ValueError('No current measured wind observations')
                 results += rows
                 sources[country] = {**SOURCES[country], 'status': 'ok', 'fetchedAt': int(now.timestamp())}

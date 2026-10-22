@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/latvia_observations.py
+      - scripts/europe_synop.py
+      - scripts/europe_synop_stations.json
+      - tests/test_europe_synop.py
       - scripts/update_official_temperature.py
       - scripts/update_official_temperature_all.py
       - scripts/update_north_america_temperature.py
@@ -25,7 +29,7 @@ permissions:
   contents: write
 concurrency:
   group: update-official-temperature
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   R2_PAUSED: ${{ vars.R2_PAUSED }}
@@ -47,6 +51,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install boto3==1.40.50
+      - name: Check shared official SYNOP observations
+        run: python3 -m unittest discover -s tests -p 'test_europe_synop.py' -v
       - name: Restore cached updater inputs
         uses: actions/cache@v4
         with:

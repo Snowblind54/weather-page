@@ -1,4 +1,4 @@
-"""Official measured winds for the Faroes, UK airports and Irish stations."""
+"""Official measured winds for the Faroes, UK stations and Irish stations."""
 import urllib.parse
 import update_official_wind as core
 from official_wind_americas import features, interval, DMI
@@ -36,7 +36,7 @@ def load_britain(now):
         print('UK airport wind unavailable:', str(error)[:150], flush=True)
     results.extend(load_scotland(now))
     if not results:
-        raise ValueError('No recent UK airport or Scottish SYNOP wind observations')
+        raise ValueError('No recent UK airport or UK SYNOP wind observations')
     return results
 
 

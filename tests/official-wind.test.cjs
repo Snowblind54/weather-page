@@ -124,3 +124,12 @@ test('Czech and Slovak wind observations retain country scope, native gust label
  h.fixture.stations[1].rows[0][2]=null;assert.match(h.run('officialWindPopup(fixture.stations[1],fixture.stations[1].rows[0])'),/Unavailable/);
  h.fixture.stations[1].lon=12;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
 });
+
+test('French mainland and Corsican reports validate and keep three-hourly native times',()=>{
+ const h=harness(),t=h.now-3.5*3600;
+ h.fixture.sources.FR={status:'ok',timeKind:'observation',name:'Météo-France',period:'Three-hourly official SYNOP'};
+ h.fixture.stations=[{country:'FR',code:'SYNOP-07761',name:'Ajaccio',lat:41.916667,lon:8.8,sourceName:'Météo-France official SYNOP observations distributed by DWD',gustLabel:'Gust max · 1 hour',period:'Maximum gust over the preceding hour',rows:[[t,0,12,0]]}];
+ h.run('officialWindData=validateOfficialWind(fixture)');assert.equal(h.run('officialWindReading(fixture.stations[0],fixture.generatedAt)[2]'),12);
+ assert.match(h.run('officialWindPopup(fixture.stations[0],fixture.stations[0].rows[0])'),/Météo-France.*SYNOP/);
+ h.fixture.stations[0].rows[0][0]-=3600;assert.equal(h.run('officialWindReading(fixture.stations[0],fixture.generatedAt)'),null);
+});
