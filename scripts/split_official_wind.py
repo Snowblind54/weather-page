@@ -12,6 +12,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 LATEST = ROOT / 'data/official-wind.json'
 HISTORY = ROOT / 'data/official-wind-history.json'
 RECENT_SECONDS = 3 * 3600
+# Three-hourly reports need the preceding report as well for two-hour playback.
+RECENT_SECONDS_BY_COUNTRY = {'FR': 6*3600, 'LV': 6*3600}
 
 
 def atomic_json(path, payload):
@@ -35,7 +37,8 @@ def main():
     cutoff = int(snapshot['generatedAt']) - RECENT_SECONDS
     recent = []
     for station in snapshot['stations']:
-        rows = [row for row in station.get('rows', []) if row[0] >= cutoff]
+        station_cutoff=int(snapshot['generatedAt'])-RECENT_SECONDS_BY_COUNTRY.get(station.get('country'),RECENT_SECONDS)
+        rows = [row for row in station.get('rows', []) if row[0] >= station_cutoff]
         if rows:
             recent.append({**station, 'rows': rows})
 

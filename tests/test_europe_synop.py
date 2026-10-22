@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 import unittest
+import tempfile
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 import europe_synop as s
@@ -37,6 +38,18 @@ class EuropeanOfficialObservations(unittest.TestCase):
         self.assertAlmostEqual(meta['03827']['lat'],50.35,places=5)
         self.assertAlmostEqual(meta['07149']['lon'],2.4)
         self.assertNotIn('03953',meta) # Irish station, not UK.
+
+    def test_split_keeps_three_hourly_reports_for_playback_without_growing_other_countries(self):
+        import split_official_wind as split
+        end=int(NOW.timestamp())
+        stations=[dict(country=c,code=c,rows=[[end-7*3600,1,2,0],[end-4*3600,1,2,0],[end-3600,2,3,0]]) for c in ('FR','LV','GB')]
+        with tempfile.TemporaryDirectory() as directory:
+            latest=Path(directory)/'latest.json';history=Path(directory)/'history.json'
+            latest.write_text(json.dumps(dict(version=1,generatedAt=end,stations=stations)))
+            with patch.object(split,'LATEST',latest),patch.object(split,'HISTORY',history):split.main()
+            current=json.loads(latest.read_text())['stations']
+            self.assertEqual([len(s['rows']) for s in current],[2,2,1])
+            self.assertEqual(len(json.loads(history.read_text())['stations'][0]['rows']),3)
 
     def test_latvian_current_feed_preserves_zero_missing_values_and_utc(self):
         metadata=[{'kods':'RIGA','nosaukums':'Rīga','lat':'56.95','lon':'24.1'}]
