@@ -8,6 +8,12 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/iberia_observations.py
+      - tests/fixtures/aemet-hourly.json
+      - tests/fixtures/ipma-stations.json
+      - tests/fixtures/ipma-observations.json
+      - tests/test_iberia_observations.py
+      - tests/iberia-observations.test.cjs
       - scripts/meteofrance_observations.py
       - tests/test_meteofrance_observations.py
       - tests/fixtures/meteofrance-6m.geojson
@@ -74,6 +80,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install boto3==1.40.50
+      - name: Check official Iberian observations
+        run: |
+          python3 -m unittest discover -s tests -p test_iberia_observations.py -v
+          node --test tests/iberia-observations.test.cjs
       - name: Check national Meteo-France observation adapter
         run: python3 -m unittest discover -s tests -p 'test_meteofrance_observations.py' -v
       - name: Check French and Andorran observations

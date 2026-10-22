@@ -26,6 +26,8 @@ LATVIA_DATASTORE = 'https://data.gov.lv/dati/api/3/action/datastore_search?'
 LATVIA_OBS_RESOURCE = '17460efb-ae99-4d1d-8144-1068f184b05f'
 LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
+    'ES': dict(name='AEMET / Agencia Estatal de Meteorología',url='https://www.aemet.es/es/eltiempo/observacion/ultimosdatos',timeKind='observation',period='Ten-minute mean wind and maximum gust over the preceding hour, reported hourly at native UTC observation times. Wind speeds converted from km/h to m/s; provisional.'),
+    'PT': dict(name='IPMA / Instituto Português do Mar e da Atmosfera',url='https://api.ipma.pt/',timeKind='observation',period='Ten-minute mean wind at 10 m, reported hourly. Current gusts are not provided by this feed; missing values remain unavailable. Native UTC observation time; provisional.'),
     'AD': dict(name='Servei Meteorològic Nacional (Andorra) / Meteo.ad',url='https://www.meteo.ad/',timeKind='observation',period='Official measured sustained wind at native station sensor height. Current gusts are unavailable; daily maxima are not used as current gusts.'),
     'FR': dict(name='Météo-France official national observations with SYNOP backup',url='https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesPaquetObservation',timeKind='observation',period='National six-minute observations when configured; official three-hourly SYNOP backup. Native mean-wind and gust periods are identified by station; missing gusts remain unavailable.'),
     'CZ': dict(name='Czech Hydrometeorological Institute / ČHMÚ',url='https://opendata.chmi.cz/meteorology/climate/now/',timeKind='observation',period='Ten-minute mean wind (Fprum), maximum gust (Fmax), and mean wind direction. Published hourly with UTC observation times; provisional. Suspect, estimated and missing values are excluded.'),
@@ -136,7 +138,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    south,north,west,east = {'AD':(42.4,42.7,1.4,1.8),'FR':(41,51.5,-5.5,10),'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
+    south,north,west,east = {'ES':(27,44.5,-19,5),'PT':(30,43,-32,-6),'AD':(42.4,42.7,1.4,1.8),'FR':(41,51.5,-5.5,10),'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
     if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
@@ -474,6 +476,16 @@ def load_latvia(now):
         return load_latvia_portal_or_synop(now)
 
 
+def load_spain(now):
+    from iberia_observations import load_wind
+    return load_wind('ES',now,download)
+
+
+def load_portugal(now):
+    from iberia_observations import load_wind
+    return load_wind('PT',now,download)
+
+
 def load_andorra(now):
     from andorra_observations import load_wind
     return load_wind(now,download_json)
@@ -610,7 +622,7 @@ def main():
                ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_usa),
                ('FO', load_faroes), ('GB', load_britain), ('IE', load_ireland),
                ('DE', load_germany), ('NL', load_netherlands), ('BE', load_belgium), ('LU', load_luxembourg),
-               ('CZ', load_czechia), ('SK', load_slovakia), ('FR', load_france), ('AD', load_andorra)]
+               ('CZ', load_czechia), ('SK', load_slovakia), ('FR', load_france), ('AD', load_andorra), ('ES', load_spain), ('PT', load_portugal)]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):

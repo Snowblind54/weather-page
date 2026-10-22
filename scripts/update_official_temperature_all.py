@@ -134,6 +134,22 @@ core.COUNTRY_BOUNDS.update({'FR':(41,51.5,-5.5,10),'AD':(42.4,42.7,1.4,1.8)})
 core.LOADERS.update({'FR':parse_france,'AD':parse_andorra})
 
 
+def parse_spain():
+    from iberia_observations import load_temperature
+    return load_temperature('ES',core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+
+def parse_portugal():
+    from iberia_observations import load_temperature
+    return load_temperature('PT',core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+
+from iberia_observations import BOUNDS as IBERIA_BOUNDS, SOURCES as IBERIA_SOURCES
+core.SOURCES.update(IBERIA_SOURCES)
+core.COUNTRY_BOUNDS.update(IBERIA_BOUNDS)
+core.LOADERS.update({'ES':parse_spain,'PT':parse_portugal})
+
+
 if __name__ == "__main__":
     core.main()
 

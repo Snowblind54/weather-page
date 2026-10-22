@@ -1,0 +1,324 @@
+{
+  "names": {
+    "C139E": "La Palma Aeropuerto",
+    "C929I": "Hierro Aeropuerto",
+    "9051": "Medina de Pomar",
+    "9208E": "Aragüés del Puerto",
+    "C430E": "Izaña",
+    "2298": "Palacios de la Sierra"
+  },
+  "layers": {
+    "horarios/temp/udat_HH_PB_LOCL_temp_20261022T110000+0200_1792660159.geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -3.482685,
+              42.919901
+            ]
+          },
+          "properties": {
+            "TA": 5.9,
+            "IDEMA": "9051",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -0.672778,
+              42.708611
+            ]
+          },
+          "properties": {
+            "TA": 7.8,
+            "IDEMA": "9208E",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -3.131688,
+              41.959672
+            ]
+          },
+          "properties": {
+            "TA": 4.4,
+            "IDEMA": "2298",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        }
+      ]
+    },
+    "horarios/temp/udat_HH_CN_LOCL_temp_20261022T100000+0100_1792660159.geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -17.88889,
+              27.818888
+            ]
+          },
+          "properties": {
+            "TA": 23.4,
+            "IDEMA": "C929I",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -17.755005,
+              28.633056
+            ]
+          },
+          "properties": {
+            "TA": 22.4,
+            "IDEMA": "C139E",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -16.499722,
+              28.308333
+            ]
+          },
+          "properties": {
+            "TA": 9.0,
+            "IDEMA": "C430E",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        }
+      ]
+    },
+    "horarios/vien/udat_HH_PB_LOCL_vien_20261022T110000+0200_1792660159.geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -3.482685,
+              42.919901
+            ]
+          },
+          "properties": {
+            "VV10m": 2,
+            "DV10m": "S",
+            "IDEMA": "9051",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -0.672778,
+              42.708611
+            ]
+          },
+          "properties": {
+            "VV10m": 2,
+            "DV10m": "E",
+            "IDEMA": "9208E",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -3.131688,
+              41.959672
+            ]
+          },
+          "properties": {
+            "VV10m": 8,
+            "DV10m": "S",
+            "IDEMA": "2298",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        }
+      ]
+    },
+    "horarios/vien/udat_HH_CN_LOCL_vien_20261022T100000+0100_1792660159.geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -17.88889,
+              27.818888
+            ]
+          },
+          "properties": {
+            "VV10m": 15,
+            "DV10m": "SE",
+            "IDEMA": "C929I",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -17.755005,
+              28.633056
+            ]
+          },
+          "properties": {
+            "VV10m": 8,
+            "DV10m": "NW",
+            "IDEMA": "C139E",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -16.499722,
+              28.308333
+            ]
+          },
+          "properties": {
+            "VV10m": 6,
+            "DV10m": "SE",
+            "IDEMA": "C430E",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        }
+      ]
+    },
+    "horarios/rach/udat_HH_PB_LOCL_rach_20261022T110000+0200_1792660159.geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -3.482685,
+              42.919901
+            ]
+          },
+          "properties": {
+            "VMAX10m": 5,
+            "DMAX10m": "SE",
+            "IDEMA": "9051",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -0.672778,
+              42.708611
+            ]
+          },
+          "properties": {
+            "VMAX10m": 7,
+            "DMAX10m": "W",
+            "IDEMA": "9208E",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -3.131688,
+              41.959672
+            ]
+          },
+          "properties": {
+            "VMAX10m": 15,
+            "DMAX10m": "S",
+            "IDEMA": "2298",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        }
+      ]
+    },
+    "horarios/rach/udat_HH_CN_LOCL_rach_20261022T100000+0100_1792660159.geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -17.88889,
+              27.818888
+            ]
+          },
+          "properties": {
+            "VMAX10m": 22,
+            "DMAX10m": "E",
+            "IDEMA": "C929I",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -17.755005,
+              28.633056
+            ]
+          },
+          "properties": {
+            "VMAX10m": 15,
+            "DMAX10m": "W",
+            "IDEMA": "C139E",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -16.499722,
+              28.308333
+            ]
+          },
+          "properties": {
+            "VMAX10m": 10,
+            "DMAX10m": "SE",
+            "IDEMA": "C430E",
+            "FINT": "2026-10-22T09:00:00"
+          }
+        }
+      ]
+    }
+  }
+}

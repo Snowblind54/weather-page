@@ -4,12 +4,12 @@
 // follow the selected playback frame without every visitor hitting national APIs.
 
 const OFFICIAL_TEMP_REFRESH_MS=10*60*1000;
-const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsMeteoFranceV1';
+const OFFICIAL_TEMP_CACHE_KEY='balticWeatherOfficialStationsIberiaV1';
 const OFFICIAL_TEMP_SNAPSHOT_URL='data/official-temperature.json';
 const OFFICIAL_TEMP_CACHE_MAX_AGE=45*60*1000;
 const OFFICIAL_TEMP_LABEL_MAX_OFFSET=95*60;
 function officialTemperatureMaxAge(station){return station.country==='FR'&&String(station.code||'').startsWith('MF-')?95*60:(OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY[station.country]||OFFICIAL_TEMP_LABEL_MAX_OFFSET);}
-const OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY=Object.freeze({NO:3*60*60,LV:4*60*60,FR:4*60*60});
+const OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY=Object.freeze({NO:3*60*60,LV:4*60*60,FR:4*60*60,ES:2*60*60,PT:2*60*60});
 const OFFICIAL_TEMP_HISTORY_SEC=24*60*60;
 const OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC=10*60;
 
@@ -119,7 +119,7 @@ function officialTempCoord(record){
 
 function officialTempValid(lat,lon,temp,country){
   const bounds=country==='GL'?[59,84,-74,-10]:country==='CA'?[41,84,-142,-52]:country==='US'?[18,72,-180,180]:
-    country==='FR'?[41,51.5,-5.5,10]:country==='AD'?[42.4,42.7,1.4,1.8]:country==='DE'?[47,55.2,5.5,15.6]:country==='NL'?[50.5,54,2,8]:country==='BE'?[49.4,51.6,2.4,6.5]:
+    country==='ES'?[27,44.5,-19,5]:country==='PT'?[30,43,-32,-6]:country==='FR'?[41,51.5,-5.5,10]:country==='AD'?[42.4,42.7,1.4,1.8]:country==='DE'?[47,55.2,5.5,15.6]:country==='NL'?[50.5,54,2,8]:country==='BE'?[49.4,51.6,2.4,6.5]:
     country==='CZ'?[48.5,51.1,12,18.9]:country==='SK'?[47.6,49.7,16.7,22.7]:country==='LU'?[49.4,50.2,5.7,6.6]:[48.5,72.5,-26,33];
   return Number.isFinite(lat) && Number.isFinite(lon) &&
     lat>=bounds[0] && lat<=bounds[1] && lon>=bounds[2] && lon<=bounds[3] &&
@@ -503,7 +503,9 @@ const OFFICIAL_TEMP_LOADERS=[
   ['LU',null],
   ['LV',null],
   ['FR',null],
-  ['AD',null]
+  ['AD',null],
+  ['ES',null],
+  ['PT',null]
 ];
 
 async function loadOfficialTemperatureStations(force=false){

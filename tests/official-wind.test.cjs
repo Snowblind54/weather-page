@@ -153,3 +153,17 @@ test('Meteo-France six-minute observations retain ten-minute gust periods and ex
  h.fixture.stations[0].rows[0][0]=h.now-2*3600;assert.equal(h.run('officialWindReading(fixture.stations[0],fixture.generatedAt)'),null);
  h.fixture.stations[0].code='SYNOP-07149';assert(h.run('officialWindReading(fixture.stations[0],fixture.generatedAt)'));
 });
+
+test('Spain and Portugal accept island observations and preserve native gust availability',()=>{
+ const h=harness();h.fixture.stations=[];
+ for(const [country,code,lat,lon,gust] of [['ES','MAD',40.4,-3.7,12],['ES','CAN',28.3,-16.5,8],['PT','LIS',38.7,-9.1,null],['PT','AZO',39.4,-31.1,null],['PT','MAD',32.7,-16.9,null]]){
+  h.fixture.sources[country]={status:'ok',timeKind:'observation',name:country==='ES'?'AEMET':'IPMA',period:'Native hourly report'};
+  h.fixture.stations.push({country,code,name:code,lat,lon,rows:[[h.now-3600,0,gust,270]]});
+ }
+ h.run('officialWindData=validateOfficialWind(fixture)');
+ h.elements.officialWindSustained.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,5);
+ h.elements.officialWindSustained.checked=false;h.elements.officialWindGusts.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,2);
+ assert.match(h.group.children[0].popup,/Gust max · 1 hour/);
+ h.context.selected=h.fixture.stations[2];assert.match(h.run('officialWindPopup(selected,selected.rows[0])'),/Unavailable/);
+ h.fixture.stations[0].lat=59;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+});
