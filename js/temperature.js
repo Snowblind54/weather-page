@@ -1094,6 +1094,12 @@ async function ensureTemperatureData(force=false){
 }
 
 async function loadTemperatures(force=false){
+  // Country selection cancels the previous render. Cached official readings
+  // can draw its new station heatmap while independent model feeds refresh.
+  const currentFrame=frames[Number($('timeline').value)];
+  if(currentFrame && temperatureEnabled() && typeof officialStationsNearTime==='function' && officialStationsNearTime(currentFrame.time).length){
+    queueTemperatureRender(currentFrame.time,0);
+  }
   const americas=loadAmericasTemperatureData(force).then(()=>{
     // Show the shared regions immediately; a slower European API request must
     // not hold back Greenland or Canadian stations and heatmaps.

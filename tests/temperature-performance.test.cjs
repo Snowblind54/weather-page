@@ -63,3 +63,14 @@ test('viewport skips offscreen regions and handles wrapped longitudes and cache 
   view=[30,230,50,295];assert.equal(c.visibleTemperatureRegions().map(r=>r.id).join(','),'usa');
   view=[50,169,56,-169];assert.equal(c.visibleTemperatureRegions().map(r=>r.id).join(','),'aleutians');
 });
+
+test('country changes draw cached official stations before independent model downloads finish',async()=>{
+ const source=read('temperature.js'),queued=[];let finishEurope,finishAmericas;
+ const c={console,Number,Promise,frames:[{time:now}],$:()=>({value:'0'}),temperatureEnabled:()=>true,
+  officialStationsNearTime:()=>[{country:'PT',time:now,temp:15}],queueTemperatureRender:t=>queued.push(t),
+  loadAmericasTemperatureData:()=>new Promise(r=>finishAmericas=r),ensureTemperatureData:()=>new Promise(r=>finishEurope=r),
+  temperatureSeries:[{}],temperatureCitySeries:[{}],TEMP_GRID_SPECS:[],temperatureGridData:new Map()};
+ vm.createContext(c);vm.runInContext(source.slice(source.indexOf('async function loadTemperatures('),source.indexOf('async function prefetchTemperatures(')),c);
+ const pending=c.loadTemperatures();assert.deepEqual(queued,[now]);
+ finishAmericas();finishEurope();await pending;assert(queued.length>1);
+});
