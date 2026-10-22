@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/andorra_observations.py
+      - scripts/andorra_stations.json
+      - tests/test_france_andorra.py
+      - tests/france-andorra-temperature.test.cjs
       - scripts/latvia_observations.py
       - scripts/europe_synop.py
       - scripts/europe_synop_stations.json
@@ -51,6 +55,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install boto3==1.40.50
+      - name: Check French and Andorran observations
+        run: |
+          python3 -m unittest discover -s tests -p 'test_france_andorra.py' -v
+          node --test tests/france-andorra-temperature.test.cjs
       - name: Check shared official SYNOP observations
         run: python3 -m unittest discover -s tests -p 'test_europe_synop.py' -v
       - name: Restore cached updater inputs

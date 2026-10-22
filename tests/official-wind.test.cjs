@@ -133,3 +133,12 @@ test('French mainland and Corsican reports validate and keep three-hourly native
  assert.match(h.run('officialWindPopup(fixture.stations[0],fixture.stations[0].rows[0])'),/Météo-France.*SYNOP/);
  h.fixture.stations[0].rows[0][0]-=3600;assert.equal(h.run('officialWindReading(fixture.stations[0],fixture.generatedAt)'),null);
 });
+
+test('Andorran sustained wind displays with native sensor height and no fabricated gust',()=>{
+ const h=harness();
+ h.fixture.sources.AD={status:'ok',timeKind:'observation',name:'Servei Meteorològic Nacional',period:'Native measured wind'};
+ h.fixture.stations=[{country:'AD',code:'99130027',name:'Envalira Antenes',lat:42.533,lon:1.7168,rows:[[h.now-600,4.5,null,270]],heatmapEligible:false,period:'Native 20 m wind sensor; current gust unavailable.'}];
+ h.run('officialWindData=validateOfficialWind(fixture)');h.elements.officialWindSustained.checked=true;h.run('renderOfficialWind()');
+ assert.equal(h.group.children.length,1);assert.match(h.group.children[0].popup,/Andorra/);assert.match(h.group.children[0].popup,/20 m/);assert.match(h.group.children[0].popup,/Unavailable/);
+ h.elements.officialWindSustained.checked=false;h.elements.officialWindGusts.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,0);
+});

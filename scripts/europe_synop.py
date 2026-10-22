@@ -66,11 +66,15 @@ def load_wind(country,now,download):
 
 
 def load_latvian_temperature(now,download):
+    return load_temperature('LV',now,download)
+
+
+def load_temperature(country,now,download):
     import update_official_temperature as core
     results=[]
-    for code,meta,rows in collect('LV',now,download,(TEMP,)):
-        item=core.make_station('LV','SYNOP-'+code,meta['name'],meta['lat'],meta['lon'],[(t,v[TEMP]) for t,v in rows])
+    for code,meta,rows in collect(country,now,download,(TEMP,)):
+        item=core.make_station(country,'SYNOP-'+code,meta['name'],meta['lat'],meta['lon'],[(t,v[TEMP]) for t,v in rows])
         if item and item['rows'][-1][0]>=int(now.timestamp())-4*3600:
-            item['source']='LVĢMC official SYNOP observations distributed by DWD (three-hourly, UTC)';results.append(item)
-    if not results:raise ValueError('No current official Latvian SYNOP temperatures')
+            item['source']=PROVIDERS[country]+' official SYNOP observations distributed by DWD (three-hourly, UTC)';results.append(item)
+    if not results:raise ValueError('No current official '+country+' SYNOP temperatures')
     return results

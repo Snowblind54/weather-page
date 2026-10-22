@@ -108,6 +108,22 @@ core.SOURCES["LV"] = "Latvian Environment, Geology and Meteorology Centre (LVGMC
 core.LOADERS["LV"] = parse_latvia
 
 
+def parse_france():
+    from europe_synop import load_temperature
+    return load_temperature('FR',core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+
+def parse_andorra():
+    from andorra_observations import load_temperature
+    return load_temperature(core.dt.datetime.now(core.dt.timezone.utc),core.download_json)
+
+
+core.SOURCES.update({'FR':'Météo-France / official SYNOP observations distributed by DWD (three-hourly)',
+                     'AD':'Servei Meteorològic Nacional (Andorra) / Meteo.ad'})
+core.COUNTRY_BOUNDS.update({'FR':(41,51.5,-5.5,10),'AD':(42.4,42.7,1.4,1.8)})
+core.LOADERS.update({'FR':parse_france,'AD':parse_andorra})
+
+
 if __name__ == "__main__":
     core.main()
 

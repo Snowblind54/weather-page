@@ -1,8 +1,9 @@
 // Measured station labels load independently of the modeled particle animation.
 const OFFICIAL_WIND_CHECK_MS=5*60*1000,OFFICIAL_WIND_MAX_AGE=3*3600;
-const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL','CA','GL','US','FO','GB','IE','DE','NL','BE','LU','CZ','SK','FR'];
-const OFFICIAL_WIND_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland',CA:'Canada',GL:'Greenland',US:'USA',FO:'Faroe Islands',GB:'UK',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg',CZ:'Czechia',SK:'Slovakia',FR:'France'};
+const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL','CA','GL','US','FO','GB','IE','DE','NL','BE','LU','CZ','SK','FR','AD'];
+const OFFICIAL_WIND_COUNTRY_NAMES={AD:'Andorra',EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland',CA:'Canada',GL:'Greenland',US:'USA',FO:'Faroe Islands',GB:'UK',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg',CZ:'Czechia',SK:'Slovakia',FR:'France'};
 const OFFICIAL_WIND_GUST_LABELS={
+  AD:'Current gust unavailable',
   FR:'Gust max · 1 hour',
   CZ:'Gust max · 10 min',SK:'Measured wind max · 1 min',
   DE:'Gust max · 10 min',NL:'Reported gust · 10 min',BE:'Max 3-sec gust · 10 min',LU:'Max 3-sec gust · 2 min',
@@ -12,6 +13,7 @@ const OFFICIAL_WIND_GUST_LABELS={
   GL:'Max 3-sec mean · 10 min',CA:'Instantaneous wind max · 10 min',US:'Measured gust',PL:'Gust max · 10 min'
 };
 const OFFICIAL_WIND_SOURCE_LINKS={
+  AD:'https://www.meteo.ad/',
   FR:'https://opendata.dwd.de/weather/weather_reports/poi/',
   CZ:'https://opendata.chmi.cz/meteorology/climate/now/',SK:'https://www.shmu.sk/sk/?page=1&id=meteo_apocasie_sk',
   DE:'https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/',NL:'https://www.knmi.nl/nederland-nu/weer/waarnemingen/',BE:'https://opendata.meteo.be/documentation/?dataset=aws',LU:'https://metapi.ana.lu/api/v1/docs',
@@ -51,7 +53,7 @@ function validateOfficialWind(data,{maxRows=200}={}){
   if(data?.version!==1||data.units!=='m/s'||data.refreshMinutes!==10||!Number.isInteger(data.generatedAt)||data.generatedAt>now+300||!Array.isArray(data.stations)||data.stations.length>10000)throw new Error('Invalid official wind snapshot');
   const ids=new Set();
   for(const s of data.stations){
-    const [south,north,west,east]=({FR:[41,51.5,-5.5,10],CA:[41,84,-142,-52],GL:[59,84,-74,-10],US:[18,72,-180,180],FO:[61,63,-8,-6],GB:[49,61,-9,3],IE:[51,56,-11,-5],DE:[47,55.2,5.5,15.6],NL:[50.5,54,2,8],BE:[49.4,51.6,2.4,6.5],LU:[49.4,50.2,5.7,6.6],CZ:[48.5,51.1,12,18.9],SK:[47.6,49.7,16.7,22.7]})[s.country]||[48.5,72.5,-26,33];
+    const [south,north,west,east]=({AD:[42.4,42.7,1.4,1.8],FR:[41,51.5,-5.5,10],CA:[41,84,-142,-52],GL:[59,84,-74,-10],US:[18,72,-180,180],FO:[61,63,-8,-6],GB:[49,61,-9,3],IE:[51,56,-11,-5],DE:[47,55.2,5.5,15.6],NL:[50.5,54,2,8],BE:[49.4,51.6,2.4,6.5],LU:[49.4,50.2,5.7,6.6],CZ:[48.5,51.1,12,18.9],SK:[47.6,49.7,16.7,22.7]})[s.country]||[48.5,72.5,-26,33];
     if(!OFFICIAL_WIND_COUNTRIES.includes(s.country)||!data.sources?.[s.country]||typeof s.code!=='string'||!s.code||typeof s.name!=='string'||!Number.isFinite(s.lat)||s.lat<south||s.lat>north||!Number.isFinite(s.lon)||s.lon<west||s.lon>east||!Array.isArray(s.rows)||s.rows.length>maxRows)throw new Error('Invalid official wind station');
     const id=s.country+'/'+s.code;if(ids.has(id))throw new Error('Duplicate official wind station');ids.add(id);
     s.rows.forEach((r,i)=>{

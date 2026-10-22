@@ -1,0 +1,164 @@
+[
+  [
+    "90000200",
+    "<span style='color:#ffffff'>(1200m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Ràdio Andorra",
+    "left:514px; top:359px; ",
+    "233º | 1.6m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=90000200",
+    "True"
+  ],
+  [
+    "99130001",
+    "<span style='color:#ffffff'>(1135m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "FEDA (Central)",
+    "left:541px; top:355px; ",
+    "248º | 1.3m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130001",
+    "True"
+  ],
+  [
+    "99130002",
+    "<span style='color:#ffffff'>(1638m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Engolasters - FEDA",
+    "left:531px; top:414px; ",
+    "0º | 0.0m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130002",
+    "True"
+  ],
+  [
+    "99130004",
+    "<span style='color:#ffffff'>(1641m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Ransol - FEDA",
+    "left:431px; top:469px; ",
+    "42º | 0.3m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130004",
+    "True"
+  ],
+  [
+    "99130005",
+    "<span style='color:#ffffff'>(1113m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Roc St. Pere",
+    "left:551px; top:309px; ",
+    "330º | 1.3m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130005",
+    "True"
+  ],
+  [
+    "99130007",
+    "<span style='color:#ffffff'>(1445m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Les Salines",
+    "left:371px; top:339px; ",
+    "0º | 0.0m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130007",
+    "True"
+  ],
+  [
+    "99130008",
+    "<span style='color:#ffffff'>(1225m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "La Comella",
+    "left:601px; top:324px; ",
+    "310º | 0.5m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130008",
+    "True"
+  ],
+  [
+    "99130009",
+    "<span style='color:#ffffff'>(864m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Borda Vidal",
+    "left:691px; top:249px; ",
+    "0º | 0.0m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130009",
+    "True"
+  ],
+  [
+    "99130010",
+    "<span style='color:#ffffff'>(2402m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Perafita",
+    "left:245px; top:250px;",
+    "8º | 0.1m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130010",
+    "True"
+  ],
+  [
+    "99130011",
+    "<span style='color:#ffffff'>(1538m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Aixàs",
+    "left:601px; top:259px; ",
+    "157º | 0.2m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130011",
+    "True"
+  ],
+  [
+    "99130012",
+    "<span style='color:#ffffff'>(2080m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Bony de les Neres",
+    "left:481px; top:389px; ",
+    "336º | 0.0m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130012",
+    "True"
+  ],
+  [
+    "99130013",
+    "<span style='color:#ffffff'>(2681m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Les Fonts d'Arinsal",
+    "left:381px; top:254px; ",
+    "292º | 2.5m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130013",
+    "True"
+  ],
+  [
+    "99130014",
+    "<span style='color:#ffffff'>(2271m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Sorteny",
+    "left:351px; top:409px; ",
+    "0º | 0.0m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130014",
+    "True"
+  ],
+  [
+    "99130016",
+    "<span style='color:#ffffff'>(950m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "La Margineda - FEDA",
+    "left:641px; top:284px; ",
+    "0º | 0.0m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130016",
+    "True"
+  ],
+  [
+    "99130017",
+    "<span style='color:#ffffff'>(2500m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Vall del Riu FEDA",
+    "left:381px; top:409px; ",
+    "150º | 1.1m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130017",
+    "True"
+  ],
+  [
+    "99130019",
+    "<span style='color:#ffffff'>(2446m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Tossa Espiolets",
+    "left:461px; top:509px; ",
+    "270º | 1.4m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130019",
+    "True"
+  ],
+  [
+    "99130020",
+    "<span style='color:#ffffff'>(2090m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Grau Roig - FEDA",
+    "left:501px; top:509px; ",
+    "59º | 0.3m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130020",
+    "True"
+  ],
+  [
+    "99130027",
+    "<span style='color:#ffffff'>(2510m)<br>22/10/2026</span><br>08:30 (UTC) </span> <span style='color:#ffffff'> - 10:30 (GMT+2)",
+    "Envalira Antenes",
+    "left:481px; top:589px; ",
+    "0º | 0.0m/s",
+    "/home/grafica?idioma=0&pestanya=0&codi=99130027",
+    "True"
+  ]
+]

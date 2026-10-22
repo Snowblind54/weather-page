@@ -489,6 +489,7 @@ function windHeatmapCorrections(unix,slice,mode){
   if(!blend||typeof officialWindData==='undefined'||!officialWindData||typeof officialWindReading!=='function')return [];
   const target=Math.min(unix,Date.now()/1000),corrections=[];
   for(const station of officialWindData.stations){
+    if(station.heatmapEligible===false)continue;
     if(globalThis.NorthernCountryFocus?.allowsStation&&!globalThis.NorthernCountryFocus.allowsStation(station))continue;
     const reading=officialWindReading(station,unix);if(!reading)continue;
     const observed=mode==='gust'?reading[2]:reading[1];if(!Number.isFinite(observed))continue;

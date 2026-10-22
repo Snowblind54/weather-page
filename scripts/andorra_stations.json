@@ -1,0 +1,264 @@
+{
+  "source": "Servei Meteorològic Nacional / official station metadata",
+  "stations": {
+    "39": {
+      "name": "Arcalís - SAIH",
+      "lat": 42.6315,
+      "lon": 1.4831,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/39"
+    },
+    "40": {
+      "name": "Bordes de Setúria - SAIH",
+      "lat": 42.5507,
+      "lon": 1.4404,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/40"
+    },
+    "403": {
+      "name": "Borda Sabaté - SAIH",
+      "lat": 42.4473,
+      "lon": 1.4817,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/403"
+    },
+    "41": {
+      "name": "Grau Roig - SAIH",
+      "lat": 42.536,
+      "lon": 1.7007,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/41"
+    },
+    "7993": {
+      "name": "Pal",
+      "lat": 42.536,
+      "lon": 1.4904,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/7993"
+    },
+    "7994": {
+      "name": "Arcalís",
+      "lat": 42.6315,
+      "lon": 1.5006,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/7994"
+    },
+    "7995": {
+      "name": "Arinsal",
+      "lat": 42.5731,
+      "lon": 1.4714,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/7995"
+    },
+    "7996": {
+      "name": "Soldeu",
+      "lat": 42.564,
+      "lon": 1.6512,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/7996"
+    },
+    "7997": {
+      "name": "Grau Roig",
+      "lat": 42.5472,
+      "lon": 1.7011,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/7997"
+    },
+    "7998": {
+      "name": "El Pas de la Casa",
+      "lat": 42.5399,
+      "lon": 1.7331,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/7998"
+    },
+    "90000100": {
+      "name": "Canillo",
+      "lat": 42.566,
+      "lon": 1.6,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/90000100"
+    },
+    "90000200": {
+      "name": "Ràdio Andorra",
+      "lat": 42.5285,
+      "lon": 1.5698,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/90000200"
+    },
+    "99130001": {
+      "name": "FEDA (Central)",
+      "lat": 42.5156,
+      "lon": 1.5536,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130001"
+    },
+    "99130002": {
+      "name": "Engolasters - FEDA",
+      "lat": 42.5168,
+      "lon": 1.5654,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130002"
+    },
+    "99130004": {
+      "name": "Ransol - FEDA",
+      "lat": 42.5787,
+      "lon": 1.6394,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130004"
+    },
+    "99130005": {
+      "name": "Roc St. Pere",
+      "lat": 42.5127,
+      "lon": 1.5327,
+      "windHeightM": 10.0,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130005"
+    },
+    "99130006": {
+      "name": "Envalira",
+      "lat": 42.5333,
+      "lon": 1.7146,
+      "windHeightM": 20.0,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130006"
+    },
+    "99130007": {
+      "name": "Les Salines",
+      "lat": 42.6107,
+      "lon": 1.5382,
+      "windHeightM": 10.0,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130007"
+    },
+    "99130008": {
+      "name": "La Comella",
+      "lat": 42.4967,
+      "lon": 1.5228,
+      "windHeightM": 10.0,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130008"
+    },
+    "99130009": {
+      "name": "Borda Vidal",
+      "lat": 42.4357,
+      "lon": 1.4739,
+      "windHeightM": 10.0,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130009"
+    },
+    "99130010": {
+      "name": "Perafita",
+      "lat": 42.4689,
+      "lon": 1.5837,
+      "windHeightM": 6.5,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130010"
+    },
+    "99130011": {
+      "name": "Aixàs",
+      "lat": 42.4837,
+      "lon": 1.4771,
+      "windHeightM": 7.74,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130011"
+    },
+    "99130012": {
+      "name": "Bony de les Neres",
+      "lat": 42.5494,
+      "lon": 1.5717,
+      "windHeightM": 6.5,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130012"
+    },
+    "99130013": {
+      "name": "Les Fonts d'Arinsal",
+      "lat": 42.5992,
+      "lon": 1.4773,
+      "windHeightM": 3.8,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130013"
+    },
+    "99130014": {
+      "name": "Sorteny",
+      "lat": 42.6117,
+      "lon": 1.571,
+      "windHeightM": 6.5,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130014"
+    },
+    "99130016": {
+      "name": "La Margineda - FEDA",
+      "lat": 42.485,
+      "lon": 1.4936,
+      "windHeightM": 3.0,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130016"
+    },
+    "99130017": {
+      "name": "Vall del Riu FEDA",
+      "lat": 42.5993,
+      "lon": 1.5946,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130017"
+    },
+    "99130018": {
+      "name": "Cabana Sorda",
+      "lat": 42.6113,
+      "lon": 1.6723,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130018"
+    },
+    "99130019": {
+      "name": "Tossa Espiolets",
+      "lat": 42.5587,
+      "lon": 1.6573,
+      "windHeightM": 6.0,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130019"
+    },
+    "99130020": {
+      "name": "Grau Roig - FEDA",
+      "lat": 42.5488,
+      "lon": 1.698,
+      "windHeightM": 7.74,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130020"
+    },
+    "99130021": {
+      "name": "Fontverd",
+      "lat": 42.4914,
+      "lon": 1.5947,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130021"
+    },
+    "99130022": {
+      "name": "Coll Ordino",
+      "lat": 42.5564,
+      "lon": 1.5686,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130022"
+    },
+    "99130023": {
+      "name": "La Solana",
+      "lat": 42.5789,
+      "lon": 1.7509,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130023"
+    },
+    "99130024": {
+      "name": "Caborreu",
+      "lat": 42.4349,
+      "lon": 1.5471,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130024"
+    },
+    "99130025": {
+      "name": "Coll Pa",
+      "lat": 42.5127,
+      "lon": 1.476,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130025"
+    },
+    "99130026": {
+      "name": "Setúria",
+      "lat": 42.547,
+      "lon": 1.4438,
+      "windHeightM": null,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130026"
+    },
+    "99130027": {
+      "name": "Envalira Antenes",
+      "lat": 42.533,
+      "lon": 1.7168,
+      "windHeightM": 20.0,
+      "sourceUrl": "https://www.meteo.ad/estacions/99130027"
+    }
+  }
+}

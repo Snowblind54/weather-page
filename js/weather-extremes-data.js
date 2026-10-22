@@ -1,7 +1,7 @@
 // Rank recent measurements only; these are coverage leaders, not global records.
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.WeatherExtremesData=api;})(typeof window==='object'?window:globalThis,function(){
  'use strict';
- const names={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',GL:'Greenland',CA:'Canada',US:'USA',FO:'Faroe Islands',GB:'UK',UK:'UK',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',CZ:'Czechia',SK:'Slovakia',LU:'Luxembourg'};
+ const names={FR:'France',AD:'Andorra',EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',GL:'Greenland',CA:'Canada',US:'USA',FO:'Faroe Islands',GB:'UK',UK:'UK',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',CZ:'Czechia',SK:'Slovakia',LU:'Luxembourg'};
  const metrics=[['cold','Coldest temperature','temperature',false],['warm','Warmest temperature','temperature',true],['wind','Strongest sustained wind','wind',true],['gust','Strongest wind gust','wind',true],['rain','Most precipitation · 24 h','rain',true],['snow','Deepest snow','snow',true]];
  const valid=(v,min,max)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max;
  function recent(t,now,age){return valid(t,0,now)&&now-t<=age;}

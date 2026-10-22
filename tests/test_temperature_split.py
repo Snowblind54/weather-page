@@ -26,7 +26,7 @@ class TemperatureSplitTest(unittest.TestCase):
                 operational = json.loads(latest.read_text())
                 self.assertEqual(operational['stations'][0]['rows'], rows[-3:])
                 self.assertEqual(json.loads(history.read_text()), snapshot)
-                self.assertEqual(operational['historyHours'], 5)
+                self.assertEqual(operational['historyHours'], 6)
                 # A newer live snapshot must survive even if history upload lagged.
                 operational['stations'][0]['rows'].append([now + 600, 12])
                 latest.write_text(json.dumps(operational))
@@ -35,6 +35,15 @@ class TemperatureSplitTest(unittest.TestCase):
                 self.assertEqual(restored['stations'][0]['rows'], rows + [[now + 600, 12]])
                 self.assertNotIn('historyFile', restored)
                 self.assertEqual(restored['historyHours'], 24)
+
+    def test_french_three_hourly_reports_remain_available_for_two_hour_playback(self):
+        now=100000
+        rows=[[now-22000,8],[now-20000,9],[now-10000,10]]
+        with tempfile.TemporaryDirectory() as directory:
+            latest=pathlib.Path(directory)/'latest.json';history=pathlib.Path(directory)/'history.json'
+            latest.write_text(json.dumps(dict(version=1,generatedAt=now,stations=[dict(country=c,code=c,rows=rows) for c in ('FR','LV','NO')])))
+            with patch.object(splitter,'LATEST',latest),patch.object(splitter,'HISTORY',history):splitter.split()
+            self.assertEqual([len(s['rows']) for s in json.loads(latest.read_text())['stations']],[2,2,1])
 
     def test_invalid_snapshot_never_replaces_archive(self):
         with tempfile.TemporaryDirectory() as directory:

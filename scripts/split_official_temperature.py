@@ -7,7 +7,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 LATEST = ROOT / 'data/official-temperature.json'
 HISTORY = ROOT / 'data/official-temperature-history.json'
-# Two hours of playback plus Norway's maximum three-hour observation age.
+# Two hours of playback plus native observation age; FR/LV need six hours.
 RECENT_SECONDS = 5 * 3600
 
 
@@ -47,13 +47,13 @@ def restore():
 def split():
     snapshot = read_snapshot(LATEST)
     atomic_json(HISTORY, snapshot)
-    cutoff = int(snapshot['generatedAt']) - RECENT_SECONDS
     recent = []
     for station in snapshot['stations']:
-        rows = [row for row in station.get('rows', []) if row[0] >= cutoff]
+        station_cutoff = int(snapshot['generatedAt']) - (6*3600 if station['country'] in ('FR','LV') else RECENT_SECONDS)
+        rows = [row for row in station.get('rows', []) if row[0] >= station_cutoff]
         if rows:
             recent.append({**station, 'rows': rows})
-    operational = {**snapshot, 'stations': recent, 'historyHours': 5,
+    operational = {**snapshot, 'stations': recent, 'historyHours': 6,
                    'historyFile': 'data/official-temperature-history.json'}
     atomic_json(LATEST, operational)
     print('Split official temperatures:', LATEST.stat().st_size, 'bytes map;',

@@ -26,6 +26,7 @@ LATVIA_DATASTORE = 'https://data.gov.lv/dati/api/3/action/datastore_search?'
 LATVIA_OBS_RESOURCE = '17460efb-ae99-4d1d-8144-1068f184b05f'
 LATVIA_STATIONS_RESOURCE = 'c32c7afd-0d05-44fd-8b24-1de85b4bf11d'
 SOURCES = {
+    'AD': dict(name='Servei Meteorològic Nacional (Andorra) / Meteo.ad',url='https://www.meteo.ad/',timeKind='observation',period='Official measured sustained wind at native station sensor height. Current gusts are unavailable; daily maxima are not used as current gusts.'),
     'FR': dict(name='Météo-France official SYNOP observations distributed by DWD',url='https://opendata.dwd.de/weather/weather_reports/poi/',timeKind='observation',period='10-minute mean wind at 10 m and maximum gust over the preceding hour, at three-hourly UTC observation times. Mainland France and Corsica; missing gusts remain unavailable.'),
     'CZ': dict(name='Czech Hydrometeorological Institute / ČHMÚ',url='https://opendata.chmi.cz/meteorology/climate/now/',timeKind='observation',period='Ten-minute mean wind (Fprum), maximum gust (Fmax), and mean wind direction. Published hourly with UTC observation times; provisional. Suspect, estimated and missing values are excluded.'),
     'SK': dict(name='Slovak Hydrometeorological Institute / SHMÚ',url='https://www.shmu.sk/sk/?page=1&id=meteo_apocasie_sk',timeKind='observation',period='Official automatic-station one-minute scalar mean wind and measured one-minute maximum wind speed. Published in five-minute batches. Source SEČ/CET timestamps (UTC+1 throughout the year) are converted to UTC; provisional.'),
@@ -135,7 +136,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    south,north,west,east = {'FR':(41,51.5,-5.5,10),'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
+    south,north,west,east = {'AD':(42.4,42.7,1.4,1.8),'FR':(41,51.5,-5.5,10),'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
     if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
@@ -473,6 +474,11 @@ def load_latvia(now):
         return load_latvia_portal_or_synop(now)
 
 
+def load_andorra(now):
+    from andorra_observations import load_wind
+    return load_wind(now,download_json)
+
+
 def load_france(now):
     from europe_synop import load_wind
     return load_wind('FR',now,download)
@@ -588,7 +594,7 @@ def main():
                ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_usa),
                ('FO', load_faroes), ('GB', load_britain), ('IE', load_ireland),
                ('DE', load_germany), ('NL', load_netherlands), ('BE', load_belgium), ('LU', load_luxembourg),
-               ('CZ', load_czechia), ('SK', load_slovakia), ('FR', load_france)]
+               ('CZ', load_czechia), ('SK', load_slovakia), ('FR', load_france), ('AD', load_andorra)]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):
