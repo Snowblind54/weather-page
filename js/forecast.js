@@ -8,6 +8,7 @@
   button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v15H4zM8 3v4m8-4v4M4 10h16M8 14h3m-3 3h6"/></svg><span>Forecast</span>';
   nav.prepend(button);
   map.createPane('forecastPoint');map.getPane('forecastPoint').style.zIndex='650';
+  map.createPane('forecastPopup');map.getPane('forecastPopup').style.zIndex='700';
   const panel=document.createElement('div');
   panel.id='forecastSection';panel.className='weather-panel weather-section';panel.hidden=true;
   panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','forecastSection-title');
@@ -45,6 +46,8 @@
   const text=(tag,value,className)=>{const e=document.createElement(tag);e.textContent=value;if(className)e.className=className;return e;};
   let searchScrollPending=false;
   let point=null,marker=null,payload=null,forecastRows=[],selectedTime=null,requestId=0,controller=null,refreshAfter=0,view='hourly';
+  let forecastPopup=null,popupWanted=false;
+  const forecastVisible=()=>!panel.hidden||popupWanted;
   let gustGrid=null,gustChecked=0,gustPromise=null;
   const inIceland=p=>p&&Number(p.lat)>=61&&Number(p.lat)<=69&&Number(p.lon)>=-28&&Number(p.lon)<=-12;
   const inEurope=p=>p&&Number(p.lat)>=18&&Number(p.lat)<=84&&Number(p.lon)>=-30&&Number(p.lon)<=60;
@@ -142,10 +145,10 @@
     return gustPromise;
   }
   async function loadGusts(){
-    if(panel.hidden||!payload||(!inEurope(point)&&!inCanada(point)))return;
+    if(!forecastVisible()||!payload||(!inEurope(point)&&!inCanada(point)))return;
     const id=requestId,key=point.lat+','+point.lon;
     const grid=inCanada(point)?await getCanadaGustGrid({...point}):inIceland(point)?await getGustGrid():await getEuropeGustGrid({...point});
-    if(!grid||id!==requestId||panel.hidden||!payload||point.lat+','+point.lon!==key)return;
+    if(!grid||id!==requestId||!forecastVisible()||!payload||point.lat+','+point.lon!==key)return;
     const wanted=selectedTime;render(payload,false,grid);selectedTime=wanted;
   }
   const cache=new Map();
@@ -168,6 +171,56 @@
   }
   const tempNum=(v,d=1)=>num(globalThis.WeatherUnits?.temperatureValue(v)??v,d);
   const windNum=(v,d=1)=>num(globalThis.WeatherUnits?.windValue(v)??v,d);
+  function popupContent(){
+    const content=text('section','', 'forecast-point-summary');
+    content.setAttribute('aria-label','Location forecast');
+    content.append(text('strong',$('forecastLocation').textContent,'forecast-popup-location'));
+    if(payload&&forecastRows.length){
+      const time=text('time',$('forecastSelectedTime').textContent,'forecast-time');
+      time.dateTime=$('forecastSelectedTime').dateTime;
+      const summary=$('forecastSelected').cloneNode(true);summary.removeAttribute('id');
+      content.append(time,summary);
+      // Cloning the summary preserves all native periods, missing values and
+      // units without duplicating a live element ID in the page.
+      const slider=document.createElement('input');slider.type='range';slider.min='0';
+      slider.max=$('forecastTimeline').max;slider.value=$('forecastTimeline').value;slider.step='1';
+      slider.setAttribute('aria-label','Location forecast time');
+      slider.addEventListener('change',()=>{$('forecastTimeline').value=slider.value;renderSelected();});
+      content.append(slider,text('small',$('forecastProvider').textContent+' · '+$('forecastIssued').textContent,'forecast-note'));
+    }
+    if(!payload||$('forecastStatus').classList.contains('bad')){
+      const status=text('p',$('forecastStatus').textContent,'forecast-note');status.setAttribute('role','status');content.append(status);
+    }
+    const details=text('button','Full forecast','forecast-popup-details');details.type='button';
+    details.addEventListener('click',()=>{
+      // Open the controls before closing the popup so an in-flight request
+      // still belongs to a visible forecast surface.
+      if(panel.hidden&&typeof openWeatherPanel==='function')openWeatherPanel('forecastSection');
+      forecastPopup?.close();
+      $('forecastContent').scrollIntoView({block:'nearest',behavior:'smooth'});
+    });
+    content.append(details);return content;
+  }
+  function refreshPopup(){if(popupWanted&&forecastPopup)forecastPopup.setContent(popupContent());}
+  function openPointPopup(){
+    popupWanted=true;
+    const header=document.querySelector('.topbar')?.getBoundingClientRect().bottom||80;
+    const dock=document.querySelector('.forecast-map-dock');
+    const bottom=dock&&!dock.hidden?window.innerHeight-dock.getBoundingClientRect().top:24;
+    const options={pane:'forecastPopup',className:'forecast-point-popup',closeOnClick:false,
+        minWidth:Math.min(300,window.innerWidth-64),maxWidth:Math.min(380,window.innerWidth-64),
+        maxHeight:Math.max(140,window.innerHeight-header-bottom-64),
+        autoPanPaddingTopLeft:L.point(16,header+12),autoPanPaddingBottomRight:L.point(16,bottom+16),offset:L.point(0,-10)};
+    if(!forecastPopup){
+      forecastPopup=L.popup(options);
+      forecastPopup.on('remove',()=>{
+        popupWanted=false;
+        if(panel.hidden){requestId++;controller?.abort();controller=null;clearTimeout(choose.timer);if(marker){map.removeLayer(marker);marker=null;}}
+      });
+    }
+    Object.assign(forecastPopup.options,options);
+    forecastPopup.setLatLng([Number(point.lat),Number(point.markerLon??point.lon)]).setContent(popupContent()).openOn(map);
+  }
   function renderSelected(syncMap=true){
     const index=Number($('forecastTimeline').value),row=forecastRows[index];if(!row)return;
     selectedTime=row.time;
@@ -183,6 +236,7 @@
     selected.append(metrics);
     if(row.min!==null&&row.max!==null)selected.append(text('p','Temperature uncertainty (10th–90th percentile): '+tempNum(row.min)+' to '+tempNum(row.max)+' '+(globalThis.WeatherUnits?.temperatureUnit()??'°C')+'.','forecast-note'));
     for(const tr of $('forecastHours').children)tr.setAttribute('aria-current',String(Number(tr.dataset.index)===index));
+    refreshPopup();
     if(syncMap!==false)window.NorthernForecastMap?.setTime(row.time);
   }
   function render(data,syncMap=true,sharedGustGrid=null){
@@ -218,9 +272,9 @@
       panel.scrollTo({top:Math.max(0,panel.scrollTop+location.getBoundingClientRect().top-panel.getBoundingClientRect().top-heading.getBoundingClientRect().height-12),behavior:'smooth'});
     }
   }
-  function setStatus(message,bad=false){$('forecastStatus').textContent=message;$('forecastStatus').className='status'+(bad?' bad':'');}
+  function setStatus(message,bad=false){$('forecastStatus').textContent=message;$('forecastStatus').className='status'+(bad?' bad':'');refreshPopup();}
   async function loadForecast(){
-    if(panel.hidden||!point||controller)return;
+    if(!forecastVisible()||!point||controller)return;
     const key=point.lat+','+point.lon,saved=cache.get(key),now=Date.now();
     if(saved&&saved.expires>now){try{render(saved.payload);loadGusts();refreshAfter=saved.expires;setStatus('Forecast ready · cached until '+new Date(saved.expires).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',hour12:false}));return;}catch{cache.delete(key);}}
     const id=++requestId,abort=new AbortController();controller=abort;
@@ -233,20 +287,20 @@
       const response=await fetch(url,{signal:abort.signal,credentials:'omit',referrerPolicy:'no-referrer-when-downgrade'});
       if(!response.ok)throw new Error('MET Norway returned '+response.status);
       const data=await response.json();MetForecastData.rows(data);
-      if(id!==requestId||panel.hidden)return;
+      if(id!==requestId||!forecastVisible())return;
       const headerExpires=Date.parse(response.headers.get('Expires'));
       const expires=Number.isFinite(headerExpires)&&headerExpires>Date.now()?headerExpires:Date.now()+30*60000;
       remember(key,{payload:data,expires});refreshAfter=expires;render(data);
       loadGusts();
       setStatus(response.status===203?'Forecast available · MET Norway reports a service version notice.':'Forecast ready · updates automatically while this panel is open.');
     }catch(error){
-      if(id!==requestId||panel.hidden)return;
+      if(id!==requestId||!forecastVisible())return;
       refreshAfter=Date.now()+2*60000;
       if(saved){try{render(saved.payload);setStatus('Update unavailable. Showing the previous forecast for this location; see its update time.',true);}catch{$('forecastContent').hidden=true;setStatus('No current forecast available for this location. Try again shortly.',true);}}
       else{setStatus('Forecast unavailable. Check your connection and try again shortly.',true);$('forecastContent').hidden=true;}
     }finally{clearTimeout(timer);if(controller===abort)controller=null;}
   }
-  function choose(latlng,placeName){
+  function choose(latlng,placeName,showPopup=false){
     if(globalThis.NorthernCountryFocus?.allowsPoint&&!globalThis.NorthernCountryFocus.allowsPoint(latlng.lat,latlng.lng)){setStatus('Choose a location inside '+globalThis.NorthernCountryFocus.current().name+'.');return;}
     searchScrollPending=!!placeName;
     requestId++;controller?.abort();controller=null;payload=null;refreshAfter=0;
@@ -255,14 +309,15 @@
     $('forecastLocation').textContent=placeName||point.lat+'°, '+point.lon+'°';$('forecastContent').hidden=true;$('forecastIssued').textContent='Forecast update time will appear here.';
     if(marker)map.removeLayer(marker);
     marker=L.marker([Number(point.lat),Number(point.markerLon??point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
+    if(showPopup){setStatus('Loading forecast from MET Norway…');openPointPopup();}
     clearTimeout(choose.timer);choose.timer=setTimeout(loadForecast,350);
   }
   const locationSearch=window.NorthernForecastSearch?.attach({countryScope:true,form:$('forecastSearchForm'),input:$('forecastSearchInput'),results:$('forecastSearchResults'),status:$('forecastSearchStatus'),onChoose:place=>{
     map.setView([place.lat,place.lon],9);
-    choose({lat:place.lat,lng:place.lon},place.label);
+    choose({lat:place.lat,lng:place.lon},place.label,true);
   }});
   document.addEventListener('country-focus-change',()=>{
-    if(point&&!globalThis.NorthernCountryFocus.allowsPoint(point.lat,point.lon)){requestId++;controller?.abort();payload=null;point=null;if(marker){map.removeLayer(marker);marker=null;}$('forecastContent').hidden=true;$('forecastLocation').textContent='Choose a place in '+globalThis.NorthernCountryFocus.current().name;setStatus('Click inside the selected country for its forecast.');}
+    if(point&&!globalThis.NorthernCountryFocus.allowsPoint(point.lat,point.lon)){forecastPopup?.close();requestId++;controller?.abort();payload=null;point=null;if(marker){map.removeLayer(marker);marker=null;}$('forecastContent').hidden=true;$('forecastLocation').textContent='Choose a place in '+globalThis.NorthernCountryFocus.current().name;setStatus('Click inside the selected country for its forecast.');}
     locationSearch?.cancel();
   });
   $('forecastRetry').addEventListener('click',()=>{gustChecked=0;canadaChecked=0;europeChecked=0;loadForecast();});
@@ -280,24 +335,29 @@
     tab.addEventListener('keydown',event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();switchView(event.key==='Home'?'hourly':event.key==='End'?'daily':view==='hourly'?'daily':'hourly');$('forecast'+view[0].toUpperCase()+view.slice(1)+'Tab').focus();}});
   }
   map.on('click',event=>{
-    if(panel.hidden&&!window.NorthernForecastMap?.isActive())return;
+    if(!forecastVisible()&&!window.NorthernForecastMap?.isActive())return;
     if(event.originalEvent?.target?.closest?.('.leaflet-interactive,.leaflet-marker-icon,.leaflet-popup,.leaflet-control'))return;
-    if(panel.hidden&&typeof openWeatherPanel==='function')openWeatherPanel('forecastSection');
-    map.closePopup();choose(event.latlng);
+    map.closePopup();choose(event.latlng,undefined,true);
+    if(!panel.hidden&&typeof closeWeatherPanel==='function')closeWeatherPanel();
   });
   new MutationObserver(()=>{
     
-    if(panel.hidden){locationSearch?.cancel();requestId++;controller?.abort();controller=null;clearTimeout(choose.timer);if(marker){map.removeLayer(marker);marker=null;}}
+    if(panel.hidden){locationSearch?.cancel();if(!popupWanted){requestId++;controller?.abort();controller=null;clearTimeout(choose.timer);if(marker){map.removeLayer(marker);marker=null;}}}
     else{
       if(typeof stop==='function')stop();
       if(!point)choose(map.getCenter());
       else{if(!marker)marker=L.marker([Number(point.lat),Number(point.markerLon??point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);loadForecast();}
     }
   }).observe(panel,{attributes:true,attributeFilter:['hidden']});
-  setInterval(()=>{if(!document.hidden&&!panel.hidden){if(Date.now()>=refreshAfter)loadForecast();else if(payload&&Date.now()-(inCanada(point)?canadaChecked:inIceland(point)?gustChecked:europeChecked)>=15*60000)loadGusts();}},60000);
+  setInterval(()=>{if(!document.hidden&&forecastVisible()){if(Date.now()>=refreshAfter)loadForecast();else if(payload&&Date.now()-(inCanada(point)?canadaChecked:inIceland(point)?gustChecked:europeChecked)>=15*60000)loadGusts();}},60000);
+  document.addEventListener('click',event=>{
+    const category=event.target.closest?.('.category-tab');
+    if(event.target.closest?.('#clearLayers')||(category&&category.dataset.panel!=='forecastSection'&&category.dataset.panel!=='mapSettings'))forecastPopup?.close();
+  });
   document.addEventListener('weather-units-change',()=>{if(payload)render(payload,false);});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!panel.hidden)loadForecast();});
-  window.addEventListener('online',()=>{if(!panel.hidden)loadForecast();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&forecastVisible())loadForecast();});
+  window.addEventListener('resize',()=>{if(popupWanted)openPointPopup();});
+  window.addEventListener('online',()=>{if(forecastVisible())loadForecast();});
   document.addEventListener('forecast-map-time',event=>{
     const wanted=event.detail.time;if(!Number.isFinite(wanted))return;selectedTime=wanted;
     if(!forecastRows.length)return;

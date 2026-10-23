@@ -76,3 +76,22 @@
 .forecast-map-layer-switch .source-card{max-height:180px;overflow:auto;overscroll-behavior:contain}
 
 @media(min-width:761px){body.forecast-view #forecastSection{max-height:calc(100dvh - 380px)}}
+
+/* Half-transparent background, with fully opaque text and controls. */
+.forecast-point-popup .leaflet-popup-content-wrapper,
+.forecast-point-popup .leaflet-popup-tip{background:rgba(12,29,40,.5);color:#edf5f8}
+.forecast-point-popup .leaflet-popup-content-wrapper{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:1px solid #ffffff45;border-radius:16px}
+.forecast-point-popup .leaflet-popup-content{margin:18px;width:auto!important;font:13px/1.5 system-ui,sans-serif}
+.forecast-point-popup .leaflet-popup-scrolled{border:0;padding-right:5px;overscroll-behavior:contain}
+.forecast-point-popup .forecast-popup-location{display:block;padding-right:24px;font-size:14px}
+.forecast-point-popup .forecast-time{margin-top:5px}
+.forecast-point-popup .forecast-metric{padding:9px 10px;background:#ffffff08}
+.forecast-point-popup .forecast-metric small,.forecast-point-popup .forecast-condition,.forecast-point-popup .forecast-note{color:#e1edf3}
+.forecast-point-popup .forecast-metric strong{font-size:17px}
+.forecast-point-popup input[type=range]{display:block;width:100%;margin:12px 0;accent-color:var(--accent);min-height:28px}
+.forecast-point-popup .forecast-note{display:block;margin:8px 0;font-size:10px}
+.forecast-point-popup .forecast-popup-details{border:1px solid #ffffff60;border-radius:9px;padding:8px 12px;background:#10273370;color:#fff;cursor:pointer;font:inherit}
+.forecast-point-popup .forecast-popup-details:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.forecast-point-popup .leaflet-popup-close-button{font-size:24px;width:32px;height:32px}
+.forecast-model-view .leaflet-map-pane > .leaflet-forecastPopup-pane{visibility:visible}
+@media(max-width:760px){.forecast-point-popup .leaflet-popup-content{margin:12px}.forecast-point-popup .forecast-hero strong{font-size:30px}.forecast-point-popup .forecast-popup-details{min-height:40px}}

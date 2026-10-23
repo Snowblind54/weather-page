@@ -56,15 +56,18 @@ const flush=()=>new Promise(r=>setImmediate(r));
 function harness(){
   const ids={},timers=new Map(),requests=[],storage=new Map();let timerId=0,observer,tick;
   class Element{
-    constructor(){this.children=[];this.events={};this.dataset={};this.hidden=false;this.value='0';this.classList={toggle(){}};}
+    constructor(){this.children=[];this.events={};this.dataset={};this.hidden=false;this.value='0';this.classList={toggle(){},contains:()=>String(this.className||'').includes('bad')};}
     set innerHTML(s){for(const m of s.matchAll(/id="([^"]+)"/g))ids[m[1]]=new Element();}
     append(...nodes){this.children.push(...nodes);}appendChild(n){this.append(n);}prepend(n){this.children.unshift(n);}
-    replaceChildren(...nodes){this.children=nodes;}setAttribute(k,v){this[k]=v;}addEventListener(k,f){this.events[k]=f;}focus(){}
+    replaceChildren(...nodes){this.children=nodes;}setAttribute(k,v){this[k]=v;}removeAttribute(k){delete this[k];}addEventListener(k,f){this.events[k]=f;}focus(){}
+    getBoundingClientRect(){return {bottom:80,top:700};}
+    cloneNode(deep){const e=new Element();for(const k of ['id','textContent','className'])if(this[k]!==undefined)e[k]=this[k];if(deep)e.children=this.children.map(n=>n.cloneNode(true));return e;}
+    scrollIntoView(){}
   }
   const nav=new Element(),body=new Element();body.appendChild=e=>{body.append(e);ids[e.id]=e;};
-  const markers=[],listeners={};const map={createPane(){},getPane:()=>({style:{}}),getCenter:()=>({lat:59.437,lng:24.7536}),on:(k,f)=>listeners[k]=f,removeLayer(){},closePopup(){}};
-  const c={document:{body,hidden:false,querySelector:()=>nav,createElement:()=>new Element(),addEventListener(){}},window:{addEventListener(){}},$:id=>ids[id],map,
-    L:{DomEvent:{disableClickPropagation(){},disableScrollPropagation(){}},divIcon:x=>x,marker:coords=>{markers.push(coords);return {addTo(){return this;}};}},
+  const markers=[],listeners={},popups=[];let currentPopup;const map={createPane(){},getPane:()=>({style:{}}),getCenter:()=>({lat:59.437,lng:24.7536}),on:(k,f)=>listeners[k]=f,removeLayer(){},closePopup(){currentPopup?.close();}};
+  const c={document:{body,hidden:false,querySelector:()=>nav,createElement:()=>new Element(),addEventListener(){}},window:{innerWidth:1366,innerHeight:936,addEventListener(){}},$:id=>ids[id],map,
+    L:{point:(x,y)=>[x,y],popup:options=>{const p={options,on(k,f){this[k]=f;return this;},setLatLng(ll){this.ll=ll;return this;},setContent(c){this.content=c;return this;},openOn(){currentPopup=this;this.open=true;return this;},close(){if(this.open){this.open=false;this.remove?.();}return this;}};popups.push(p);return p;},DomEvent:{disableClickPropagation(){},disableScrollPropagation(){}},divIcon:x=>x,marker:coords=>{markers.push(coords);return {addTo(){return this;}};}},
     MetForecastData:{...forecast,rows:d=>forecast.rows(d,now)},Intl,Date:class extends Date{static now(){return now;}},AbortController,URLSearchParams,
     MutationObserver:class{constructor(f){observer=f;}observe(){}},
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},
@@ -76,7 +79,7 @@ function harness(){
   const runDebounce=()=>{for(const [id,t]of timers)if(t.n===350){timers.delete(id);t.f();}};
   const reply=(i,temp=5)=>requests[i].resolve({ok:true,status:200,headers:{get:()=>new Date(now+3600000).toUTCString()},json:async()=>payload([item('2026-10-07T20:00:00Z',{air_temperature:temp},period(0))])});
   const replyJson=(i,data)=>requests[i].resolve({ok:true,json:async()=>data});
-  return {ids,requests,markers,open,choose,runDebounce,reply,replyJson,tick,close:()=>{ids.forecastSection.hidden=true;observer();}};
+  return {ids,requests,markers,popups,open,choose,runDebounce,reply,replyJson,tick,hidePanel:()=>{ids.forecastSection.hidden=true;observer();},close:()=>{ids.forecastSection.hidden=true;currentPopup?.close();observer();}};
 }
 test('repeated updates reuse cache and in-flight requests; API URL identifies rounded coordinates',async()=>{
   const h=harness();h.open();h.runDebounce();h.ids.forecastRetry.events.click();assert.equal(h.requests.length,1);
@@ -178,4 +181,23 @@ test('Compressed 9 km gust payloads decode with bounded size before native valid
  await assert.rejects(()=>forecast.prepareGustGrid(broken));
  const ready=forecast.validateGustGrid(await forecast.prepareGustGrid(g),g.reference_time);
  assert.equal(ready.samples[0].values[0],0);assert.equal(ready.samples[0].values[3],14);
+});
+
+test('map forecast popup keeps loading with the menu closed and shows the same six metrics',async()=>{
+ const h=harness();h.open();h.choose(59.437,24.75);h.hidePanel();h.runDebounce();
+ assert.equal(h.requests.length,1);assert(!h.requests[0].options.signal.aborted);
+ const popup=h.popups[0];assert(popup.open);assert.equal(popup.options.pane,'forecastPopup');
+ h.reply(0,9);await flush();
+ const summary=popup.content.children[2];assert.equal(summary.id,undefined);
+ assert.equal(summary.children[0].children[0].textContent,'9.0°');
+ assert.equal(summary.children[1].children.length,6);
+ assert.equal(summary.children[1].children[1].children[1].textContent,'Unavailable');
+ assert.equal(summary.children[1].children[2].children[1].textContent,'0.0 mm');
+ assert.equal(h.ids.forecastSection.hidden,true);
+});
+
+test('closing a standalone forecast popup cancels its request and rejects a late response',async()=>{
+ const h=harness();h.open();h.choose(59.437,24.75);h.hidePanel();h.runDebounce();
+ h.popups[0].close();assert(h.requests[0].options.signal.aborted);
+ h.reply(0,30);await flush();assert.equal(h.ids.forecastContent.hidden,true);assert.equal(h.popups[0].open,false);
 });
