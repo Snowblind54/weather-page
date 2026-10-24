@@ -57,7 +57,7 @@ test('paths are separate, centre popup and forecasts preserve the viewport',()=>
   const projected=h.run('JSON.stringify(cyclonePathGroup.children)');
   h.run('openCyclonePopup(fixture.systems[0])');
   assert.equal(h.run('cyclonePopup.options.autoPan'),false);assert.equal(h.run('cyclonePopup.options.keepInView'),false);
-  assert.match(h.run('cyclonePopup.content'),/Moving speed/);assert.match(h.run('cyclonePopup.content'),/no official name/);
+  assert.match(h.run('cyclonePopup.content'),/Moving speed/);assert.match(h.run('cyclonePopup.content'),/official name not matched/);
   assert.match(h.run('cyclonePopup.content'),/m\/s/);assert.match(h.run('cyclonePopup.content'),/excludes gusts/);assert.match(h.run('cyclonePopup.content'),/Highest model gust/);assert.match(h.run('cyclonePopup.content'),/32.1 m\/s/);
   h.elements.cycloneForecastHour.value='24';h.elements.cycloneForecastHour.listeners.input();
   assert.ok(h.run('cycloneMarkers.values().next().value.point[1]')>before);

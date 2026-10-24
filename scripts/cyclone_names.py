@@ -5,13 +5,17 @@ The official name is authoritative; its association to a GFS centre is derived.
 Require exactly one persistent <=1000 hPa low near the official impact region
 in the valid interval. Multiple candidate lows or competing names stay unmatched.
 """
+import concurrent.futures as futures
 import datetime as dt
 from html.parser import HTMLParser
 import json
 import re
 import xml.etree.ElementTree as ET
+from urllib.parse import urlparse
 
 UK_SOURCE='https://weather.metoffice.gov.uk/warnings-and-advice/uk-storm-centre'
+UK_WARNINGS='https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-united-kingdom'
+CAP={'c':'urn:oasis:names:tc:emergency:cap:1.2','a':'http://www.w3.org/2005/Atom'}
 MET_SOURCE='https://api.met.no/weatherapi/metalerts/2.0/current.json?lang=en&event=wind'
 
 class StormTable(HTMLParser):
@@ -52,6 +56,72 @@ def parse_uk(text,now):
         result.append({'name':row[0],'issuer':'Met Office / Western Europe naming group','url':UK_SOURCE,
             'start':int(start.timestamp()),'end':int(end.timestamp()),'region':[49,-12,61,8]})
     return result
+
+
+def pending_uk_names(text,now):
+    """A naming date confirms use; an undated annual-list entry does not."""
+    parser=StormTable();parser.feed(text);names={}
+    for row in parser.rows:
+        if len(row)!=3 or row[2] or not re.fullmatch(r'[\wÀ-ž -]{2,40}',row[0]):continue
+        try:dates=uk_dates(row[1],now)
+        except ValueError:continue
+        if len(dates)==1 and now-dt.timedelta(days=30)<=dates[0]<=now:
+            names[row[0].casefold()]={'name':row[0],'namedAt':int(dates[0].timestamp())}
+    return names
+
+
+def parse_uk_cap(raw,known,now,url):
+    """Read actual named wind warnings; never turn the naming date into impact time."""
+    root=ET.fromstring(raw);get=lambda e,k:e.findtext('c:'+k,'',CAP).strip()
+    if root.tag!='{'+CAP['c']+'}alert':raise ValueError('Expected UK CAP alert')
+    if get(root,'status')!='Actual' or get(root,'scope')!='Public' or get(root,'msgType') not in ('Alert','Update'):return []
+    result=[]
+    for info in root.findall('c:info',CAP):
+        if not get(info,'language').lower().startswith('en') or get(info,'senderName')!='UK Met Office':continue
+        if not re.search(r'\b(wind|gale)\b',get(info,'event'),re.I):continue
+        # Conflicting names in one warning are not a trustworthy association.
+        text=get(info,'headline')+' '+get(info,'description')
+        found=[v for k,v in known.items() if re.search(r'\bstorm\s+'+re.escape(v['name'])+r'\b',text,re.I)]
+        if len(found)!=1:continue
+        try:
+            start=dt.datetime.fromisoformat(get(info,'onset').replace('Z','+00:00'))
+            end=dt.datetime.fromisoformat(get(info,'expires').replace('Z','+00:00'))
+            if start.tzinfo is None or end.tzinfo is None or end<=start or end<=now or start>now+dt.timedelta(days=5):continue
+            if int(end.timestamp())<found[0]['namedAt']:continue
+            for area in info.findall('c:area',CAP):
+                points=[]
+                for polygon in area.findall('c:polygon',CAP):
+                    for pair in (polygon.text or '').split():
+                        lat,lon=map(float,pair.split(','))
+                        if not 48<=lat<=62 or not -13<=lon<=4:raise ValueError('UK warning outside expected bounds')
+                        points.append((lat,lon))
+                if len(points)<4:continue
+                web=get(info,'web');parsed=urlparse(web)
+                official=web if parsed.scheme=='https' and parsed.netloc in ('www.metoffice.gov.uk','weather.metoffice.gov.uk') else UK_SOURCE
+                result.append({**found[0],'issuer':'Met Office / Western Europe naming group','url':official,
+                    'start':int(start.timestamp()),'end':int(end.timestamp()),
+                    'region':[min(p[0] for p in points),min(p[1] for p in points),max(p[0] for p in points),max(p[1] for p in points)],
+                    'impactSource':'Met Office CAP wind warning via Meteoalarm','warningUrl':url})
+        except (ValueError,TypeError):continue
+    return result
+
+
+def uk_catalogue(raw,now,download):
+    text=raw.decode('utf-8');names=parse_uk(text,now);pending=pending_uk_names(text,now)
+    if not pending:return names
+    root=ET.fromstring(download(UK_WARNINGS))
+    if root.tag!='{'+CAP['a']+'}feed' or root.findtext('a:id','',CAP).split(':')[-1]!='UK':raise ValueError('Unexpected UK warning feed')
+    urls=set()
+    for entry in root.findall('a:entry',CAP):
+        if entry.findtext('c:status','',CAP)!='Actual' or not re.search(r'\b(wind|gale)\b',entry.findtext('c:event','',CAP),re.I):continue
+        for link in entry.findall('a:link',CAP):
+            url=link.get('href','')
+            if link.get('type')=='application/cap+xml' and re.fullmatch(r'https://feeds\.meteoalarm\.org/api/v1/warnings/feeds-united-kingdom/[a-f0-9-]{36}',url):urls.add(url)
+    if len(urls)>20:raise ValueError('Too many UK wind warning documents')
+    with futures.ThreadPoolExecutor(max_workers=4) as pool:
+        for result in pool.map(lambda url:parse_uk_cap(download(url),pending,now,url),sorted(urls)):
+            names.extend(result)
+    return names
 
 def parse_met(payload,now):
     result=[]
@@ -94,13 +164,13 @@ def met_catalogue(raw,now,download):
 
 def add_european_names(tracks,now,download,distance):
     state={'checkedAt':int(now.timestamp()),'sources':[],'matched':0};catalogue=[]
-    for issuer,url,parser in [('Met Office',UK_SOURCE,lambda raw:parse_uk(raw.decode('utf-8'),now)),
+    for issuer,url,parser in [('Met Office',UK_SOURCE,lambda raw:uk_catalogue(raw,now,download)),
                               ('MET Norway',MET_SOURCE,lambda raw:met_catalogue(raw,now,download))]:
         try:
             names=parser(download(url));catalogue.extend(names)
-            state['sources'].append({'issuer':issuer,'status':'ok','namedEvents':len(names),'url':url})
+            state['sources'].append({'issuer':issuer,'status':'ok','namedEvents':len({n['name'].casefold() for n in names}),'url':url})
         except Exception as error:state['sources'].append({'issuer':issuer,'status':'error','url':url,'error':str(error)[:200]})
-    candidates={}
+    candidates={};events={}
     for named in catalogue:
         south,west,north,east=named['region'];matching=set()
         for i,track in enumerate(tracks):
@@ -111,8 +181,14 @@ def add_european_names(tracks,now,download,distance):
                     nearest={'lat':min(north,max(south,p['lat'])),'lon':min(east,max(west,p['lon']))}
                     if distance(p,nearest)<=450:near.append(p)
             if len(near)>=2:matching.add(i)
-        if len(matching)==1:
-            i=matching.pop();candidates.setdefault(i,{}).setdefault(named['name'].casefold(),named)
+        # All warnings for one name must agree on a single model track.
+        # Separate warning areas must not assign the same name to two lows.
+        key=named['name'].casefold()
+        event=events.setdefault(key,{'matching':set(),'named':named})
+        event['matching'].update(matching)
+    for key,event in events.items():
+        if len(event['matching'])==1:
+            i=next(iter(event['matching']));candidates.setdefault(i,{})[key]=event['named']
     for i,names in candidates.items():
         if len(names)!=1 or tracks[i].get('nhc'):continue
         named=next(iter(names.values()));tracks[i]['name']=named['name']

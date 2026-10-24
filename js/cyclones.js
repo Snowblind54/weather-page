@@ -85,7 +85,7 @@ function cycloneSelectedTime(){
 }
 function cycloneUsable(){return cycloneData && Date.now()/1000-cycloneData.modelRun<=18*3600 && cycloneSelectedTime()<=cycloneData.forecastEnd;}
 function cycloneColour(pressure){return pressure<970?'#cc83ff':pressure<985?'#ff6976':pressure<1000?'#ffc65b':'#7ddcff';}
-function cycloneName(system){return system.name||'Unnamed low-pressure system';}
+function cycloneName(system){return system.name||'Low-pressure system';}
 
 function cycloneIcon(system,point){
   const colour=cycloneColour(point.pressure);
@@ -108,7 +108,7 @@ function cyclonePopupContent(system,point){
     ' · '+nhc.pressure.toFixed(0)+' hPa · sustained wind '+(globalThis.WeatherUnits?.wind(nhc.windMS,1)??nhc.windMS.toFixed(1)+' m/s')+'<br>Moving '+nhc.movementKMH.toFixed(1)+' km/h'+
     (typeof nhc.url==='string'&&nhc.url.startsWith('https://www.nhc.noaa.gov/')?' · <a href="'+htmlEscape(nhc.url)+'" target="_blank" rel="noopener">Official advisory</a>':'')+'</div>':'';
   return '<div class="cyclone-popup"><b>'+htmlEscape(cycloneName(system))+'</b><div class="small">'+htmlEscape(system.id)+
-    (system.europeanName?' · European name, inferred model match':system.name?' · name matched to NHC':' · no official name available')+'</div><div class="cyclone-readings">'+
+    (system.europeanName?' · European name, inferred model match':system.name?' · name matched to NHC':' · official name not matched')+'</div><div class="cyclone-readings">'+
     '<div><span>Centre pressure</span><strong>'+point.pressure.toFixed(1)+' hPa</strong></div>'+
     '<div><span>Moving speed</span><strong>'+point.speed.toFixed(1)+' km/h <small>('+ (point.speed/3.6).toFixed(1)+' m/s)</small></strong></div>'+
     '<div><span>Moving towards</span><strong>'+direction+'</strong></div>'+
