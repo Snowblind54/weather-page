@@ -7,6 +7,8 @@ on:
     branches: [main]
     paths:
       - scripts/iberia_observations.py
+      - scripts/spain_airport_stations.json
+      - tests/fixtures/spain-airport-metars.json
       - tests/fixtures/aemet-hourly.json
       - tests/fixtures/ipma-stations.json
       - tests/fixtures/ipma-observations.json

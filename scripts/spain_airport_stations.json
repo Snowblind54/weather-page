@@ -1,0 +1,367 @@
+{
+  "source": "NOAA NCEI ISD station catalogue; Spanish ICAO stations with recent reporting history, national bounds checked.",
+  "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv",
+  "checkedAt": "2026-10-25",
+  "stations": {
+    "LECO": {
+      "country": "ES",
+      "name": "A Coruna",
+      "lat": 43.302,
+      "lon": -8.377
+    },
+    "LEAS": {
+      "country": "ES",
+      "name": "Asturias",
+      "lat": 43.564,
+      "lon": -6.035
+    },
+    "LEAO": {
+      "country": "ES",
+      "name": "Ciudad Real",
+      "lat": 38.983,
+      "lon": -3.917
+    },
+    "LEBR": {
+      "country": "ES",
+      "name": "Bardenas Reales",
+      "lat": 42.2,
+      "lon": -1.45
+    },
+    "LEBT": {
+      "country": "ES",
+      "name": "Valencia",
+      "lat": 39.583,
+      "lon": -0.45
+    },
+    "LEGA": {
+      "country": "ES",
+      "name": "Armilla",
+      "lat": 37.133,
+      "lon": -3.636
+    },
+    "LEXJ": {
+      "country": "ES",
+      "name": "Santander",
+      "lat": 43.427,
+      "lon": -3.82
+    },
+    "LEBB": {
+      "country": "ES",
+      "name": "Bilbao",
+      "lat": 43.301,
+      "lon": -2.911
+    },
+    "LESO": {
+      "country": "ES",
+      "name": "San Sebastian",
+      "lat": 43.357,
+      "lon": -1.791
+    },
+    "LEST": {
+      "country": "ES",
+      "name": "Santiago",
+      "lat": 42.896,
+      "lon": -8.415
+    },
+    "LEVX": {
+      "country": "ES",
+      "name": "Vigo",
+      "lat": 42.232,
+      "lon": -8.627
+    },
+    "LELN": {
+      "country": "ES",
+      "name": "Leon",
+      "lat": 42.589,
+      "lon": -5.656
+    },
+    "LEBG": {
+      "country": "ES",
+      "name": "Burgos",
+      "lat": 42.358,
+      "lon": -3.621
+    },
+    "LEVT": {
+      "country": "ES",
+      "name": "Vitoria",
+      "lat": 42.883,
+      "lon": -2.724
+    },
+    "LELO": {
+      "country": "ES",
+      "name": "Logrono/Agoncillo",
+      "lat": 42.45,
+      "lon": -2.333
+    },
+    "LEPP": {
+      "country": "ES",
+      "name": "Pamplona",
+      "lat": 42.77,
+      "lon": -1.646
+    },
+    "LEHC": {
+      "country": "ES",
+      "name": "Huesca-Pirineos",
+      "lat": 42.083,
+      "lon": -0.333
+    },
+    "LEVD": {
+      "country": "ES",
+      "name": "Valladolid",
+      "lat": 41.706,
+      "lon": -4.852
+    },
+    "LEZG": {
+      "country": "ES",
+      "name": "Zaragoza Ab",
+      "lat": 41.666,
+      "lon": -1.042
+    },
+    "LERS": {
+      "country": "ES",
+      "name": "Reus",
+      "lat": 41.147,
+      "lon": 1.167
+    },
+    "LELL": {
+      "country": "ES",
+      "name": "Sabadell",
+      "lat": 41.517,
+      "lon": 2.1
+    },
+    "LEBL": {
+      "country": "ES",
+      "name": "Barcelona",
+      "lat": 41.297,
+      "lon": 2.078
+    },
+    "LEGE": {
+      "country": "ES",
+      "name": "Girona",
+      "lat": 41.901,
+      "lon": 2.761
+    },
+    "LESA": {
+      "country": "ES",
+      "name": "Salamanca",
+      "lat": 40.952,
+      "lon": -5.502
+    },
+    "LECV": {
+      "country": "ES",
+      "name": "Madri-Colmenar",
+      "lat": 40.65,
+      "lon": -3.733
+    },
+    "LEMD": {
+      "country": "ES",
+      "name": "Adolfo Suarez Madrid Barajas",
+      "lat": 40.494,
+      "lon": -3.567
+    },
+    "LEVS": {
+      "country": "ES",
+      "name": "Cuatro Vientos",
+      "lat": 40.371,
+      "lon": -3.785
+    },
+    "LEGT": {
+      "country": "ES",
+      "name": "Getafe",
+      "lat": 40.294,
+      "lon": -3.724
+    },
+    "LETO": {
+      "country": "ES",
+      "name": "Torrejon",
+      "lat": 40.497,
+      "lon": -3.446
+    },
+    "LECH": {
+      "country": "ES",
+      "name": "Calamocha",
+      "lat": 40.933,
+      "lon": -1.3
+    },
+    "LEAB": {
+      "country": "ES",
+      "name": "Albacete",
+      "lat": 38.949,
+      "lon": -1.864
+    },
+    "LEVC": {
+      "country": "ES",
+      "name": "Valencia",
+      "lat": 39.489,
+      "lon": -0.482
+    },
+    "LEPA": {
+      "country": "ES",
+      "name": "Palma De Mallorca",
+      "lat": 39.55,
+      "lon": 2.733
+    },
+    "LEMH": {
+      "country": "ES",
+      "name": "Menorca",
+      "lat": 39.863,
+      "lon": 4.219
+    },
+    "LEBZ": {
+      "country": "ES",
+      "name": "Talavera La Real / Badajoz",
+      "lat": 38.891,
+      "lon": -6.821
+    },
+    "LEHI": {
+      "country": "ES",
+      "name": "Hinojosa Del Duque",
+      "lat": 38.517,
+      "lon": -5.117
+    },
+    "LERL": {
+      "country": "ES",
+      "name": "Ciudad Real",
+      "lat": 38.983,
+      "lon": -3.917
+    },
+    "LEAL": {
+      "country": "ES",
+      "name": "Alicante",
+      "lat": 38.282,
+      "lon": -0.558
+    },
+    "LEIB": {
+      "country": "ES",
+      "name": "Ibiza",
+      "lat": 38.873,
+      "lon": 1.373
+    },
+    "LEEC": {
+      "country": "ES",
+      "name": "Sevilla Heliport",
+      "lat": 37.317,
+      "lon": -6.0
+    },
+    "LEZL": {
+      "country": "ES",
+      "name": "Sevilla",
+      "lat": 37.418,
+      "lon": -5.893
+    },
+    "LEMO": {
+      "country": "ES",
+      "name": "Moron Ab",
+      "lat": 37.175,
+      "lon": -5.616
+    },
+    "LEBA": {
+      "country": "ES",
+      "name": "Cordoba",
+      "lat": 37.842,
+      "lon": -4.849
+    },
+    "LEGR": {
+      "country": "ES",
+      "name": "Granada",
+      "lat": 37.189,
+      "lon": -3.777
+    },
+    "LERI": {
+      "country": "ES",
+      "name": "Alcantarilla",
+      "lat": 37.951,
+      "lon": -1.23
+    },
+    "LELC": {
+      "country": "ES",
+      "name": "Murcia San Javier",
+      "lat": 37.775,
+      "lon": -0.812
+    },
+    "LERT": {
+      "country": "ES",
+      "name": "Rota Naval Air Station",
+      "lat": 36.65,
+      "lon": -6.35
+    },
+    "LEJR": {
+      "country": "ES",
+      "name": "Jerez",
+      "lat": 36.745,
+      "lon": -6.06
+    },
+    "LEDA": {
+      "country": "ES",
+      "name": "Lleida-Alguaire Airport",
+      "lat": 41.728,
+      "lon": 0.536
+    },
+    "LEMG": {
+      "country": "ES",
+      "name": "Malaga",
+      "lat": 36.675,
+      "lon": -4.499
+    },
+    "LEAM": {
+      "country": "ES",
+      "name": "Almeria",
+      "lat": 36.844,
+      "lon": -2.37
+    },
+    "GCHI": {
+      "country": "ES",
+      "name": "Hierro",
+      "lat": 27.815,
+      "lon": -17.887
+    },
+    "GCLA": {
+      "country": "ES",
+      "name": "La Palma",
+      "lat": 28.626,
+      "lon": -17.756
+    },
+    "GCXO": {
+      "country": "ES",
+      "name": "Tenerife Norte",
+      "lat": 28.483,
+      "lon": -16.342
+    },
+    "GCTS": {
+      "country": "ES",
+      "name": "Tenerife Sur",
+      "lat": 28.044,
+      "lon": -16.572
+    },
+    "GCLP": {
+      "country": "ES",
+      "name": "Gran Canaria",
+      "lat": 27.932,
+      "lon": -15.387
+    },
+    "GCFV": {
+      "country": "ES",
+      "name": "Fuerteventura",
+      "lat": 28.453,
+      "lon": -13.864
+    },
+    "GCRR": {
+      "country": "ES",
+      "name": "Lanzarote",
+      "lat": 28.945,
+      "lon": -13.605
+    },
+    "GECE": {
+      "country": "ES",
+      "name": "Ceuta",
+      "lat": 35.889,
+      "lon": -5.347
+    },
+    "GEML": {
+      "country": "ES",
+      "name": "Melilla",
+      "lat": 35.28,
+      "lon": -2.956
+    }
+  }
+}

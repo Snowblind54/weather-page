@@ -103,4 +103,51 @@ class IberianOfficialObservations(unittest.TestCase):
             self.assertTrue(wind.station(c,c,c,lat,lon,[(END,0,None,None)])['rows'])
 
 
+    def test_spanish_airport_backup_uses_recent_metars_and_native_units(self):
+        now=dt.datetime(2026,10,25,15,tzinfo=dt.timezone.utc)
+        reports=self.fixture('spain-airport-metars.json')
+        metadata=json.loads(Path(ib.__file__).with_name('spain_airport_stations.json').read_text())['stations']
+        rows=ib.parse_spain_metars(reports,metadata,now)
+        self.assertEqual({s['code'] for s in rows},{'METAR-LEMD','METAR-LEPA','METAR-GCLA'})
+        self.assertTrue(any(s['lat']<30 for s in rows))
+        first=next(r for r in reports if r['icaoId']=='LEMD')
+        row=next(s for s in rows if s['code']=='METAR-LEMD')['rows'][-1]
+        self.assertEqual(row[0],first['obsTime']);self.assertEqual(row[1],first['temp'])
+        self.assertAlmostEqual(row[2],first['wspd']*1852/3600)
+        zero={**first,'wspd':0,'temp':0,'wgst':None,'wdir':'VRB'}
+        row=ib.parse_spain_metars([zero],metadata,now)[0]['rows'][0]
+        self.assertEqual(row[1:],[0,0,None,None])
+        for change in [{'icaoId':'EGLL'},{'metarType':'TAF'},{'obsTime':int(now.timestamp())-3*3600},
+                       {'obsTime':int(now.timestamp())+600},{'temp':None,'wspd':None,'wgst':None}]:
+            with self.subTest(change=change):
+                with self.assertRaises(ValueError):ib.parse_spain_metars([{**first,**change}],metadata,now)
+
+    def test_aemet_failure_falls_back_and_projects_honest_sources_without_invented_gusts(self):
+        now=dt.datetime(2026,10,25,15,tzinfo=dt.timezone.utc)
+        reports=self.fixture('spain-airport-metars.json');calls=[]
+        def download(url):
+            calls.append(url);self.assertTrue(url.startswith(ib.METAR+'?'));self.assertIn('hours=2',url)
+            return json.dumps(reports)
+        with patch.object(ib,'load_aemet',side_effect=ValueError('No current official AEMET observations')):
+            temps=ib.load_temperature('ES',now,download);winds=ib.load_wind('ES',now,download)
+        self.assertEqual(len(temps),3);self.assertEqual(len(winds),3);self.assertEqual(len(calls),2)
+        self.assertTrue(all('METAR' in s['source'] for s in temps))
+        self.assertTrue(all(s['observationNetwork']=='spain-airport-metar' for s in temps+winds))
+        self.assertTrue(all(s['gustLabel']=='Reported METAR gust' and 'not an hourly maximum' in s['period'] for s in winds))
+        self.assertTrue(any(r[2] is None for s in winds for r in s['rows']))
+        with patch.object(ib,'load_aemet',side_effect=ValueError('stale')):
+            with self.assertRaises(ValueError):ib.load('ES',now,lambda url:'[]')
+
+    def test_recovered_aemet_is_preferred_and_switching_networks_removes_duplicates(self):
+        now=dt.datetime(2026,10,25,15,tzinfo=dt.timezone.utc);end=int(now.timestamp())
+        raw=[dict(code='A1',name='AEMET station',lat=40,lon=-4,rows=[[end,15,3,5,180]],observationNetwork='aemet-hourly')]
+        with patch.object(ib,'load_aemet',return_value=raw):
+            fresh=ib.load_temperature('ES',now,lambda url:self.fail('Backup must not be requested after AEMET recovers'))
+        backup={**fresh[0],'code':'METAR-LEMD','observationNetwork':'spain-airport-metar'}
+        merged=temperature.merge_country_history({'stations':[backup]},'ES',fresh,end-86400,end)
+        self.assertEqual([s['code'] for s in merged],['A1'])
+        merged=wind.merge([backup],[{**fresh[0],'rows':[[end,3,5,180]]}],now)
+        self.assertEqual([s['code'] for s in merged],['A1'])
+
+
 if __name__=='__main__':unittest.main()

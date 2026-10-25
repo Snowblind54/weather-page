@@ -167,3 +167,11 @@ test('Spain and Portugal accept island observations and preserve native gust ava
  h.context.selected=h.fixture.stations[2];assert.match(h.run('officialWindPopup(selected,selected.rows[0])'),/Unavailable/);
  h.fixture.stations[0].lat=59;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
 });
+
+test('Spanish METAR backup links its actual provider and keeps gust reporting distinct',()=>{
+ const h=harness();h.fixture.sources.ES={status:'ok',timeKind:'observation',name:'AEMET',period:'Maximum gust over the preceding hour'};
+ h.fixture.stations=[{country:'ES',code:'METAR-LEMD',name:'Madrid',lat:40.494,lon:-3.567,rows:[[h.now-600,0,null,null]],sourceName:'Official Spanish airport METAR via NOAA/AWC',gustLabel:'Reported METAR gust',period:'Native airport observation; not an hourly maximum.'}];
+ h.run('officialWindData=validateOfficialWind(fixture)');h.context.selected=h.fixture.stations[0];
+ const popup=h.run('officialWindPopup(selected,selected.rows[0])');
+ assert.match(popup,/aviationweather.gov\/data\/api/);assert.match(popup,/Reported METAR gust/);assert.match(popup,/Unavailable/);assert.match(popup,/not an hourly maximum/);assert.doesNotMatch(popup,/Maximum gust over the preceding hour/);
+});

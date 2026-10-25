@@ -4,6 +4,7 @@ import html
 import io
 import json
 import math
+from pathlib import Path
 import re
 import tarfile
 import time
@@ -11,6 +12,9 @@ import urllib.error
 import urllib.parse
 
 AEMET='https://www.aemet.es/es/eltiempo/observacion/ultimosdatos'
+METAR='https://aviationweather.gov/api/data/metar'
+METAR_SOURCE='Official Spanish airport METAR/SPECI observations via NOAA Aviation Weather Center (AEMET backup)'
+METAR_PERIOD='Reported airport mean wind and gusts at the native METAR/SPECI observation time; knots converted to m/s. Gusts appear only when explicitly reported and are not an hourly maximum. Airport coverage is smaller than the AEMET national network.'
 IPMA='https://api.ipma.pt/open-data/observation/meteorology/stations/'
 BOUNDS={'ES':(27,44.5,-19,5),'PT':(30,43,-32,-6)}
 SOURCES={'ES':'AEMET / Agencia Estatal de Meteorología (provisional observations)',
@@ -86,7 +90,7 @@ def parse_aemet(raw,names,now):
                 else:
                     gust=number(p.get('VMAX10m'),0,360)
                     row[3]=None if gust is None else gust/3.6
-    return finalize(grouped,now,'AEMET')
+    return [{**s,'observationNetwork':'aemet-hourly'} for s in finalize(grouped,now,'AEMET')]
 
 
 def parse_ipma(observations,metadata,now):
@@ -122,9 +126,7 @@ def finalize(grouped,now,provider):
     return out
 
 
-def load(country,now,download):
-    if country=='PT':return parse_ipma(json.loads(download(IPMA+'observations.json')),json.loads(download(IPMA+'stations.json')),now)
-    if country!='ES':raise ValueError('Unknown Iberian observation country')
+def load_aemet(now,download):
     def aemet_download(url):
         for attempt in range(2):
             try:return download(url)
@@ -141,12 +143,55 @@ def load(country,now,download):
     return parse_aemet(aemet_download(url),aemet_names(page),now)
 
 
+
+def parse_spain_metars(reports,metadata,now):
+    if not isinstance(reports,list) or len(reports)>400:raise ValueError('Unexpected Spanish METAR response')
+    end=int(now.timestamp());stations={}
+    for report in reports:
+        if not isinstance(report,dict) or report.get('metarType') not in ('METAR','SPECI'):continue
+        code=report.get('icaoId');meta=metadata.get(code)
+        if not meta or meta.get('country')!='ES':continue
+        geo=point({'geometry':{'type':'Point','coordinates':[meta['lon'],meta['lat']]}},'ES')
+        t=number(report.get('obsTime'),end-2*3600,end+60)
+        if not geo or t is None:continue
+        lat,lon,_=geo
+        speed=number(report.get('wspd'),0,200);gust=number(report.get('wgst'),0,200)
+        direction=number(report.get('wdir'),0,360)
+        row=[int(t),number(report.get('temp'),-90,55),None if speed is None else speed*1852/3600,
+             None if gust is None else gust*1852/3600,None if direction is None else direction%360]
+        item=stations.setdefault(code,dict(code='METAR-'+code,name=meta['name'],lat=lat,lon=lon,rows={},
+            source=METAR_SOURCE,gustLabel='Reported METAR gust',period=METAR_PERIOD,observationNetwork='spain-airport-metar'))
+        item['rows'][int(t)]=row
+    return finalize(stations,now,'Spanish METAR')
+
+
+def load_spain_metars(now,download):
+    metadata=json.loads(Path(__file__).with_name('spain_airport_stations.json').read_text())['stations']
+    # One small centrally fetched query, shared by all map visitors. Keep the
+    # two-hour window below the service's result cap; retained history is merged
+    # by the normal publisher. Do not turn old AEMET readings into current data.
+    url=METAR+'?'+urllib.parse.urlencode({'ids':','.join(sorted(metadata)),'format':'json','hours':2})
+    return parse_spain_metars(json.loads(download(url)),metadata,now)
+
+
+def load(country,now,download):
+    if country=='PT':return parse_ipma(json.loads(download(IPMA+'observations.json')),json.loads(download(IPMA+'stations.json')),now)
+    if country!='ES':raise ValueError('Unknown Iberian observation country')
+    try:return load_aemet(now,download)
+    except (ValueError,OSError,tarfile.TarError) as error:
+        print('ES AEMET observations unavailable:',str(error)[:160],'; using fresh official airport METAR/SPECI backup',flush=True)
+        return load_spain_metars(now,download)
+
+
 def load_temperature(country,now,download):
     import update_official_temperature as core
     out=[];end=int(now.timestamp())
     for s in load(country,now,download):
         item=core.make_station(country,s['code'],s['name'],s['lat'],s['lon'],[(r[0],r[1]) for r in s['rows']])
-        if item and item['rows'][-1][0]>=end-2*3600:item['source']=SOURCES[country];out.append(item)
+        if item and item['rows'][-1][0]>=end-2*3600:
+            item['source']=s.get('source') or SOURCES[country]
+            if s.get('observationNetwork'):item['observationNetwork']=s['observationNetwork']
+            out.append(item)
     if not out:raise ValueError('No current official '+country+' temperatures')
     return out
 
@@ -159,6 +204,9 @@ def load_wind(country,now,download):
         if not item['rows'] or item['rows'][-1][0]<end-2*3600:continue
         item.update(sourceName=SOURCES[country],gustLabel='Gust max · 1 hour' if country=='ES' else 'Current gust unavailable',
                     period='Ten-minute mean wind at 10 m, reported hourly. '+('Maximum gust over the preceding 60 minutes, converted from km/h to m/s.' if country=='ES' else 'Current gusts are not provided by this IPMA feed; daily maxima are not substituted.')+' Native UTC observation time; provisional.')
+        if s.get('source'):item['sourceName']=s['source']
+        for key in ('gustLabel','period','observationNetwork'):
+            if key in s:item[key]=s[key]
         out.append(item)
     if not out:raise ValueError('No current official '+country+' wind observations')
     return out
