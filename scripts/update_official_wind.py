@@ -138,7 +138,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    south,north,west,east = {'ES':(27,44.5,-19,5),'PT':(30,43,-32,-6),'AD':(42.4,42.7,1.4,1.8),'FR':(41,51.5,-5.5,10),'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
+    south,north,west,east = {'AT':(46.3,49.1,9.4,17.2),'CH':(45.7,47.9,5.9,10.6),'ES':(27,44.5,-19,5),'PT':(30,43,-32,-6),'AD':(42.4,42.7,1.4,1.8),'FR':(41,51.5,-5.5,10),'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
     if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
@@ -610,6 +610,8 @@ def main():
     from official_wind_atlantic import load_faroes, load_britain, load_ireland
     from official_wind_western import load_germany, load_netherlands, load_belgium, load_luxembourg
     from official_wind_central import load_czechia, load_slovakia
+    from alpine_observations import load_wind as load_alpine, SOURCES as alpine_sources, URLS, PERIODS
+    SOURCES.update({c:dict(name=alpine_sources[c],url=URLS[c],timeKind='observation',period=PERIODS[c]) for c in ('AT','CH')})
     now = dt.datetime.now(dt.timezone.utc)
     try:
         previous = json.loads(OUTPUT.read_text())
@@ -622,7 +624,8 @@ def main():
                ('DK', load_denmark), ('CA', load_canada), ('GL', load_greenland), ('US', load_usa),
                ('FO', load_faroes), ('GB', load_britain), ('IE', load_ireland),
                ('DE', load_germany), ('NL', load_netherlands), ('BE', load_belgium), ('LU', load_luxembourg),
-               ('CZ', load_czechia), ('SK', load_slovakia), ('FR', load_france), ('AD', load_andorra), ('ES', load_spain), ('PT', load_portugal)]
+               ('CZ', load_czechia), ('SK', load_slovakia), ('FR', load_france), ('AD', load_andorra), ('ES', load_spain), ('PT', load_portugal),
+               ('AT', lambda now: load_alpine('AT',now,download)), ('CH', lambda now: load_alpine('CH',now,download))]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):

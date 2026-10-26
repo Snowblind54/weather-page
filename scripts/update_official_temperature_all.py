@@ -150,6 +150,17 @@ core.COUNTRY_BOUNDS.update(IBERIA_BOUNDS)
 core.LOADERS.update({'ES':parse_spain,'PT':parse_portugal})
 
 
+from alpine_observations import BOUNDS as ALPINE_BOUNDS, SOURCES as ALPINE_SOURCES
+core.SOURCES.update(ALPINE_SOURCES)
+core.COUNTRY_BOUNDS.update(ALPINE_BOUNDS)
+
+def parse_alpine(country):
+    from alpine_observations import load_temperature
+    return load_temperature(country, core.dt.datetime.now(core.dt.timezone.utc), core.download)
+
+core.LOADERS.update({'AT': lambda: parse_alpine('AT'), 'CH': lambda: parse_alpine('CH')})
+
+
 if __name__ == "__main__":
     core.main()
 

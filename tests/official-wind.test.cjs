@@ -175,3 +175,17 @@ test('Spanish METAR backup links its actual provider and keeps gust reporting di
  const popup=h.run('officialWindPopup(selected,selected.rows[0])');
  assert.match(popup,/aviationweather.gov\/data\/api/);assert.match(popup,/Reported METAR gust/);assert.match(popup,/Unavailable/);assert.match(popup,/not an hourly maximum/);assert.doesNotMatch(popup,/Maximum gust over the preceding hour/);
 });
+test('Austrian and Swiss wind and gusts validate at southern Alpine stations with native periods',()=>{
+ const h=harness();
+ for(const [country,lat,lon,name,provider] of [['AT',46.6,14.3,'Austria','GeoSphere Austria'],['CH',45.9,8.9,'Switzerland','Source: MeteoSwiss']]){
+  h.fixture.sources[country]={status:'ok',timeKind:'observation',name:provider,period:'Ten-minute observations'};
+  h.fixture.stations.push({country,code:country+'1',name,lat,lon,rows:[[h.now-600,0,12,270]]});
+ }
+ h.run('officialWindData=validateOfficialWind(fixture)');
+ for(const s of h.fixture.stations.slice(-2)){
+  h.context.selected=s;const popup=h.run('officialWindPopup(selected,selected.rows[0])');
+  assert(popup.includes(s.name));assert.match(popup,/0.0/);assert.match(popup,/12.0/);assert.match(popup,/10 min/);
+ }
+ h.elements.officialWindGusts.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,3);
+ h.fixture.stations.at(-1).lat=59;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+});
