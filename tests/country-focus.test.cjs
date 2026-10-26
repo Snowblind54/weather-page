@@ -28,7 +28,7 @@ test('projected clipping retains holes and every disconnected island',()=>{
 });
 test('switching country at the same playback time cannot reuse foreign station readings',()=>{
  const source=read('stations.js'),selection=source.slice(source.indexOf('function officialStationsNearTime('),source.indexOf('function officialStationSourceSummary('));
- const now=1900000000,c={frames:[{time:now}],OFFICIAL_TEMP_LABEL_MAX_OFFSET:5700,OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY:{},OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC:600,
+ const now=1900000000,c={officialTemperatureMaxAge:()=>5700,frames:[{time:now}],OFFICIAL_TEMP_LABEL_MAX_OFFSET:5700,OFFICIAL_TEMP_LABEL_MAX_OFFSET_BY_COUNTRY:{},OFFICIAL_TEMP_FUTURE_TOLERANCE_SEC:600,
   officialTempStationKey:s=>s.country+'|'+s.code,rows:[{country:'NO',code:'1',temp:2,time:now},{country:'SE',code:'2',temp:4,time:now}]};
  vm.createContext(c);vm.runInContext('let officialTemperatureStations=rows,officialTemperatureSelectionSource=null;const officialTemperatureSelectionCache=new Map();'+selection,c);
  let selected='NO';c.NorthernCountryFocus={key:()=>selected,allowsStation:s=>s.country===selected};
