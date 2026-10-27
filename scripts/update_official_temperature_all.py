@@ -161,6 +161,16 @@ def parse_alpine(country):
 core.LOADERS.update({'AT': lambda: parse_alpine('AT'), 'CH': lambda: parse_alpine('CH')})
 
 
+from italy_hungary_observations import BOUNDS as IT_HU_BOUNDS, SOURCES as IT_HU_SOURCES
+core.COUNTRY_BOUNDS.update(IT_HU_BOUNDS)
+core.SOURCES.update(IT_HU_SOURCES)
+
+def parse_italy_hungary(country):
+    from italy_hungary_observations import load_temperature
+    return load_temperature(country,core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+core.LOADERS.update({c:lambda c=c:parse_italy_hungary(c) for c in ("IT","HU")})
+
 if __name__ == "__main__":
     core.main()
 

@@ -12,7 +12,7 @@ TEMP='dry_bulb_temperature_at_2_meter_above_ground'
 SPEED='mean_wind_speed_during last_10_min_at_10_meters_above_ground'
 GUST='maximum_wind_speed_last_hour'
 DIRECTION='mean_wind_direction_during_last_10 min_at_10_meters_above_ground'
-PROVIDERS={'GB':'Met Office','FR':'Météo-France','LV':'LVĢMC'}
+PROVIDERS={'IT':'Servizio Meteorologico dell’Aeronautica Militare','GB':'Met Office','FR':'Météo-France','LV':'LVĢMC'}
 
 
 def value(text,low,high):

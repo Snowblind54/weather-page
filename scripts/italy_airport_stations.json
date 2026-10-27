@@ -1,0 +1,774 @@
+{
+  "source": "NOAA Aviation Weather Center official station metadata, country IT, ICAO LI; checked 2026-10-27. Coordinates remain decimal degrees.",
+  "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz",
+  "stations": {
+    "LIBA": {
+      "country": "IT",
+      "name": "Amendola",
+      "lat": 41.538,
+      "lon": 15.714
+    },
+    "LIBC": {
+      "country": "IT",
+      "name": "Crotone Arpt",
+      "lat": 38.997,
+      "lon": 17.079
+    },
+    "LIBD": {
+      "country": "IT",
+      "name": "Bari/Palese Arpt",
+      "lat": 41.138,
+      "lon": 16.765
+    },
+    "LIBE": {
+      "country": "IT",
+      "name": "Monte Sant Angelo",
+      "lat": 41.708,
+      "lon": 15.948
+    },
+    "LIBF": {
+      "country": "IT",
+      "name": "Foggia/Lisa Arpt",
+      "lat": 41.433,
+      "lon": 15.535
+    },
+    "LIBG": {
+      "country": "IT",
+      "name": "Grottaglie Arpt",
+      "lat": 40.517,
+      "lon": 17.403
+    },
+    "LIBH": {
+      "country": "IT",
+      "name": "Marina di Ginos",
+      "lat": 40.424,
+      "lon": 16.887
+    },
+    "LIBN": {
+      "country": "IT",
+      "name": "Lecce",
+      "lat": 40.238,
+      "lon": 18.138
+    },
+    "LIBP": {
+      "country": "IT",
+      "name": "Pescara/Abruzzo Arpt",
+      "lat": 42.432,
+      "lon": 14.181
+    },
+    "LIBQ": {
+      "country": "IT",
+      "name": "Scuro Mountain",
+      "lat": 39.331,
+      "lon": 16.396
+    },
+    "LIBR": {
+      "country": "IT",
+      "name": "Brindisi/Casale Arpt",
+      "lat": 40.658,
+      "lon": 17.951
+    },
+    "LIBS": {
+      "country": "IT",
+      "name": "Campobasso",
+      "lat": 41.564,
+      "lon": 14.655
+    },
+    "LIBT": {
+      "country": "IT",
+      "name": "Termoli",
+      "lat": 42.004,
+      "lon": 14.996
+    },
+    "LIBU": {
+      "country": "IT",
+      "name": "Latronico",
+      "lat": 40.087,
+      "lon": 16.014
+    },
+    "LIBV": {
+      "country": "IT",
+      "name": "Gioia Del Colle",
+      "lat": 40.766,
+      "lon": 16.935
+    },
+    "LIBW": {
+      "country": "IT",
+      "name": "Bonifati",
+      "lat": 39.585,
+      "lon": 15.891
+    },
+    "LIBY": {
+      "country": "IT",
+      "name": "Santa Maria di Leuca",
+      "lat": 39.811,
+      "lon": 18.342
+    },
+    "LIBZ": {
+      "country": "IT",
+      "name": "Potenza",
+      "lat": 40.633,
+      "lon": 15.8
+    },
+    "LICA": {
+      "country": "IT",
+      "name": "Lamezia Terme Arpt",
+      "lat": 38.908,
+      "lon": 16.242
+    },
+    "LICB": {
+      "country": "IT",
+      "name": "Comiso Arpt",
+      "lat": 36.994,
+      "lon": 14.606
+    },
+    "LICC": {
+      "country": "IT",
+      "name": "Catania/Fontanarossa Arpt",
+      "lat": 37.467,
+      "lon": 15.064
+    },
+    "LICD": {
+      "country": "IT",
+      "name": "Lampedusa Island Arpt",
+      "lat": 35.498,
+      "lon": 12.618
+    },
+    "LICE": {
+      "country": "IT",
+      "name": "Enna",
+      "lat": 37.568,
+      "lon": 14.28
+    },
+    "LICF": {
+      "country": "IT",
+      "name": "Messina",
+      "lat": 38.2,
+      "lon": 15.549
+    },
+    "LICG": {
+      "country": "IT",
+      "name": "Pantelleria Arpt",
+      "lat": 36.814,
+      "lon": 11.971
+    },
+    "LICJ": {
+      "country": "IT",
+      "name": "Palermo Arpt",
+      "lat": 38.176,
+      "lon": 13.091
+    },
+    "LICL": {
+      "country": "IT",
+      "name": "Gela",
+      "lat": 37.076,
+      "lon": 14.225
+    },
+    "LICM": {
+      "country": "IT",
+      "name": "Calopezzati",
+      "lat": 39.55,
+      "lon": 16.8
+    },
+    "LICO": {
+      "country": "IT",
+      "name": "Cozzo Spadaro",
+      "lat": 36.686,
+      "lon": 15.131
+    },
+    "LICP": {
+      "country": "IT",
+      "name": "Palmero/Boccadifal",
+      "lat": 38.111,
+      "lon": 13.313
+    },
+    "LICR": {
+      "country": "IT",
+      "name": "Reggio Calabria Arpt",
+      "lat": 38.072,
+      "lon": 15.654
+    },
+    "LICT": {
+      "country": "IT",
+      "name": "Trapani/Birgi Arpt",
+      "lat": 37.911,
+      "lon": 12.488
+    },
+    "LICU": {
+      "country": "IT",
+      "name": "Ustica",
+      "lat": 38.707,
+      "lon": 13.177
+    },
+    "LICZ": {
+      "country": "IT",
+      "name": "Sigonella",
+      "lat": 37.406,
+      "lon": 14.919
+    },
+    "LIEA": {
+      "country": "IT",
+      "name": "Alghero/Fertilia Arpt",
+      "lat": 40.631,
+      "lon": 8.289
+    },
+    "LIEB": {
+      "country": "IT",
+      "name": "Cape Bellavista",
+      "lat": 39.931,
+      "lon": 9.713
+    },
+    "LIEC": {
+      "country": "IT",
+      "name": "Cape Carbonara",
+      "lat": 39.104,
+      "lon": 9.514
+    },
+    "LIED": {
+      "country": "IT",
+      "name": "Decimomannu",
+      "lat": 39.354,
+      "lon": 8.973
+    },
+    "LIEE": {
+      "country": "IT",
+      "name": "Cagliari/Elmas Arpt",
+      "lat": 39.243,
+      "lon": 9.06
+    },
+    "LIEF": {
+      "country": "IT",
+      "name": "Capo Frasca",
+      "lat": 39.74,
+      "lon": 8.46
+    },
+    "LIEG": {
+      "country": "IT",
+      "name": "Guardiavecchia",
+      "lat": 41.217,
+      "lon": 9.4
+    },
+    "LIEH": {
+      "country": "IT",
+      "name": "Capo Caccia",
+      "lat": 40.561,
+      "lon": 8.163
+    },
+    "LIEL": {
+      "country": "IT",
+      "name": "Capo S Lorenzo",
+      "lat": 39.498,
+      "lon": 9.629
+    },
+    "LIEN": {
+      "country": "IT",
+      "name": "Fonni",
+      "lat": 40.117,
+      "lon": 9.25
+    },
+    "LIEO": {
+      "country": "IT",
+      "name": "Olbia/Costa Smeralda Arpt",
+      "lat": 40.899,
+      "lon": 9.518
+    },
+    "LIEP": {
+      "country": "IT",
+      "name": "Perdasdefogu",
+      "lat": 39.675,
+      "lon": 9.443
+    },
+    "LIMA": {
+      "country": "IT",
+      "name": "Torino/Aeritalia Arpt",
+      "lat": 45.086,
+      "lon": 7.603
+    },
+    "LIMC": {
+      "country": "IT",
+      "name": "Milan/Malpensa Arpt",
+      "lat": 45.631,
+      "lon": 8.728
+    },
+    "LIME": {
+      "country": "IT",
+      "name": "Milan/Bergamo",
+      "lat": 45.674,
+      "lon": 9.704
+    },
+    "LIMF": {
+      "country": "IT",
+      "name": "Torino/Caselle Arpt",
+      "lat": 45.203,
+      "lon": 7.649
+    },
+    "LIMG": {
+      "country": "IT",
+      "name": "Albenga",
+      "lat": 44.046,
+      "lon": 8.126
+    },
+    "LIMH": {
+      "country": "IT",
+      "name": "Pian Rosà",
+      "lat": 45.935,
+      "lon": 7.707
+    },
+    "LIMJ": {
+      "country": "IT",
+      "name": "Genoa/Colombo Arpt",
+      "lat": 44.413,
+      "lon": 8.838
+    },
+    "LIMK": {
+      "country": "IT",
+      "name": "Torino/Bric Della Cr",
+      "lat": 45.033,
+      "lon": 7.731
+    },
+    "LIML": {
+      "country": "IT",
+      "name": "Milan/Linate Arpt",
+      "lat": 45.461,
+      "lon": 9.263
+    },
+    "LIMN": {
+      "country": "IT",
+      "name": "Cameri",
+      "lat": 45.53,
+      "lon": 8.669
+    },
+    "LIMO": {
+      "country": "IT",
+      "name": "Bisbino Mountai",
+      "lat": 45.87,
+      "lon": 9.067
+    },
+    "LIMP": {
+      "country": "IT",
+      "name": "Parma Arpt",
+      "lat": 44.825,
+      "lon": 10.296
+    },
+    "LIMS": {
+      "country": "IT",
+      "name": "Piacenza ",
+      "lat": 44.913,
+      "lon": 9.723
+    },
+    "LIMT": {
+      "country": "IT",
+      "name": "Passo della Cisa",
+      "lat": 44.472,
+      "lon": 9.929
+    },
+    "LIMU": {
+      "country": "IT",
+      "name": "Cape Mele",
+      "lat": 43.958,
+      "lon": 8.17
+    },
+    "LIMV": {
+      "country": "IT",
+      "name": "Passo de Giovi",
+      "lat": 44.552,
+      "lon": 8.938
+    },
+    "LIMW": {
+      "country": "IT",
+      "name": "Aosta Rgnl",
+      "lat": 45.735,
+      "lon": 7.351
+    },
+    "LIMY": {
+      "country": "IT",
+      "name": "Monte Malanotte",
+      "lat": 44.258,
+      "lon": 7.794
+    },
+    "LIMZ": {
+      "country": "IT",
+      "name": "Cuneo/Levaldigi Arpt",
+      "lat": 44.547,
+      "lon": 7.623
+    },
+    "LIPA": {
+      "country": "IT",
+      "name": "Aviano",
+      "lat": 46.03,
+      "lon": 12.599
+    },
+    "LIPB": {
+      "country": "IT",
+      "name": "Bolzano/Dolomiti Arpt",
+      "lat": 46.46,
+      "lon": 11.326
+    },
+    "LIPC": {
+      "country": "IT",
+      "name": "Cervia",
+      "lat": 44.224,
+      "lon": 12.307
+    },
+    "LIPD": {
+      "country": "IT",
+      "name": "Udine/Campoformido",
+      "lat": 46.038,
+      "lon": 13.188
+    },
+    "LIPE": {
+      "country": "IT",
+      "name": "Bologna/Marconi Arpt",
+      "lat": 44.531,
+      "lon": 11.297
+    },
+    "LIPF": {
+      "country": "IT",
+      "name": "Ferrara Arpt",
+      "lat": 44.814,
+      "lon": 11.61
+    },
+    "LIPH": {
+      "country": "IT",
+      "name": "Treviso Arpt",
+      "lat": 45.648,
+      "lon": 12.194
+    },
+    "LIPI": {
+      "country": "IT",
+      "name": "Rivolto",
+      "lat": 45.979,
+      "lon": 13.049
+    },
+    "LIPK": {
+      "country": "IT",
+      "name": "Forli/Ridolfi Arpt",
+      "lat": 44.196,
+      "lon": 12.07
+    },
+    "LIPL": {
+      "country": "IT",
+      "name": "Ghedi",
+      "lat": 45.432,
+      "lon": 10.268
+    },
+    "LIPO": {
+      "country": "IT",
+      "name": "Brescia Arpt",
+      "lat": 45.429,
+      "lon": 10.331
+    },
+    "LIPP": {
+      "country": "IT",
+      "name": "Dova Area Contr",
+      "lat": 45.4,
+      "lon": 11.87
+    },
+    "LIPQ": {
+      "country": "IT",
+      "name": "Trieste Airport",
+      "lat": 45.828,
+      "lon": 13.472
+    },
+    "LIPR": {
+      "country": "IT",
+      "name": "Rimini/Miramare Arpt",
+      "lat": 44.02,
+      "lon": 12.612
+    },
+    "LIPS": {
+      "country": "IT",
+      "name": "Istrana",
+      "lat": 45.689,
+      "lon": 12.101
+    },
+    "LIPT": {
+      "country": "IT",
+      "name": "Vicenza",
+      "lat": 45.573,
+      "lon": 11.53
+    },
+    "LIPU": {
+      "country": "IT",
+      "name": "Pavdova Arpt",
+      "lat": 45.396,
+      "lon": 11.848
+    },
+    "LIPX": {
+      "country": "IT",
+      "name": "Verona Arpt",
+      "lat": 45.387,
+      "lon": 10.872
+    },
+    "LIPY": {
+      "country": "IT",
+      "name": "Falconara/Ancona Arpt",
+      "lat": 43.617,
+      "lon": 13.36
+    },
+    "LIPZ": {
+      "country": "IT",
+      "name": "Venice/Polo Arpt",
+      "lat": 45.505,
+      "lon": 12.352
+    },
+    "LIQB": {
+      "country": "IT",
+      "name": "Arezzo",
+      "lat": 43.455,
+      "lon": 11.848
+    },
+    "LIQC": {
+      "country": "IT",
+      "name": "Capri Island",
+      "lat": 40.558,
+      "lon": 14.201
+    },
+    "LIQD": {
+      "country": "IT",
+      "name": "Porretta Pass",
+      "lat": 44.03,
+      "lon": 10.93
+    },
+    "LIQI": {
+      "country": "IT",
+      "name": "Gran Sasso Moun",
+      "lat": 42.45,
+      "lon": 13.7
+    },
+    "LIQJ": {
+      "country": "IT",
+      "name": "Civitavecchia",
+      "lat": 42.033,
+      "lon": 11.833
+    },
+    "LIQK": {
+      "country": "IT",
+      "name": "Capo Palinuro",
+      "lat": 40.025,
+      "lon": 15.281
+    },
+    "LIQN": {
+      "country": "IT",
+      "name": "Rieti Arpt",
+      "lat": 42.427,
+      "lon": 12.85
+    },
+    "LIQO": {
+      "country": "IT",
+      "name": "Mount Argentario",
+      "lat": 42.387,
+      "lon": 11.17
+    },
+    "LIQP": {
+      "country": "IT",
+      "name": "Isola di Palmaria",
+      "lat": 44.067,
+      "lon": 9.816
+    },
+    "LIQR": {
+      "country": "IT",
+      "name": "Radicofani",
+      "lat": 42.896,
+      "lon": 11.768
+    },
+    "LIQV": {
+      "country": "IT",
+      "name": "Volterra",
+      "lat": 43.402,
+      "lon": 10.86
+    },
+    "LIQW": {
+      "country": "IT",
+      "name": "Sarzana/Luni",
+      "lat": 44.088,
+      "lon": 9.987
+    },
+    "LIQZ": {
+      "country": "IT",
+      "name": "Ponza Isl",
+      "lat": 40.912,
+      "lon": 12.957
+    },
+    "LIRA": {
+      "country": "IT",
+      "name": "Rome/Ciampino Arpt",
+      "lat": 41.808,
+      "lon": 12.585
+    },
+    "LIRB": {
+      "country": "IT",
+      "name": "Vigna Di Valle",
+      "lat": 42.08,
+      "lon": 12.211
+    },
+    "LIRE": {
+      "country": "IT",
+      "name": "Pratica di Mare",
+      "lat": 41.656,
+      "lon": 12.449
+    },
+    "LIRF": {
+      "country": "IT",
+      "name": "Rome/Fiumicino",
+      "lat": 41.8,
+      "lon": 12.239
+    },
+    "LIRG": {
+      "country": "IT",
+      "name": "Guidonia",
+      "lat": 41.996,
+      "lon": 12.735
+    },
+    "LIRH": {
+      "country": "IT",
+      "name": "Frosinone",
+      "lat": 41.646,
+      "lon": 13.3
+    },
+    "LIRI": {
+      "country": "IT",
+      "name": "Pontecagnano Arpt",
+      "lat": 40.62,
+      "lon": 14.911
+    },
+    "LIRJ": {
+      "country": "IT",
+      "name": "Elba Arpt",
+      "lat": 42.762,
+      "lon": 10.239
+    },
+    "LIRK": {
+      "country": "IT",
+      "name": "Monte Terminillo",
+      "lat": 42.466,
+      "lon": 12.979
+    },
+    "LIRL": {
+      "country": "IT",
+      "name": "Latina Arpt",
+      "lat": 41.545,
+      "lon": 12.91
+    },
+    "LIRM": {
+      "country": "IT",
+      "name": "Grazzanise",
+      "lat": 41.061,
+      "lon": 14.082
+    },
+    "LIRN": {
+      "country": "IT",
+      "name": "Naples Intl",
+      "lat": 40.885,
+      "lon": 14.292
+    },
+    "LIRP": {
+      "country": "IT",
+      "name": "Pisa/Galilei Arpt",
+      "lat": 43.684,
+      "lon": 10.393
+    },
+    "LIRQ": {
+      "country": "IT",
+      "name": "Florence/Peretola Arpt",
+      "lat": 43.81,
+      "lon": 11.205
+    },
+    "LIRS": {
+      "country": "IT",
+      "name": "Grosseto",
+      "lat": 42.76,
+      "lon": 11.072
+    },
+    "LIRT": {
+      "country": "IT",
+      "name": "Trevico",
+      "lat": 41.047,
+      "lon": 15.233
+    },
+    "LIRU": {
+      "country": "IT",
+      "name": "Rome/Urbe",
+      "lat": 41.953,
+      "lon": 12.5
+    },
+    "LIRV": {
+      "country": "IT",
+      "name": "Viterbo",
+      "lat": 42.43,
+      "lon": 12.064
+    },
+    "LIRX": {
+      "country": "IT",
+      "name": "Monte Calamita",
+      "lat": 42.731,
+      "lon": 10.396
+    },
+    "LIRZ": {
+      "country": "IT",
+      "name": "Perugia/Egidio Arpt",
+      "lat": 43.097,
+      "lon": 12.51
+    },
+    "LIVC": {
+      "country": "IT",
+      "name": "Monte Cimone",
+      "lat": 44.194,
+      "lon": 10.7
+    },
+    "LIVD": {
+      "country": "IT",
+      "name": "Dobbiaco",
+      "lat": 46.729,
+      "lon": 12.228
+    },
+    "LIVE": {
+      "country": "IT",
+      "name": "Resia Pass",
+      "lat": 46.833,
+      "lon": 10.5
+    },
+    "LIVF": {
+      "country": "IT",
+      "name": "Frontone",
+      "lat": 43.517,
+      "lon": 12.728
+    },
+    "LIVM": {
+      "country": "IT",
+      "name": "Punta Marina",
+      "lat": 44.441,
+      "lon": 12.296
+    },
+    "LIVO": {
+      "country": "IT",
+      "name": "Tarvisio",
+      "lat": 46.506,
+      "lon": 13.586
+    },
+    "LIVP": {
+      "country": "IT",
+      "name": "Monte Paganella",
+      "lat": 46.143,
+      "lon": 11.038
+    },
+    "LIVR": {
+      "country": "IT",
+      "name": "Rolle Pass",
+      "lat": 46.298,
+      "lon": 11.787
+    },
+    "LIVT": {
+      "country": "IT",
+      "name": "Trieste",
+      "lat": 45.677,
+      "lon": 13.754
+    },
+    "LIYW": {
+      "country": "IT",
+      "name": "Aviano ",
+      "lat": 46.03,
+      "lon": 12.599
+    }
+  }
+}

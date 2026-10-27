@@ -1,5 +1,5 @@
 {
-  "source": "DWD station catalogue coordinates converted from degrees/minutes; only stations with published BEOB observation files. UK, metropolitan France and Latvia.",
+  "source": "DWD station catalogue coordinates converted from degrees/minutes; only stations with published BEOB observation files. UK, metropolitan France and Latvia. Italy: WMO 16000–16550 catalogue entries with published BEOB files; Malta excluded.",
   "metadataUrl": "https://www.dwd.de/DE/leistungen/met_verfahren_mosmix/mosmix_stationskatalog.cfg?view=nasPublication",
   "stations": {
     "03005": {
@@ -487,6 +487,193 @@
       "name": "Riga",
       "lat": 56.966667,
       "lon": 24.066667
+    },
+    "16008": {
+      "country": "IT",
+      "name": "S. VALENTINO A. MUTA",
+      "lat": 46.766667,
+      "lon": 10.533333,
+      "icao": "LIVE"
+    },
+    "16021": {
+      "country": "IT",
+      "name": "PASSO ROLLE",
+      "lat": 46.3,
+      "lon": 11.783333,
+      "icao": "LIVR"
+    },
+    "16022": {
+      "country": "IT",
+      "name": "PAGANELLA",
+      "lat": 46.15,
+      "lon": 11.033333,
+      "icao": "LIVP"
+    },
+    "16033": {
+      "country": "IT",
+      "name": "DOBBIACO",
+      "lat": 46.733333,
+      "lon": 12.216667,
+      "icao": "LIVD"
+    },
+    "16040": {
+      "country": "IT",
+      "name": "TARVISIO",
+      "lat": 46.5,
+      "lon": 13.583333,
+      "icao": "LIVO"
+    },
+    "16080": {
+      "country": "IT",
+      "name": "MAILAND",
+      "lat": 45.433333,
+      "lon": 9.283333,
+      "icao": "LIML"
+    },
+    "16084": {
+      "country": "IT",
+      "name": "PIACENZA",
+      "lat": 44.916667,
+      "lon": 9.733333,
+      "icao": "LIMS"
+    },
+    "16088": {
+      "country": "IT",
+      "name": "BRESCIA/GHEDI",
+      "lat": 45.416667,
+      "lon": 10.283333,
+      "icao": "LIPL"
+    },
+    "16110": {
+      "country": "IT",
+      "name": "TRIEST",
+      "lat": 45.65,
+      "lon": 13.75,
+      "icao": "LIVT"
+    },
+    "16120": {
+      "country": "IT",
+      "name": "GENUA",
+      "lat": 44.416667,
+      "lon": 8.85,
+      "icao": "LIMJ"
+    },
+    "16138": {
+      "country": "IT",
+      "name": "FERRARA",
+      "lat": 44.833333,
+      "lon": 11.616667,
+      "icao": "LIPF"
+    },
+    "16158": {
+      "country": "IT",
+      "name": "PISA-S.GIUSTO",
+      "lat": 43.683333,
+      "lon": 10.383333,
+      "icao": "LIRP"
+    },
+    "16206": {
+      "country": "IT",
+      "name": "GROSSETO",
+      "lat": 42.75,
+      "lon": 11.066667,
+      "icao": "LIRS"
+    },
+    "16219": {
+      "country": "IT",
+      "name": "MONTE TERMINILLO",
+      "lat": 42.466667,
+      "lon": 12.983333,
+      "icao": "LIRK"
+    },
+    "16230": {
+      "country": "IT",
+      "name": "PESCARA",
+      "lat": 42.433333,
+      "lon": 14.2,
+      "icao": "LIBP"
+    },
+    "16245": {
+      "country": "IT",
+      "name": "PRATICA DI MARE",
+      "lat": 41.65,
+      "lon": 12.433333,
+      "icao": "LIRE"
+    },
+    "16252": {
+      "country": "IT",
+      "name": "CAMPOBASSO",
+      "lat": 41.566667,
+      "lon": 14.65,
+      "icao": "LIBS"
+    },
+    "16270": {
+      "country": "IT",
+      "name": "BARI",
+      "lat": 41.133333,
+      "lon": 16.783333,
+      "icao": "LIBD"
+    },
+    "16280": {
+      "country": "IT",
+      "name": "PONZA",
+      "lat": 40.916667,
+      "lon": 12.95,
+      "icao": "LIQZ"
+    },
+    "16294": {
+      "country": "IT",
+      "name": "CAPRI",
+      "lat": 40.55,
+      "lon": 14.2,
+      "icao": "LIQC"
+    },
+    "16320": {
+      "country": "IT",
+      "name": "BRINDISI",
+      "lat": 40.65,
+      "lon": 17.95,
+      "icao": "LIBR"
+    },
+    "16420": {
+      "country": "IT",
+      "name": "MESSINA",
+      "lat": 38.2,
+      "lon": 15.55,
+      "icao": "LICF"
+    },
+    "16429": {
+      "country": "IT",
+      "name": "TRAPANI/BIRGI",
+      "lat": 37.916667,
+      "lon": 12.5,
+      "icao": "LICT"
+    },
+    "16434": {
+      "country": "IT",
+      "name": "PRIZZI",
+      "lat": 37.716667,
+      "lon": 13.433333,
+      "icao": "LICX"
+    },
+    "16531": {
+      "country": "IT",
+      "name": "OLBIA/COSTA SMERALDA",
+      "lat": 40.9,
+      "lon": 9.516667,
+      "icao": "LIEO"
+    },
+    "16325": {
+      "country": "IT",
+      "name": "Marina Di Ginosa",
+      "lat": 40.416667,
+      "lon": 16.883333
+    },
+    "16550": {
+      "country": "IT",
+      "name": "Capo Bellavista",
+      "lat": 39.933333,
+      "lon": 9.716667
     }
   }
 }
