@@ -107,6 +107,7 @@ function warningsForTodayAndTomorrow(records){
 // the two-day window when its date arrives.
 const renderWarningsAllDays=renderWarnings;
 renderWarnings=async function(){
+  window.NorthernWarningList?.begin($('warningList'),record=>warningsForTodayAndTomorrow([record]).length>0);
   const all=warningRecords;
   warningRecords=warningsForTodayAndTomorrow(all);
   try{
@@ -175,7 +176,9 @@ renderNordicWarnings=async function(){
   const list=$('warningList');
   let mapped=0;
 
+  const generation=warningLoadGeneration;let processed=0;
   for(const record of visibleWarnings){
+    if(++processed%16===0){await new Promise(resolve=>setTimeout(resolve,0));if(generation!==warningLoadGeneration||!$('warningOn').checked)return mapped;}
     const sev=warningSeverity(record.level);
     const marine=isFinnishMarineWarning(record);
     let firstLayer=null;
@@ -234,6 +237,7 @@ renderNordicWarnings=async function(){
       mapped++;
     }
 
+    const createCard=()=>{
     const card=document.createElement('div');
     card.className='warning-card';
     card.warningRecord=record;
@@ -270,9 +274,12 @@ renderNordicWarnings=async function(){
       }
     });
 
-    list.appendChild(card);
+    return card;
+    };
+    if(window.NorthernWarningList)window.NorthernWarningList.append(list,record,createCard);else list.appendChild(createCard());
   }
 
+  window.NorthernWarningList?.finish();
   scheduleWarningExpiryRefresh();
   return mapped;
 };
@@ -346,6 +353,7 @@ function purgeExpiredWarningDisplay(){
     if(layer.warningRecord && !warningIsTodayOrTomorrow(layer.warningRecord)) expiredLayers.push(layer);
   });
   for(const layer of expiredLayers) warningLayerGroup.removeLayer(layer);
+  window.NorthernWarningList?.purge();
   for(const card of [...$('warningList').children]){
     if(card.warningRecord && !warningIsTodayOrTomorrow(card.warningRecord)) card.remove();
   }
@@ -390,7 +398,7 @@ loadWarnings=async function(force=false){
 };
 
 $('warningOn').addEventListener('change',()=>{
-  if(!$('warningOn').checked) clearWarningExpiryRefresh();
+  if(!$('warningOn').checked){clearWarningExpiryRefresh();window.NorthernWarningList?.clear();}
   else scheduleWarningExpiryRefresh();
 });
 document.addEventListener('visibilitychange',()=>{

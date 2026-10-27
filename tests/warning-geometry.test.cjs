@@ -20,3 +20,10 @@ test('Date-line warnings match the Alaska viewport without becoming world-spanni
  assert.equal(d.bounds.east-d.bounds.west,2);assert(G.intersects(d.bounds,{south:58,north:64,west:-185,east:-170}));assert(!G.intersects(d.bounds,{south:58,north:64,west:20,east:30}));
  assert(G.simplified(d,6,-175)[0].every(p=>p[1]>=-181&&p[1]<=-179));
 });
+
+test('Cache budgets reject a single huge county boundary and large descriptions before serialization',()=>{
+ assert(G.cacheableRecords([{polygons:[square(59,24)],description:'Official warning'}]));
+ assert(!G.cacheableRecords([{polygons:[Array.from({length:30001},()=>[59,24])]}]));
+ assert(!G.cacheableRecords([{polygons:[],description:'x'.repeat(500001)}]));
+ assert(!G.cacheableRecords(Array.from({length:501},()=>({polygons:[]}))));
+});

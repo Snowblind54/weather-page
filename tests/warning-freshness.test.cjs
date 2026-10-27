@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const read=name=>fs.readFileSync(require('node:path').join(__dirname,'../js',name),'utf8');
 function harness(){
   const status={checked:true,textContent:'',className:''};
-  const c={Date,Intl,Map,Number,Object,Array,Math,JSON,console,$:()=>status,
+  const c={warningLoadGeneration:0,Date,Intl,Map,Number,Object,Array,Math,JSON,console,$:()=>status,
     warningRecords:[],lithuaniaWarnings:[],nordicWarnings:[],estoniaLegacyForecast:false,
     renderNordicWarnings(){},loadWarnings(){},setTimeout(){},clearTimeout(){}};
   vm.createContext(c);

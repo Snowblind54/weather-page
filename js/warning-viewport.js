@@ -3,30 +3,40 @@
   'use strict';
   const G=window.NorthernWarningGeometry;if(!G||typeof map==='undefined')return;
   const active=new Set(),listeners=new Set();let scheduled=false;
+  // All warning boundaries share one canvas instead of thousands of SVG paths.
+  const renderer=L.canvas?.({pane:'warningPane',padding:.05,tolerance:4});
+  const batchSize=64;
   const notify=()=>listeners.forEach(f=>f());
   const viewport=()=>{const b=map.getBounds().pad(.15);return {west:b.getWest(),east:b.getEast(),south:b.getSouth(),north:b.getNorth()};};
   const WarningGroup=L.FeatureGroup.extend({
     initialize(descriptors,options,circle=null){
       L.FeatureGroup.prototype.initialize.call(this,[]);
-      this._descriptors=descriptors;this._warningOptions=options;this._circleSource=circle;this._viewKey=null;this._visibleDescriptors=[];
+      this._descriptors=descriptors;this._warningOptions=options;this._circleSource=circle;this._viewKey=null;this._visibleDescriptors=[];this._revision=0;
     },
     bindPopup(content,options){this._warningContent=content;this._warningPopupOptions=options;return this;},
     onAdd(m){L.FeatureGroup.prototype.onAdd.call(this,m);this._warningMap=m;active.add(this);this._update();},
-    onRemove(m){active.delete(this);L.FeatureGroup.prototype.onRemove.call(this,m);this.clearLayers();for(const d of this._visibleDescriptors)d.cache?.clear();this._visibleDescriptors=[];this._viewKey=null;this._warningMap=null;if(this._warningPopup)m.closePopup(this._warningPopup);notify();},
+    onRemove(m){this._revision++;active.delete(this);L.FeatureGroup.prototype.onRemove.call(this,m);this.clearLayers();for(const d of this._visibleDescriptors)d.cache?.clear();this._visibleDescriptors=[];this._viewKey=null;this._warningMap=null;if(!active.size&&renderer&&map.hasLayer?.(renderer))map.removeLayer(renderer);if(this._warningPopup)m.closePopup(this._warningPopup);notify();},
     _update(){
       if(!this._warningMap)return;
       const zoom=Math.floor(map.getZoom()),centre=map.getCenter().lng,v=viewport();
-      const visible=this._descriptors.filter(d=>G.intersects(d.bounds,v));
-      const key=zoom+':'+visible.map(d=>this._descriptors.indexOf(d)+'@'+G.worldShift(d.bounds,centre)).join(',');
-      if(key===this._viewKey)return;this._viewKey=key;this.clearLayers();
+      const visible=[],keys=[];
+      for(let i=0;i<this._descriptors.length;i++){const d=this._descriptors[i];if(G.intersects(d.bounds,v)){visible.push(d);keys.push(i+'@'+G.worldShift(d.bounds,centre));}}
+      const key=zoom+':'+keys.join(',');
+      if(key===this._viewKey)return;this._viewKey=key;const revision=++this._revision;this.clearLayers();
       const keep=new Set(visible);for(const d of this._visibleDescriptors)if(!keep.has(d))d.cache?.clear();this._visibleDescriptors=visible;
       if(visible.length){
         const style=this._warningOptions.style||this._warningOptions;
-        const options={...style,...this._warningOptions,pane:'warningPane',smoothFactor:.5};delete options.style;if(options.fill!==false)options.fillOpacity=0;
-        const child=this._circleSource?L.circle([this._circleSource[0],this._circleSource[1]+G.worldShift(visible[0].bounds,centre)],options):L.polygon(visible.map(d=>G.simplified(d,zoom,centre)),options);
-        child.warningRecord=this.warningRecord;
-        child.bindPopup(()=>typeof this._warningContent==='function'?this._warningContent(child):this._warningContent,this._warningPopupOptions);
-        this.addLayer(child);
+        const options={...style,...this._warningOptions,pane:'warningPane',smoothFactor:.5,...(renderer?{renderer}:{})};delete options.style;if(options.fill!==false)options.fillOpacity=0;
+        const addBatch=offset=>{
+          if(!this._warningMap||revision!==this._revision)return;
+          const parts=visible.slice(offset,offset+batchSize);
+          const child=this._circleSource?L.circle([this._circleSource[0],this._circleSource[1]+G.worldShift(visible[0].bounds,centre)],options):L.polygon(parts.map(d=>G.simplified(d,zoom,centre)),options);
+          child.warningRecord=this.warningRecord;
+          child.bindPopup(()=>typeof this._warningContent==='function'?this._warningContent(child):this._warningContent,this._warningPopupOptions);
+          this.addLayer(child);notify();
+          if(!this._circleSource&&offset+batchSize<visible.length)requestAnimationFrame(()=>addBatch(offset+batchSize));
+        };
+        addBatch(0);
       }
       notify();
     },
@@ -44,7 +54,7 @@
   });
   function schedule(){
     if(scheduled)return;scheduled=true;
-    requestAnimationFrame(()=>{scheduled=false;for(const group of active)group._update();notify();});
+    requestAnimationFrame(()=>{scheduled=false;const groups=[...active];let i=0;const step=()=>{const end=Math.min(i+16,groups.length);for(;i<end;i++)if(active.has(groups[i]))groups[i]._update();notify();if(i<groups.length)requestAnimationFrame(step);};step();});
   }
   map.on('moveend zoomend resize',schedule);
   window.NorthernWarningViewport={

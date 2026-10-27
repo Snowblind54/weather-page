@@ -59,6 +59,17 @@
     d.cache.set(key,result);while(d.cache.size>2)d.cache.delete(d.cache.keys().next().value);
     return result;
   }
-  root.NorthernWarningGeometry={cap,geojson,intersects,worldShift,simplified};
+  // Bound serialization before allocating a second copy of a large snapshot.
+  function cacheableRecords(records){
+    if(!Array.isArray(records)||records.length>500)return false;
+    let points=0,textSize=0,parts=0;const pending=[];
+    for(const record of records){
+      for(const value of Object.values(record))if(typeof value==='string'){textSize+=value.length;if(textSize>500000)return false;}
+      for(const polygon of record.polygons||[]){if(++parts>1000)return false;pending.push(polygon);}
+    }
+    while(pending.length){const value=pending.pop();if(!Array.isArray(value))continue;if(typeof value[0]==='number'){if(++points>30000)return false;}else for(const child of value)pending.push(child);}
+    return true;
+  }
+  root.NorthernWarningGeometry={cap,geojson,intersects,worldShift,simplified,cacheableRecords};
   if(typeof module!=='undefined'&&module.exports)module.exports=root.NorthernWarningGeometry;
 })(typeof window!=='undefined'?window:globalThis);

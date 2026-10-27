@@ -3,7 +3,7 @@ const read=name=>fs.readFileSync(require('node:path').join(__dirname,'../js',nam
 const now=Date.parse('2026-10-13T02:00:00Z');
 class Clock extends Date{constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}}
 function harness(){
- const c={Date:Clock,Intl,Map,Number,Object,Array,Math,JSON,console};vm.createContext(c);const run=s=>vm.runInContext(s,c);
+ const c={warningLoadGeneration:0,Date:Clock,Intl,Map,Number,Object,Array,Math,JSON,console};vm.createContext(c);const run=s=>vm.runInContext(s,c);
  run(read('national-warnings.js'));
  const filters=read('warning-filters.js');run(filters.slice(0,filters.indexOf('const renderWarningsAllDays')));
  run(filters.slice(filters.indexOf('function isFinnishMarineWarning'),filters.indexOf('// Nordic renderer')));

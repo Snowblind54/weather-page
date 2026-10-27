@@ -54,13 +54,16 @@ async function fetchNationalWarningSnapshot(){
         nationalWarningSnapshot=data;
         nationalWarningSnapshotFetchedAt=Date.now();
         // Avoid a large synchronous copy that exceeds browser storage quotas.
-        const polygonCount=Object.values(data.countries).reduce((n,c)=>n+(Array.isArray(c?.records)?c.records:[]).reduce((total,r)=>total+(Array.isArray(r?.polygons)?r.polygons.length:0),0),0);
-        if(polygonCount<=400){try{localStorage.setItem(NATIONAL_WARNING_CACHE_KEY,JSON.stringify(data));}catch(_){}}
+        const records=Object.values(data.countries).flatMap(c=>Array.isArray(c?.records)?c.records:[]);
+        if(window.NorthernWarningGeometry?.cacheableRecords(records)){try{localStorage.setItem(NATIONAL_WARNING_CACHE_KEY,JSON.stringify(data));}catch(_){}}
+        else {try{localStorage.removeItem(NATIONAL_WARNING_CACHE_KEY);}catch(_){}}
         return data;
       }catch(error){lastError=error;}finally{clearTimeout(timer);}
     }
     try{
-      const cached=JSON.parse(localStorage.getItem(NATIONAL_WARNING_CACHE_KEY));
+      const raw=localStorage.getItem(NATIONAL_WARNING_CACHE_KEY);
+      if(raw?.length>2000000){localStorage.removeItem(NATIONAL_WARNING_CACHE_KEY);throw new Error('Warning cache too large');}
+      const cached=JSON.parse(raw);
       if(cached?.version===1) return cached;
     }catch(_){}
     throw lastError||new Error('National warning feeds unavailable');

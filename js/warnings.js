@@ -1603,6 +1603,7 @@ function dedupeNordicWarnings(records){
 }
 
 function saveNordicWarningsCache(records){
+  if(!window.NorthernWarningGeometry?.cacheableRecords(records)){try{localStorage.removeItem(NORDIC_WARNING_CACHE_KEY);}catch(_){}return;}
   try{
     localStorage.setItem(NORDIC_WARNING_CACHE_KEY,JSON.stringify({
       savedAt:Date.now(),
@@ -1615,6 +1616,7 @@ function loadNordicWarningsCache(){
   try{
     const raw=localStorage.getItem(NORDIC_WARNING_CACHE_KEY);
     if(!raw) return null;
+    if(raw.length>2000000){localStorage.removeItem(NORDIC_WARNING_CACHE_KEY);return null;}
     const cached=JSON.parse(raw);
     if(!cached?.savedAt || !Array.isArray(cached.records)) return null;
     return cached;
