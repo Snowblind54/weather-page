@@ -1,0 +1,31 @@
+name: Check terrain and cross-border heatmaps
+on:
+  push:
+    branches: [main]
+    paths:
+      - js/terrain-context.js
+      - js/temperature-us.js
+      - js/temperature.js
+      - js/stations.js
+      - js/rainfall.js
+      - js/official-rainfall.js
+      - js/wind.js
+      - js/wind-observation-blend.js
+      - assets/terrain-*-v1.bin.gz
+      - tests/terrain-context.test.cjs
+      - tests/rainfall.test.cjs
+      - .github/workflows/check-heatmap-interpolation.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify terrain, interpolation, dates and country filters
+        run: node --test tests/terrain-context.test.cjs tests/rainfall.test.cjs tests/central-temperature.test.cjs tests/italy-hungary-observations.test.cjs tests/alpine-observations.test.cjs tests/official-wind.test.cjs tests/test_wind_observation_blend.js

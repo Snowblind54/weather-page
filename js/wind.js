@@ -490,7 +490,6 @@ function windHeatmapCorrections(unix,slice,mode){
   const target=Math.min(unix,Date.now()/1000),corrections=[];
   for(const station of officialWindData.stations){
     if(station.heatmapEligible===false)continue;
-    if(globalThis.NorthernCountryFocus?.allowsStation&&!globalThis.NorthernCountryFocus.allowsStation(station))continue;
     const reading=officialWindReading(station,unix);if(!reading)continue;
     const observed=mode==='gust'?reading[2]:reading[1];if(!Number.isFinite(observed))continue;
     const vector=windAt(station.lat,station.lon,slice);
@@ -553,6 +552,9 @@ const WindHeatmapLayer=L.Layer.extend({
   },
   reset(){
     if(!this._map||!this.ctx||!windData)return;
+    if(globalThis.NorthernTerrain&&!globalThis.NorthernTerrain.loaded){
+      globalThis.NorthernTerrain.ready().then(()=>{if(this._map)this.scheduleReset();});return;
+    }
     const slice=windTimeSlice(this.unix);if(!slice)return;
     const size=this._map.getSize(),area=size.x*size.y;
     this.canvas.width=Math.max(1,size.x);this.canvas.height=Math.max(1,size.y);
@@ -574,7 +576,7 @@ const WindHeatmapLayer=L.Layer.extend({
     const lowCtx=low.getContext('2d'),img=lowCtx.createImageData(cols,rows),palette=WIND_COLOUR_PALETTES[this.mode];
     const rgb=palette.map(hex=>[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]);
     const focus=globalThis.NorthernCountryFocus;
-    const corrections=windHeatmapCorrections(this.unix,slice,this.mode).filter(c=>!focus?.active()||focus.allowsPoint(c.lat,c.lon));
+    const corrections=windHeatmapCorrections(this.unix,slice,this.mode);
     const correctionIndex=windHeatmapCorrectionIndex(corrections);
     let shown=0;
     for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
@@ -598,7 +600,7 @@ const WindHeatmapLayer=L.Layer.extend({
     // Source pixel centres line up with the anchored sample coordinates.
     this.ctx.drawImage(low,0,0,cols,rows,startX-step/2,startY-step/2,cols*step,rows*step);
     this.ctx.restore();
-    const source=(corrections.length?`model + ${corrections.length} fresh official readings`:'model field')+(focus?.active()?' · '+focus.current().name:'');
+    const source=(corrections.length?`model + ${corrections.length} fresh official readings · terrain-weighted`:'model field')+(focus?.active()?' · '+focus.current().name:'');
     $('windHeatmapStatus').textContent=shown?`${this.mode==='gust'?'Gust':'Sustained wind'} heatmap · ${source} · ${fmt(slice.time??this.unix)}${slice.cached?' · last available model hour':''}`:'Wind heatmap unavailable in this view.';
   }
 });

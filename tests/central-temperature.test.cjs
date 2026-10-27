@@ -18,7 +18,7 @@ test('all three countries support measured station shading and current extremes'
  for(const [country,lat,lon,id] of [['CZ',50,15,'central-europe'],['SK',48.7,19.5,'central-europe'],['LU',49.63,6.23,'western-europe']]){
   const region=api.regions.find(r=>r.id===id);assert(region.countries.includes(country));assert(region.w*region.h<125000);
   const result=await api.raster(region,[{country,lat,lon,temp:0,time:now},{country:'PL',lat,lon,temp:40,time:now}],now);
-  assert(result.alpha.some(a=>a>0));assert([...result.values].filter(Number.isFinite).every(v=>v===0));
+  assert(result.alpha.some(a=>a>0));assert([...result.values].filter(Number.isFinite).every(v=>Math.abs(v-20)<1e-4));
  }
  const {names,summarize}=require('../js/weather-extremes-data.js');
  assert.equal(names.CZ,'Czechia');assert.equal(names.SK,'Slovakia');assert.equal(names.LU,'Luxembourg');

@@ -2,9 +2,10 @@
 // Model coverage stays bounded; additional European countries use official gauges.
 const RAIN_REGION_IDS=new Set(['baltics','scandinavia','iceland','poland','denmark']);
 const RAIN_GRID_SPECS=TEMP_GRID_SPECS.filter(spec=>RAIN_REGION_IDS.has(spec.id));
-const OFFICIAL_ONLY_RAIN_COUNTRIES=new Set(['CA','GB','IE','DE','NL','BE','LU','CZ','SK','FR','AD','ES','AT','CH']);
+const OFFICIAL_ONLY_RAIN_COUNTRIES=new Set(['IT','HU','PT','CA','GB','IE','DE','NL','BE','LU','CZ','SK','FR','AD','ES','AT','CH']);
 const RAIN_REGIONS=[...TEMP_REGIONS.filter(region=>RAIN_REGION_IDS.has(region.id)||region.id==='canada'),
-  ...(globalThis.NorthernUSTemperature?.regions||[]).filter(region=>['british-isles','western-europe','central-europe','france','andorra','iberia','spain-canaries','austria','switzerland'].includes(region.id)).map(region=>region.id==='iberia'?{...region,id:'spain-rain',countries:['ES']}:region)];
+  ...(globalThis.NorthernUSTemperature?.regions||[]).filter(region=>['british-isles','western-europe','central-europe','france','andorra','iberia','spain-canaries','austria','switzerland','italy','hungary'].includes(region.id)).map(region=>region.id==='iberia'?{...region,id:'spain-rain',countries:['ES']}:region),
+  ...(globalThis.NorthernUSTemperature?[{id:'portugal-rain',countries:['PT'],bounds:[[36.8,-9.6],[42.2,-6]],w:180,h:280,stationBased:true}]:[])];
 const RAIN_CACHE_KEY='balticWeatherRainAccumulationV814';
 const RAIN_CACHE_TTL=30*60*1000;
 const RAIN_PERIODS=[1,24,48];
@@ -238,6 +239,8 @@ function rainTotalsAt(lat,lon,end){
 }
 
 async function createRainfallImages(hours,end,generation){
+  await globalThis.NorthernTerrain?.ready();
+  if(generation!==rainRenderGeneration)return null;
   const officialVersion=officialRainData && Date.now()/1000-officialRainData.generatedAt<=3*3600?officialRainData.generatedAt:0;
   const key=hours+'|'+end+'|'+officialVersion+'|'+(globalThis.NorthernCountryFocus?.key()||'all');
   if(rainImageCache.has(key)) return rainImageCache.get(key);
@@ -275,7 +278,7 @@ async function createRainfallImages(hours,end,generation){
         if(!Number.isFinite(value) || value<0.05) continue; // Dry land is transparent.
         const colour=rainColour(value);
         image.data[index]=colour[0];image.data[index+1]=colour[1];image.data[index+2]=colour[2];
-        image.data[index+3]=Math.round(220*Math.min(1,value/0.3));
+        image.data[index+3]=Math.round(220*Math.min(1,value/0.3)*(official?.confidence??1));
       }
       if(y%45===0) await new Promise(requestAnimationFrame);
     }
@@ -357,7 +360,7 @@ function rainfallPopupContent(point,end){
   const wind=$('windOn').checked?'<hr>'+windPopupContent(point,selectedWindTime()):'';
   return '<div class="rain-popup"><b>'+(point.station?htmlEscape(point.station.name)+' · measured precipitation':'Accumulated rainfall / precipitation')+'</b>'+readings+
     '<div class="rain-popup-meta">'+point.lat.toFixed(3)+'°, '+point.lng.toFixed(3)+'°'+gauge+
-    '<br>'+note+(country?'<br>Official reporting periods: '+htmlEscape(officialRainData?.sources[country]?.period||'Complete hourly measurements; gaps stay unavailable.'):'')+'<br>'+(OFFICIAL_ONLY_RAIN_COUNTRIES.has(country)?'Shading estimates between reporting gauges within 100 km. Incomplete measurement periods stay unavailable.':'Between gauges: interpolated estimate. Model fallback beyond 100 km or when a period is incomplete.')+'</div></div>'+wind;
+    '<br>'+note+(country?'<br>Official reporting periods: '+htmlEscape(officialRainData?.sources[official?.country||country]?.period||'Complete hourly measurements; gaps stay unavailable.'):'')+'<br>'+(OFFICIAL_ONLY_RAIN_COUNTRIES.has(country)?'Shading estimates between reporting gauges across borders within 100 km, with mountain barriers reducing influence. Incomplete measurement periods stay unavailable.':'Between gauges: interpolated estimate. Model fallback beyond 100 km or when a period is incomplete.')+'</div></div>'+wind;
 }
 
 function updateAccumulationPopup(){

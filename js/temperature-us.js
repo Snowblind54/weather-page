@@ -27,8 +27,8 @@
   const rad=Math.PI/180;
   const mercator=lat=>Math.log(Math.tan(Math.PI/4+lat*rad/2));
   function stations(unix){
-    return typeof officialStationsNearTime==='function'?officialStationsNearTime(unix).filter(s=>
-      measuredCountries.has(s.country)&&Number.isFinite(s.temp)&&Number.isFinite(s.time)&&
+    return typeof officialStationsNearTime==='function'?officialStationsNearTime(unix,{crossBorder:true}).filter(s=>
+      Number.isFinite(s.temp)&&Number.isFinite(s.time)&&
       Math.abs(s.time-unix)<=(s.country==='FR'?4*3600:(['ES','PT','IT'].includes(s.country)?2*3600:95*60))):[];
   }
   async function raster(region,observations,unix,valid=()=>true,yieldFrame=()=>Promise.resolve()){
@@ -37,12 +37,18 @@
     const lats=Array.from({length:H},(_,y)=>Math.atan(Math.sinh(northY+y/(H-1)*(southY-northY)))/rad);
     const lons=Array.from({length:W},(_,x)=>west+x/(W-1)*(east-west));
     const weighted=new Float32Array(W*H),total=new Float32Array(W*H),nearest=new Float32Array(W*H).fill(Infinity);
+    const terrain=globalThis.NorthernTerrain;
+    const heights=terrain?new Float32Array(W*H).fill(NaN):null;
+    if(heights)for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+      const h=terrain.elevation(lats[y],lons[x]);if(h!==null)heights[y*W+x]=h;
+    }
     let touched=0;
     for(const s of observations){
       if(!valid())return null;
-      if(!(region.countries||['US']).includes(s.country)||!Number.isFinite(s.temp)||!Number.isFinite(s.lat)||!Number.isFinite(s.lon)||!Number.isFinite(s.time))continue;
+      if(!Number.isFinite(s.temp)||!Number.isFinite(s.lat)||!Number.isFinite(s.lon)||!Number.isFinite(s.time))continue;
       const age=Math.abs(unix-s.time),maxAge=s.country==='FR'?4*3600:(['ES','PT','IT'].includes(s.country)?2*3600:5700),ageWeight=age<=3600?1:Math.max(0,(maxAge-age)/(maxAge-3600));
       if(!ageWeight)continue;
+      const terrainWeight=terrain?.influence(s.lat,s.lon,'temperature'),stationHeight=terrain?.elevation(s.lat,s.lon);
       let lon=s.lon;
       while(lon-(west+east)/2>180)lon-=360;
       while(lon-(west+east)/2< -180)lon+=360;
@@ -59,8 +65,11 @@
         for(let x=x0;x<=x1;x++){
           const dx=(lons[x]-lon)*dxScale,km2=dy*dy+dx*dx;
           if(km2>=radiusKm*radiusKm)continue;
-          const f=km2/(radiusKm*radiusKm),weight=(1-f)**2*ageWeight/Math.max(4,km2),i=y*W+x;
-          weighted[i]+=s.temp*weight;total[i]+=weight;nearest[i]=Math.min(nearest[i],km2);
+          const relief=terrainWeight?.(lats[y],lons[x])??1;
+          if(relief<.005)continue;
+          const f=km2/(radiusKm*radiusKm),weight=(1-f)**2*ageWeight*relief/Math.max(4,km2),i=y*W+x;
+          const value=stationHeight!=null&&Number.isFinite(heights?.[i])?s.temp+Math.max(-12,Math.min(12,(stationHeight-heights[i])*.0065)):s.temp;
+          weighted[i]+=value*weight;total[i]+=weight;nearest[i]=Math.min(nearest[i],km2/Math.max(.02,relief));
         }
       }
       if(++touched%16===0)await yieldFrame();

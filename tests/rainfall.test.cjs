@@ -36,7 +36,7 @@ function harness(europe=false){
   // Small grids exercise the complete renderer and loader without costly fixture images.
   run(`TEMP_GRID_SPECS.splice(0,TEMP_GRID_SPECS.length,...TEMP_REGIONS.map(r=>makeStructuredGrid(r.id,r.bounds,
     r.bounds[1][0]-r.bounds[0][0],r.bounds[1][1]-r.bounds[0][1])));TEMP_REGIONS.forEach(r=>{r.w=8;r.h=6;});sleep=async()=>{};`);
-  const features=run(`([...TEMP_REGIONS,...(globalThis.NorthernUSTemperature?.regions||[]).filter(r=>['british-isles','western-europe','central-europe'].includes(r.id))]).flatMap(r=>[...TEMP_REGION_COUNTRY_IDS[r.id]].map(id=>({id,
+  const features=run(`([...TEMP_REGIONS,...(globalThis.NorthernUSTemperature?[{id:'portugal-rain',bounds:[[36.8,-9.6],[42.2,-6]]}]:[]),...(globalThis.NorthernUSTemperature?.regions||[]).filter(r=>['british-isles','western-europe','central-europe'].includes(r.id))]).flatMap(r=>[...TEMP_REGION_COUNTRY_IDS[r.id]].map(id=>({id,
     geometry:{type:'Polygon',coordinates:[[[r.bounds[0][1],r.bounds[0][0]],[r.bounds[1][1],r.bounds[0][0]],
     [r.bounds[1][1],r.bounds[1][0]],[r.bounds[0][1],r.bounds[1][0]],[r.bounds[0][1],r.bounds[0][0]]]]}})))`);
   context.fixtureFeatures=features;
@@ -175,14 +175,14 @@ test('rate-limit cooldown prevents repeated requests on period switches',async()
 });
 
 
-test('official windows retain true timestamps, exclude missing hours and never cross countries',()=>{
+test('official cross-border windows retain true timestamps and exclude missing hours',()=>{
   const h=harness();h.seed();h.elements.rain24h.checked=true;
   h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{PL:{name:'Test national source'},LT:{name:'Meteo.lt'}},
     stations:[0,1,2].map(i=>({country:'PL',code:String(i),name:'Gauge '+i,lat:52+i*.01,lon:19,
     times:Array.from({length:54},(_,j)=>rainWindowEnd()-(54-j)*3600),amounts:Array(54).fill(3),traces:[]}))};`);
   assert.equal(h.run('officialRainAt(52,19,24,rainWindowEnd(),"PL").value'),72);
   assert.equal(h.run('officialRainAt(52,19,24,rainWindowEnd(),"PL").end'),h.context.frameTime-3600,'lag reported explicitly');
-  assert.equal(h.run('officialRainAt(52,19,24,rainWindowEnd(),"LT")'),null,'no foreign gauges');
+  assert.equal(h.run('officialRainAt(52,19,24,rainWindowEnd(),"LT").value'),72,'nearby foreign gauges inform shading');
   assert.equal(h.run('officialRainAt(54,19,24,rainWindowEnd(),"PL")'),null,'beyond radius uses model');
   h.run('officialRainData.stations.forEach(s=>s.amounts[30]=null);officialRainWindows.clear();');
   assert.equal(h.run('officialRainAt(52,19,48,rainWindowEnd(),"PL")'),null,'gaps cannot become dry hours');
@@ -334,13 +334,13 @@ test('Canadian heatmap uses official totals, stays transparent beyond gauges and
 });
 test('Canadian nearby-station index matches full interpolation at southern and Arctic latitudes',()=>{
  const h=harness();
- h.run(`officialRainWindow=()=>testWindow;`);
+ h.run(`crossBorderRainWindows=()=>[testWindow];`);
  for(const lat of [45,60,83]){
   h.context.testWindow={rows:Array.from({length:100},(_,i)=>({station:{lat:lat+(i%10-5)*.3,lon:-100+(Math.floor(i/10)-5)*1.5},value:i/10})),end:h.context.frameTime,source:'ECCC'};
   h.context.probeLat=lat;
   const indexed=h.run('officialRainAt(probeLat,-100,24,rainWindowEnd(),"CA")');
   const neighbours=h.context.testWindow.rows.map(r=>({...r,d2:((r.station.lat-lat)*111.2)**2+((r.station.lon+100)*111.2*Math.cos(lat*Math.PI/180))**2})).filter(r=>r.d2<=100**2).sort((a,b)=>a.d2-b.d2).slice(0,6);
-  const nearest=neighbours[0],full=nearest.d2<=.01?nearest.value:neighbours.reduce((s,r)=>s+r.value/Math.max(.01,r.d2),0)/neighbours.reduce((s,r)=>s+1/Math.max(.01,r.d2),0);
+  const nearest=neighbours[0],full=nearest.d2<=.01?nearest.value:neighbours.reduce((s,r)=>s+r.value*(1-r.d2/10000)**2/Math.max(.01,r.d2),0)/neighbours.reduce((s,r)=>s+(1-r.d2/10000)**2/Math.max(.01,r.d2),0);
   assert(Math.abs(indexed.value-full)<1e-12);assert.equal(indexed.count,neighbours.length);
  }
 });
@@ -392,11 +392,11 @@ test('France, Andorra and Spain validate southern gauges, expose all periods and
  h.run('officialRainData.stations[0].lat=59');assert.equal(h.run('validOfficialRainSnapshot(officialRainData)'),false);
 });
 
-test('southwestern rain maps use country-only measured regions and do not add Portugal',()=>{
+test('southwestern rain retains measured regions and allows border estimates into Portugal',()=>{
  const h=harness(true);
  assert.deepEqual(Array.from(h.run("RAIN_REGIONS.filter(r=>['france','andorra','spain-rain','spain-canaries'].includes(r.id)).map(r=>r.id)")),['france','andorra','spain-rain','spain-canaries']);
  assert.deepEqual(Array.from(h.run("[...TEMP_REGION_COUNTRY_IDS['spain-rain']]")),['724']);
- assert.equal(h.run("RAIN_COUNTRY_CODES['620']"),undefined);
+ assert.equal(h.run("RAIN_COUNTRY_CODES['620']"),"PT");
  assert(h.run("['FR','AD','ES'].every(c=>OFFICIAL_ONLY_RAIN_COUNTRIES.has(c))"));
  h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{ES:{name:'AEMET'}},stations:[0,.1,.2].map((d,i)=>({country:'ES',code:String(i),name:'Spain',lat:40+d,lon:-3,times:[],amounts:[],accumulations:[{end:rainWindowEnd()-8*3600,hours:48,value:5}]}))};`);
  assert.equal(h.run("officialRainWindow('ES',48,rainWindowEnd()).end"),h.context.frameTime-8*3600);
@@ -427,4 +427,21 @@ test('French hourly status explains the native three-hour report cadence without
  h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{FR:{name:'Météo-France',period:'Official SYNOP precipitation'}},stations:[]};`);
  assert.match(h.run('officialRainSourceSummary(1,rainWindowEnd())'),/public SYNOP feed reports every three hours/);
  assert(!h.run('officialRainSourceSummary(24,rainWindowEnd())').includes('France 1 h:'));
+});
+
+test('rain crosses borders and country focus without mixing different ending hours',()=>{
+ const h=harness();h.seed();const end=h.context.frameTime;
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{FR:{name:'Meteo-France'},CH:{name:'MeteoSwiss'}},stations:
+ [['FR',6.0,10],['CH',6.2,20]].flatMap(([country,lon,value])=>[0,.01,.02].map((d,i)=>({country,code:country+i,name:country,lat:46+d,lon,times:[],amounts:[],accumulations:[{end:rainWindowEnd(),hours:24,value}]})))};officialRainWindows.clear();`);
+ h.context.NorthernCountryFocus={allowsStation:s=>s.country==='FR',matchesCountry:c=>c==='FR'};
+ const value=h.run('officialRainAt(46.01,6.1,24,rainWindowEnd(),"FR")');assert(value.value>10&&value.value<20);assert.equal(value.countries.length,2);assert.equal(value.end,end);
+ h.run('officialRainData.stations.filter(s=>s.country==="CH").forEach(s=>s.accumulations[0].end-=3600);officialRainWindows.clear()');
+ const separate=h.run('officialRainAt(46.01,6.1,24,rainWindowEnd(),"FR")');assert(Math.abs(separate.value-10)<1e-10);assert.equal(separate.end,end);assert.equal(separate.countries.length,1);
+});
+
+test('rainfall mountain barriers suppress foreign influence while exact station popup readings remain original',()=>{
+ const h=harness();h.seed();h.context.NorthernTerrain={influence:()=>()=>.001};
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{FR:{name:'Meteo-France'}},stations:[0,.01,.02].map((d,i)=>({country:'FR',code:'F'+i,name:'French gauge',lat:46+d,lon:6,times:[],amounts:[],accumulations:[{end:rainWindowEnd(),hours:24,value:25}]}))};officialRainWindows.clear()`);
+ assert.equal(h.run('officialRainAt(46.01,6.3,24,rainWindowEnd(),"CH")'),null);
+ assert.equal(h.run('officialGaugeRainTotal(officialRainData.stations[0],rainWindowEnd(),24)'),25);
 });

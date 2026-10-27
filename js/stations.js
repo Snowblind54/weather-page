@@ -562,12 +562,12 @@ async function loadOfficialTemperatureStations(force=false){
   }
 }
 
-function officialStationsNearTime(unix){
+function officialStationsNearTime(unix,{crossBorder=false}={}){
   if(officialTemperatureSelectionSource!==officialTemperatureStations){
     officialTemperatureSelectionSource=officialTemperatureStations;
     officialTemperatureSelectionCache.clear();
   }
-  const selectionKey=unix+'|'+(frames.at(-1)?.time??'')+'|'+(globalThis.NorthernCountryFocus?.key()||'all');
+  const selectionKey=String(crossBorder)+'|'+unix+'|'+(frames.at(-1)?.time??'')+'|'+(globalThis.NorthernCountryFocus?.key()||'all');
   if(officialTemperatureSelectionCache.has(selectionKey))return officialTemperatureSelectionCache.get(selectionKey);
   // Choose one observation per station for the selected playback frame.
   // Prefer the newest reading at/before the frame. A small future tolerance
@@ -577,7 +577,7 @@ function officialStationsNearTime(unix){
   const latestFrame=frames.at(-1);
 
   for(const station of officialTemperatureStations){
-    if(globalThis.NorthernCountryFocus?.allowsStation && !globalThis.NorthernCountryFocus?.allowsStation(station))continue;
+    if(!crossBorder && globalThis.NorthernCountryFocus?.allowsStation && !globalThis.NorthernCountryFocus?.allowsStation(station))continue;
     if(!Number.isFinite(station.time)){
       if(latestFrame && unix===latestFrame.time && !selected.has(officialTempStationKey(station))){
         selected.set(officialTempStationKey(station),station);

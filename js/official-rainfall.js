@@ -1,5 +1,5 @@
 // Official gauge histories are published as a same-origin snapshot by Actions.
-const RAIN_COUNTRY_CODES={'040':'AT','756':'CH','250':'FR','020':'AD','724':'ES','233':'EE','428':'LV','440':'LT','246':'FI','752':'SE','578':'NO','352':'IS','616':'PL','208':'DK','124':'CA','826':'GB','372':'IE','276':'DE','528':'NL','056':'BE','442':'LU','703':'SK','203':'CZ'};
+const RAIN_COUNTRY_CODES={'380':'IT','348':'HU','620':'PT','040':'AT','756':'CH','250':'FR','020':'AD','724':'ES','233':'EE','428':'LV','440':'LT','246':'FI','752':'SE','578':'NO','352':'IS','616':'PL','208':'DK','124':'CA','826':'GB','372':'IE','276':'DE','528':'NL','056':'BE','442':'LU','703':'SK','203':'CZ'};
 const RAIN_COUNTRY_NAMES={AT:'Austria',CH:'Switzerland',FR:'France',AD:'Andorra',ES:'Spain',EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',CA:'Canada',GB:'United Kingdom',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg',SK:'Slovakia',CZ:'Czechia'};
 const OFFICIAL_RAIN_RADIUS_KM=100;
 let officialRainData=null,officialRainLoadedAt=0,officialRainLoadPromise=null;
@@ -88,31 +88,54 @@ function nearbyRainCandidates(window,lat,lon){
   return rows;
 }
 
+const rainTerrainWeights=new WeakMap();
+function crossBorderRainWindows(hours,end){
+  if(!officialRainData||Date.now()/1000-officialRainData.generatedAt>3*3600)return [];
+  const key='cross-border|'+hours+'|'+end;
+  if(officialRainWindows.has(key))return officialRainWindows.get(key);
+  const ends=new Set([end]),allowedCountries=new Set();
+  for(const country of Object.keys(RAIN_COUNTRY_NAMES)){
+    const w=officialRainWindow(country,hours,end);if(w){ends.add(w.end);allowedCountries.add(country);}
+  }
+  // Never combine an hour ending now with an hour ending earlier, or label an
+  // old 24-hour total as current. Each pooled field has one actual end time.
+  const windows=[...ends].sort((a,b)=>b-a).map(actualEnd=>({end:actualEnd,rows:
+    officialRainData.stations.filter(s=>allowedCountries.has(s.country)).map(station=>({station,value:officialGaugeRainTotal(station,actualEnd,hours)})).filter(r=>Number.isFinite(r.value))
+  })).filter(w=>w.rows.length);
+  officialRainWindows.set(key,windows);return windows;
+}
 function officialRainAt(lat,lon,hours,end,country){
-  if(!country) return null;
-  const window=officialRainWindow(country,hours,end);
-  if(!window) return null;
-  const neighbours=[],cos=Math.cos(lat*Math.PI/180);
-  for(const row of nearbyRainCandidates(window,lat,lon)){
-    const s=row.station;
-    const dy=(s.lat-lat)*111.2,dx=(s.lon-lon)*111.2*cos,d2=dx*dx+dy*dy;
-    if(d2>OFFICIAL_RAIN_RADIUS_KM**2) continue;
-    const sample={...row,d2};
-    let i=0;while(i<neighbours.length&&neighbours[i].d2<d2)i++;
-    neighbours.splice(i,0,sample);if(neighbours.length>6)neighbours.pop();
+  if(!country)return null;
+  const cos=Math.cos(lat*Math.PI/180);
+  for(const window of crossBorderRainWindows(hours,end)){
+    const neighbours=[];
+    for(const row of nearbyRainCandidates(window,lat,lon)){
+      const s=row.station,dy=(s.lat-lat)*111.2,dx=(s.lon-lon)*111.2*cos,d2=dx*dx+dy*dy;
+      if(d2>OFFICIAL_RAIN_RADIUS_KM**2)continue;
+      const terrainVersion=globalThis.NorthernTerrain?.loaded;
+      if(!rainTerrainWeights.has(s)||rainTerrainWeights.get(s).version!==terrainVersion)rainTerrainWeights.set(s,{version:terrainVersion,weight:globalThis.NorthernTerrain?.influence(s.lat,s.lon,'rain')||(()=>1)});
+      const relief=rainTerrainWeights.get(s).weight(lat,lon);if(relief<.005)continue;
+      const effective=d2/Math.max(.02,relief),sample={...row,d2,relief,effective};
+      let i=0;while(i<neighbours.length&&neighbours[i].effective<effective)i++;
+      neighbours.splice(i,0,sample);if(neighbours.length>6)neighbours.pop();
+    }
+    if(!neighbours.length)continue;
+    const nearest=neighbours[0],confidence=Math.min(1,(OFFICIAL_RAIN_RADIUS_KM-Math.sqrt(nearest.effective))/30);
+    if(confidence<=0)continue;
+    let value=nearest.value;
+    if(nearest.d2>.01){
+      let sum=0,weights=0;
+      for(const s of neighbours){const weight=s.relief*(1-s.d2/OFFICIAL_RAIN_RADIUS_KM**2)**2/Math.max(.01,s.d2);sum+=s.value*weight;weights+=weight;}
+      if(!weights)continue;value=sum/weights;
+    }
+    const countries=[...new Set(neighbours.map(n=>n.station.country))];
+    const source=countries.map(c=>officialRainData?.sources?.[c]?.name||c).join(' + ');
+    return {value,end:window.end,country:nearest.station.country,source,nearest:nearest.station,
+      nearestValue:nearest.value,distance:Math.sqrt(nearest.d2),count:neighbours.length,confidence,
+      delayed:end-window.end>2*3600,countries,
+      trace:neighbours.some(n=>(n.station.traces||[]).some(t=>t<=window.end&&t>window.end-hours*3600))};
   }
-  if(!neighbours.length) return null;
-  const nearest=neighbours[0];
-  let value=nearest.value;
-  // A station click gives its actual reading; elsewhere this is an estimate.
-  if(nearest.d2>0.01){
-    let sum=0,weights=0;
-    for(const s of neighbours){const weight=1/Math.max(0.01,s.d2);sum+=s.value*weight;weights+=weight;}
-    value=sum/weights;
-  }
-  return {value,end:window.end,country,source:window.source,nearest:nearest.station,
-    nearestValue:nearest.value,distance:Math.sqrt(nearest.d2),count:neighbours.length,
-    trace:neighbours.some(n=>(n.station.traces||[]).some(t=>t<=window.end&&t>window.end-hours*3600))};
+  return null;
 }
 
 function rainCountryMask(region,features){
@@ -145,7 +168,7 @@ function officialRainSourceSummary(hours,end){
   const frenchDelay=hours===1&&(!globalThis.NorthernCountryFocus?.matchesCountry||globalThis.NorthernCountryFocus.matchesCountry('FR'))&&officialRainData?.sources?.FR?.period?.includes('SYNOP')?' France 1 h: the public SYNOP feed reports every three hours; these are one-hour amounts ending at the displayed report time, not live hourly updates.':'';
   return 'Official precipitation: '+(official.join('; ')||'none for this period')+'. Open-Meteo rain fallback: '+
     (model.join(', ')||'none for this country/period')+'. Model fallback is limited to the original Baltic, Nordic and Polish coverage. '+
-    'Gauge shading stays within 100 km and within national borders. The added European countries use measured gauges only; missing periods stay unavailable. Official precipitation can include snow water equivalent; model fallback is rain + showers.'+frenchDelay;
+    'Nearby cross-border gauges may contribute where local gauges are unavailable; click the map for sources and the actual interval. Gauge shading uses nearby stations across borders within 100 km, with mountain barriers reducing influence. Only complete intervals with the same ending time are blended. The added European countries use measured gauges only; missing periods stay unavailable. Official precipitation can include snow water equivalent; model fallback is rain + showers.'+frenchDelay;
 }
 
 function removeOfficialRainLabels(){

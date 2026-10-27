@@ -14,7 +14,7 @@ test('Italy and Hungary heatmaps use their own station measurements with missing
  for(const [id,country,lat,lon] of [['italy','IT',41.8,12.2],['hungary','HU',47.5,19]]){
   const spec=api.regions.find(r=>r.id===id);assert(spec);const r=await api.raster(spec,[{country,lat,lon,temp:0,time:now}],now);
   assert(r.alpha.some(a=>a>0));assert(r.alpha.some(a=>a===0));assert([...r.values].filter(Number.isFinite).every(v=>v===0));
-  const empty=await api.raster(spec,[{country:'FR',lat,lon,temp:20,time:now}],now);assert(empty.alpha.every(a=>a===0));
+  const empty=await api.raster(spec,[{country:'FR',lat,lon,temp:20,time:now}],now);assert(empty.alpha.some(a=>a>0));
  }
 });
 

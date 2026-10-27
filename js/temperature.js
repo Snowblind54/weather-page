@@ -236,6 +236,7 @@ const TEMP_REGION_COUNTRY_IDS={
   'western-europe':new Set(['276','528','056','442']),
   iberia:new Set(['724','620']),
   'spain-rain':new Set(['724']),
+  'portugal-rain':new Set(['620']),
   'spain-canaries':new Set(['724']),
   'portugal-azores':new Set(['620']),
   'portugal-madeira':new Set(['620']),
@@ -643,7 +644,7 @@ function temperatureObservationAgeWeight(ageSec){
 function temperatureHeatmapCorrections(unix){
   if(typeof officialStationsNearTime!=='function') return [];
   const corrections=[];
-  for(const station of officialStationsNearTime(unix)){
+  for(const station of officialStationsNearTime(unix,{crossBorder:true})){
     if(!Number.isFinite(station?.time) || !Number.isFinite(station?.temp)) continue;
     if(station.country==='US')continue; // US shading uses measurements directly.
     const model=interpolateTemp(station.lat,station.lon,unix);
@@ -651,7 +652,7 @@ function temperatureHeatmapCorrections(unix){
     const ageWeight=temperatureObservationAgeWeight(Math.abs(station.time-unix));
     if(ageWeight<=0) continue;
     corrections.push({
-      lat:station.lat,lon:station.lon,ageWeight,
+      lat:station.lat,lon:station.lon,ageWeight,terrain:globalThis.NorthernTerrain?.influence(station.lat,station.lon,'temperature'),
       bias:Math.max(-TEMP_OBS_MAX_BIAS_C,Math.min(TEMP_OBS_MAX_BIAS_C,station.temp-model))
     });
   }
@@ -689,7 +690,7 @@ function buildTemperatureCorrectionRaster(region,W,H,corrections,latValues,lonVa
         if(distance>=TEMP_OBS_RADIUS_KM) continue;
         const f=distance/TEMP_OBS_RADIUS_KM;
         const spatial=1-(3*f*f-2*f*f*f);
-        const weight=spatial*correction.ageWeight;
+        const weight=spatial*correction.ageWeight*(correction.terrain?.(lat,lonValues[x])??1);
         const i=row+x;
         weightedBias[i]+=correction.bias*weight;
         weightTotal[i]+=weight;
@@ -732,6 +733,8 @@ function temperatureViewportCacheKey(unix,regions=visibleTemperatureRegions()){
 }
 
 async function createTemperatureImage(unix, token){
+  await globalThis.NorthernTerrain?.ready();
+  if(token!==temperatureRenderToken)return null;
   const regions=visibleTemperatureRegions();
   const sampleTime=nearestQuarterHour(unix);
   const cacheKey=temperatureViewportCacheKey(unix,regions);
@@ -752,7 +755,7 @@ async function createTemperatureImage(unix, token){
   for(const region of regions){
     const spec=TEMP_GRID_SPECS.find(item=>item.id===region.id);
     const sourceSeries=temperatureGridData.get(region.id);
-    const regionStations=region.stationBased?usStations.filter(s=>(region.countries||['US']).includes(s.country)):[];
+    const regionStations=region.stationBased?usStations:[];
     if(region.stationBased?!regionStations.length:(!spec||!sourceSeries?.length))continue;
 
     // Sample the model timeline only once per source point for this frame.
@@ -887,7 +890,7 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   }
   const usNote=result.regions.some(r=>r.stationBased)?' · official station heatmap':'';
   const stationOnly=result.regions.length>0&&result.regions.every(r=>r.stationBased);
-  const fieldDescription=stationOnly?'official station interpolation':'terrain-aware hourly model';
+  const fieldDescription=stationOnly?'terrain-weighted station interpolation':'terrain-aware hourly model';
   const observationNote=result.correctionCount?` + ${result.correctionCount} fresh official station corrections`:'';
   if($('tempStatus').dataset)$('tempStatus').dataset.unitRange=JSON.stringify([result.minT,result.maxT]);
   $('tempStatus').textContent=

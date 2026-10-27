@@ -26,7 +26,7 @@
   function makeCorrection(lat,lon,observedSpeed,modelSpeed,ageSeconds){
     const freshness=ageWeight(ageSeconds);
     if(!freshness||![lat,lon,observedSpeed,modelSpeed].every(Number.isFinite)||observedSpeed<0||modelSpeed<0)return null;
-    return {lat,lon,delta:clamp(observedSpeed-modelSpeed,-MAX_ABS_DELTA,MAX_ABS_DELTA),freshness};
+    return {lat,lon,delta:clamp(observedSpeed-modelSpeed,-MAX_ABS_DELTA,MAX_ABS_DELTA),freshness,terrain:globalThis.NorthernTerrain?.influence(lat,lon,'wind')};
   }
   function spatialWeight(distance){
     if(!Number.isFinite(distance)||distance<0||distance>=RADIUS_KM)return 0;
@@ -38,7 +38,7 @@
     if(!Number.isFinite(baseSpeed)||baseSpeed<0||!Array.isArray(corrections)||!corrections.length)return baseSpeed;
     let sum=0,deltaSum=0;
     for(const correction of corrections){
-      const weight=correction.freshness*spatialWeight(distanceKm(lat,lon,correction.lat,correction.lon));
+      const weight=correction.freshness*spatialWeight(distanceKm(lat,lon,correction.lat,correction.lon))*(correction.terrain?.(lat,lon)??1);
       if(weight<=0)continue;
       sum+=weight;deltaSum+=correction.delta*weight;
     }
