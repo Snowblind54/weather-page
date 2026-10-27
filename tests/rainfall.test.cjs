@@ -375,3 +375,32 @@ test('European gauge-only regions render without model grids and never fall back
  assert(h.run('RAIN_REGIONS.some(s=>s.id==="central-europe")'));
  assert(h.run('RAIN_REGIONS.some(s=>s.id==="british-isles")'));
 });
+
+test('France, Andorra and Spain validate southern gauges, expose all periods and preserve delayed window ends',()=>{
+ const h=harness(true);h.elements.rain48h.checked=true;
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{FR:{name:'Météo-France'},AD:{name:'Servei Meteorològic Nacional'},ES:{name:'AEMET'}},stations:[
+ ['FR',43.6,1.4],['AD',42.5,1.5],['ES',40.4,-3.7],['ES',28.3,-16.5]
+ ].map(([country,lat,lon],i)=>({country,lat,lon,code:String(i),name:country+' gauge',times:[rainWindowEnd()-3600],amounts:[0],accumulations:[{end:rainWindowEnd()-4*3600,hours:24,value:2},{end:rainWindowEnd()-4*3600,hours:48,value:5}]}))};`);
+ assert(h.run('validOfficialRainSnapshot(officialRainData)'));
+ for(const country of ['FR','AD','ES']){
+  h.context.NorthernCountryFocus={allowsStation:s=>s.country===country,matchesCountry:c=>c===country};
+  h.run('renderOfficialRainLabels()');assert(h.run('officialRainLabels.children.length')>0);
+  const s=h.run(`officialRainData.stations.find(s=>s.country==='${country}')`);h.context.probe=s;
+  const html=h.run('rainfallPopupContent({lat:probe.lat,lng:probe.lon,station:probe},rainWindowEnd())');
+  assert.match(html,/0.0/);assert.match(html,/2.0/);assert.match(html,/5.0/);assert.match(html,/delayed reading/);assert(!html.includes('Open-Meteo · model'));
+ }
+ h.run('officialRainData.stations[0].lat=59');assert.equal(h.run('validOfficialRainSnapshot(officialRainData)'),false);
+});
+
+test('southwestern rain maps use country-only measured regions and do not add Portugal',()=>{
+ const h=harness(true);
+ assert.deepEqual(Array.from(h.run("RAIN_REGIONS.filter(r=>['france','andorra','spain-rain','spain-canaries'].includes(r.id)).map(r=>r.id)")),['france','andorra','spain-rain','spain-canaries']);
+ assert.deepEqual(Array.from(h.run("[...TEMP_REGION_COUNTRY_IDS['spain-rain']]")),['724']);
+ assert.equal(h.run("RAIN_COUNTRY_CODES['620']"),undefined);
+ assert(h.run("['FR','AD','ES'].every(c=>OFFICIAL_ONLY_RAIN_COUNTRIES.has(c))"));
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{ES:{name:'AEMET'}},stations:[0,.1,.2].map((d,i)=>({country:'ES',code:String(i),name:'Spain',lat:40+d,lon:-3,times:[],amounts:[],accumulations:[{end:rainWindowEnd()-8*3600,hours:48,value:5}]}))};`);
+ assert.equal(h.run("officialRainWindow('ES',48,rainWindowEnd()).end"),h.context.frameTime-8*3600);
+ assert.equal(h.run("officialRainWindow('ES',1,rainWindowEnd())"),null,'daily sums never produce an hourly map');
+ h.run('officialRainData.stations.forEach(s=>s.accumulations[0].end=rainWindowEnd()-25*3600);officialRainWindows.clear()');
+ assert.equal(h.run("officialRainWindow('ES',48,rainWindowEnd())"),null,'older totals cannot masquerade as recent shading');
+});

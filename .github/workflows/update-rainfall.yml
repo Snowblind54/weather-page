@@ -8,6 +8,11 @@ on:
     paths:
       - scripts/update_rainfall.py
       - scripts/rainfall_europe.py
+      - scripts/rainfall_southwest.py
+      - scripts/iberia_observations.py
+      - scripts/andorra_observations.py
+      - scripts/andorra_stations.json
+      - scripts/europe_synop_stations.json
       - scripts/rainfall_synop_stations.json
       - scripts/update_central_temperature.py
       - scripts/update_western_temperature.py

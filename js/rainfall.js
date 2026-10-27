@@ -2,9 +2,9 @@
 // Model coverage stays bounded; additional European countries use official gauges.
 const RAIN_REGION_IDS=new Set(['baltics','scandinavia','iceland','poland','denmark']);
 const RAIN_GRID_SPECS=TEMP_GRID_SPECS.filter(spec=>RAIN_REGION_IDS.has(spec.id));
-const OFFICIAL_ONLY_RAIN_COUNTRIES=new Set(['CA','GB','IE','DE','NL','BE','LU','CZ','SK']);
+const OFFICIAL_ONLY_RAIN_COUNTRIES=new Set(['CA','GB','IE','DE','NL','BE','LU','CZ','SK','FR','AD','ES']);
 const RAIN_REGIONS=[...TEMP_REGIONS.filter(region=>RAIN_REGION_IDS.has(region.id)||region.id==='canada'),
-  ...(globalThis.NorthernUSTemperature?.regions||[]).filter(region=>['british-isles','western-europe','central-europe'].includes(region.id))];
+  ...(globalThis.NorthernUSTemperature?.regions||[]).filter(region=>['british-isles','western-europe','central-europe','france','andorra','iberia','spain-canaries'].includes(region.id)).map(region=>region.id==='iberia'?{...region,id:'spain-rain',countries:['ES']}:region)];
 const RAIN_CACHE_KEY='balticWeatherRainAccumulationV814';
 const RAIN_CACHE_TTL=30*60*1000;
 const RAIN_PERIODS=[1,24,48];
@@ -334,7 +334,7 @@ function rainfallPopupContent(point,end){
   const readings='<div class="rain-popup-readings">'+RAIN_PERIODS.map(hours=>{
     const official=officialRainAt(point.lat,point.lng,hours,end,country);
     let value=official?.value??totals?.[hours];
-    let source=official?official.source+(official.distance<0.1?' · measured':' · gauge estimate'):OFFICIAL_ONLY_RAIN_COUNTRIES.has(country)?'No complete official measurement':'Open-Meteo · model';
+    let source=official?official.source+(official.delayed?' · delayed reading':'')+(official.distance<0.1?' · measured':' · gauge estimate'):OFFICIAL_ONLY_RAIN_COUNTRIES.has(country)?'No complete official measurement':'Open-Meteo · model';
     let actualEnd=official?.end||end;
     // A gauge popup reports this gauge's measurements, not a nearby gauge or
     // model value presented as a measurement when this gauge has gaps.

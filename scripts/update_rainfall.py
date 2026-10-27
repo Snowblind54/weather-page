@@ -64,6 +64,10 @@ def amount(value):
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
     valid = (41 <= lat <= 84 and -142 <= lon <= -52) if country == 'CA' else (47 <= lat <= 72.5 and -26 <= lon <= 33)
+    if country in ('FR','AD','ES'):
+        from rainfall_southwest import BOUNDS
+        south,north,west,east=BOUNDS[country]
+        valid=south<=lat<=north and west<=lon<=east
     if not valid:
         raise ValueError('Invalid precipitation station coordinates')
     readings, traces = {}, set()
@@ -529,6 +533,9 @@ LOADERS = {'EE': load_estonia, 'LT': load_lithuania, 'FI': load_finland, 'SE': l
 def main():
     from rainfall_europe import install, PERIODS
     install(sys.modules[__name__])
+    from rainfall_southwest import install as install_southwest, PERIODS as SOUTHWEST_PERIODS
+    install_southwest(sys.modules[__name__])
+    PERIODS={**PERIODS,**SOUTHWEST_PERIODS}
     now = dt.datetime.now(dt.timezone.utc).replace(minute=0, second=0, microsecond=0)
     try:
         old = json.loads(OUTPUT.read_text())

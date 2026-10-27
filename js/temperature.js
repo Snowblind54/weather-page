@@ -235,6 +235,7 @@ const TEMP_REGION_COUNTRY_IDS={
   faroes:new Set(['234']),
   'western-europe':new Set(['276','528','056','442']),
   iberia:new Set(['724','620']),
+  'spain-rain':new Set(['724']),
   'spain-canaries':new Set(['724']),
   'portugal-azores':new Set(['620']),
   'portugal-madeira':new Set(['620']),

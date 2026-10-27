@@ -1,6 +1,6 @@
 // Official gauge histories are published as a same-origin snapshot by Actions.
-const RAIN_COUNTRY_CODES={'233':'EE','428':'LV','440':'LT','246':'FI','752':'SE','578':'NO','352':'IS','616':'PL','208':'DK','124':'CA','826':'GB','372':'IE','276':'DE','528':'NL','056':'BE','442':'LU','703':'SK','203':'CZ'};
-const RAIN_COUNTRY_NAMES={EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',CA:'Canada',GB:'United Kingdom',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg',SK:'Slovakia',CZ:'Czechia'};
+const RAIN_COUNTRY_CODES={'250':'FR','020':'AD','724':'ES','233':'EE','428':'LV','440':'LT','246':'FI','752':'SE','578':'NO','352':'IS','616':'PL','208':'DK','124':'CA','826':'GB','372':'IE','276':'DE','528':'NL','056':'BE','442':'LU','703':'SK','203':'CZ'};
+const RAIN_COUNTRY_NAMES={FR:'France',AD:'Andorra',ES:'Spain',EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',CA:'Canada',GB:'United Kingdom',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg',SK:'Slovakia',CZ:'Czechia'};
 const OFFICIAL_RAIN_RADIUS_KM=100;
 let officialRainData=null,officialRainLoadedAt=0,officialRainLoadPromise=null;
 let officialRainLabels=null;
@@ -11,7 +11,7 @@ function validOfficialRainSnapshot(data){
   if(data?.version!==1 || !Number.isFinite(data.generatedAt) || data.generatedAt>Date.now()/1000+300 ||
      !Array.isArray(data.stations) || !data.sources) return false;
   return data.stations.every(s=>RAIN_COUNTRY_NAMES[s.country] && Number.isFinite(s.lat) && Number.isFinite(s.lon) &&
-    (s.country==='CA'?s.lat>=41&&s.lat<=84&&s.lon>=-142&&s.lon<=-52:s.lat>=47&&s.lat<=72.5&&s.lon>=-26&&s.lon<=33) && typeof s.code==='string' &&
+    (s.country==='CA'?s.lat>=41&&s.lat<=84&&s.lon>=-142&&s.lon<=-52:s.country==='FR'?s.lat>=41&&s.lat<=51.5&&s.lon>=-5.5&&s.lon<=10:s.country==='AD'?s.lat>=42.4&&s.lat<=42.7&&s.lon>=1.4&&s.lon<=1.8:s.country==='ES'?s.lat>=27&&s.lat<=44.5&&s.lon>=-19&&s.lon<=5:s.lat>=47&&s.lat<=72.5&&s.lon>=-26&&s.lon<=33) && typeof s.code==='string' &&
     Array.isArray(s.times) && Array.isArray(s.amounts) && s.times.length===s.amounts.length &&
     s.times.every((t,i)=>Number.isFinite(t)&&t%3600===0&&(!i||t>s.times[i-1])) &&
     s.amounts.every(v=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1000) &&
@@ -59,10 +59,11 @@ function officialRainWindow(country,hours,end){
     const stations=officialRainData.stations.filter(s=>s.country===country);
     // National reporting can lag. Use a consistent country window and display
     // its actual end; never label an older measurement as the selected hour.
-    for(let offset=0;offset<=2;offset++){
+    const maxDelay=hours>1&&['FR','AD','ES'].includes(country)?24:(country==='FR'?4:2);
+    for(let offset=0;offset<=maxDelay;offset++){
       const actualEnd=end-offset*3600;
       const rows=stations.map(station=>({station,value:officialGaugeRainTotal(station,actualEnd,hours)})).filter(s=>Number.isFinite(s.value));
-      if(rows.length>=(country==='LU'?1:3)){result={rows,end:actualEnd,country,source:officialRainData.sources[country]?.name||country};break;}
+      if(rows.length>=(country==='LU'?1:3)){result={rows,end:actualEnd,country,source:officialRainData.sources[country]?.name||country,delayed:offset>2};break;}
     }
   }
   officialRainWindows.set(key,result);
