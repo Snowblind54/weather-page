@@ -49,3 +49,15 @@ test('the existing renderer can draw NOAA US heatmaps with all model sources una
  assert(result.regions.some(r=>r.id==='usa'&&r.stationBased&&r.coastlineClipped));assert(Math.abs(result.minT-15)<.001);assert(Math.abs(result.maxT-15)<.001);assert.equal(c.maskCalls,1);
 });
 
+
+
+test('Latest heatmaps use fresh station time when the radar timeline lags, while history stays historical',async()=>{
+ const c=harness(),live=Math.floor(Date.now()/1000),radar=live-7200;
+ Object.assign(c,{console,Map,Set,JSON,AbortController,setTimeout,clearTimeout,requestAnimationFrame:fn=>fn(),map:{on(){}},temperatureImageCache:new Map(),temperatureStatsCache:new Map(),temperatureSeries:[],temperatureLoadedAt:0,temperatureRenderToken:1,TEMP_CACHE_LIMIT:6,localStorage:{getItem:()=>null},frames:[{time:radar}]});
+ c.officialStationsNearTime=()=>[station(40,-100,15,live-600)];
+ c.document={createElement:()=>({getContext:()=>({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(){}}),toDataURL:()=> 'data:image/png;test'})};
+ vm.runInContext(fs.readFileSync(__dirname+'/../js/temperature.js','utf8'),c);
+ vm.runInContext('loadTemperatureCountryFeatures=async()=>[];clipTemperatureToCountries=()=>true;',c);
+ const current=await vm.runInContext(`createTemperatureImage(${radar},1)`,c);assert(Math.abs(current.minT-15)<.001);assert(current.observationTime>=live);
+ const old=await vm.runInContext(`createTemperatureImage(${radar-3600},1)`,c);assert.equal(old.minT,Infinity);
+});

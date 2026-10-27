@@ -728,21 +728,25 @@ function visibleTemperatureRegions(){
   });
 }
 
+function temperatureObservationTime(unix){
+  return typeof frames!=='undefined'&&frames.at(-1)?.time===unix?Math.floor(Date.now()/1000):unix;
+}
 function temperatureViewportCacheKey(unix,regions=visibleTemperatureRegions()){
-  return nearestQuarterHour(unix)+'|'+regions.map(region=>region.id).join(',')+'|'+(globalThis.NorthernCountryFocus?.key()||'all');
+  return nearestQuarterHour(temperatureObservationTime(unix))+'|'+regions.map(region=>region.id).join(',')+'|'+(globalThis.NorthernCountryFocus?.key()||'all');
 }
 
 async function createTemperatureImage(unix, token){
   await globalThis.NorthernTerrain?.ready();
   if(token!==temperatureRenderToken)return null;
   const regions=visibleTemperatureRegions();
-  const sampleTime=nearestQuarterHour(unix);
+  const observationTime=temperatureObservationTime(unix);
+  const sampleTime=nearestQuarterHour(observationTime);
   const cacheKey=temperatureViewportCacheKey(unix,regions);
 
   if(temperatureImageCache.has(cacheKey)){
     const cached=temperatureImageCache.get(cacheKey);
     const stats=temperatureStatsCache.get(cacheKey);
-    return {key:cacheKey,regions:cached,minT:stats.minT,maxT:stats.maxT,correctionCount:stats.correctionCount||0};
+    return {key:cacheKey,observationTime,regions:cached,minT:stats.minT,maxT:stats.maxT,correctionCount:stats.correctionCount||0};
   }
 
   const corrections=temperatureHeatmapCorrections(sampleTime);
@@ -751,7 +755,7 @@ async function createTemperatureImage(unix, token){
   // Never display rectangular heatmap tiles over the sea if the mask fails.
   const countryFeatures=await loadTemperatureCountryFeatures();
 
-  const usStations=globalThis.NorthernUSTemperature?.stations(unix)||[];
+  const usStations=globalThis.NorthernUSTemperature?.stations(observationTime)||[];
   for(const region of regions){
     const spec=TEMP_GRID_SPECS.find(item=>item.id===region.id);
     const sourceSeries=temperatureGridData.get(region.id);
@@ -780,7 +784,7 @@ async function createTemperatureImage(unix, token){
     const latValues=Array.from({length:H},(_,y)=>rasterLatitudeForRow(region,y,H));
     const latLookup=region.stationBased?null:latValues.map(lat=>axisBracket(spec.latitudes,lat));
     const correctionRaster=region.stationBased?null:buildTemperatureCorrectionRaster(region,W,H,corrections,latValues,lonValues);
-    const stationRaster=region.stationBased?await globalThis.NorthernUSTemperature.raster(region,regionStations,sampleTime,()=>token===temperatureRenderToken,()=>new Promise(requestAnimationFrame)):null;
+    const stationRaster=region.stationBased?await globalThis.NorthernUSTemperature.raster(region,regionStations,observationTime,()=>token===temperatureRenderToken,()=>new Promise(requestAnimationFrame)):null;
     if(region.stationBased&&!stationRaster)return null;
 
     for(let y=0;y<H;y++){
@@ -838,7 +842,7 @@ async function createTemperatureImage(unix, token){
     temperatureStatsCache.delete(oldest);
   }
 
-  return {key:cacheKey,regions:rendered,minT:globalMin,maxT:globalMax,correctionCount:corrections.length};
+  return {key:cacheKey,observationTime,regions:rendered,minT:globalMin,maxT:globalMax,correctionCount:corrections.length};
 }
 
 async function buildTemperatureOverlay(unix,{precache=false}={}){
@@ -894,7 +898,7 @@ async function buildTemperatureOverlay(unix,{precache=false}={}){
   const observationNote=result.correctionCount?` + ${result.correctionCount} fresh official station corrections`:'';
   if($('tempStatus').dataset)$('tempStatus').dataset.unitRange=JSON.stringify([result.minT,result.maxT]);
   $('tempStatus').textContent=
-    `Temperature: ${fieldDescription}${stationOnly?'':observationNote} + ${stationOnly?'measured':'fast bilinear'} heatmap${usNote}${$('heatmapOn')?.checked?' · coastline clipped':''}${temperatureUsingStaleCache?' · cached fallback':''} · ${(globalThis.WeatherUnits?.temperature(result.minT,1)??result.minT.toFixed(1)+'°C')} to ${(globalThis.WeatherUnits?.temperature(result.maxT,1)??result.maxT.toFixed(1)+'°C')} · ${fmt(unix)}`;
+    `Temperature: ${fieldDescription}${stationOnly?'':observationNote} + ${stationOnly?'measured':'fast bilinear'} heatmap${usNote}${$('heatmapOn')?.checked?' · coastline clipped':''}${temperatureUsingStaleCache?' · cached fallback':''} · ${(globalThis.WeatherUnits?.temperature(result.minT,1)??result.minT.toFixed(1)+'°C')} to ${(globalThis.WeatherUnits?.temperature(result.maxT,1)??result.maxT.toFixed(1)+'°C')} · ${fmt(result.observationTime??unix)}`;
   $('tempStatus').className='status ok';
   weatherFront();
 }
