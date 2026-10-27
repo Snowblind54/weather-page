@@ -8,6 +8,11 @@ on:
     paths:
       - scripts/update_snow_depth.py
       - scripts/snow_depth_expansion.py
+      - scripts/snow_depth_central.py
+      - scripts/update_western_temperature.py
+      - tests/test_snow_depth_central.py
+      - tests/snow-depth.test.cjs
+      - js/snow-depth.js
       - data/snow-dwd-stations.json
       - tests/test_snow_depth_expansion.py
       - scripts/publish_generated_data.sh
@@ -17,7 +22,7 @@ permissions:
   contents: write
 concurrency:
   group: update-official-snow-depth
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   R2_PAUSED: ${{ vars.R2_PAUSED }}
@@ -43,13 +48,17 @@ jobs:
           path: |
             data/official-snow-depth.json
             data/iceland-snow-stations.json
+            data/poland-snow-status.json
           key: r2-input-${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: r2-input-${{ github.workflow }}-
       - name: Restore verified last successful R2 data
         run: python3 scripts/hydrate_r2_data.py data/official-snow-depth.json data/iceland-snow-stations.json
       - name: Test snow-depth adapters
         run: python3 -m unittest discover -s tests -p 'test_snow_depth*.py' -v
+      - name: Test snow-depth map coverage
+        run: node --test tests/snow-depth.test.cjs
       - name: Fetch official snow depth
         run: python3 scripts/update_snow_depth.py
       - name: Save station snow-depth snapshot
         run: bash scripts/publish_generated_data.sh 'Refresh official station snow depth' data/official-snow-depth.json data/iceland-snow-stations.json
+

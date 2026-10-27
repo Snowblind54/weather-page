@@ -83,3 +83,14 @@ test('new official countries validate coordinates and preserve zero filtering', 
   context.row={country:'US',name:'Misplaced',lat:52,lon:20,time,depthCm:10,state:'depth'};
   assert.equal(vm.runInContext('snowDepthValid(row)',context),false);
 });
+
+test('Germany and France accept their national bounds and preserve measured zero, dates and mountain units',()=>{
+ const {context,nodes,labels}=snowContext(),time=Math.floor(Date.now()/1000)-3600;
+ const rows=[{country:'DE',code:'CDC-03987',name:'Potsdam',lat:52.38,lon:13.06,depthCm:0,time,timePrecision:'day',state:'bare',quality:'provisional'},
+ {country:'FR',code:'NIVO-07499',name:'Chamonix',lat:45.92,lon:6.86,depthCm:35,time,state:'depth',quality:'provisional',sourceName:'Météo-France / official mountain snow observations',sourceUrl:'https://www.data.gouv.fr/datasets/archive-reseau-nivo-meteorologique'}];
+ context.snapshot={stations:rows,providers:{}};vm.runInContext('snowDepthData=snapshot;renderSnowDepth()',context);assert.equal(labels.length,2);
+ assert(labels.some(l=>l.html.includes('35 cm')&&l.html.includes('mountain snow observations')));assert(labels.some(l=>l.html.includes('observation day')));
+ context.NorthernCountryFocus={allowsStation:s=>s.country==='DE',matchesCountry:c=>c==='DE'};vm.runInContext('renderSnowDepth()',context);assert.equal(labels.length,1);assert.match(labels[0].html,/DWD/);
+ nodes.snowDepthZero.checked=false;vm.runInContext('renderSnowDepth()',context);assert.equal(labels.length,0);
+ context.row=rows[1];assert.equal(vm.runInContext('snowDepthValid({...row,lat:59})',context),false);assert.equal(vm.runInContext('snowDepthValid({...row,lat:42,lon:9})',context),true,'Corsica');
+});

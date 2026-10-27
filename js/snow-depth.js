@@ -1,6 +1,8 @@
 // Station measurements are independent of the satellite snow-cover colours.
 const snowDepthLabels=L.layerGroup();
 const snowDepthSources={
+  DE:{name:'DWD / official snow-depth observations',url:'https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/'},
+  FR:{name:'Météo-France / official snow-depth observations',url:'https://www.data.gouv.fr/datasets/archive-reseau-nivo-meteorologique'},
   EE:{name:'Keskkonnaagentuur',url:'https://www.ilmateenistus.ee/'},
   FI:{name:'Finnish Meteorological Institute (FMI)',url:'https://en.ilmatieteenlaitos.fi/open-data'},
   SE:{name:'SMHI',url:'https://www.smhi.se/data/meteorologi/sno'},
@@ -9,7 +11,7 @@ const snowDepthSources={
   NO:{name:'MET Norway',url:'https://seklima.met.no/'},
   IS:{name:'Icelandic Meteorological Office',url:'https://www.vedur.is/vedur/athuganir/urkoma/'},
   CA:{name:'Environment and Climate Change Canada / MSC',url:'https://eccc-msc.github.io/open-data/msc-data/obs_station/readme_obs_insitu_en/'},
-  PL:{name:'IMGW station observations via DWD',url:'https://opendata.dwd.de/weather/weather_reports/poi/'},
+  PL:{name:'IMGW-PIB / official station snow observations',url:'https://hydro.imgw.pl/'},
   UK:{name:'Met Office station observations via DWD',url:'https://opendata.dwd.de/weather/weather_reports/poi/'},
   DK:{name:'Danish Meteorological Institute (DMI)',url:'https://www.dmi.dk/friedata/'},
   IE:{name:'Met Éireann',url:'https://opendata2.met.ie/obs/'},
@@ -26,7 +28,7 @@ function snowDepthEscape(value){
 }
 function snowDepthValid(s,now=Date.now()/1000){
   if(!s || !snowDepthSources[s.country] || !s.name || !Number.isFinite(s.lat) || !Number.isFinite(s.lon))return false;
-  const [south,north,west,east]=s.country==='CA'?[41,85,-142,-52]:s.country==='GL'?[59,85,-74,-10]:s.country==='PL'?[49,55,14,25]:s.country==='DK'?[54,58,7,16]:s.country==='IE'?[51,56,-11,-5]:s.country==='UK'?[49,61,-9,3]:s.country==='US'?[18,73,-180,-65]:[53,81,-25,33];
+  const [south,north,west,east]=s.country==='DE'?[47,55.2,5.5,15.6]:s.country==='FR'?[41,51.5,-5.5,10]:s.country==='CA'?[41,85,-142,-52]:s.country==='GL'?[59,85,-74,-10]:s.country==='PL'?[49,55,14,25]:s.country==='DK'?[54,58,7,16]:s.country==='IE'?[51,56,-11,-5]:s.country==='UK'?[49,61,-9,3]:s.country==='US'?[18,73,-180,-65]:[53,81,-25,33];
   if(s.lat<south || s.lat>north || s.lon<west || s.lon>east || !Number.isFinite(s.time) || s.time>now || now-s.time>snowDepthMaxAge)return false;
   if(['trace','patchy'].includes(s.state))return s.depthCm===null;
   return Number.isFinite(s.depthCm) && s.depthCm>=0 && s.depthCm<=1500;
@@ -37,7 +39,7 @@ function snowDepthText(s){
   return new Intl.NumberFormat(undefined,{maximumFractionDigits:1}).format(s.depthCm)+' cm';
 }
 function snowDepthPopup(s){
-  const source=snowDepthSources[s.country],age=Date.now()/1000-s.time;
+  const source={...snowDepthSources[s.country],...(s.sourceName?{name:s.sourceName}:{}),...(['https://www.data.gouv.fr/datasets/archive-reseau-nivo-meteorologique','https://hydro.imgw.pl/'].includes(s.sourceUrl)?{url:s.sourceUrl}:{})},age=Date.now()/1000-s.time;
   const date=new Date(s.time*1000);
   const stamp=s.timePrecision==='day'
     ?date.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})+' (observation day)'
