@@ -755,7 +755,7 @@ async function createTemperatureImage(unix, token){
   for(const region of regions){
     const spec=TEMP_GRID_SPECS.find(item=>item.id===region.id);
     const sourceSeries=temperatureGridData.get(region.id);
-    const regionStations=region.stationBased?usStations:[];
+    const regionStations=region.stationBased?globalThis.NorthernUSTemperature.nearby(region,usStations):[];
     if(region.stationBased?!regionStations.length:(!spec||!sourceSeries?.length))continue;
 
     // Sample the model timeline only once per source point for this frame.

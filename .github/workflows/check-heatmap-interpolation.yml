@@ -28,4 +28,4 @@ jobs:
         with:
           node-version: '22'
       - name: Verify terrain, interpolation, dates and country filters
-        run: node --test tests/terrain-context.test.cjs tests/rainfall.test.cjs tests/central-temperature.test.cjs tests/italy-hungary-observations.test.cjs tests/alpine-observations.test.cjs tests/official-wind.test.cjs tests/test_wind_observation_blend.js
+        run: node --test tests/terrain-context.test.cjs tests/rainfall.test.cjs tests/central-temperature.test.cjs tests/italy-hungary-observations.test.cjs tests/alpine-observations.test.cjs tests/official-wind.test.cjs tests/test_wind_observation_blend.js tests/western-temperature.test.cjs tests/temperature-us.test.cjs tests/weather-extremes.test.cjs

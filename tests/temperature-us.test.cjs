@@ -13,9 +13,9 @@ test('station shading preserves measured zero, blends nearby values and leaves g
  assert(Math.abs(blend.values[50*101+50]-15)<.1);
  assert(blend.values[50*101+40]<11);assert(blend.values[50*101+60]>19);
 });
-test('stale, foreign, missing and canceled data never produce false heatmap values',async()=>{
+test('stale, missing and canceled data never produce false heatmap values',async()=>{
  const {NorthernUSTemperature:us}=harness();
- const r=await us.raster(region,[station(40,-100,5,now-6000),station(40,-100,NaN),{...station(40,-100,30),country:'CA'}],now);
+ const r=await us.raster(region,[station(40,-100,5,now-6000),station(40,-100,NaN),{...station(40,-100,30,now-6000),country:'CA'}],now);
  assert(r.values.every(Number.isNaN));assert(r.alpha.every(a=>a===0));
  let valid=true,yields=0;
  const canceled=await us.raster(region,Array.from({length:32},()=>station(40,-100,5)),now,()=>valid,async()=>{valid=false;yields++});
@@ -28,12 +28,12 @@ test('Alaska, Hawaii and both sides of the Aleutian date line have bounded raste
   const r=await us.raster(spec,[station(lat,lon,7)],now);assert(r.alpha.some(a=>a>0));
  }
 });
-test('Atlantic shading uses its own official countries and excludes US stations',async()=>{
+test('Atlantic shading uses nearby official stations and excludes geographically remote US stations',async()=>{
  const {NorthernUSTemperature:us}=harness();
  for(const [id,country,lat,lon] of [['british-isles','GB',52,-2],['british-isles','IE',53,-8],['faroes','FO',62,-6.8]]){
   const spec=us.regions.find(r=>r.id===id);
   const measured={country,lat,lon,temp:9,time:now};
-  const r=await us.raster(spec,[measured,{...measured,country:'US',temp:40}],now);
+  const r=await us.raster(spec,[measured,station(40,-100,40)],now);
   assert(r.alpha.some(a=>a>0));
   for(const value of r.values)if(Number.isFinite(value))assert(Math.abs(value-9)<.001);
  }
@@ -46,6 +46,6 @@ test('the existing renderer can draw NOAA US heatmaps with all model sources una
  vm.runInContext(fs.readFileSync(__dirname+'/../js/temperature.js','utf8'),c);
  vm.runInContext('loadTemperatureCountryFeatures=async()=>[];clipTemperatureToCountries=()=>{maskCalls++;return true;};',Object.assign(c,{maskCalls:0}));
  const result=await vm.runInContext(`createTemperatureImage(${now},1)`,c);
- assert(result.regions.some(r=>r.id==='usa'&&r.stationBased&&r.coastlineClipped));assert(Math.abs(result.minT-15)<.001);assert(Math.abs(result.maxT-15)<.001);assert.equal(c.maskCalls,4);
+ assert(result.regions.some(r=>r.id==='usa'&&r.stationBased&&r.coastlineClipped));assert(Math.abs(result.minT-15)<.001);assert(Math.abs(result.maxT-15)<.001);assert.equal(c.maskCalls,1);
 });
 

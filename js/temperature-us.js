@@ -31,6 +31,15 @@
       Number.isFinite(s.temp)&&Number.isFinite(s.time)&&
       Math.abs(s.time-unix)<=(s.country==='FR'?4*3600:(['ES','PT','IT'].includes(s.country)?2*3600:95*60))):[];
   }
+  function nearby(region,observations){
+    const [[south,west],[north,east]]=region.bounds,pad=radiusKm/111.195;
+    return observations.filter(s=>{
+      const lonPad=pad/Math.max(.18,Math.cos(s.lat*rad));let lon=s.lon;
+      while(lon-(west+east)/2>180)lon-=360;
+      while(lon-(west+east)/2< -180)lon+=360;
+      return s.lat+pad>=south&&s.lat-pad<=north&&lon+lonPad>=west&&lon-lonPad<=east;
+    });
+  }
   async function raster(region,observations,unix,valid=()=>true,yieldFrame=()=>Promise.resolve()){
     const W=region.w,H=region.h,[south,west]=region.bounds[0],[north,east]=region.bounds[1];
     const northY=mercator(north),southY=mercator(south);
@@ -81,6 +90,6 @@
     }
     return {values,alpha};
   }
-  root.NorthernUSTemperature={regions,stations,raster,radiusKm};
+  root.NorthernUSTemperature={regions,stations,raster,radiusKm,nearby};
 })(typeof window!=='undefined'?window:globalThis);
 

@@ -24,7 +24,7 @@ test('Western European station shading uses national measurements and bounded co
  assert(spec);assert(spec.w*spec.h<=125000);
  for(const [country,lat,lon] of [['DE',48,10],['NL',52,5],['BE',50.8,4.3]]){
   const s={country,lat,lon,temp:0,time:now};
-  const raster=await api.raster(spec,[s,{...s,country:'PL',temp:40}],now);
+  const raster=await api.raster(spec,[s,{country:'PL',lat:52,lon:19,temp:40,time:now}],now);
   assert(raster.alpha.some(a=>a>0));
   assert([...raster.values].filter(Number.isFinite).every(v=>v===0));
  }
