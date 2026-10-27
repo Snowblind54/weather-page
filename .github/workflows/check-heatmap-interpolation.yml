@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - js/terrain-context.js
+      - js/temperature-raster-worker.js
       - js/temperature-us.js
       - js/temperature.js
       - js/stations.js
@@ -12,6 +13,8 @@ on:
       - js/wind.js
       - js/wind-observation-blend.js
       - assets/terrain-*-v1.bin.gz
+      - tests/temperature-performance-worker.test.cjs
+      - tests/fixtures/uk-rain-delayed.json
       - tests/terrain-context.test.cjs
       - tests/rainfall.test.cjs
       - .github/workflows/check-heatmap-interpolation.yml
@@ -28,4 +31,4 @@ jobs:
         with:
           node-version: '22'
       - name: Verify terrain, interpolation, dates and country filters
-        run: node --test tests/terrain-context.test.cjs tests/rainfall.test.cjs tests/central-temperature.test.cjs tests/italy-hungary-observations.test.cjs tests/alpine-observations.test.cjs tests/official-wind.test.cjs tests/test_wind_observation_blend.js tests/western-temperature.test.cjs tests/temperature-us.test.cjs tests/weather-extremes.test.cjs
+        run: node --test tests/temperature-performance-worker.test.cjs tests/terrain-context.test.cjs tests/rainfall.test.cjs tests/central-temperature.test.cjs tests/italy-hungary-observations.test.cjs tests/alpine-observations.test.cjs tests/official-wind.test.cjs tests/test_wind_observation_blend.js tests/western-temperature.test.cjs tests/temperature-us.test.cjs tests/weather-extremes.test.cjs

@@ -14,7 +14,7 @@
  async function load(name){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
   try{
-  const response=await fetch('assets/terrain-'+name+'-v1.bin.gz',{cache:'force-cache',signal:controller.signal});
+  const response=await fetch((root.NorthernTerrainAssetBase||'assets/')+'terrain-'+name+'-v1.bin.gz',{cache:'force-cache',signal:controller.signal});
   if(!response.ok)throw new Error('Terrain HTTP '+response.status);
   let buffer=await response.arrayBuffer();
   // Some hosts automatically decode Content-Encoding; others serve .gz bytes.

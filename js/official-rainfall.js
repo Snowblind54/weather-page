@@ -59,7 +59,7 @@ function officialRainWindow(country,hours,end){
     const stations=officialRainData.stations.filter(s=>s.country===country);
     // National reporting can lag. Use a consistent country window and display
     // its actual end; never label an older measurement as the selected hour.
-    const maxDelay=hours>1&&['FR','AD','ES'].includes(country)?24:(country==='FR'?4:2);
+    const maxDelay=hours>1&&['FR','AD','ES','GB'].includes(country)?24:(country==='FR'?4:2);
     for(let offset=0;offset<=maxDelay;offset++){
       const actualEnd=end-offset*3600;
       const rows=stations.map(station=>({station,value:officialGaugeRainTotal(station,actualEnd,hours)})).filter(s=>Number.isFinite(s.value));

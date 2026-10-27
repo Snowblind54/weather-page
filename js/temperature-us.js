@@ -40,56 +40,111 @@
       return s.lat+pad>=south&&s.lat-pad<=north&&lon+lonPad>=west&&lon-lonPad<=east;
     });
   }
-  async function raster(region,observations,unix,valid=()=>true,yieldFrame=()=>Promise.resolve()){
-    const W=region.w,H=region.h,[south,west]=region.bounds[0],[north,east]=region.bounds[1];
-    const northY=mercator(north),southY=mercator(south);
+  const geometryCache=new Map();
+  const maxNeighbours=8;
+  function positionKey(s){return (s.country||'')+'/'+(s.code||'')+'/'+s.lat+'/'+s.lon;}
+  async function geometry(region,observations,valid,yieldFrame){
+    const W=Math.min(region.w,Math.max(3,Math.ceil(region.w/3))),H=Math.min(region.h,Math.max(3,Math.ceil(region.h/3)));
+    const key=[region.bounds.flat().join(','),W,H,globalThis.NorthernTerrain?.available||false,observations.map(positionKey).join(';')].join('|');
+    if(geometryCache.has(key)){
+      const value=geometryCache.get(key);geometryCache.delete(key);geometryCache.set(key,value);return value;
+    }
+    const [south,west]=region.bounds[0],[north,east]=region.bounds[1],northY=mercator(north),southY=mercator(south);
     const lats=Array.from({length:H},(_,y)=>Math.atan(Math.sinh(northY+y/(H-1)*(southY-northY)))/rad);
     const lons=Array.from({length:W},(_,x)=>west+x/(W-1)*(east-west));
-    const weighted=new Float32Array(W*H),total=new Float32Array(W*H),nearest=new Float32Array(W*H).fill(Infinity);
-    const terrain=globalThis.NorthernTerrain;
-    const heights=terrain?new Float32Array(W*H).fill(NaN):null;
-    if(heights)for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-      const h=terrain.elevation(lats[y],lons[x]);if(h!==null)heights[y*W+x]=h;
-    }
-    let touched=0;
-    for(const s of observations){
+    const terrain=globalThis.NorthernTerrain,buckets=new Map();
+    const sources=observations.map((s,index)=>{
+      let lon=s.lon;while(lon-(west+east)/2>180)lon-=360;while(lon-(west+east)/2< -180)lon+=360;
+      const item={...s,lon,index,height:terrain?.elevation(s.lat,lon),relief:terrain?.influence(s.lat,lon,'temperature')};
+      const k=Math.floor(s.lat)+','+Math.floor(lon);if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(item);return item;
+    });
+    const size=W*H*maxNeighbours,indices=new Int32Array(size).fill(-1),weights=new Float32Array(size),offsets=new Float32Array(size),alpha=new Uint8Array(W*H);
+    for(let y=0;y<H;y++){
       if(!valid())return null;
-      if(!Number.isFinite(s.temp)||!Number.isFinite(s.lat)||!Number.isFinite(s.lon)||!Number.isFinite(s.time))continue;
-      const age=Math.abs(unix-s.time),maxAge=s.country==='FR'?4*3600:(['ES','PT','IT'].includes(s.country)?2*3600:5700),ageWeight=age<=3600?1:Math.max(0,(maxAge-age)/(maxAge-3600));
-      if(!ageWeight)continue;
-      const terrainWeight=terrain?.influence(s.lat,s.lon,'temperature'),stationHeight=terrain?.elevation(s.lat,s.lon);
-      let lon=s.lon;
-      while(lon-(west+east)/2>180)lon-=360;
-      while(lon-(west+east)/2< -180)lon+=360;
-      const latPad=radiusKm/111,lonPad=radiusKm/(111*Math.max(.18,Math.cos(s.lat*rad)));
-      if(s.lat+latPad<south||s.lat-latPad>north||lon+lonPad<west||lon-lonPad>east)continue;
-      const x0=Math.max(0,Math.floor((lon-lonPad-west)/(east-west)*(W-1)));
-      const x1=Math.min(W-1,Math.ceil((lon+lonPad-west)/(east-west)*(W-1)));
-      const yAt=lat=>(northY-mercator(Math.max(-85,Math.min(85,lat))))/(northY-southY)*(H-1);
-      const y0=Math.max(0,Math.floor(yAt(s.lat+latPad))),y1=Math.min(H-1,Math.ceil(yAt(s.lat-latPad)));
-      // Local distance approximation is accurate over this short radius;
-      // one cosine per row avoids millions of spherical calculations on phones.
-      for(let y=y0;y<=y1;y++){
-        const dy=(lats[y]-s.lat)*111.195,dxScale=111.195*Math.cos((lats[y]+s.lat)*rad/2);
-        for(let x=x0;x<=x1;x++){
-          const dx=(lons[x]-lon)*dxScale,km2=dy*dy+dx*dx;
-          if(km2>=radiusKm*radiusKm)continue;
-          const relief=terrainWeight?.(lats[y],lons[x])??1;
-          if(relief<.005)continue;
-          const f=km2/(radiusKm*radiusKm),weight=(1-f)**2*ageWeight*relief/Math.max(4,km2),i=y*W+x;
-          const value=stationHeight!=null&&Number.isFinite(heights?.[i])?s.temp+Math.max(-12,Math.min(12,(stationHeight-heights[i])*.0065)):s.temp;
-          weighted[i]+=value*weight;total[i]+=weight;nearest[i]=Math.min(nearest[i],km2/Math.max(.02,relief));
+      const lat=lats[y],cos=Math.max(.18,Math.cos(lat*rad)),padLat=radiusKm/111.195,padLon=padLat/cos;
+      for(let x=0;x<W;x++){
+        const lon=lons[x],candidates=[];
+        for(let by=Math.floor(lat-padLat);by<=Math.floor(lat+padLat);by++)for(let bx=Math.floor(lon-padLon);bx<=Math.floor(lon+padLon);bx++){
+          for(const s of buckets.get(by+','+bx)||[]){
+            const dy=(lat-s.lat)*111.195,dx=(lon-s.lon)*111.195*cos,d2=dy*dy+dx*dx;
+            if(d2>=radiusKm*radiusKm)continue;
+            let i=0;while(i<candidates.length&&candidates[i].d2<d2)i++;
+            candidates.splice(i,0,{s,d2});if(candidates.length>16)candidates.pop();
+          }
         }
+        const targetHeight=terrain?.elevation(lat,lon),usable=[];
+        for(const {s,d2} of candidates){
+          const relief=s.relief?.(lat,lon)??1;if(relief<.005)continue;
+          const f=d2/(radiusKm*radiusKm),weight=(1-f)**2*relief/Math.max(4,d2);
+          const offset=s.height!=null&&targetHeight!=null?Math.max(-12,Math.min(12,(s.height-targetHeight)*.0065)):0;
+          usable.push({index:s.index,weight,offset,effective:d2/Math.max(.02,relief)});
+        }
+        usable.sort((a,b)=>b.weight-a.weight);const cell=y*W+x,start=cell*maxNeighbours;
+        for(let k=0;k<Math.min(maxNeighbours,usable.length);k++){
+          const p=usable[k];indices[start+k]=p.index;weights[start+k]=p.weight;offsets[start+k]=p.offset;
+        }
+        if(usable.length)alpha[cell]=Math.max(0,Math.round(205*Math.min(1,(radiusKm-Math.sqrt(Math.min(...usable.map(p=>p.effective))))/25)));
       }
-      if(++touched%16===0)await yieldFrame();
+      if(y%4===3)await yieldFrame();
     }
-    const values=new Float32Array(W*H).fill(NaN),alpha=new Uint8Array(W*H);
-    for(let i=0;i<values.length;i++)if(total[i]>0){
-      values[i]=weighted[i]/total[i];
-      alpha[i]=Math.round(205*Math.min(1,(radiusKm-Math.sqrt(nearest[i]))/25));
+    if(!valid())return null;
+    const result={W,H,indices,weights,offsets,alpha};geometryCache.set(key,result);
+    while(geometryCache.size>8)geometryCache.delete(geometryCache.keys().next().value);
+    return result;
+  }
+  async function rasterCore(region,observations,unix,valid=()=>true,yieldFrame=()=>Promise.resolve()){
+    observations=nearby(region,observations).filter(s=>Number.isFinite(s.temp)&&Number.isFinite(s.lat)&&Number.isFinite(s.lon)&&Number.isFinite(s.time)).sort((a,b)=>positionKey(a).localeCompare(positionKey(b)));
+    const mesh=await geometry(region,observations,valid,yieldFrame);if(!mesh||!valid())return null;
+    const ages=observations.map(s=>{
+      const age=Math.abs(unix-s.time),maxAge=s.country==='FR'?14400:['ES','PT','IT'].includes(s.country)?7200:5700;
+      return age<=3600?1:Math.max(0,(maxAge-age)/(maxAge-3600));
+    });
+    const coarse=new Float32Array(mesh.W*mesh.H).fill(NaN),opacity=new Uint8Array(coarse.length);
+    for(let i=0;i<coarse.length;i++){
+      let sum=0,total=0;
+      for(let k=0;k<maxNeighbours;k++){
+        const p=i*maxNeighbours+k,index=mesh.indices[p];if(index<0)break;
+        const weight=mesh.weights[p]*ages[index];if(!weight)continue;
+        sum+=(observations[index].temp+mesh.offsets[p])*weight;total+=weight;
+      }
+      if(total>0){coarse[i]=sum/total;opacity[i]=mesh.alpha[i];}
+    }
+    const W=region.w,H=region.h,values=new Float32Array(W*H).fill(NaN),alpha=new Uint8Array(W*H);
+    for(let y=0;y<H;y++){
+      if(!valid())return null;
+      const gy=y/(H-1)*(mesh.H-1),y0=Math.min(mesh.H-2,Math.floor(gy)),fy=gy-y0;
+      for(let x=0;x<W;x++){
+        const gx=x/(W-1)*(mesh.W-1),x0=Math.min(mesh.W-2,Math.floor(gx)),fx=gx-x0;
+        const cells=[y0*mesh.W+x0,y0*mesh.W+x0+1,(y0+1)*mesh.W+x0,(y0+1)*mesh.W+x0+1],mix=[(1-fx)*(1-fy),fx*(1-fy),(1-fx)*fy,fx*fy];
+        let sum=0,total=0,a=0;
+        for(let k=0;k<4;k++)if(Number.isFinite(coarse[cells[k]])){const w=mix[k]*opacity[cells[k]];sum+=coarse[cells[k]]*w;total+=w;a+=opacity[cells[k]]*mix[k];}
+        const i=y*W+x;if(total>0){values[i]=sum/total;alpha[i]=Math.round(a);}
+      }
+      if(y%24===23)await yieldFrame();
     }
     return {values,alpha};
   }
-  root.NorthernUSTemperature={regions,stations,raster,radiusKm,nearby};
+  let worker=null,workerFailed=false,requestId=0;const pending=new Map();
+  function getWorker(){
+    if(worker||workerFailed||typeof Worker!=='function'||typeof document==='undefined')return worker;
+    try{
+      worker=new Worker('js/temperature-raster-worker.js?v=1');
+      worker.onmessage=({data})=>{const task=pending.get(data.id);if(task){pending.delete(data.id);if(data.error)task.reject(new Error(data.error));else task.resolve(data.result);}};
+      worker.onerror=()=>{workerFailed=true;worker?.terminate();worker=null;for(const task of pending.values())task.reject(new Error('Temperature worker unavailable'));pending.clear();};
+    }catch(error){workerFailed=true;worker=null;}
+    return worker;
+  }
+  async function raster(region,observations,unix,valid=()=>true,yieldFrame=()=>Promise.resolve()){
+    if(!valid())return null;
+    const background=getWorker();
+    if(background){
+      try{
+        const id=++requestId,result=await new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});background.postMessage({id,region,observations,unix});});
+        return valid()?result:null;
+      }catch(error){workerFailed=true;worker?.terminate();worker=null;}
+    }
+    return rasterCore(region,observations,unix,valid,yieldFrame);
+  }
+  root.NorthernUSTemperature={regions,stations,raster,radiusKm,nearby,rasterCore};
 })(typeof window!=='undefined'?window:globalThis);
 

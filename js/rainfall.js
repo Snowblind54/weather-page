@@ -129,6 +129,7 @@ async function loadRainfall(force=false){
       spec.points.map(([lat,lon])=>({lat,lon,times:[],amounts:[]}))]))};
     queueRainfallRender(0);
   }
+  if(!visibleRainfallNeedsModel())return queueRainfallRender(0);
   const end=rainWindowEnd();
   if(!force && validRainData(rainData,end)) return queueRainfallRender(0);
   if(!force){
@@ -147,7 +148,7 @@ async function loadRainfall(force=false){
       if(temperatureLoadPromise) await temperatureLoadPromise.catch(()=>{});
       const grids={};
       for(const spec of RAIN_GRID_SPECS){
-        if(!activeAccumulationHours()) return null;
+        if(!activeAccumulationHours()||!visibleRainfallNeedsModel()) return null;
         $('rainAccumStatus').textContent='Loading rainfall · '+spec.id+'…';
         $('rainAccumStatus').className='status';
         const rows=[];
@@ -238,16 +239,30 @@ function rainTotalsAt(lat,lon,end){
   return totals;
 }
 
+function visibleRainfallRegions(){
+  const bounds=typeof map.getBounds==='function'?map.getBounds():null;
+  return RAIN_REGIONS.filter(region=>{
+    const focus=globalThis.NorthernCountryFocus?.current();
+    if(focus&&!TEMP_REGION_COUNTRY_IDS[region.id]?.has(focus.id))return false;
+    if(!bounds||typeof bounds.getSouth!=='function')return true;
+    const [[south,west],[north,east]]=region.bounds;
+    let right=bounds.getEast(),left=bounds.getWest();if(right<left)right+=360;
+    return north>=bounds.getSouth()&&south<=bounds.getNorth()&&(right-left>=360||Math.ceil((left-east)/360)<=Math.floor((right-west)/360));
+  });
+}
+function visibleRainfallNeedsModel(){return visibleRainfallRegions().some(r=>!r.stationBased&&r.id!=='canada');}
+
 async function createRainfallImages(hours,end,generation){
   await globalThis.NorthernTerrain?.ready();
   if(generation!==rainRenderGeneration)return null;
   const officialVersion=officialRainData && Date.now()/1000-officialRainData.generatedAt<=3*3600?officialRainData.generatedAt:0;
-  const key=hours+'|'+end+'|'+officialVersion+'|'+(globalThis.NorthernCountryFocus?.key()||'all');
+  const regions=visibleRainfallRegions();
+  const key=regions.map(r=>r.id).join(',')+'|'+hours+'|'+end+'|'+officialVersion+'|'+(globalThis.NorthernCountryFocus?.key()||'all');
   if(rainImageCache.has(key)) return rainImageCache.get(key);
   const features=await loadTemperatureCountryFeatures();
   rainCountryFeatures=features;
   const rendered=[];
-  for(const region of RAIN_REGIONS){
+  for(const region of regions){
     const focus=globalThis.NorthernCountryFocus?.current();
     if(focus&&!TEMP_REGION_COUNTRY_IDS[region.id]?.has(focus.id))continue;
     const officialOnly=region.id==='canada'||Boolean(region.stationBased),spec=TEMP_GRID_SPECS.find(s=>s.id===region.id);
@@ -404,3 +419,5 @@ $('rainAccumOpacity').addEventListener('input',()=>{
 setInterval(()=>{
   if(activeAccumulationHours()) loadRainfall().catch(reportRainfallError);
 },5*60*1000);
+
+map.on('moveend',()=>{if(activeAccumulationHours())loadRainfall(false).catch(reportRainfallError);});

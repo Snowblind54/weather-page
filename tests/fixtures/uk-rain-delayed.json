@@ -1,0 +1,69 @@
+{
+  "source": "Published Met Office official SYNOP precipitation via DWD, fetched 2026-10-27. These are actual complete measurement intervals; no model substitution.",
+  "referenceTime": 1793113200,
+  "stations": [
+    {
+      "country": "GB",
+      "code": "03005",
+      "name": "Lerwick",
+      "lat": 60.133333,
+      "lon": -1.183333,
+      "times": [],
+      "amounts": [],
+      "accumulations": [
+        {
+          "end": 1793098800,
+          "hours": 24,
+          "value": 9.8
+        },
+        {
+          "end": 1793091600,
+          "hours": 48,
+          "value": 14.4
+        }
+      ]
+    },
+    {
+      "country": "GB",
+      "code": "03017",
+      "name": "Kirkwall",
+      "lat": 58.95,
+      "lon": -2.9,
+      "times": [],
+      "amounts": [],
+      "accumulations": [
+        {
+          "end": 1793098800,
+          "hours": 24,
+          "value": 5.8
+        },
+        {
+          "end": 1793091600,
+          "hours": 48,
+          "value": 15.6
+        }
+      ]
+    },
+    {
+      "country": "GB",
+      "code": "03026",
+      "name": "Stornoway",
+      "lat": 58.216667,
+      "lon": -6.316667,
+      "times": [],
+      "amounts": [],
+      "accumulations": [
+        {
+          "end": 1793098800,
+          "hours": 24,
+          "value": 16.6
+        },
+        {
+          "end": 1793091600,
+          "hours": 48,
+          "value": 17.6
+        }
+      ]
+    }
+  ]
+}

@@ -749,7 +749,7 @@ async function createTemperatureImage(unix, token){
     return {key:cacheKey,observationTime,regions:cached,minT:stats.minT,maxT:stats.maxT,correctionCount:stats.correctionCount||0};
   }
 
-  const corrections=temperatureHeatmapCorrections(sampleTime);
+  const corrections=regions.some(region=>!region.stationBased)?temperatureHeatmapCorrections(sampleTime):[];
   const rendered=[];
   let globalMin=Infinity,globalMax=-Infinity;
   // Never display rectangular heatmap tiles over the sea if the mask fails.
@@ -923,6 +923,9 @@ function queueTemperatureRender(unix,delay=90){
 }
 
 function scheduleTemperaturePrecache(centerUnix){
+  // Station meshes already cache geometry; speculative multi-frame rasters
+  // compete with map interaction and are unnecessary for fast playback.
+  if(visibleTemperatureRegions().some(region=>region.stationBased))return;
   if(temperaturePrecacheTimer) clearTimeout(temperaturePrecacheTimer);
 
   temperaturePrecacheTimer=setTimeout(async()=>{

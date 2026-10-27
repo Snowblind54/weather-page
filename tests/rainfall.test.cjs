@@ -445,3 +445,28 @@ test('rainfall mountain barriers suppress foreign influence while exact station 
  assert.equal(h.run('officialRainAt(46.01,6.3,24,rainWindowEnd(),"CH")'),null);
  assert.equal(h.run('officialGaugeRainTotal(officialRainData.stations[0],rainWindowEnd(),24)'),25);
 });
+
+test('official UK 24/48-hour heatmaps accept complete delayed SYNOP intervals and disclose their real end',()=>{
+ const fixture=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/uk-rain-delayed.json'),'utf8'));
+ const h=harness(true);h.seed();h.context.frameTime=fixture.referenceTime;h.context.uk=fixture.stations;
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{GB:{name:'Met Office SYNOP via DWD'}},stations:uk};officialRainWindows.clear()`);
+ for(const hours of [24,48]){
+  const w=h.run(`officialRainWindow('GB',${hours},rainWindowEnd())`);assert(w);assert(w.end<h.context.frameTime-7200);
+  const gauge=fixture.stations[0],expected=gauge.accumulations.find(a=>a.hours===hours);
+  const field=h.run(`officialRainAt(${gauge.lat},${gauge.lon},${hours},rainWindowEnd(),'GB')`);
+  assert(field);assert.equal(field.end,expected.end);assert.equal(field.value,expected.value);assert(field.delayed);
+ }
+ h.run('officialRainData.stations.forEach(s=>s.accumulations.forEach(a=>a.end=rainWindowEnd()-25*3600));officialRainWindows.clear()');
+ assert.equal(h.run("officialRainWindow('GB',24,rainWindowEnd())"),null);
+});
+
+test('UK rain skips offscreen regions and Nordic model requests, and viewport changes invalidate the image cache',async()=>{
+ const h=harness(true);h.seed();h.context.map.getBounds=()=>({getSouth:()=>50,getNorth:()=>59,getWest:()=>-8,getEast:()=>1});
+ h.context.NorthernCountryFocus={key:()=> 'GB',current:()=>({id:'826'}),matchesCountry:c=>c==='826'||c==='GB',allowsStation:s=>s.country==='GB'};
+ assert.deepEqual(Array.from(h.run('visibleRainfallRegions().map(r=>r.id)')),['british-isles']);
+ assert.equal(h.run('visibleRainfallNeedsModel()'),false);
+ let requests=0;h.context.fetch=async()=>{requests++;throw new Error('No Nordic model request expected for UK')};
+ h.elements.rain24h.checked=true;await h.run('loadRainfall(false)');assert.equal(requests,0);
+ h.context.NorthernCountryFocus=null;h.context.map.getBounds=()=>({getSouth:()=>40,getNorth:()=>50,getWest:()=>-120,getEast:()=>-80});
+ assert(!h.run("visibleRainfallRegions().some(r=>r.id==='british-isles')"));
+});
