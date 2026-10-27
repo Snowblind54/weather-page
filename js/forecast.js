@@ -14,7 +14,7 @@
   panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','forecastSection-title');
   panel.innerHTML=`
     <div class="panel-heading"><div><div class="eyebrow" id="forecastProvider">MET NORWAY</div><h2 id="forecastSection-title">Forecast</h2><p>Choose a place on the map</p></div><div class="panel-actions"><button class="info-button" data-info="forecastSection-sources" aria-controls="forecastSection-sources" aria-expanded="false" aria-label="Forecast sources">i</button><button class="close-panel" aria-label="Close Forecast menu">×</button></div></div>
-    <div id="forecastSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>Weather forecast data from MET Norway, Locationforecast 2.0, under CC BY 4.0. Nordic short-range forecasts use MEPS with local post-processing; other regions and longer ranges use the models described by MET Norway. These are automatic model forecasts, not measured conditions.</p><div class="source-links"><a href="https://api.met.no/doc/locationforecast/datamodel" target="_blank" rel="noopener">Forecast models ↗</a><a href="https://api.met.no/doc/License" target="_blank" rel="noopener">MET Norway licence ↗</a><a href="https://github.com/Snowblind54/weather-page" target="_blank" rel="noopener">Northern Weather project ↗</a></div><p>Forecast times and quantities retain their original intervals. Rain/snow is liquid-water equivalent in mm, not snow depth. Missing Europe, Iceland and North America gusts are supplemented from cached ECMWF IFS open-data grids (CC BY 4.0). These use the nearest native grid point (9 km / 0.1° preferred, 0.25° fallback) and nearest native forecast within 90 minutes; each reading retains its actual maximum-gust period and model run. Daily gust maxima use available samples. Other missing gusts and probabilities are shown as unavailable. Location forecasts do not change the observation layers.</p><p>Place search uses Open-Meteo geocoding with location data from GeoNames. Searching resolves a place name; selecting it loads the same MET Norway location forecast used when clicking the map.</p></div>
+    <div id="forecastSection-sources" class="source-card" hidden><h3>Sources &amp; attribution</h3><p>The optional 15-day temperature ensemble chart uses ECMWF IFS (51 members, 0.25°) and NOAA GEFS/GFS (31 members, 0.5°), provided through the Open-Meteo Ensemble API under CC BY 4.0. It loads only when opened; each model can be switched on or off separately. Thin lines show individual members, thick lines show model averages. These are elevation-adjusted 2 m air-temperature model forecasts, not measurements. Retrieval time is shown; the endpoint does not provide model initialization time. Data is cached for 30 minutes per location and model. <a href="https://open-meteo.com/en/docs/ensemble-api" target="_blank" rel="noopener">Ensemble data and documentation ↗</a></p><p>Weather forecast data from MET Norway, Locationforecast 2.0, under CC BY 4.0. Nordic short-range forecasts use MEPS with local post-processing; other regions and longer ranges use the models described by MET Norway. These are automatic model forecasts, not measured conditions.</p><div class="source-links"><a href="https://api.met.no/doc/locationforecast/datamodel" target="_blank" rel="noopener">Forecast models ↗</a><a href="https://api.met.no/doc/License" target="_blank" rel="noopener">MET Norway licence ↗</a><a href="https://github.com/Snowblind54/weather-page" target="_blank" rel="noopener">Northern Weather project ↗</a></div><p>Forecast times and quantities retain their original intervals. Rain/snow is liquid-water equivalent in mm, not snow depth. Missing Europe, Iceland and North America gusts are supplemented from cached ECMWF IFS open-data grids (CC BY 4.0). These use the nearest native grid point (9 km / 0.1° preferred, 0.25° fallback) and nearest native forecast within 90 minutes; each reading retains its actual maximum-gust period and model run. Daily gust maxima use available samples. Other missing gusts and probabilities are shown as unavailable. Location forecasts do not change the observation layers.</p><p>Place search uses Open-Meteo geocoding with location data from GeoNames. Searching resolves a place name; selecting it loads the same MET Norway location forecast used when clicking the map.</p></div>
     <form id="forecastSearchForm" class="forecast-search" role="search" aria-label="Find a forecast location">
       <label class="label" for="forecastSearchInput">Search location</label>
       <div class="forecast-search-row"><input id="forecastSearchInput" type="search" maxlength="120" placeholder="Town or city, e.g. Tallinn" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="forecastSearchResults" aria-describedby="forecastSearchStatus"><button type="submit">Search</button></div>
@@ -22,7 +22,7 @@
       <div id="forecastSearchStatus" class="forecast-note" role="status" aria-live="polite"></div>
     </form>
     <div class="forecast-location" id="forecastLocation">Choose a location</div>
-    <div class="forecast-actions"><button type="button" id="forecastRetry">Check for updates</button></div>
+    <div class="forecast-actions"><button type="button" id="forecastRetry">Check for updates</button><button type="button" id="forecastEnsemble" disabled>15-day ensembles</button></div>
     <div id="forecastStatus" class="status" role="status" aria-live="polite">Open Forecast to load this map location.</div>
     <div id="forecastContent" hidden>
       <div class="forecast-tabs" role="tablist" aria-label="Forecast view"><button id="forecastHourlyTab" type="button" role="tab" aria-selected="true" aria-controls="forecastHourly">Next 72 hours</button><button id="forecastDailyTab" type="button" role="tab" aria-selected="false" aria-controls="forecastDaily" tabindex="-1">7-day overview</button></div>
@@ -199,8 +199,14 @@
       forecastPopup?.close();
       $('forecastContent').scrollIntoView({block:'nearest',behavior:'smooth'});
     });
-    content.append(details);return content;
+    const ensemble=text('button','15-day ensembles','forecast-popup-details forecast-popup-ensemble');ensemble.type='button';
+    ensemble.disabled=!point;ensemble.addEventListener('click',openEnsemble);
+    content.append(details,ensemble);return content;
   }
+  function openEnsemble(){
+    if(point)window.NorthernEnsembleForecast?.open({lat:Number(point.lat),lon:Number(point.lon),label:$('forecastLocation').textContent});
+  }
+  $('forecastEnsemble').addEventListener('click',openEnsemble);
   function refreshPopup(){if(popupWanted&&forecastPopup)forecastPopup.setContent(popupContent());}
   function openPointPopup(){
     popupWanted=true;
@@ -306,6 +312,7 @@
     requestId++;controller?.abort();controller=null;payload=null;refreshAfter=0;
     const longitude=((latlng.lng+180)%360+360)%360-180;
     point={lat:Math.max(-90,Math.min(90,latlng.lat)).toFixed(3),lon:longitude.toFixed(3),markerLon:Number(longitude.toFixed(3))+Math.round((latlng.lng-longitude)/360)*360};
+    $('forecastEnsemble').disabled=false;
     $('forecastLocation').textContent=placeName||point.lat+'°, '+point.lon+'°';$('forecastContent').hidden=true;$('forecastIssued').textContent='Forecast update time will appear here.';
     if(marker)map.removeLayer(marker);
     marker=L.marker([Number(point.lat),Number(point.markerLon??point.lon)],{pane:'forecastPoint',interactive:false,keyboard:false,icon:L.divIcon({className:'forecast-marker',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
@@ -317,7 +324,7 @@
     choose({lat:place.lat,lng:place.lon},place.label,true);
   }});
   document.addEventListener('country-focus-change',()=>{
-    if(point&&!globalThis.NorthernCountryFocus.allowsPoint(point.lat,point.lon)){forecastPopup?.close();requestId++;controller?.abort();payload=null;point=null;if(marker){map.removeLayer(marker);marker=null;}$('forecastContent').hidden=true;$('forecastLocation').textContent='Choose a place in '+globalThis.NorthernCountryFocus.current().name;setStatus('Click inside the selected country for its forecast.');}
+    if(point&&!globalThis.NorthernCountryFocus.allowsPoint(point.lat,point.lon)){forecastPopup?.close();requestId++;controller?.abort();payload=null;point=null;$('forecastEnsemble').disabled=true;if(marker){map.removeLayer(marker);marker=null;}$('forecastContent').hidden=true;$('forecastLocation').textContent='Choose a place in '+globalThis.NorthernCountryFocus.current().name;setStatus('Click inside the selected country for its forecast.');}
     locationSearch?.cancel();
   });
   $('forecastRetry').addEventListener('click',()=>{gustChecked=0;canadaChecked=0;europeChecked=0;loadForecast();});

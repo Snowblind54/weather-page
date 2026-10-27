@@ -1,0 +1,25 @@
+name: Check point ensemble forecasts
+on:
+  push:
+    branches: [main]
+    paths:
+      - js/ensemble-data.js
+      - js/ensemble-chart.js
+      - js/forecast.js
+      - css/ensemble-chart.css
+      - tests/ensemble-data.test.cjs
+      - .github/workflows/check-ensemble-forecast.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate lazy point ensembles and existing forecasts
+        run: node --test tests/ensemble-data.test.cjs tests/forecast.test.cjs tests/forecast-search.test.cjs tests/forecast-map.test.cjs
