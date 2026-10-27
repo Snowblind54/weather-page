@@ -34,3 +34,7 @@ test('foreign station corrections cross a flat border but terrain can weaken the
  const near=blend.adjustSpeed(5,46,7.05,[c]);assert(near>10);
  c.terrain=()=>.001;assert(blend.adjustSpeed(5,46,7.05,[c])<5.1);
 });
+
+test('ocean bathymetry is not treated as atmospheric height',async()=>{
+ const c=context(packed(Array(15).fill(-500)));await c.NorthernTerrain.ready();assert.equal(c.NorthernTerrain.elevation(1,2),0);
+});

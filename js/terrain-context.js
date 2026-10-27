@@ -38,7 +38,9 @@
   const x=(lon-p.west)/p.step,y=(lat-p.south)/p.step;
   const x0=Math.min(p.cols-2,Math.max(0,Math.floor(x))),y0=Math.min(p.rows-2,Math.max(0,Math.floor(y)));
   const fx=x-x0,fy=y-y0,i=y0*p.cols+x0,v=p.values;
-  return ((v[i]*(1-fx)+v[i+1]*fx)*(1-fy)+(v[i+p.cols]*(1-fx)+v[i+p.cols+1]*fx)*fy)*p.scale;
+  // Bathymetry is not an atmospheric sensor elevation. Use sea-level
+  // surface height for negative DEM samples (including tiny coastal errors).
+  return Math.max(0,((v[i]*(1-fx)+v[i+1]*fx)*(1-fy)+(v[i+p.cols]*(1-fx)+v[i+p.cols+1]*fx)*fy)*p.scale);
  }
  function influence(lat,lon,kind){
   const height=elevation(lat,lon),cache=new Map();
