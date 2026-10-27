@@ -404,3 +404,27 @@ test('southwestern rain maps use country-only measured regions and do not add Po
  h.run('officialRainData.stations.forEach(s=>s.accumulations[0].end=rainWindowEnd()-25*3600);officialRainWindows.clear()');
  assert.equal(h.run("officialRainWindow('ES',48,rainWindowEnd())"),null,'older totals cannot masquerade as recent shading');
 });
+
+test('Swiss and Austrian gauges support complete 1/24/48 hour windows with national filtering',()=>{
+ const h=harness(true);
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{CH:{name:'Source: MeteoSwiss'},AT:{name:'GeoSphere Austria'}},stations:[['CH',46.2,6.1],['AT',46.6,14.3]].map(([country,lat,lon])=>({country,lat,lon,code:country,name:country,times:Array.from({length:49},(_,i)=>rainWindowEnd()-(48-i)*3600),amounts:Array(49).fill(1)}))};`);
+ assert(h.run('validOfficialRainSnapshot(officialRainData)'));
+ for(const country of ['AT','CH']){
+  h.context.NorthernCountryFocus={allowsStation:s=>s.country===country,matchesCountry:c=>c===country};
+  for(const hours of [1,24,48]){
+   for(const n of [1,24,48])h.elements['rain'+n+'h'].checked=n===hours;
+   h.run('renderOfficialRainLabels()');assert.equal(h.run('officialRainLabels.children.length'),1);
+   assert(h.run('officialRainLabels.children[0].options.title').startsWith(country+' · '+hours+' h: '+hours+'.0 mm'));
+  }
+ }
+ assert(h.run("RAIN_REGIONS.some(r=>r.id==='austria')&&RAIN_REGIONS.some(r=>r.id==='switzerland')"));
+ assert(h.run("OFFICIAL_ONLY_RAIN_COUNTRIES.has('AT')&&OFFICIAL_ONLY_RAIN_COUNTRIES.has('CH')"));
+ h.run('officialRainData.stations[0].lat=59');assert.equal(h.run('validOfficialRainSnapshot(officialRainData)'),false);
+});
+
+test('French hourly status explains the native three-hour report cadence without relabelling old measurements',()=>{
+ const h=harness(true);h.context.NorthernCountryFocus={matchesCountry:c=>c==='FR'};
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{FR:{name:'Météo-France',period:'Official SYNOP precipitation'}},stations:[]};`);
+ assert.match(h.run('officialRainSourceSummary(1,rainWindowEnd())'),/public SYNOP feed reports every three hours/);
+ assert(!h.run('officialRainSourceSummary(24,rainWindowEnd())').includes('France 1 h:'));
+});

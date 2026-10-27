@@ -9,6 +9,8 @@ on:
       - scripts/update_rainfall.py
       - scripts/rainfall_europe.py
       - scripts/rainfall_southwest.py
+      - scripts/rainfall_alpine.py
+      - scripts/alpine_observations.py
       - scripts/iberia_observations.py
       - scripts/andorra_observations.py
       - scripts/andorra_stations.json
@@ -52,6 +54,7 @@ jobs:
         with:
           path: |
             data/official-rainfall.json
+            data/swiss-rain-backfill.json
           key: r2-input-${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: r2-input-${{ github.workflow }}-
       - name: Restore verified last successful R2 data

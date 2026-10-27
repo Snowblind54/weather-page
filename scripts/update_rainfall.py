@@ -64,8 +64,10 @@ def amount(value):
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
     valid = (41 <= lat <= 84 and -142 <= lon <= -52) if country == 'CA' else (47 <= lat <= 72.5 and -26 <= lon <= 33)
-    if country in ('FR','AD','ES'):
-        from rainfall_southwest import BOUNDS
+    if country in ('FR','AD','ES','AT','CH'):
+        from rainfall_southwest import BOUNDS as SOUTHWEST_BOUNDS
+        from alpine_observations import BOUNDS as ALPINE_BOUNDS
+        BOUNDS={**SOUTHWEST_BOUNDS,**ALPINE_BOUNDS}
         south,north,west,east=BOUNDS[country]
         valid=south<=lat<=north and west<=lon<=east
     if not valid:
@@ -535,7 +537,9 @@ def main():
     install(sys.modules[__name__])
     from rainfall_southwest import install as install_southwest, PERIODS as SOUTHWEST_PERIODS
     install_southwest(sys.modules[__name__])
-    PERIODS={**PERIODS,**SOUTHWEST_PERIODS}
+    from rainfall_alpine import install as install_alpine, PERIODS as ALPINE_PERIODS
+    install_alpine(sys.modules[__name__])
+    PERIODS={**PERIODS,**SOUTHWEST_PERIODS,**ALPINE_PERIODS}
     now = dt.datetime.now(dt.timezone.utc).replace(minute=0, second=0, microsecond=0)
     try:
         old = json.loads(OUTPUT.read_text())
