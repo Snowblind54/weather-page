@@ -95,3 +95,31 @@
 .forecast-point-popup .leaflet-popup-close-button{font-size:24px;width:32px;height:32px}
 .forecast-model-view .leaflet-map-pane > .leaflet-forecastPopup-pane{visibility:visible}
 @media(max-width:760px){.forecast-point-popup .leaflet-popup-content{margin:12px}.forecast-point-popup .forecast-hero strong{font-size:30px}.forecast-point-popup .forecast-popup-details{min-height:40px}}
+
+/* Compact map player: keep the layer and timeline close to the bottom edge. */
+.forecast-map-dock{width:min(560px,calc(100vw - 32px));padding:8px 12px;border-radius:12px;bottom:18px}
+.forecast-map-layer-switch{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:6px 10px;padding-bottom:6px;margin-bottom:6px}
+.forecast-map-layer-switch .forecast-map-layer-heading{gap:5px;white-space:nowrap}
+.forecast-map-layer-switch .label{font-size:11px}
+.forecast-map-layer-switch select{width:100%;min-height:32px;margin:0;padding:5px 8px;font-size:12px}
+.forecast-map-layer-switch #forecastMapInfo,.forecast-map-layer-switch .forecast-precip-key{grid-column:1/-1}
+.forecast-map-dock .forecast-map-layer-heading .info-button{width:26px;height:26px;min-width:26px;min-height:26px;font-size:12px}
+.forecast-map-dock-heading{gap:6px;font-size:11px}
+.forecast-map-dock-heading time{font-size:11px}
+.forecast-map-dock input{height:20px;margin:2px 0}
+.forecast-map-cycle-details{margin-top:3px;font-size:10px;color:var(--muted)}
+.forecast-map-cycle-details summary{width:fit-content;cursor:pointer}
+.forecast-map-cycle-details .forecast-note{font-size:10px;line-height:1.4;margin-top:4px}
+@media(max-width:760px){
+ .forecast-map-dock{left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));width:auto;padding:6px 10px}
+ .forecast-map-layer-switch{gap:4px 8px;padding-bottom:4px;margin-bottom:4px}
+ .forecast-map-layer-switch select{min-height:36px}
+ .forecast-map-dock .forecast-map-layer-heading .info-button{width:32px;height:32px;min-width:32px;min-height:32px}
+ .forecast-map-dock button{min-width:36px;min-height:36px}
+ .forecast-map-dock input{height:24px}
+ body.forecast-view #forecastSection{bottom:calc(185px + env(safe-area-inset-bottom));max-height:calc(100dvh - 335px - env(safe-area-inset-top))}
+}
+@media(max-width:760px) and (max-height:500px) and (orientation:landscape){
+ .forecast-map-dock{left:50%;right:auto;transform:translateX(-50%);width:min(560px,calc(100vw - 24px))}
+ body.forecast-view #forecastSection{bottom:8px;max-height:calc(100dvh - 116px)}
+}
