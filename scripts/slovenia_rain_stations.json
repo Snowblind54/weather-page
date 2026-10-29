@@ -1,0 +1,522 @@
+{
+  "source": "Agencija Republike Slovenije za okolje (ARSO), official observationAms_si_latest.xml station metadata. Used as a fallback when the live station list is partial; only actual validated history observations are displayed.",
+  "url": "https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/observationAms_si_latest.xml",
+  "retrievedAt": "2026-10-29",
+  "stations": {
+    "BABNO-POL_": {
+      "name": "Babno Polje",
+      "lat": 45.6452,
+      "lon": 14.5449
+    },
+    "NOVA-GOR_BILJE_": {
+      "name": "Bilje Nova Gorica",
+      "lat": 45.8956,
+      "lon": 13.624
+    },
+    "BLEGOS_": {
+      "name": "Blegoš",
+      "lat": 46.1675,
+      "lon": 14.0816
+    },
+    "BOHIN-CES_": {
+      "name": "Bohinjska Češnjica",
+      "lat": 46.2942,
+      "lon": 13.9422
+    },
+    "BORST_GOREN-VAS_": {
+      "name": "Boršt Gorenja vas",
+      "lat": 46.0854,
+      "lon": 14.1819
+    },
+    "BOVEC_": {
+      "name": "Bovec",
+      "lat": 46.3317,
+      "lon": 13.5538
+    },
+    "BREGINJ_": {
+      "name": "Breginj",
+      "lat": 46.2625,
+      "lon": 13.4275
+    },
+    "BUKOV-VRH_": {
+      "name": "Bukovski vrh",
+      "lat": 46.1402,
+      "lon": 13.8884
+    },
+    "CELJE_MEDLOG_": {
+      "name": "Celje",
+      "lat": 46.2366,
+      "lon": 15.2259
+    },
+    "CERKN-JEZ_": {
+      "name": "Cerkniško jezero",
+      "lat": 45.723,
+      "lon": 14.399
+    },
+    "DAVCA_": {
+      "name": "Davča",
+      "lat": 46.1976,
+      "lon": 14.0684
+    },
+    "CRNOMELJ_": {
+      "name": "Dobliče Črnomelj",
+      "lat": 45.56,
+      "lon": 15.1462
+    },
+    "AJDOV-INA_DOLENJE_": {
+      "name": "Dolenje Ajdovščina",
+      "lat": 45.8662,
+      "lon": 13.9013
+    },
+    "GACNIK_": {
+      "name": "Gačnik",
+      "lat": 46.6178,
+      "lon": 15.6838
+    },
+    "GODNJE_": {
+      "name": "Godnje",
+      "lat": 45.7547,
+      "lon": 13.8433
+    },
+    "GORNJ-GRA_": {
+      "name": "Gornji Grad",
+      "lat": 46.2987,
+      "lon": 14.8063
+    },
+    "HOCKO-POH_": {
+      "name": "Hočko Pohorje",
+      "lat": 46.4919,
+      "lon": 15.5875
+    },
+    "HRASTNIK_": {
+      "name": "Hrastnik",
+      "lat": 46.144,
+      "lon": 15.0832
+    },
+    "IDRIJA_CISTI-NAP_": {
+      "name": "Idrija",
+      "lat": 46.0112,
+      "lon": 14.0291
+    },
+    "ILIRS-BIS_": {
+      "name": "Ilirska Bistrica",
+      "lat": 45.5531,
+      "lon": 14.2355
+    },
+    "ISKRBA_": {
+      "name": "Iskrba",
+      "lat": 45.5612,
+      "lon": 14.858
+    },
+    "JERONIM_": {
+      "name": "Jeronim",
+      "lat": 46.2668,
+      "lon": 14.9481
+    },
+    "JERUZ-LEM_": {
+      "name": "Jeruzalem",
+      "lat": 46.4759,
+      "lon": 16.188
+    },
+    "JEZERSKO_": {
+      "name": "Jezersko",
+      "lat": 46.405,
+      "lon": 14.5146
+    },
+    "KAMNI-BIS_": {
+      "name": "Kamniška Bistrica",
+      "lat": 46.3087,
+      "lon": 14.6034
+    },
+    "KANIN_": {
+      "name": "Kanin",
+      "lat": 46.3581,
+      "lon": 13.4744
+    },
+    "KOCEVJE_": {
+      "name": "Kočevje",
+      "lat": 45.6458,
+      "lon": 14.8496
+    },
+    "KOPER_KAPET-IJA_": {
+      "name": "Koper Kapitanija",
+      "lat": 45.5481,
+      "lon": 13.7246
+    },
+    "KOPER_MARKOVEC_": {
+      "name": "Koper Markovec",
+      "lat": 45.543,
+      "lon": 13.7135
+    },
+    "KOREN-SED_": {
+      "name": "Korensko sedlo",
+      "lat": 46.5167,
+      "lon": 13.7517
+    },
+    "GORICKO_KRAJI-PAR_": {
+      "name": "Krajinski park Goričko",
+      "lat": 46.8359,
+      "lon": 16.0307
+    },
+    "KRANJ_": {
+      "name": "Kranj",
+      "lat": 46.2477,
+      "lon": 14.3647
+    },
+    "KREDA-ICA_": {
+      "name": "Kredarica",
+      "lat": 46.3787,
+      "lon": 13.8489
+    },
+    "KRN_": {
+      "name": "Krn",
+      "lat": 46.238,
+      "lon": 13.658
+    },
+    "KRVAVEC_": {
+      "name": "Krvavec",
+      "lat": 46.2973,
+      "lon": 14.5333
+    },
+    "KUBED_": {
+      "name": "Kubed",
+      "lat": 45.52,
+      "lon": 13.8689
+    },
+    "KUM_": {
+      "name": "Kum",
+      "lat": 46.0879,
+      "lon": 15.0732
+    },
+    "LENDAVA_": {
+      "name": "Lendava",
+      "lat": 46.5526,
+      "lon": 16.4579
+    },
+    "CERKLJE_LETAL-SCE_": {
+      "name": "Letališče Cerklje ob Krki",
+      "lat": 45.901,
+      "lon": 15.5161
+    },
+    "MARIBOR_SLIVNICA_": {
+      "name": "Letališče Edvarda Rusjana Maribor",
+      "lat": 46.4797,
+      "lon": 15.6821
+    },
+    "LJUBL-ANA_BRNIK_": {
+      "name": "Letališče Jožeta Pučnika Ljubljana",
+      "lat": 46.2114,
+      "lon": 14.4784
+    },
+    "LESCE_": {
+      "name": "Letališče Lesce",
+      "lat": 46.362,
+      "lon": 14.1718
+    },
+    "PORTOROZ_SECOVLJE_": {
+      "name": "Letališče Portorož",
+      "lat": 45.4753,
+      "lon": 13.616
+    },
+    "LISCA_": {
+      "name": "Lisca",
+      "lat": 46.0678,
+      "lon": 15.2849
+    },
+    "LITIJA_GRBIN_": {
+      "name": "Litija",
+      "lat": 46.0651,
+      "lon": 14.8185
+    },
+    "LJUBL-ANA_BEZIGRAD_": {
+      "name": "Ljubljana",
+      "lat": 46.0655,
+      "lon": 14.5124
+    },
+    "LJUBL-ANA_VIC_": {
+      "name": "Ljubljana - Vič",
+      "lat": 46.0375,
+      "lon": 14.4893
+    },
+    "LOGAR-DOL_": {
+      "name": "Logarska dolina",
+      "lat": 46.3936,
+      "lon": 14.6311
+    },
+    "LOGATEC_": {
+      "name": "Logatec",
+      "lat": 45.9077,
+      "lon": 14.2032
+    },
+    "KOPER_LUKA_": {
+      "name": "Luka Koper",
+      "lat": 45.5645,
+      "lon": 13.7448
+    },
+    "MALKOVEC_": {
+      "name": "Malkovec",
+      "lat": 45.9531,
+      "lon": 15.2049
+    },
+    "MARIBOR_VRBAN-PLA_": {
+      "name": "Maribor",
+      "lat": 46.5678,
+      "lon": 15.626
+    },
+    "MARIN-VAS_": {
+      "name": "Marinča vas",
+      "lat": 45.8719,
+      "lon": 14.8178
+    },
+    "METLIKA_": {
+      "name": "Metlika",
+      "lat": 45.6442,
+      "lon": 15.3201
+    },
+    "MEZICA_": {
+      "name": "Mežica",
+      "lat": 46.5296,
+      "lon": 14.8596
+    },
+    "MIKLAVZ_NA-GOR_": {
+      "name": "Miklavž na Gorjancih",
+      "lat": 45.775,
+      "lon": 15.3199
+    },
+    "MURSK-SOB_": {
+      "name": "Murska Sobota",
+      "lat": 46.6521,
+      "lon": 16.1913
+    },
+    "NANOS_": {
+      "name": "Nanos",
+      "lat": 45.7714,
+      "lon": 14.0536
+    },
+    "NOVA-GOR_": {
+      "name": "Nova Gorica",
+      "lat": 45.9556,
+      "lon": 13.6524
+    },
+    "NOVA-VAS_BLOKE_": {
+      "name": "Nova vas - Bloke",
+      "lat": 45.7689,
+      "lon": 14.5088
+    },
+    "NOVO-MES_": {
+      "name": "Novo mesto",
+      "lat": 45.8018,
+      "lon": 15.1773
+    },
+    "OSILNICA_": {
+      "name": "Osilnica",
+      "lat": 45.5314,
+      "lon": 14.6915
+    },
+    "OTLICA_": {
+      "name": "Otlica",
+      "lat": 45.9377,
+      "lon": 13.9116
+    },
+    "SKOCJAN_": {
+      "name": "Park Škocjanske jame",
+      "lat": 45.6638,
+      "lon": 13.9931
+    },
+    "PASJA-RAV_": {
+      "name": "Pasja ravan",
+      "lat": 46.0979,
+      "lon": 14.2282
+    },
+    "PAVLI-SED_": {
+      "name": "Pavličevo sedlo",
+      "lat": 46.4251,
+      "lon": 14.5853
+    },
+    "PIRAN_OCEAN-BOJ_": {
+      "name": "Piran - oceanografska boja",
+      "lat": 45.5481,
+      "lon": 13.5454
+    },
+    "PODNANOS_": {
+      "name": "Podnanos",
+      "lat": 45.8045,
+      "lon": 13.9659
+    },
+    "POSTOJNA_": {
+      "name": "Postojna",
+      "lat": 45.7722,
+      "lon": 14.1973
+    },
+    "PREDEL_": {
+      "name": "Predel",
+      "lat": 46.4183,
+      "lon": 13.5784
+    },
+    "PTUJ_": {
+      "name": "Ptuj",
+      "lat": 46.4197,
+      "lon": 15.8492
+    },
+    "RADEG-NDA_": {
+      "name": "Radegunda",
+      "lat": 46.3661,
+      "lon": 14.933
+    },
+    "RATECE_": {
+      "name": "Rateče",
+      "lat": 46.4971,
+      "lon": 13.7129
+    },
+    "RATIT-VEC_": {
+      "name": "Ratitovec",
+      "lat": 46.2362,
+      "lon": 14.0902
+    },
+    "RAVNE_NA-KOR_": {
+      "name": "Ravne na Koroškem",
+      "lat": 46.5477,
+      "lon": 14.94
+    },
+    "ROGAS-SLA_": {
+      "name": "Rogaška Slatina",
+      "lat": 46.2409,
+      "lon": 15.6439
+    },
+    "ROGLA_": {
+      "name": "Rogla",
+      "lat": 46.453,
+      "lon": 15.3315
+    },
+    "RUDNO-POL_": {
+      "name": "Rudno polje",
+      "lat": 46.3463,
+      "lon": 13.9235
+    },
+    "SLAVNIK_": {
+      "name": "Slavnik",
+      "lat": 45.5336,
+      "lon": 13.976
+    },
+    "SLOVE-KON_": {
+      "name": "Slovenske Konjice",
+      "lat": 46.3433,
+      "lon": 15.4367
+    },
+    "TRIJE-KRA_NA-POH_": {
+      "name": "Sveti Trije Kralji na Pohorju",
+      "lat": 46.4399,
+      "lon": 15.4567
+    },
+    "SVISCAKI_": {
+      "name": "Sviščaki",
+      "lat": 45.5756,
+      "lon": 14.3988
+    },
+    "SEBRE-VRH_": {
+      "name": "Šebreljski vrh",
+      "lat": 46.0629,
+      "lon": 13.9113
+    },
+    "SLOVE-GRA_": {
+      "name": "Šmartno pri Slovenj Gradcu",
+      "lat": 46.4896,
+      "lon": 15.1112
+    },
+    "TATRE_": {
+      "name": "Tatre",
+      "lat": 45.5989,
+      "lon": 14.0875
+    },
+    "TOLMIN_VOLCE_": {
+      "name": "Tolmin - Volče",
+      "lat": 46.1777,
+      "lon": 13.718
+    },
+    "TOPOL_": {
+      "name": "Topol",
+      "lat": 46.0941,
+      "lon": 14.3713
+    },
+    "TRBOVLJE_": {
+      "name": "Trbovlje",
+      "lat": 46.1575,
+      "lon": 15.0539
+    },
+    "TREBNJE_": {
+      "name": "Trebnje",
+      "lat": 45.911,
+      "lon": 15.0072
+    },
+    "TROJANE_LIMOVCE_": {
+      "name": "Trojane - Limovce",
+      "lat": 46.1984,
+      "lon": 14.9113
+    },
+    "TRZAS-ZAL_": {
+      "name": "Tržaški zaliv (Zarja)",
+      "lat": 45.6016,
+      "lon": 13.5352
+    },
+    "URSLJ-GOR_": {
+      "name": "Uršlja gora",
+      "lat": 46.4849,
+      "lon": 14.9634
+    },
+    "VEDRIJAN_": {
+      "name": "Vedrijan",
+      "lat": 46.0131,
+      "lon": 13.541
+    },
+    "VELENJE_": {
+      "name": "Velenje",
+      "lat": 46.3603,
+      "lon": 15.1119
+    },
+    "VELIK-LAS_": {
+      "name": "Velike Lašče",
+      "lat": 45.831,
+      "lon": 14.6427
+    },
+    "VOGEL_": {
+      "name": "Vogel",
+      "lat": 46.2594,
+      "lon": 13.8396
+    },
+    "VRHNIKA_": {
+      "name": "Vrhnika",
+      "lat": 45.966,
+      "lon": 14.2717
+    },
+    "VRSIC_": {
+      "name": "Vršič",
+      "lat": 46.4328,
+      "lon": 13.7478
+    },
+    "ZADLOG_": {
+      "name": "Zadlog",
+      "lat": 45.9395,
+      "lon": 14.0023
+    },
+    "ZELENICA_": {
+      "name": "Zelenica",
+      "lat": 46.4289,
+      "lon": 14.233
+    },
+    "ZGORN-KAP_": {
+      "name": "Zgornja Kapla",
+      "lat": 46.6434,
+      "lon": 15.3501
+    },
+    "ZGORN-RAD_": {
+      "name": "Zgornja Radovna",
+      "lat": 46.424,
+      "lon": 13.9352
+    },
+    "ZGORN-SOR_": {
+      "name": "Zgornja Sorica",
+      "lat": 46.2221,
+      "lon": 14.0286
+    }
+  }
+}

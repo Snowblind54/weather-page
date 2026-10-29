@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - scripts/rainfall_adriatic.py
+      - scripts/slovenia_rain_stations.json
       - scripts/croatia_synop_stations.json
       - scripts/update_rainfall.py
       - scripts/rainfall_europe.py

@@ -95,7 +95,10 @@ def parse_slovenia(raw,code,meta,now):
     return s
 
 def load_slovenia(now,previous):
-    raw=core.download(ARSO+'observationAms_si_latest.xml',False);catalogue=arso_metadata(raw)
+    raw=core.download(ARSO+'observationAms_si_latest.xml',False)
+    cached=json.loads(Path(__file__).with_name('slovenia_rain_stations.json').read_text())['stations']
+    catalogue={code:m for code,m in cached.items() if re.fullmatch(r'[A-Z0-9_-]{1,80}',code) and location('SI',m.get('lat'),m.get('lon'))}
+    catalogue.update(arso_metadata(raw))
     latest={x.findtext('domain_meteosiId'):x for x in arso_root(raw).findall('metData')}
     prior={s['code']:s for s in previous if s['country']=='SI'};end=int(now.timestamp())//3600*3600
     def collect(pair):
@@ -104,15 +107,17 @@ def load_slovenia(now,previous):
         # On a new hour or incomplete history, fetch the rolling two-day file.
         old=prior.get(code);out=[]
         try:
-            wrap=ET.Element('data',id='MeteoSI_WebMet_observationAms_xml');wrap.append(latest[code])
-            current=parse_slovenia(ET.tostring(wrap),code,meta,now);out.append(current)
+            current=core.station('SI',code,meta['name'],meta['lat'],meta['lon'],[])
+            if code in latest:
+                wrap=ET.Element('data',id='MeteoSI_WebMet_observationAms_xml');wrap.append(latest[code])
+                current=parse_slovenia(ET.tostring(wrap),code,meta,now);out.append(current)
             have_hour=end in current['times'] or (old is not None and end in old['times'])
             if not have_hour or old is None:
                 name='observationAms_'+code.rstrip('_')+'_history.xml'
                 out.append(parse_slovenia(core.download(ARSO+'recent/'+urllib.parse.quote(name),False),code,meta,now))
         except Exception as error:print('SI rain gauge',code,'unavailable:',str(error)[:100],flush=True)
         return out
-    with futures.ThreadPoolExecutor(max_workers=5) as pool:
+    with futures.ThreadPoolExecutor(max_workers=3) as pool:
         return europe.trimmed([s for rows in pool.map(collect,catalogue.items()) for s in rows],now)
 
 def install(target):

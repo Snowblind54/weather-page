@@ -56,11 +56,22 @@ class AdriaticRainfall(unittest.TestCase):
  def test_bootstrap_fetches_history_even_if_current_hour_is_available(self):
   current=xml([row(hour='1')]);history=xml([row(hour='1',day='3'),row(END-86400,rain='',day='2')]);calls=[]
   def get(url,json_data=False):calls.append(url);return history if '/recent/' in url else current
-  with patch.object(core,'download',side_effect=get):s=a.load_slovenia(NOW,[])
+  with patch.object(core,'download',side_effect=get),patch.object(a.Path,'read_text',return_value='{'+'"stations":{}'+'}'):s=a.load_slovenia(NOW,[])
   self.assertTrue(any('/recent/' in u for u in calls));self.assertTrue(any(x['periods'] for x in s))
   prior=core.merge([],s,NOW);calls.clear()
-  with patch.object(core,'download',side_effect=get):a.load_slovenia(NOW,prior)
+  with patch.object(core,'download',side_effect=get),patch.object(a.Path,'read_text',return_value='{'+'"stations":{}'+'}'):a.load_slovenia(NOW,prior)
   self.assertEqual(len(calls),1,'same completed hour reuses the shared history')
+ def test_partial_live_catalogue_still_fetches_verified_missing_station(self):
+  import json
+  saved={'stations':{'MARIBOR_':{'name':'Maribor','lat':46.5,'lon':15.6}}}
+  calls=[]
+  def get(url,json_data=False):
+   calls.append(url)
+   if 'MARIBOR' in url:return xml([row(code='MARIBOR_',hour='2')]).replace('46.06','46.5').replace('14.51','15.6')
+   return xml([row(hour='1')])
+  with patch.object(core,'download',side_effect=get),patch.object(a.Path,'read_text',return_value=json.dumps(saved)):
+   result=a.load_slovenia(NOW,[])
+  self.assertTrue(any('MARIBOR' in u for u in calls));self.assertTrue(any(x['code']=='MARIBOR_' and x['amounts']==[2] for x in result))
  def test_sources_are_registered(self):
   class Target:SOURCES={};LOADERS={}
   a.install(Target);self.assertEqual(set(Target.LOADERS),{'IT','HR','SI'})
