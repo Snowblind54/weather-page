@@ -24,3 +24,14 @@ test('Official wind validator accepts Croatian and Slovenian speeds and rejects 
  vm.runInContext(code,c);const now=Math.floor(Date.now()/1000),p={version:1,units:"m/s",refreshMinutes:10,generatedAt:now,stations:[{country:'HR',code:'SYNOP-16080',name:'Milano',lat:45.8,lon:16,rows:[[now,0,null,0]]},{country:'SI',code:'44527',name:'Budapest',lat:46.06,lon:14.5,rows:[[now,1,3,180]]}],sources:{HR:{status:'ok',timeKind:'observation'},SI:{status:'ok',timeKind:'observation'}}};
  assert.doesNotThrow(()=>c.validateOfficialWind(p));p.stations[0].lat=59;assert.throws(()=>c.validateOfficialWind(p));
 });
+
+test('Adriatic coast mask and country focus include Croatia and Slovenia separately',()=>{
+ const source=fs.readFileSync('js/temperature.js','utf8');
+ const masks=source.match(/const TEMP_REGION_COUNTRY_IDS=\{[\s\S]*?\n\};/)[0];
+ const clip=source.slice(source.indexOf('function clipTemperatureToCountries('),source.indexOf('\nfunction ',source.indexOf('function clipTemperatureToCountries(')+10));
+ const c={Set,String,matched:[],NorthernCountryFocus:{matchesCountry:id=>id==='705'},addMaskGeometry:(ctx,g)=>c.matched.push(g.id)};vm.createContext(c);vm.runInContext(masks+'\n'+clip,c);
+ const ctx={save(){},restore(){},beginPath(){},fill(){}};
+ const features=[{id:'191',geometry:{id:'croatia'}},{id:'705',geometry:{id:'slovenia'}},{id:'380',geometry:{id:'italy'}}];
+ assert.equal(c.clipTemperatureToCountries(ctx,{id:'adriatic'},100,100,features),true);assert.deepEqual(c.matched,['slovenia']);
+ c.matched=[];c.NorthernCountryFocus.matchesCountry=id=>id==='191';assert.equal(c.clipTemperatureToCountries(ctx,{id:'adriatic'},100,100,features),true);assert.deepEqual(c.matched,['croatia']);
+});
