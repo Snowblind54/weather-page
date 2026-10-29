@@ -470,3 +470,27 @@ test('UK rain skips offscreen regions and Nordic model requests, and viewport ch
  h.context.NorthernCountryFocus=null;h.context.map.getBounds=()=>({getSouth:()=>40,getNorth:()=>50,getWest:()=>-120,getEast:()=>-80});
  assert(!h.run("visibleRainfallRegions().some(r=>r.id==='british-isles')"));
 });
+
+test('Italy, Croatia and Slovenia validate official gauges and preserve complete 1/24/48-hour windows',()=>{
+ const h=harness(true);
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{IT:{name:'Italian SYNOP'},HR:{name:'DHMZ'},SI:{name:'ARSO'}},stations:[['IT',38.1,13.3],['HR',45.8,16],['SI',46.06,14.5]].flatMap(([country,lat,lon])=>[0,.01,.02].map((d,i)=>({country,lat:lat+d,lon,code:country+i,name:country,times:Array.from({length:49},(_,i)=>rainWindowEnd()-(48-i)*3600),amounts:Array(49).fill(1)})))};`);
+ assert(h.run('validOfficialRainSnapshot(officialRainData)'));
+ for(const country of ['IT','HR','SI']){
+  h.context.focus=country;
+  h.context.NorthernCountryFocus={current:()=>({id:{IT:'380',HR:'191',SI:'705'}[country]}),matchesCountry:c=>c===country,key:()=>country};
+  for(const hours of [1,24,48])assert.equal(h.run(`officialRainWindow(focus,${hours},rainWindowEnd()).rows[0].value`),hours);
+  assert(h.run('officialRainSourceSummary(24,rainWindowEnd())').includes({IT:'Italy',HR:'Croatia',SI:'Slovenia'}[country]));
+  assert(h.run('visibleRainfallRegions()').some(r=>r.id===(country==='IT'?'italy':'adriatic')));
+ }
+ assert(h.run("['IT','HR','SI'].every(c=>OFFICIAL_ONLY_RAIN_COUNTRIES.has(c))"));
+ h.run('officialRainData.stations[0].lat=59');assert(!h.run('validOfficialRainSnapshot(officialRainData)'));
+});
+
+test('Croatian daily reports never become hourly values and their actual delayed end remains visible',()=>{
+ const h=harness(true);
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{HR:{name:'DHMZ'}},stations:[0,.01,.02].map((d,i)=>({country:'HR',lat:45.8+d,lon:16,code:'HR'+i,name:'Gauge',times:[],amounts:[],accumulations:[{end:rainWindowEnd()-8*3600,hours:24,value:3}]}))};`);
+ assert(h.run('validOfficialRainSnapshot(officialRainData)'));
+ assert.equal(h.run("officialRainWindow('HR',1,rainWindowEnd())"),null);
+ assert.equal(h.run("officialRainWindow('HR',48,rainWindowEnd())"),null);
+ assert.equal(h.run("officialRainWindow('HR',24,rainWindowEnd()).end"),h.run('rainWindowEnd()-8*3600'));
+});

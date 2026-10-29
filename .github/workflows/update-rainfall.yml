@@ -6,6 +6,8 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/rainfall_adriatic.py
+      - scripts/croatia_synop_stations.json
       - scripts/update_rainfall.py
       - scripts/rainfall_europe.py
       - scripts/rainfall_southwest.py

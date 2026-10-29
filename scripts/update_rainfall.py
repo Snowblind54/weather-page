@@ -64,10 +64,11 @@ def amount(value):
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
     valid = (41 <= lat <= 84 and -142 <= lon <= -52) if country == 'CA' else (47 <= lat <= 72.5 and -26 <= lon <= 33)
-    if country in ('FR','AD','ES','AT','CH'):
+    if country in ('FR','AD','ES','AT','CH','IT','HR','SI'):
         from rainfall_southwest import BOUNDS as SOUTHWEST_BOUNDS
         from alpine_observations import BOUNDS as ALPINE_BOUNDS
-        BOUNDS={**SOUTHWEST_BOUNDS,**ALPINE_BOUNDS}
+        from rainfall_adriatic import BOUNDS as ADRIATIC_BOUNDS
+        BOUNDS={**SOUTHWEST_BOUNDS,**ALPINE_BOUNDS,**ADRIATIC_BOUNDS}
         south,north,west,east=BOUNDS[country]
         valid=south<=lat<=north and west<=lon<=east
     if not valid:
@@ -539,7 +540,9 @@ def main():
     install_southwest(sys.modules[__name__])
     from rainfall_alpine import install as install_alpine, PERIODS as ALPINE_PERIODS
     install_alpine(sys.modules[__name__])
-    PERIODS={**PERIODS,**SOUTHWEST_PERIODS,**ALPINE_PERIODS}
+    from rainfall_adriatic import install as install_adriatic, PERIODS as ADRIATIC_PERIODS
+    install_adriatic(sys.modules[__name__])
+    PERIODS={**PERIODS,**SOUTHWEST_PERIODS,**ALPINE_PERIODS,**ADRIATIC_PERIODS}
     now = dt.datetime.now(dt.timezone.utc).replace(minute=0, second=0, microsecond=0)
     try:
         old = json.loads(OUTPUT.read_text())
