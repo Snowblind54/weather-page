@@ -123,3 +123,5 @@
  .forecast-map-dock{left:50%;right:auto;transform:translateX(-50%);width:min(560px,calc(100vw - 24px))}
  body.forecast-view #forecastSection{bottom:8px;max-height:calc(100dvh - 116px)}
 }
+
+@media(min-width:761px) and (max-width:1700px){body.forecast-view.has-weather-panel .forecast-map-dock{width:min(560px,calc(100vw - var(--weather-drawer-width) - 64px))}}
