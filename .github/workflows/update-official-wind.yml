@@ -8,6 +8,10 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/adriatic_observations.py
+      - scripts/croatia_synop_stations.json
+      - tests/test_adriatic_observations.py
+      - tests/adriatic-observations.test.cjs
       - scripts/italy_hungary_observations.py
       - scripts/italy_airport_stations.json
       - tests/test_italy_hungary_observations.py
@@ -89,6 +93,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install boto3==1.40.50
+      - name: Check Croatian and Slovenian observations
+        run: |
+          python3 -m unittest discover -s tests -p test_adriatic_observations.py -v
+          node --test tests/adriatic-observations.test.cjs
       - name: Check Italian and Hungarian observations
         run: |
           python3 -m unittest discover -s tests -p test_italy_hungary_observations.py -v

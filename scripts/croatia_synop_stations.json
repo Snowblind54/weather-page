@@ -1,0 +1,66 @@
+{
+  "source": "DWD MOSMIX catalogue, degrees/minutes converted to decimal degrees. Croatian WMO 14200–14499 stations with published BEOB reports; neighbouring countries excluded.",
+  "url": "https://www.dwd.de/DE/leistungen/met_verfahren_mosmix/mosmix_stationskatalog.cfg?view=nasPublication",
+  "stations": {
+    "14241": {
+      "name": "Zagreb/Pleso",
+      "lat": 45.733333,
+      "lon": 16.066667,
+      "icao": "LDZA"
+    },
+    "14280": {
+      "name": "Osijek-Cepin",
+      "lat": 45.5,
+      "lon": 18.566667,
+      "icao": null
+    },
+    "14301": {
+      "name": "Porec",
+      "lat": 45.233333,
+      "lon": 13.6,
+      "icao": null
+    },
+    "14307": {
+      "name": "Pula",
+      "lat": 44.9,
+      "lon": 13.916667,
+      "icao": "LDPL"
+    },
+    "14317": {
+      "name": "Rijeka",
+      "lat": 45.216667,
+      "lon": 14.583333,
+      "icao": "LDRI"
+    },
+    "14330": {
+      "name": "Gospic",
+      "lat": 44.55,
+      "lon": 15.366667,
+      "icao": null
+    },
+    "14442": {
+      "name": "Knin",
+      "lat": 44.033333,
+      "lon": 16.2,
+      "icao": null
+    },
+    "14444": {
+      "name": "Split/Resnik",
+      "lat": 43.533333,
+      "lon": 16.3,
+      "icao": "LDSP"
+    },
+    "14445": {
+      "name": "Split/Marjan",
+      "lat": 43.516667,
+      "lon": 16.433333,
+      "icao": null
+    },
+    "14474": {
+      "name": "Dubrovnik",
+      "lat": 42.566667,
+      "lon": 18.266667,
+      "icao": "LDDU"
+    }
+  }
+}

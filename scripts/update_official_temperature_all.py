@@ -171,6 +171,16 @@ def parse_italy_hungary(country):
 
 core.LOADERS.update({c:lambda c=c:parse_italy_hungary(c) for c in ("IT","HU")})
 
+from adriatic_observations import BOUNDS as ADRIATIC_BOUNDS, SOURCES as ADRIATIC_SOURCES
+core.COUNTRY_BOUNDS.update(ADRIATIC_BOUNDS)
+core.SOURCES.update(ADRIATIC_SOURCES)
+
+def parse_adriatic(country):
+    from adriatic_observations import load_temperature
+    return load_temperature(country,core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+core.LOADERS.update({c:lambda c=c:parse_adriatic(c) for c in ('HR','SI')})
+
 if __name__ == "__main__":
     core.main()
 

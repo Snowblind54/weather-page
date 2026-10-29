@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/adriatic_observations.py
+      - scripts/croatia_synop_stations.json
+      - tests/test_adriatic_observations.py
+      - tests/adriatic-observations.test.cjs
       - scripts/italy_hungary_observations.py
       - scripts/italy_airport_stations.json
       - tests/test_italy_hungary_observations.py
@@ -124,6 +128,10 @@ jobs:
           node --test tests/central-temperature.test.cjs
       - name: Check Western European readings, shading and extremes
         run: node --test tests/western-temperature.test.cjs tests/temperature-us.test.cjs tests/weather-extremes.test.cjs
+      - name: Check Croatian and Slovenian observations
+        run: |
+          python3 -m unittest discover -s tests -p test_adriatic_observations.py -v
+          node --test tests/adriatic-observations.test.cjs
       - name: Fetch official temperature observations
         run: python3 scripts/update_official_temperature_all.py
       - name: Validate snapshot
