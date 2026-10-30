@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/moldova_belarus_temperature.py
+      - scripts/moldova_temperature_stations.json
+      - tests/test_moldova_belarus_temperature.py
+      - tests/moldova-belarus-temperature.test.cjs
       - scripts/eastern_temperature.py
       - scripts/ukraine_temperature_stations.json
       - tests/test_eastern_temperature.py
@@ -140,6 +144,10 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p test_eastern_temperature.py -v
           node --test tests/eastern-temperature.test.cjs
+      - name: Check Moldovan and Belarusian official temperatures
+        run: |
+          python3 -m unittest discover -s tests -p test_moldova_belarus_temperature.py -v
+          node --test tests/moldova-belarus-temperature.test.cjs
       - name: Fetch official temperature observations
         run: python3 scripts/update_official_temperature_all.py
       - name: Validate snapshot

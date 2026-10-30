@@ -191,6 +191,16 @@ def parse_eastern(country):
 
 core.LOADERS.update({c:lambda c=c:parse_eastern(c) for c in ('UA','RO')})
 
+from moldova_belarus_temperature import BOUNDS as MD_BY_BOUNDS, SOURCES as MD_BY_SOURCES
+core.COUNTRY_BOUNDS.update(MD_BY_BOUNDS)
+core.SOURCES.update(MD_BY_SOURCES)
+
+def parse_moldova_belarus(country):
+    from moldova_belarus_temperature import load
+    return load(country,core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+core.LOADERS.update({c:lambda c=c:parse_moldova_belarus(c) for c in ('MD','BY')})
+
 if __name__ == "__main__":
     core.main()
 

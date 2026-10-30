@@ -246,6 +246,8 @@ const TEMP_REGION_COUNTRY_IDS={
   adriatic:new Set(['191','705']),
   ukraine:new Set(['804']),
   romania:new Set(['642']),
+  moldova:new Set(['498']),
+  belarus:new Set(['112']),
   hungary:new Set(['348']),
   austria:new Set(['040']),
   switzerland:new Set(['756']),
