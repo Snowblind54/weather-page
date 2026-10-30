@@ -48,8 +48,17 @@ class AdriaticGreeceTemperatures(unittest.TestCase):
   previous=[dict(country='AL',code='AIRPORT-LATI',name='Tirana',lat=41.419,lon=19.716,rows=[[int(NOW.timestamp())-600,17]],source='Official airport')]
   import southeast_temperature
   with patch.object(southeast_temperature,'load',return_value=previous):
-   out=a.load('AL',NOW,lambda u:b'[]',lambda u:(RAW,REF))
+   out=a.load('AL',NOW,lambda u:b'[]',lambda u:((RAW.replace(b'SIAB30',b'SMAB11'),REF) if '/sm/' in u else (RAW,REF)))
   self.assertEqual({x['code'] for x in out},{'AIRPORT-LATI','SYNOP-13600'})
+ def test_midday_main_bulletin_keeps_shkoder_current_when_morning_intermediate_is_old(self):
+  import southeast_temperature
+  now=dt.datetime(2026,10,30,13,20,tzinfo=UTC)
+  main=RAW.replace(b'SIAB30 ZATI 300900',b'SMAB11 ZATI 301200').replace(b'AAXX 30094',b'AAXX 30124').replace(b'10160',b'10170')
+  def download(url):
+   return (main,dt.datetime(2026,10,30,12,10,tzinfo=UTC)) if '/sm/' in url else (RAW,REF)
+  with patch.object(southeast_temperature,'load',return_value=[]):out=a.load('AL',now,lambda u:b'[]',download)
+  self.assertEqual(len(out),1);self.assertEqual(out[0]['code'],'SYNOP-13600')
+  self.assertEqual(out[0]['rows'][-1],[int(dt.datetime(2026,10,30,12,tzinfo=UTC).timestamp()),17])
  def test_catalogue_bounds_and_long_cadence_playback(self):
   for country,entries in META.items():
    south,north,west,east=a.BOUNDS[country]

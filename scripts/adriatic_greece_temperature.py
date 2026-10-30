@@ -18,7 +18,7 @@ SOURCES={'ME':'ZHMS Montenegro official SYNOP reports via NOAA WMO feed; officia
          'AL':'Official Albanian SYNOP reports via NOAA WMO feed, airport METAR/SPECI via NOAA AWC and SYNOP via DWD'}
 BASE='https://tgftp.nws.noaa.gov/data/raw/'
 BULLETINS={'ME':['sm/smmk10.lypg..txt','si/siyg20.lybm..txt'],
- 'AL':['si/siab30.zati..txt'],
+ 'AL':['sm/smab11.zati..txt','si/siab30.zati..txt'],
  'GR':['sm/smgr01.lgat..txt','sm/smgr20.lgat..txt','sm/smgr21.lgat..txt',
        'si/sigr20.lgat..txt','si/sigr21.lgat..txt','si/sigr22.lgat..txt']}
 UTC=dt.timezone.utc
