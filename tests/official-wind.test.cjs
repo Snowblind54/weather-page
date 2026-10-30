@@ -79,7 +79,7 @@ test('the shared snapshot accepts a nationwide station count and still enforces 
 
 test('clicking measured wind controls loads the shared snapshot without enabling a modeled field',async()=>{
   const h=harness();let requests=0;
-  h.context.fetch=async url=>{requests++;assert.equal(url,'data/official-wind.json');return {ok:true,json:async()=>h.fixture};};
+  h.context.fetch=async url=>{requests++;assert.match(url,/^data\/official-wind\.json\?v=\d+$/);return {ok:true,json:async()=>h.fixture};};
   h.elements.officialWindSustained.checked=true;h.elements.officialWindSustained.change();
   await h.run('officialWindPromise');
   assert.equal(requests,1);assert.equal(h.group.children.length,2);
@@ -205,4 +205,12 @@ test('Eastern three-hourly winds expire at four hours and never borrow later rep
  assert.equal(h.run('officialWindReading(easternStation,fixture.generatedAt)[1]'),4);
  s.rows=[[h.now-4*3600-1,4,12,310]];assert.equal(h.run('officialWindReading(easternStation,fixture.generatedAt)'),null);
  s.rows=[[h.now+60,4,12,310]];assert.equal(h.run('officialWindReading(easternStation,fixture.generatedAt)'),null);
+});
+test('manual wind refresh bypasses an older CDN manifest and reuses a shared ten-second key',async()=>{
+ const h=harness(),urls=[];h.elements.officialWindSustained.checked=true;
+ const newer={...h.fixture,stations:[{country:'UA',code:'UHMC-33345',name:'Kyiv',lat:50.4,lon:30.5,rows:[[h.now-60,4,null,310]]}],sources:{UA:{status:'ok',timeKind:'observation',name:'UHMC'}}};
+ h.context.fetch=async url=>{urls.push(url);return {ok:true,json:async()=>url.includes('refresh-')?newer:h.fixture};};
+ await h.run('loadOfficialWind()');await h.run('loadOfficialWind(true)');
+ assert.equal(urls.length,2);assert.match(urls[0],/\?v=\d+$/);assert.match(urls[1],/\?v=refresh-\d+$/);assert.notEqual(urls[0],urls[1]);
+ assert.equal(h.run('officialWindData.stations[0].country'),'UA');assert.match(h.elements.officialWindStatus.textContent,/Ukraine: 1 stations/);
 });

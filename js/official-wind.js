@@ -186,11 +186,14 @@ async function loadOfficialWind(force=false){
     renderOfficialWind();if($('windHeatmapOn')?.checked)windHeatmapLayer?.scheduleReset();
     return;
   }
-  if(Date.now()<officialWindRetryAt){renderOfficialWind();return;}officialWindRetryAt=Date.now()+60000;
+  if(!force&&Date.now()<officialWindRetryAt){renderOfficialWind();return;}officialWindRetryAt=Date.now()+60000;
   officialWindPromise=(async()=>{
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
     try{
-      const r=await fetch('data/official-wind.json',{cache:'no-cache',signal:controller.signal});if(!r.ok)throw new Error('HTTP '+r.status);
+      // Shared keys keep CDN reuse while allowing new ten-minute publications
+      // and manual refreshes to bypass an older four-hour cached manifest.
+      const cacheKey=force?'refresh-'+Math.floor(Date.now()/10000):Math.floor(Date.now()/OFFICIAL_WIND_CHECK_MS);
+      const r=await fetch('data/official-wind.json?v='+cacheKey,{cache:'no-store',signal:controller.signal});if(!r.ok)throw new Error('HTTP '+r.status);
       const next=validateOfficialWind(await r.json());if(officialWindHistoryData&&officialWindHistoryData.generatedAt<next.generatedAt-60)officialWindHistoryData=null;
       officialWindData=next;officialWindLoadedAt=Date.now();officialWindFailed=false;officialWindRenderKey='';if($('windHeatmapOn')?.checked)windHeatmapLayer?.scheduleReset();
     }catch(e){officialWindFailed=true;console.warn('Official station wind unavailable',e.message);}
