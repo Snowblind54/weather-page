@@ -1,0 +1,353 @@
+{
+  "description": "Verified named national station identities from NOAA WMO catalogue; Sofia III observatory DMS coordinate; current NOAA AWC airport metadata. Unknown or ambiguous station positions are excluded.",
+  "stations": {
+    "BG": {
+      "15501": {
+        "name": "Novo Selo",
+        "lat": 44.167,
+        "lon": 22.8,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15502": {
+        "name": "Vidin",
+        "lat": 43.983,
+        "lon": 22.85,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15505": {
+        "name": "Vratsa",
+        "lat": 43.2,
+        "lon": 23.533,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15507": {
+        "name": "Montana",
+        "lat": 43.417,
+        "lon": 23.217,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15511": {
+        "name": "Lom",
+        "lat": 43.817,
+        "lon": 23.25,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15514": {
+        "name": "Oryahovo",
+        "lat": 43.683,
+        "lon": 23.967,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15525": {
+        "name": "Lovech",
+        "lat": 43.15,
+        "lon": 24.7,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15526": {
+        "name": "Pleven",
+        "lat": 43.417,
+        "lon": 24.6,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15530": {
+        "name": "Veliko Tarnovo",
+        "lat": 43.083,
+        "lon": 25.65,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15533": {
+        "name": "Svishtov",
+        "lat": 43.617,
+        "lon": 25.35,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15544": {
+        "name": "Shumen",
+        "lat": 43.267,
+        "lon": 26.933,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15549": {
+        "name": "Razgrad",
+        "lat": 43.567,
+        "lon": 26.5,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15550": {
+        "name": "Silistra",
+        "lat": 44.117,
+        "lon": 27.267,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15561": {
+        "name": "Shabla",
+        "lat": 43.533,
+        "lon": 28.533,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15562": {
+        "name": "Kaliakra",
+        "lat": 43.367,
+        "lon": 28.467,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15600": {
+        "name": "Murgash peak",
+        "lat": 42.833,
+        "lon": 23.667,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15601": {
+        "name": "Kyustendil",
+        "lat": 42.267,
+        "lon": 22.767,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15605": {
+        "name": "Dragoman",
+        "lat": 42.933,
+        "lon": 22.933,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15613": {
+        "name": "Cherni Vrah",
+        "lat": 42.583,
+        "lon": 23.267,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15615": {
+        "name": "Musala peak",
+        "lat": 42.183,
+        "lon": 23.583,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15627": {
+        "name": "Botev peak",
+        "lat": 42.667,
+        "lon": 24.833,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15628": {
+        "name": "Pazardzhik",
+        "lat": 42.217,
+        "lon": 24.333,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15631": {
+        "name": "Kazanlak",
+        "lat": 42.617,
+        "lon": 25.4,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15635": {
+        "name": "Chirpan",
+        "lat": 42.2,
+        "lon": 25.333,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15640": {
+        "name": "Sliven",
+        "lat": 42.667,
+        "lon": 26.333,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15642": {
+        "name": "Elhovo",
+        "lat": 42.183,
+        "lon": 26.567,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15646": {
+        "name": "Karnobat",
+        "lat": 42.65,
+        "lon": 26.983,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15661": {
+        "name": "Ahtopol",
+        "lat": 42.1,
+        "lon": 27.85,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15712": {
+        "name": "Sandanski",
+        "lat": 41.55,
+        "lon": 23.267,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15726": {
+        "name": "Rozhen",
+        "lat": 41.883,
+        "lon": 24.733,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15730": {
+        "name": "Kardzhali",
+        "lat": 41.65,
+        "lon": 25.383,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "SOFIA-III": {
+        "name": "Sofia",
+        "lat": 42.653656,
+        "lon": 23.382897,
+        "metadataUrl": "https://ltu.bg/images/files/Fakulteti/ELA/Doctoranti/Sv_Mitkov/Avtoreferat.pdf"
+      }
+    },
+    "MK": {
+      "13571": {
+        "name": "Тетово",
+        "lat": 42.0,
+        "lon": 20.967,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13575": {
+        "name": "Пожаране/Гостивар",
+        "lat": 41.85,
+        "lon": 20.867,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13577": {
+        "name": "Лазарополе",
+        "lat": 41.533,
+        "lon": 20.7,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13580": {
+        "name": "Претор",
+        "lat": 40.983,
+        "lon": 21.067,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13581": {
+        "name": "Тополчани/Прилеп",
+        "lat": 41.217,
+        "lon": 21.467,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13582": {
+        "name": "Крушево",
+        "lat": 41.367,
+        "lon": 21.25,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13583": {
+        "name": "Битола",
+        "lat": 41.05,
+        "lon": 21.367,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13585": {
+        "name": "Прилеп",
+        "lat": 41.333,
+        "lon": 21.567,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13588": {
+        "name": "Скопје/Зајчев Рид",
+        "lat": 42.017,
+        "lon": 21.4,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13590": {
+        "name": "Ѓуриште/Свети Николе",
+        "lat": 41.9,
+        "lon": 21.85,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13591": {
+        "name": "Штип",
+        "lat": 41.75,
+        "lon": 22.183,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13592": {
+        "name": "Демир Капија",
+        "lat": 41.417,
+        "lon": 22.25,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13594": {
+        "name": "Виница",
+        "lat": 41.883,
+        "lon": 22.5,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13595": {
+        "name": "Струмица",
+        "lat": 41.433,
+        "lon": 22.65,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13597": {
+        "name": "Гевгелија",
+        "lat": 41.15,
+        "lon": 22.5,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13598": {
+        "name": "Берово",
+        "lat": 41.717,
+        "lon": 22.85,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13599": {
+        "name": "Кавадарци",
+        "lat": 41.433,
+        "lon": 22.033,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13493": {
+        "name": "Крива Паланка",
+        "lat": 42.2,
+        "lon": 22.333,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "LWOH": {
+        "name": "Ohrid Arpt",
+        "lat": 41.181,
+        "lon": 20.744,
+        "icao": "LWOH",
+        "wmo": "13578",
+        "metadataUrl": "https://aviationweather.gov/api/data/stationinfo?ids=LWOH&format=json"
+      },
+      "LWSK": {
+        "name": "Skopje Intl",
+        "lat": 41.952,
+        "lon": 21.627,
+        "icao": "LWSK",
+        "wmo": "13586",
+        "metadataUrl": "https://aviationweather.gov/api/data/stationinfo?ids=LWSK&format=json"
+      }
+    },
+    "AL": {
+      "LAKU": {
+        "name": "Kukes Arpt",
+        "lat": 42.034,
+        "lon": 20.416,
+        "icao": "LAKU",
+        "wmo": "13610",
+        "metadataUrl": "https://aviationweather.gov/api/data/stationinfo?ids=LAKU&format=json"
+      },
+      "LATI": {
+        "name": "Tirana Intl",
+        "lat": 41.419,
+        "lon": 19.716,
+        "icao": "LATI",
+        "wmo": "13615",
+        "metadataUrl": "https://aviationweather.gov/api/data/stationinfo?ids=LATI&format=json"
+      }
+    },
+    "XK": {
+      "BKPR": {
+        "name": "Pristina Intl",
+        "lat": 42.576,
+        "lon": 21.03,
+        "icao": "BKPR",
+        "wmo": null,
+        "metadataUrl": "https://aviationweather.gov/api/data/stationinfo?ids=BKPR&format=json"
+      }
+    }
+  }
+}

@@ -211,6 +211,16 @@ def parse_balkan(country):
 
 core.LOADERS.update({c:lambda c=c:parse_balkan(c) for c in ('BA','RS')})
 
+from southeast_temperature import BOUNDS as SOUTHEAST_BOUNDS, SOURCES as SOUTHEAST_SOURCES
+core.COUNTRY_BOUNDS.update(SOUTHEAST_BOUNDS)
+core.SOURCES.update(SOUTHEAST_SOURCES)
+
+def parse_southeast(country):
+    from southeast_temperature import load
+    return load(country,core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+core.LOADERS.update({c:lambda c=c:parse_southeast(c) for c in ('BG','MK','AL','XK')})
+
 if __name__ == "__main__":
     core.main()
 

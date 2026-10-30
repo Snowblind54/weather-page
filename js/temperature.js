@@ -250,6 +250,10 @@ const TEMP_REGION_COUNTRY_IDS={
   belarus:new Set(['112']),
   'bosnia-herzegovina':new Set(['070']),
   serbia:new Set(['688']),
+  bulgaria:new Set(['100']),
+  'north-macedonia':new Set(['807']),
+  albania:new Set(['008']),
+  kosovo:new Set(['000']),
   hungary:new Set(['348']),
   austria:new Set(['040']),
   switzerland:new Set(['756']),
@@ -274,7 +278,9 @@ async function loadTemperatureCountryFeatures(){
 
     const collection=topojson.feature(topology,topology.objects.countries);
     if(!collection.features?.length) throw new Error('empty country coastline data');
-    return collection.features;
+    // Natural Earth omits Kosovo’s numeric ID. Use the existing search
+    // catalogue key for this named feature, without changing other territories.
+    return collection.features.map(f=>f.properties?.name==='Kosovo'&&!f.id?{...f,id:'000'}:f);
   })();
 
   try{

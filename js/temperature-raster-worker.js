@@ -1,6 +1,6 @@
 /* Interpolation runs off the UI thread; static weights are reused across frames. */
 self.NorthernTerrainAssetBase='../assets/';
-importScripts('terrain-context.js?v=3','temperature-us.js?v=balkan-1');
+importScripts('terrain-context.js?v=3','temperature-us.js?v=southeast-1');
 let current=0;
 self.onmessage=async({data})=>{
  const {id,region,observations,unix}=data;current=id;
