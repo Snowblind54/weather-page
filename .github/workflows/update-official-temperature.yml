@@ -6,6 +6,9 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/mediterranean_temperature.py
+      - tests/test_mediterranean_temperature.py
+      - tests/mediterranean-temperature.test.cjs
       - scripts/adriatic_greece_temperature.py
       - scripts/adriatic_greece_temperature_stations.json
       - tests/test_adriatic_greece_temperature.py
@@ -172,6 +175,10 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p test_adriatic_greece_temperature.py -v
           node --test tests/adriatic-greece-temperature.test.cjs
+      - name: Check Malta Cyprus and Turkish official temperatures
+        run: |
+          python3 -m unittest discover -s tests -p test_mediterranean_temperature.py -v
+          node --test tests/mediterranean-temperature.test.cjs
       - name: Fetch official temperature observations
         run: python3 scripts/update_official_temperature_all.py
       - name: Validate snapshot

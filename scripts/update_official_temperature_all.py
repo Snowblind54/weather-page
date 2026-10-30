@@ -231,6 +231,16 @@ def parse_adriatic_greece(country):
 
 core.LOADERS.update({c:lambda c=c:parse_adriatic_greece(c) for c in ('ME','GR','AL')})
 
+from mediterranean_temperature import BOUNDS as MEDITERRANEAN_BOUNDS, SOURCES as MEDITERRANEAN_SOURCES
+core.COUNTRY_BOUNDS.update(MEDITERRANEAN_BOUNDS)
+core.SOURCES.update(MEDITERRANEAN_SOURCES)
+
+def parse_mediterranean(country):
+    from mediterranean_temperature import load
+    return load(country,core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+core.LOADERS.update({c:lambda c=c:parse_mediterranean(c) for c in ('MT','CY','TR')})
+
 if __name__ == "__main__":
     core.main()
 

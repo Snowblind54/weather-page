@@ -119,7 +119,7 @@ function officialTempCoord(record){
 
 function officialTempValid(lat,lon,temp,country){
   const bounds=country==='GL'?[59,84,-74,-10]:country==='CA'?[41,84,-142,-52]:country==='US'?[18,72,-180,180]:
-    country==='ME'?[41.8,43.6,18.4,20.5]:country==='GR'?[34.7,41.8,19.3,29.8]:country==='BG'?[41.2,44.3,22.2,28.8]:country==='MK'?[40.8,42.4,20.4,23.1]:country==='AL'?[39.6,42.7,19.2,21.1]:country==='XK'?[41.8,43.3,20,21.9]:country==='BA'?[42.5,45.4,15.6,19.7]:country==='RS'?[42.2,46.3,18.8,23.1]:country==='MD'?[45.4,48.6,26.5,30.3]:country==='BY'?[51.2,56.3,23,33]:country==='UA'?[44,52.5,22,40.5]:country==='RO'?[43.5,48.5,20,30]:country==='HR'?[42.2,46.7,13.1,19.5]:country==='SI'?[45.4,46.95,13.3,16.7]:country==='IT'?[35.3,47.2,6.3,19]:country==='HU'?[45.7,48.7,16,23]:country==='AT'?[46.3,49.1,9.4,17.2]:country==='CH'?[45.7,47.9,5.9,10.6]:country==='ES'?[27,44.5,-19,5]:country==='PT'?[30,43,-32,-6]:country==='FR'?[41,51.5,-5.5,10]:country==='AD'?[42.4,42.7,1.4,1.8]:country==='DE'?[47,55.2,5.5,15.6]:country==='NL'?[50.5,54,2,8]:country==='BE'?[49.4,51.6,2.4,6.5]:
+    country==='MT'?[35.75,36.15,14.15,14.65]:country==='CY'?[34.5,35.8,32.1,34.7]:country==='TR'?[35.8,42.2,25.6,45]:country==='ME'?[41.8,43.6,18.4,20.5]:country==='GR'?[34.7,41.8,19.3,29.8]:country==='BG'?[41.2,44.3,22.2,28.8]:country==='MK'?[40.8,42.4,20.4,23.1]:country==='AL'?[39.6,42.7,19.2,21.1]:country==='XK'?[41.8,43.3,20,21.9]:country==='BA'?[42.5,45.4,15.6,19.7]:country==='RS'?[42.2,46.3,18.8,23.1]:country==='MD'?[45.4,48.6,26.5,30.3]:country==='BY'?[51.2,56.3,23,33]:country==='UA'?[44,52.5,22,40.5]:country==='RO'?[43.5,48.5,20,30]:country==='HR'?[42.2,46.7,13.1,19.5]:country==='SI'?[45.4,46.95,13.3,16.7]:country==='IT'?[35.3,47.2,6.3,19]:country==='HU'?[45.7,48.7,16,23]:country==='AT'?[46.3,49.1,9.4,17.2]:country==='CH'?[45.7,47.9,5.9,10.6]:country==='ES'?[27,44.5,-19,5]:country==='PT'?[30,43,-32,-6]:country==='FR'?[41,51.5,-5.5,10]:country==='AD'?[42.4,42.7,1.4,1.8]:country==='DE'?[47,55.2,5.5,15.6]:country==='NL'?[50.5,54,2,8]:country==='BE'?[49.4,51.6,2.4,6.5]:
     country==='CZ'?[48.5,51.1,12,18.9]:country==='SK'?[47.6,49.7,16.7,22.7]:country==='LU'?[49.4,50.2,5.7,6.6]:[48.5,72.5,-26,33];
   return Number.isFinite(lat) && Number.isFinite(lon) &&
     lat>=bounds[0] && lat<=bounds[1] && lon>=bounds[2] && lon<=bounds[3] &&
@@ -523,7 +523,10 @@ const OFFICIAL_TEMP_LOADERS=[
   ['AL',null],
   ['XK',null],
   ['ME',null],
-  ['GR',null]
+  ['GR',null],
+  ['MT',null],
+  ['CY',null],
+  ['TR',null]
 ];
 
 async function loadOfficialTemperatureStations(force=false){

@@ -3,7 +3,7 @@
 (function(root){
   'use strict';
   const radiusKm=125;
-  const measuredCountries=new Set(['US','GB','IE','FO','DE','NL','BE','CZ','SK','LU','FR','AD','ES','PT','AT','CH','IT','HU','HR','SI','UA','RO','MD','BY','BA','RS','BG','MK','AL','XK','ME','GR']);
+  const measuredCountries=new Set(['US','GB','IE','FO','DE','NL','BE','CZ','SK','LU','FR','AD','ES','PT','AT','CH','IT','HU','HR','SI','UA','RO','MD','BY','BA','RS','BG','MK','AL','XK','ME','GR','MT','CY','TR']);
   const regions=[
     {id:'usa',bounds:[[24,-125],[50,-66]],w:450,h:260,stationBased:true},
     {id:'usa-alaska',bounds:[[50,-180],[72,-129]],w:350,h:240,stationBased:true},
@@ -16,6 +16,9 @@
     {id:'italy',countries:['IT'],bounds:[[35.3,6.3],[47.2,19]],w:340,h:400,stationBased:true},
     {id:'ukraine',countries:['UA'],bounds:[[44,22],[52.5,40.5]],w:380,h:280,stationBased:true},
     {id:'bosnia-herzegovina',countries:['BA'],bounds:[[42.5,15.6],[45.4,19.7]],w:230,h:220,stationBased:true},
+    {id:'malta',countries:['MT'],bounds:[[35.75,14.15],[36.15,14.65]],w:130,h:130,stationBased:true},
+    {id:'cyprus',countries:['CY'],bounds:[[34.5,32.1],[35.8,34.7]],w:220,h:160,stationBased:true},
+    {id:'turkey',countries:['TR'],bounds:[[35.8,25.6],[42.2,45]],w:480,h:260,stationBased:true},
     {id:'montenegro',countries:['ME'],bounds:[[41.8,18.4],[43.6,20.5]],w:190,h:190,stationBased:true},
     {id:'greece',countries:['GR'],bounds:[[34.7,19.3],[41.8,29.8]],w:340,h:290,stationBased:true},
     {id:'bulgaria',countries:['BG'],bounds:[[41.2,22.2],[44.3,28.8]],w:300,h:220,stationBased:true},
@@ -142,7 +145,7 @@
   function getWorker(){
     if(worker||workerFailed||typeof Worker!=='function'||typeof document==='undefined')return worker;
     try{
-      worker=new Worker('js/temperature-raster-worker.js?v=adriatic-greece-1');
+      worker=new Worker('js/temperature-raster-worker.js?v=mediterranean-1');
       worker.onmessage=({data})=>{const task=pending.get(data.id);if(task){pending.delete(data.id);if(data.error)task.reject(new Error(data.error));else task.resolve(data.result);}};
       worker.onerror=()=>{workerFailed=true;worker?.terminate();worker=null;for(const task of pending.values())task.reject(new Error('Temperature worker unavailable'));pending.clear();};
     }catch(error){workerFailed=true;worker=null;}
