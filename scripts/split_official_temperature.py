@@ -49,11 +49,11 @@ def split():
     atomic_json(HISTORY, snapshot)
     recent = []
     for station in snapshot['stations']:
-        station_cutoff = int(snapshot['generatedAt']) - (6*3600 if station['country'] in ('FR','LV') else RECENT_SECONDS)
+        station_cutoff = int(snapshot['generatedAt']) - (9*3600 if station['country'] in ('ME','GR') else 6*3600 if station['country'] in ('FR','LV') else RECENT_SECONDS)
         rows = [row for row in station.get('rows', []) if row[0] >= station_cutoff]
         if rows:
             recent.append({**station, 'rows': rows})
-    operational = {**snapshot, 'stations': recent, 'historyHours': 6,
+    operational = {**snapshot, 'stations': recent, 'historyHours': 9 if any(s['country'] in ('ME','GR') for s in recent) else 6,
                    'historyFile': 'data/official-temperature-history.json'}
     atomic_json(LATEST, operational)
     print('Split official temperatures:', LATEST.stat().st_size, 'bytes map;',

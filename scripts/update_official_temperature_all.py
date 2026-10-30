@@ -221,6 +221,16 @@ def parse_southeast(country):
 
 core.LOADERS.update({c:lambda c=c:parse_southeast(c) for c in ('BG','MK','AL','XK')})
 
+from adriatic_greece_temperature import BOUNDS as ME_GR_BOUNDS, SOURCES as ME_GR_SOURCES
+core.COUNTRY_BOUNDS.update(ME_GR_BOUNDS)
+core.SOURCES.update(ME_GR_SOURCES)
+
+def parse_adriatic_greece(country):
+    from adriatic_greece_temperature import load
+    return load(country,core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+core.LOADERS.update({c:lambda c=c:parse_adriatic_greece(c) for c in ('ME','GR','AL')})
+
 if __name__ == "__main__":
     core.main()
 

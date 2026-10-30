@@ -254,6 +254,8 @@ const TEMP_REGION_COUNTRY_IDS={
   'north-macedonia':new Set(['807']),
   albania:new Set(['008']),
   kosovo:new Set(['000']),
+  montenegro:new Set(['499']),
+  greece:new Set(['300']),
   hungary:new Set(['348']),
   austria:new Set(['040']),
   switzerland:new Set(['756']),

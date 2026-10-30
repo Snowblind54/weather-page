@@ -3,7 +3,7 @@
 (function(root){
   'use strict';
   const radiusKm=125;
-  const measuredCountries=new Set(['US','GB','IE','FO','DE','NL','BE','CZ','SK','LU','FR','AD','ES','PT','AT','CH','IT','HU','HR','SI','UA','RO','MD','BY','BA','RS','BG','MK','AL','XK']);
+  const measuredCountries=new Set(['US','GB','IE','FO','DE','NL','BE','CZ','SK','LU','FR','AD','ES','PT','AT','CH','IT','HU','HR','SI','UA','RO','MD','BY','BA','RS','BG','MK','AL','XK','ME','GR']);
   const regions=[
     {id:'usa',bounds:[[24,-125],[50,-66]],w:450,h:260,stationBased:true},
     {id:'usa-alaska',bounds:[[50,-180],[72,-129]],w:350,h:240,stationBased:true},
@@ -16,6 +16,8 @@
     {id:'italy',countries:['IT'],bounds:[[35.3,6.3],[47.2,19]],w:340,h:400,stationBased:true},
     {id:'ukraine',countries:['UA'],bounds:[[44,22],[52.5,40.5]],w:380,h:280,stationBased:true},
     {id:'bosnia-herzegovina',countries:['BA'],bounds:[[42.5,15.6],[45.4,19.7]],w:230,h:220,stationBased:true},
+    {id:'montenegro',countries:['ME'],bounds:[[41.8,18.4],[43.6,20.5]],w:190,h:190,stationBased:true},
+    {id:'greece',countries:['GR'],bounds:[[34.7,19.3],[41.8,29.8]],w:340,h:290,stationBased:true},
     {id:'bulgaria',countries:['BG'],bounds:[[41.2,22.2],[44.3,28.8]],w:300,h:220,stationBased:true},
     {id:'north-macedonia',countries:['MK'],bounds:[[40.8,20.4],[42.4,23.1]],w:220,h:170,stationBased:true},
     {id:'albania',countries:['AL'],bounds:[[39.6,19.2],[42.7,21.1]],w:160,h:260,stationBased:true},
@@ -37,10 +39,11 @@
   ];
   const rad=Math.PI/180;
   const mercator=lat=>Math.log(Math.tan(Math.PI/4+lat*rad/2));
+  const observationMaxAge=s=>['ME','GR'].includes(s.country)&&String(s.code||'').startsWith('SYNOP-')?7*3600:['FR','UA','BY','AL'].includes(s.country)?4*3600:['ES','PT','IT'].includes(s.country)?2*3600:95*60;
   function stations(unix){
     return typeof officialStationsNearTime==='function'?officialStationsNearTime(unix,{crossBorder:true}).filter(s=>
       Number.isFinite(s.temp)&&Number.isFinite(s.time)&&
-      Math.abs(s.time-unix)<=(['FR','UA','BY','AL'].includes(s.country)?4*3600:(['ES','PT','IT'].includes(s.country)?2*3600:95*60))):[];
+      Math.abs(s.time-unix)<=observationMaxAge(s)):[];
   }
   function nearby(region,observations){
     const [[south,west],[north,east]]=region.bounds,pad=radiusKm/111.195;
@@ -107,7 +110,7 @@
     observations=nearby(region,observations).filter(s=>Number.isFinite(s.temp)&&Number.isFinite(s.lat)&&Number.isFinite(s.lon)&&Number.isFinite(s.time)).sort((a,b)=>positionKey(a).localeCompare(positionKey(b)));
     const mesh=await geometry(region,observations,valid,yieldFrame);if(!mesh||!valid())return null;
     const ages=observations.map(s=>{
-      const age=Math.abs(unix-s.time),maxAge=['FR','UA','BY','AL'].includes(s.country)?14400:['ES','PT','IT'].includes(s.country)?7200:5700;
+      const age=Math.abs(unix-s.time),maxAge=observationMaxAge(s);
       return age<=3600?1:Math.max(0,(maxAge-age)/(maxAge-3600));
     });
     const coarse=new Float32Array(mesh.W*mesh.H).fill(NaN),opacity=new Uint8Array(coarse.length);
@@ -139,7 +142,7 @@
   function getWorker(){
     if(worker||workerFailed||typeof Worker!=='function'||typeof document==='undefined')return worker;
     try{
-      worker=new Worker('js/temperature-raster-worker.js?v=southeast-1');
+      worker=new Worker('js/temperature-raster-worker.js?v=adriatic-greece-1');
       worker.onmessage=({data})=>{const task=pending.get(data.id);if(task){pending.delete(data.id);if(data.error)task.reject(new Error(data.error));else task.resolve(data.result);}};
       worker.onerror=()=>{workerFailed=true;worker?.terminate();worker=null;for(const task of pending.values())task.reject(new Error('Temperature worker unavailable'));pending.clear();};
     }catch(error){workerFailed=true;worker=null;}

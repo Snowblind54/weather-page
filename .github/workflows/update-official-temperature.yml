@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/adriatic_greece_temperature.py
+      - scripts/adriatic_greece_temperature_stations.json
+      - tests/test_adriatic_greece_temperature.py
+      - tests/adriatic-greece-temperature.test.cjs
       - scripts/southeast_temperature.py
       - scripts/southeast_temperature_stations.json
       - tests/test_southeast_temperature.py
@@ -164,6 +168,10 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p test_southeast_temperature.py -v
           node --test tests/southeast-temperature.test.cjs
+      - name: Check Montenegrin Greek and extended Albanian temperatures
+        run: |
+          python3 -m unittest discover -s tests -p test_adriatic_greece_temperature.py -v
+          node --test tests/adriatic-greece-temperature.test.cjs
       - name: Fetch official temperature observations
         run: python3 scripts/update_official_temperature_all.py
       - name: Validate snapshot
