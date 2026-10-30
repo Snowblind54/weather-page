@@ -3,7 +3,7 @@
 (function(root){
   'use strict';
   const radiusKm=125;
-  const measuredCountries=new Set(['US','GB','IE','FO','DE','NL','BE','CZ','SK','LU','FR','AD','ES','PT','AT','CH','IT','HU','HR','SI','UA','RO','MD','BY']);
+  const measuredCountries=new Set(['US','GB','IE','FO','DE','NL','BE','CZ','SK','LU','FR','AD','ES','PT','AT','CH','IT','HU','HR','SI','UA','RO','MD','BY','BA','RS']);
   const regions=[
     {id:'usa',bounds:[[24,-125],[50,-66]],w:450,h:260,stationBased:true},
     {id:'usa-alaska',bounds:[[50,-180],[72,-129]],w:350,h:240,stationBased:true},
@@ -15,6 +15,8 @@
     {id:'france',countries:['FR'],bounds:[[41,-5.5],[51.5,10]],w:360,h:350,stationBased:true},
     {id:'italy',countries:['IT'],bounds:[[35.3,6.3],[47.2,19]],w:340,h:400,stationBased:true},
     {id:'ukraine',countries:['UA'],bounds:[[44,22],[52.5,40.5]],w:380,h:280,stationBased:true},
+    {id:'bosnia-herzegovina',countries:['BA'],bounds:[[42.5,15.6],[45.4,19.7]],w:230,h:220,stationBased:true},
+    {id:'serbia',countries:['RS'],bounds:[[42.2,18.8],[46.3,23.1]],w:230,h:280,stationBased:true},
     {id:'moldova',countries:['MD'],bounds:[[45.4,26.5],[48.6,30.3]],w:200,h:240,stationBased:true},
     {id:'belarus',countries:['BY'],bounds:[[51.2,23],[56.3,33]],w:300,h:240,stationBased:true},
     {id:'romania',countries:['RO'],bounds:[[43.5,20],[48.5,30]],w:300,h:240,stationBased:true},
@@ -133,7 +135,7 @@
   function getWorker(){
     if(worker||workerFailed||typeof Worker!=='function'||typeof document==='undefined')return worker;
     try{
-      worker=new Worker('js/temperature-raster-worker.js?v=moldova-belarus-1');
+      worker=new Worker('js/temperature-raster-worker.js?v=balkan-1');
       worker.onmessage=({data})=>{const task=pending.get(data.id);if(task){pending.delete(data.id);if(data.error)task.reject(new Error(data.error));else task.resolve(data.result);}};
       worker.onerror=()=>{workerFailed=true;worker?.terminate();worker=null;for(const task of pending.values())task.reject(new Error('Temperature worker unavailable'));pending.clear();};
     }catch(error){workerFailed=true;worker=null;}

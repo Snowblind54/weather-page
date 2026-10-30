@@ -1,0 +1,273 @@
+{
+  "description": "Official RHMZ Serbia station profiles; FHMZ 2023 station catalogue, DWD and NOAA WMO metadata. Only verified station identities are mapped; unknown sites remain unavailable.",
+  "stations": {
+    "RS": {
+      "13067": {
+        "name": "Palić",
+        "lat": 46.1,
+        "lon": 19.766667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13067"
+      },
+      "13160": {
+        "name": "Sombor",
+        "lat": 45.766667,
+        "lon": 19.15,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13160"
+      },
+      "13168": {
+        "name": "Novi Sad",
+        "lat": 45.333333,
+        "lon": 19.85,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13168"
+      },
+      "13173": {
+        "name": "Zrenjanin",
+        "lat": 45.366667,
+        "lon": 20.416667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13173"
+      },
+      "13174": {
+        "name": "Kikinda",
+        "lat": 45.85,
+        "lon": 20.466667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13174"
+      },
+      "13180": {
+        "name": "B. Karlovac",
+        "lat": 45.05,
+        "lon": 21.033333,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13180"
+      },
+      "13262": {
+        "name": "Loznica",
+        "lat": 44.55,
+        "lon": 19.233333,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13262"
+      },
+      "13266": {
+        "name": "S. Mitrovica",
+        "lat": 45.1,
+        "lon": 19.55,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13266"
+      },
+      "13269": {
+        "name": "Valjevo",
+        "lat": 44.316667,
+        "lon": 19.916667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13269"
+      },
+      "13274": {
+        "name": "Beograd",
+        "lat": 44.8,
+        "lon": 20.466667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13274"
+      },
+      "13278": {
+        "name": "Kragujevac",
+        "lat": 44.033333,
+        "lon": 20.933333,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13278"
+      },
+      "13279": {
+        "name": "S. Palanka",
+        "lat": 44.366667,
+        "lon": 20.95,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13279"
+      },
+      "13285": {
+        "name": "V. Gradište",
+        "lat": 44.75,
+        "lon": 21.516667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13285"
+      },
+      "13289": {
+        "name": "Crni Vrh",
+        "lat": 44.116667,
+        "lon": 21.95,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13289"
+      },
+      "13295": {
+        "name": "Negotin",
+        "lat": 44.233333,
+        "lon": 22.55,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13295"
+      },
+      "13367": {
+        "name": "Zlatibor",
+        "lat": 43.733333,
+        "lon": 19.716667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13367"
+      },
+      "13369": {
+        "name": "Sjenica",
+        "lat": 43.283333,
+        "lon": 20.0,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13369"
+      },
+      "13370": {
+        "name": "Požega",
+        "lat": 43.85,
+        "lon": 20.033333,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13370"
+      },
+      "13376": {
+        "name": "Kraljevo",
+        "lat": 43.7,
+        "lon": 20.7,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13376"
+      },
+      "13378": {
+        "name": "Kopaonik",
+        "lat": 43.283333,
+        "lon": 20.8,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13378"
+      },
+      "13383": {
+        "name": "Kruševac",
+        "lat": 43.566667,
+        "lon": 21.35,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13383"
+      },
+      "13384": {
+        "name": "Ćuprija",
+        "lat": 43.933333,
+        "lon": 21.383333,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13384"
+      },
+      "13388": {
+        "name": "Niš",
+        "lat": 43.333333,
+        "lon": 21.9,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13388"
+      },
+      "13389": {
+        "name": "Leskovac",
+        "lat": 42.983333,
+        "lon": 21.95,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13389"
+      },
+      "13392": {
+        "name": "Zaječar",
+        "lat": 43.883333,
+        "lon": 22.3,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13392"
+      },
+      "13397": {
+        "name": "Dimitrovgrad",
+        "lat": 43.016667,
+        "lon": 22.75,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13397"
+      },
+      "13489": {
+        "name": "Vranje",
+        "lat": 42.55,
+        "lon": 21.916667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13489"
+      }
+    },
+    "BA": {
+      "14528": {
+        "name": "Bihać",
+        "lat": 44.808611,
+        "lon": 15.859722,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14652": {
+        "name": "Bjelašnica",
+        "lat": 43.703611,
+        "lon": 18.256944,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14544": {
+        "name": "Bugojno",
+        "lat": 44.061944,
+        "lon": 17.450556,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "DRVAR": {
+        "name": "Drvar",
+        "lat": 44.377778,
+        "lon": 16.376944,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14554": {
+        "name": "Gradačac",
+        "lat": 44.859167,
+        "lon": 18.441667,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14650": {
+        "name": "Ivan Sedlo",
+        "lat": 43.751111,
+        "lon": 18.036111,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14640": {
+        "name": "Livno",
+        "lat": 43.822778,
+        "lon": 17.001111,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14648": {
+        "name": "Mostar",
+        "lat": 43.348056,
+        "lon": 17.793889,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14537": {
+        "name": "Sanski Most",
+        "lat": 44.77,
+        "lon": 16.673611,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14654": {
+        "name": "Sarajevo-Bjelave",
+        "lat": 43.867778,
+        "lon": 18.422778,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14557": {
+        "name": "Tuzla",
+        "lat": 44.541944,
+        "lon": 18.685,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14657": {
+        "name": "Neum",
+        "lat": 42.927222,
+        "lon": 17.608611,
+        "metadataUrl": "https://fhmzbih.gov.ba/podaci/klima/godisnjak/G2023.pdf"
+      },
+      "14542": {
+        "name": "Banja Luka",
+        "lat": 44.783333,
+        "lon": 17.216667,
+        "metadataUrl": "https://www.dwd.de/DE/leistungen/met_verfahren_mosmix/mosmix_stationskatalog.cfg?view=nasPublication"
+      },
+      "14543": {
+        "name": "Jajce",
+        "lat": 44.35,
+        "lon": 17.266667,
+        "metadataUrl": "https://www.dwd.de/DE/leistungen/met_verfahren_mosmix/mosmix_stationskatalog.cfg?view=nasPublication"
+      },
+      "14549": {
+        "name": "Zenica",
+        "lat": 44.216667,
+        "lon": 17.9,
+        "metadataUrl": "https://www.dwd.de/DE/leistungen/met_verfahren_mosmix/mosmix_stationskatalog.cfg?view=nasPublication"
+      },
+      "14658": {
+        "name": "Sokolac",
+        "lat": 43.95,
+        "lon": 18.816667,
+        "metadataUrl": "https://www.dwd.de/DE/leistungen/met_verfahren_mosmix/mosmix_stationskatalog.cfg?view=nasPublication"
+      },
+      "14656": {
+        "name": "Čemerno",
+        "lat": 43.233,
+        "lon": 18.6,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      }
+    }
+  }
+}

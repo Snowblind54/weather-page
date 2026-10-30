@@ -201,6 +201,16 @@ def parse_moldova_belarus(country):
 
 core.LOADERS.update({c:lambda c=c:parse_moldova_belarus(c) for c in ('MD','BY')})
 
+from balkan_temperature import BOUNDS as BALKAN_BOUNDS, SOURCES as BALKAN_SOURCES
+core.COUNTRY_BOUNDS.update(BALKAN_BOUNDS)
+core.SOURCES.update(BALKAN_SOURCES)
+
+def parse_balkan(country):
+    from balkan_temperature import load
+    return load(country,core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+core.LOADERS.update({c:lambda c=c:parse_balkan(c) for c in ('BA','RS')})
+
 if __name__ == "__main__":
     core.main()
 
