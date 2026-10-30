@@ -534,7 +534,9 @@ async function loadOfficialTemperatureStations(force=false){
 
   officialTemperatureLoadPromise=(async()=>{
     try{
-      const cacheBust=Math.floor(Date.now()/OFFICIAL_TEMP_REFRESH_MS);
+      // Manual refresh must also bypass an already cached CDN snapshot.
+      // A shared ten-second key keeps simultaneous refreshes cacheable.
+      const cacheBust=force?'refresh-'+Math.floor(Date.now()/10000):Math.floor(Date.now()/OFFICIAL_TEMP_REFRESH_MS);
       const response=await fetch(OFFICIAL_TEMP_SNAPSHOT_URL+'?v='+cacheBust,{cache:'no-store'});
       if(!response.ok) throw new Error('temperature snapshot HTTP '+response.status);
       const snapshot=await response.json();

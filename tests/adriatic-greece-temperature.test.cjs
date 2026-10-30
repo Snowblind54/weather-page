@@ -20,3 +20,9 @@ test('Six-hourly land reports remain available while airport observations use th
 test('Montenegrin and Greek country masks are registered',()=>{
  const src=fs.readFileSync('js/temperature.js','utf8'),c={Set};vm.createContext(c);vm.runInContext(src.match(/const TEMP_REGION_COUNTRY_IDS=\{[\s\S]*?\n\};/)[0]+';this.ids=TEMP_REGION_COUNTRY_IDS;',c);assert(c.ids.montenegro.has('499'));assert(c.ids.greece.has('300'));
 });
+
+test('Manual refresh obtains newly published observations even when the ordinary CDN key is cached',async()=>{
+ const now=1800000000,cdn=new Map();let published=16;class Clock extends Date{static now(){return now*1000;}}
+ const c={console,Date:Clock,Math,Number,Map,Set,Promise,JSON,AbortController,setTimeout,clearTimeout,window:{},frames:[{time:now}],loadTemperatures:async()=>{},buildTemperatureOverlay:async()=>{},localStorage:{getItem:()=>null,setItem(){}},fetch:async url=>{if(!cdn.has(url))cdn.set(url,{version:1,stations:[{country:'AL',lat:42.1,lon:19.53,code:'SYNOP-13600',name:'Shkoder',source:'Official SYNOP',rows:[[now,published]]}],sources:{AL:{ok:true,count:1}}});return {ok:true,json:async()=>cdn.get(url)};}};
+ vm.createContext(c);vm.runInContext(fs.readFileSync('js/stations.js','utf8'),c);await vm.runInContext('loadOfficialTemperatureStations(false)',c);assert.equal(c.officialStationsNearTime(now)[0].temp,16);published=19.2;await vm.runInContext('loadOfficialTemperatureStations(true)',c);assert.equal(c.officialStationsNearTime(now)[0].temp,19.2);
+});
