@@ -214,3 +214,24 @@ test('manual wind refresh bypasses an older CDN manifest and reuses a shared ten
  assert.equal(urls.length,2);assert.match(urls[0],/\?v=\d+$/);assert.match(urls[1],/\?v=refresh-\d+$/);assert.notEqual(urls[0],urls[1]);
  assert.equal(h.run('officialWindData.stations[0].country'),'UA');assert.match(h.elements.officialWindStatus.textContent,/Ukraine: 1 stations/);
 });
+
+test('Romanian Serbian and Bulgarian observations validate, filter by country and show measured gusts',()=>{
+ const h=harness();h.fixture.sources={};h.fixture.stations=[];
+ for(const [country,lat,lon,name] of [['RO',44.57,26.08,'Romania'],['RS',44.8,20.47,'Serbia'],['BG',42.65,23.38,'Bulgaria']]){
+  h.fixture.sources[country]={status:'ok',timeKind:'observation',name:'Official '+name};
+  h.fixture.stations.push({country,code:'METAR-'+country,name,lat,lon,sourceUrl:'https://aviationweather.gov/data/metar/',rows:[[h.now-600,0,12,315]]});
+ }
+ h.run('officialWindData=validateOfficialWind(fixture)');h.elements.officialWindGusts.checked=true;
+ for(const country of ['RO','RS','BG']){
+  h.context.NorthernCountryFocus={allowsStation:s=>s.country===country,matchesCountry:c=>c===country};h.run("officialWindRenderKey='';renderOfficialWind()");assert.equal(h.group.children.length,1);assert.match(h.group.children[0].popup,/12.0/);assert.match(h.group.children[0].popup,/aviationweather.gov/);
+ }
+ h.fixture.stations[0].lat=59;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+});
+test('Romanian six-hour SYNOP gusts retain native freshness without extending national or airport observations',()=>{
+ const h=harness();h.context.sixHour={country:'RO',code:'SYNOP-15020',rows:[[h.now-6*3600,2,12,30]]};assert.equal(h.run('officialWindReading(sixHour,fixture.generatedAt)[2]'),12);
+ h.context.sixHour.rows[0][0]=h.now-7*3600-1;assert.equal(h.run('officialWindReading(sixHour,fixture.generatedAt)'),null);
+ h.context.sixHour.code='ANM-native';h.context.sixHour.rows[0][0]=h.now-4*3600;assert.equal(h.run('officialWindReading(sixHour,fixture.generatedAt)'),null);
+});
+test('SYNOP source links use the actual national bulletin publisher',()=>{
+ const h=harness();h.fixture.sources.RO={status:'ok',timeKind:'observation',name:'ANM'};h.fixture.stations=[{country:'RO',code:'SYNOP-15020',name:'Botosani',lat:47.7,lon:26.7,sourceUrl:'https://www.meteoromania.ro/',rows:[[h.now-600,3,6,30]]}];h.run('officialWindData=validateOfficialWind(fixture)');const popup=h.run('officialWindPopup(fixture.stations[0],fixture.stations[0].rows[0])');assert.match(popup,/href="https:\/\/www.meteoromania.ro\//);assert.doesNotMatch(popup,/opendata.dwd.de/);
+});

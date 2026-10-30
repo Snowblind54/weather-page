@@ -87,7 +87,8 @@ def synop(raw,reference,expected,metadata,now):
         if wind[3:]=='99':speed=number(tokens[3][2:],0,999) if len(tokens)>3 and re.fullmatch(r'00\d{3}',tokens[3]) else None
         section=1;gust10=[];gust_period=[];modified_period=False;actual_time_changed=False
         for i,g in enumerate(tokens[3:],3):
-            if g in ('444','555') or g.startswith('222'):break
+            if g in ('444','555'):break
+            if g.startswith('222'):section=2;continue
             if g=='333':section=3;continue
             if section==1 and re.fullmatch(r'9\d{4}',g):actual_time_changed=True
             if section!=3:continue

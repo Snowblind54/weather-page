@@ -42,6 +42,13 @@ on:
       - scripts/official_wind_atlantic.py
       - scripts/official_wind_western.py
       - scripts/official_wind_scotland.py
+      - scripts/official_wind_balkans.py
+      - scripts/romania_wind_stations.json
+      - scripts/balkan_temperature.py
+      - scripts/balkan_temperature_stations.json
+      - scripts/southeast_temperature.py
+      - scripts/southeast_temperature_stations.json
+      - tests/test_official_wind_balkans.py
       - scripts/official_wind_eastern.py
       - scripts/eastern_temperature.py
       - scripts/moldova_belarus_temperature.py
