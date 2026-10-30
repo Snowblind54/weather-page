@@ -138,7 +138,7 @@ def download_json(url):
 
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
-    south,north,west,east = {'HR':(42.2,46.7,13.1,19.5),'SI':(45.4,46.95,13.3,16.7),'IT':(35.3,47.2,6.3,19),'HU':(45.7,48.7,16,23),'AT':(46.3,49.1,9.4,17.2),'CH':(45.7,47.9,5.9,10.6),'ES':(27,44.5,-19,5),'PT':(30,43,-32,-6),'AD':(42.4,42.7,1.4,1.8),'FR':(41,51.5,-5.5,10),'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
+    south,north,west,east = {'BY':(51.2,56.3,23,33),'UA':(44,52.5,22,40.5),'HR':(42.2,46.7,13.1,19.5),'SI':(45.4,46.95,13.3,16.7),'IT':(35.3,47.2,6.3,19),'HU':(45.7,48.7,16,23),'AT':(46.3,49.1,9.4,17.2),'CH':(45.7,47.9,5.9,10.6),'ES':(27,44.5,-19,5),'PT':(30,43,-32,-6),'AD':(42.4,42.7,1.4,1.8),'FR':(41,51.5,-5.5,10),'CA':(41,84,-142,-52),'GL':(59,84,-74,-10),'US':(18,72,-180,180),'FO':(61,63,-8,-6),'GB':(49,61,-9,3),'IE':(51,56,-11,-5),'DE':(47,55.2,5.5,15.6),'NL':(50.5,54,2,8),'BE':(49.4,51.6,2.4,6.5),'LU':(49.4,50.2,5.7,6.6),'CZ':(48.5,51.1,12,18.9),'SK':(47.6,49.7,16.7,22.7)}.get(country,(48.5,72.5,-26,33))
     if not (south <= lat <= north and west <= lon <= east):
         raise ValueError('Station outside Northern Weather bounds')
     readings = {}
@@ -616,6 +616,8 @@ def main():
     SOURCES.update({c:dict(name=it_hu_sources[c],url=it_hu_urls[c],timeKind='observation',period=it_hu_periods[c]) for c in ('IT','HU')})
     from adriatic_observations import load_wind as load_adriatic, SOURCES as adriatic_sources, URLS as adriatic_urls, PERIODS as adriatic_periods
     SOURCES.update({c:dict(name=adriatic_sources[c],url=adriatic_urls[c],timeKind='observation',period=adriatic_periods[c]) for c in ('HR','SI')})
+    from official_wind_eastern import load as load_eastern, NAMES as eastern_names, URLS as eastern_urls, PERIOD as eastern_period
+    SOURCES.update({c:dict(name=eastern_names[c],url=eastern_urls[c],timeKind='observation',period=eastern_period) for c in ('BY','UA')})
     now = dt.datetime.now(dt.timezone.utc)
     try:
         previous = json.loads(OUTPUT.read_text())
@@ -631,14 +633,15 @@ def main():
                ('CZ', load_czechia), ('SK', load_slovakia), ('FR', load_france), ('AD', load_andorra), ('ES', load_spain), ('PT', load_portugal),
                ('AT', lambda now: load_alpine('AT',now,download)), ('CH', lambda now: load_alpine('CH',now,download)),
                ('IT',lambda now:load_it_hu('IT',now,download)), ('HU',lambda now:load_it_hu('HU',now,download)),
-               ('HR',lambda now:load_adriatic('HR',now,download)), ('SI',lambda now:load_adriatic('SI',now,download))]
+               ('HR',lambda now:load_adriatic('HR',now,download)), ('SI',lambda now:load_adriatic('SI',now,download)),
+               ('BY',lambda now:load_eastern('BY',now)), ('UA',lambda now:load_eastern('UA',now))]
     with futures.ThreadPoolExecutor(max_workers=len(loaders)) as pool:
         pending = {pool.submit(loader, now): country for country, loader in loaders}
         for task in futures.as_completed(pending):
             country = pending[task]
             try:
                 rows = task.result()
-                if not any(s['rows'] and s['rows'][-1][0] >= int(now.timestamp()) - (4 if country in ('LV','FR') else 3) * 3600 for s in rows):
+                if not any(s['rows'] and s['rows'][-1][0] >= int(now.timestamp()) - (4 if country in ('LV','FR','BY','UA') else 3) * 3600 for s in rows):
                     raise ValueError('No current measured wind observations')
                 results += rows
                 sources[country] = {**SOURCES[country], 'status': 'ok', 'fetchedAt': int(now.timestamp())}

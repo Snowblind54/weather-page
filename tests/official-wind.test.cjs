@@ -189,3 +189,20 @@ test('Austrian and Swiss wind and gusts validate at southern Alpine stations wit
  h.elements.officialWindGusts.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,3);
  h.fixture.stations.at(-1).lat=59;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
 });
+
+test('Belarus and Ukraine validate, preserve measured zero, filter countries and show only explicit gust reports',()=>{
+ const h=harness();
+ h.fixture.sources={BY:{status:'ok',timeKind:'observation',name:'Belhydromet'},UA:{status:'ok',timeKind:'observation',name:'UHMC'}};
+ h.fixture.stations=[{country:'BY',code:'BELHYDROMET-26850',name:'Minsk',lat:53.9,lon:27.6,rows:[[h.now-600,0,null,null]]},{country:'UA',code:'UHMC-33345',name:'Kyiv',lat:50.4,lon:30.5,rows:[[h.now-600,4,12,310]]}];
+ h.run('officialWindData=validateOfficialWind(fixture)');h.context.NorthernCountryFocus={allowsStation:s=>s.country==='UA',matchesCountry:c=>c==='UA'};
+ h.elements.officialWindGusts.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,1);assert.match(h.group.children[0].popup,/Ukraine/);assert.match(h.group.children[0].popup,/12.0/);assert.match(h.group.children[0].popup,/meteo.gov.ua/);
+ h.context.NorthernCountryFocus={allowsStation:s=>s.country==='BY',matchesCountry:c=>c==='BY'};h.run("officialWindRenderKey='';renderOfficialWind()");assert.equal(h.group.children.length,0);
+ h.elements.officialWindGusts.checked=false;h.elements.officialWindSustained.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,1);assert.match(h.group.children[0].popup,/Belarus/);assert.match(h.group.children[0].popup,/0.0/);assert.match(h.group.children[0].popup,/Unavailable/);
+ h.fixture.stations[1].lat=59;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+});
+test('Eastern three-hourly winds expire at four hours and never borrow later reports in playback',()=>{
+ const h=harness();const s={country:'UA',code:'UHMC-33345',name:'Kyiv',lat:50.4,lon:30.5,rows:[[h.now-3.5*3600,4,12,310]]};h.context.easternStation=s;
+ assert.equal(h.run('officialWindReading(easternStation,fixture.generatedAt)[1]'),4);
+ s.rows=[[h.now-4*3600-1,4,12,310]];assert.equal(h.run('officialWindReading(easternStation,fixture.generatedAt)'),null);
+ s.rows=[[h.now+60,4,12,310]];assert.equal(h.run('officialWindReading(easternStation,fixture.generatedAt)'),null);
+});

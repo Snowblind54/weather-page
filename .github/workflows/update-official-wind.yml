@@ -42,6 +42,11 @@ on:
       - scripts/official_wind_atlantic.py
       - scripts/official_wind_western.py
       - scripts/official_wind_scotland.py
+      - scripts/official_wind_eastern.py
+      - scripts/eastern_temperature.py
+      - scripts/moldova_belarus_temperature.py
+      - scripts/adriatic_greece_temperature.py
+      - scripts/ukraine_temperature_stations.json
       - scripts/official_wind_central.py
       - scripts/update_central_temperature.py
       - scripts/update_western_temperature.py
@@ -58,6 +63,7 @@ on:
       - tests/test_official_wind_atlantic.py
       - tests/test_official_wind_western.py
       - tests/test_official_wind_scotland.py
+      - tests/test_official_wind_eastern.py
       - tests/test_official_wind_central.py
       - tests/fixtures/central-wind.json
       - tests/fixtures/scotland-wind.csv
