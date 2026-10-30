@@ -68,7 +68,7 @@ def ukraine(payload,metadata):
     return rows
 
 
-def synop(raw,reference,expected,metadata,now):
+def synop(raw,reference,expected,metadata,now,allowed_reference_periods=()):
     if reference.tzinfo is None or not -60<=(now-reference).total_seconds()<=86400:raise ValueError('Undated or stale SYNOP file')
     text=raw.decode('ascii') if isinstance(raw,bytes) else raw
     if len(text)>512*1024:raise ValueError('Oversized SYNOP bulletin')
@@ -85,7 +85,7 @@ def synop(raw,reference,expected,metadata,now):
         if len(tokens)<3 or tokens[0] not in metadata or not all(re.fullmatch(r'[\d/]{5}',g) for g in tokens[1:3]):continue
         code=tokens[0];wind=tokens[2];speed=number(wind[3:],0,98);direction=number(wind[1:3],1,36)
         if wind[3:]=='99':speed=number(tokens[3][2:],0,999) if len(tokens)>3 and re.fullmatch(r'00\d{3}',tokens[3]) else None
-        section=1;gust10=[];gust_period=[];modified_period=False;actual_time_changed=False
+        section=1;gust10=[];gust_period=[];modified_period=False;allowed_period=False;actual_time_changed=False
         for i,g in enumerate(tokens[3:],3):
             if g in ('444','555'):break
             if g.startswith('222'):section=2;continue
@@ -94,14 +94,19 @@ def synop(raw,reference,expected,metadata,now):
             if section!=3:continue
             # 904/907 can change the following gust's time or period. Do not
             # assign such a gust to a guessed observation window.
-            if re.fullmatch(r'90[47][\d/]{2}',g):modified_period=True
+            if re.fullmatch(r'90[47][\d/]{2}',g):
+                modified_period=True
+                # WMO 4077: 30 = three hours. Only explicitly enabled,
+                # verified periods are accepted; 904 occurrence-time offsets
+                # and other durations remain excluded.
+                allowed_period=g.startswith('907') and g[3:] in allowed_reference_periods
             if not re.fullmatch(r'91[01]\d{2}',g):continue
             v=int(g[3:])
             if v==99:v=int(tokens[i+1][2:]) if i+1<len(tokens) and re.fullmatch(r'00\d{3}',tokens[i+1]) else None
             v=number(None if v is None else v*factor,0,100)
             if v is not None:
                 if g.startswith('910'):gust10.append(v)
-                elif not modified_period and hour%3==0:gust_period.append(v)
+                elif (not modified_period and hour%3==0) or allowed_period:gust_period.append(v)
         if actual_time_changed:continue
         gust=max(gust10) if gust10 else max(gust_period) if gust_period else None
         speed=number(None if speed is None else speed*factor,0,100)

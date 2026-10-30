@@ -42,6 +42,7 @@ on:
       - scripts/official_wind_atlantic.py
       - scripts/official_wind_western.py
       - scripts/official_wind_scotland.py
+      - scripts/southern_balkan_wind_stations.json
       - scripts/official_wind_balkans.py
       - scripts/romania_wind_stations.json
       - scripts/balkan_temperature.py

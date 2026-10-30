@@ -1,9 +1,9 @@
 // Measured station labels load independently of the modeled particle animation.
 const OFFICIAL_WIND_CHECK_MS=5*60*1000,OFFICIAL_WIND_MAX_AGE=3*3600;
-const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL','CA','GL','US','FO','GB','IE','DE','NL','BE','LU','CZ','SK','FR','AD','ES','PT','AT','CH','IT','HU','HR','SI','BY','UA','RO','RS','BG'];
-const OFFICIAL_WIND_COUNTRY_NAMES={RO:'Romania',RS:'Serbia',BG:'Bulgaria',BY:'Belarus',UA:'Ukraine',HR:'Croatia',SI:'Slovenia',IT:'Italy',HU:'Hungary',AT:'Austria',CH:'Switzerland',ES:'Spain',PT:'Portugal',AD:'Andorra',EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland',CA:'Canada',GL:'Greenland',US:'USA',FO:'Faroe Islands',GB:'UK',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg',CZ:'Czechia',SK:'Slovakia',FR:'France'};
+const OFFICIAL_WIND_COUNTRIES=['EE','LV','LT','FI','SE','NO','DK','IS','PL','CA','GL','US','FO','GB','IE','DE','NL','BE','LU','CZ','SK','FR','AD','ES','PT','AT','CH','IT','HU','HR','SI','BY','UA','RO','RS','BG','MK','GR','AL'];
+const OFFICIAL_WIND_COUNTRY_NAMES={MK:'North Macedonia',GR:'Greece',AL:'Albania',RO:'Romania',RS:'Serbia',BG:'Bulgaria',BY:'Belarus',UA:'Ukraine',HR:'Croatia',SI:'Slovenia',IT:'Italy',HU:'Hungary',AT:'Austria',CH:'Switzerland',ES:'Spain',PT:'Portugal',AD:'Andorra',EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',DK:'Denmark',IS:'Iceland',PL:'Poland',CA:'Canada',GL:'Greenland',US:'USA',FO:'Faroe Islands',GB:'UK',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg',CZ:'Czechia',SK:'Slovakia',FR:'France'};
 const OFFICIAL_WIND_GUST_LABELS={
-  RO:'Reported gust',RS:'Reported gust',BG:'Reported gust',  BY:'Reported SYNOP gust',UA:'Reported SYNOP gust',
+  MK:'Reported gust',GR:'Reported gust',AL:'Reported gust',  RO:'Reported gust',RS:'Reported gust',BG:'Reported gust',  BY:'Reported SYNOP gust',UA:'Reported SYNOP gust',
   HR:'Reported gust',SI:'Gust max · 10 min',
   IT:'Reported gust',HU:'Max 2-sec gust · 10 min',
   AT:'Gust max · 10 min',CH:'Max 1-sec gust · 10 min',
@@ -18,7 +18,7 @@ const OFFICIAL_WIND_GUST_LABELS={
   GL:'Max 3-sec mean · 10 min',CA:'Instantaneous wind max · 10 min',US:'Measured gust',PL:'Gust max · 10 min'
 };
 const OFFICIAL_WIND_SOURCE_LINKS={
-  RO:'https://www.meteoromania.ro/',RS:'https://www.hidmet.gov.rs/eng/osmotreni/index.php',BG:'https://www.meteo.bg/meteo/en/tochkien',  BY:'https://pogoda.by/observation/interactive-maps',UA:'https://www.meteo.gov.ua/en/',
+  MK:'https://uhmr.gov.mk/aktuelni-podatoci/',GR:'https://emy.gr/',AL:'https://tgftp.nws.noaa.gov/data/raw/',  RO:'https://www.meteoromania.ro/',RS:'https://www.hidmet.gov.rs/eng/osmotreni/index.php',BG:'https://www.meteo.bg/meteo/en/tochkien',  BY:'https://pogoda.by/observation/interactive-maps',UA:'https://www.meteo.gov.ua/en/',
   HR:'https://meteo.hr/',SI:'https://meteo.arso.gov.si/',
   IT:'https://opendata.dwd.de/weather/weather_reports/poi/',HU:'https://odp.met.hu/weather/weather_reports/synoptic/hungary/10_minutes/',
   AT:'https://data.hub.geosphere.at/',CH:'https://opendatadocs.meteoswiss.ch/a-data-groundbased/a1-automatic-weather-stations',
@@ -63,7 +63,7 @@ function validateOfficialWind(data,{maxRows=200}={}){
   if(data?.version!==1||data.units!=='m/s'||data.refreshMinutes!==10||!Number.isInteger(data.generatedAt)||data.generatedAt>now+300||!Array.isArray(data.stations)||data.stations.length>10000)throw new Error('Invalid official wind snapshot');
   const ids=new Set();
   for(const s of data.stations){
-    const [south,north,west,east]=({RO:[43.5,48.5,20,30],RS:[42.2,46.3,18.8,23.1],BG:[41.2,44.3,22.2,28.8],BY:[51.2,56.3,23,33],UA:[44,52.5,22,40.5],HR:[42.2,46.7,13.1,19.5],SI:[45.4,46.95,13.3,16.7],IT:[35.3,47.2,6.3,19],HU:[45.7,48.7,16,23],AT:[46.3,49.1,9.4,17.2],CH:[45.7,47.9,5.9,10.6],ES:[27,44.5,-19,5],PT:[30,43,-32,-6],AD:[42.4,42.7,1.4,1.8],FR:[41,51.5,-5.5,10],CA:[41,84,-142,-52],GL:[59,84,-74,-10],US:[18,72,-180,180],FO:[61,63,-8,-6],GB:[49,61,-9,3],IE:[51,56,-11,-5],DE:[47,55.2,5.5,15.6],NL:[50.5,54,2,8],BE:[49.4,51.6,2.4,6.5],LU:[49.4,50.2,5.7,6.6],CZ:[48.5,51.1,12,18.9],SK:[47.6,49.7,16.7,22.7]})[s.country]||[48.5,72.5,-26,33];
+    const [south,north,west,east]=({MK:[40.8,42.4,20.4,23.1],GR:[34.7,41.8,19.3,29.8],AL:[39.6,42.7,19.2,21.1],RO:[43.5,48.5,20,30],RS:[42.2,46.3,18.8,23.1],BG:[41.2,44.3,22.2,28.8],BY:[51.2,56.3,23,33],UA:[44,52.5,22,40.5],HR:[42.2,46.7,13.1,19.5],SI:[45.4,46.95,13.3,16.7],IT:[35.3,47.2,6.3,19],HU:[45.7,48.7,16,23],AT:[46.3,49.1,9.4,17.2],CH:[45.7,47.9,5.9,10.6],ES:[27,44.5,-19,5],PT:[30,43,-32,-6],AD:[42.4,42.7,1.4,1.8],FR:[41,51.5,-5.5,10],CA:[41,84,-142,-52],GL:[59,84,-74,-10],US:[18,72,-180,180],FO:[61,63,-8,-6],GB:[49,61,-9,3],IE:[51,56,-11,-5],DE:[47,55.2,5.5,15.6],NL:[50.5,54,2,8],BE:[49.4,51.6,2.4,6.5],LU:[49.4,50.2,5.7,6.6],CZ:[48.5,51.1,12,18.9],SK:[47.6,49.7,16.7,22.7]})[s.country]||[48.5,72.5,-26,33];
     if(!OFFICIAL_WIND_COUNTRIES.includes(s.country)||!data.sources?.[s.country]||typeof s.code!=='string'||!s.code||typeof s.name!=='string'||!Number.isFinite(s.lat)||s.lat<south||s.lat>north||!Number.isFinite(s.lon)||s.lon<west||s.lon>east||!Array.isArray(s.rows)||s.rows.length>maxRows)throw new Error('Invalid official wind station');
     const id=s.country+'/'+s.code;if(ids.has(id))throw new Error('Duplicate official wind station');ids.add(id);
     s.rows.forEach((r,i)=>{
@@ -79,7 +79,7 @@ function validateOfficialWind(data,{maxRows=200}={}){
 }
 function officialWindReading(s,unix){
   const limit=Math.min(unix,Date.now()/1000);
-  for(let i=s.rows.length-1;i>=0;i--){const r=s.rows[i];if(r[0]<=limit)return limit-r[0]<=(s.country==='RO'&&s.code.startsWith('SYNOP-')?7*3600:s.country==='FR'&&s.code.startsWith('MF-')?95*60:(['LV','FR','BY','UA','RS','BG'].includes(s.country)?4*3600:OFFICIAL_WIND_MAX_AGE))?r:null;}return null;
+  for(let i=s.rows.length-1;i>=0;i--){const r=s.rows[i];if(r[0]<=limit)return limit-r[0]<=(['RO','GR'].includes(s.country)&&s.code.startsWith('SYNOP-')?7*3600:s.country==='FR'&&s.code.startsWith('MF-')?95*60:(['LV','FR','BY','UA','RS','BG','MK','AL'].includes(s.country)?4*3600:OFFICIAL_WIND_MAX_AGE))?r:null;}return null;
 }
 function officialWindHistoryRows(s,endUnix){
   const end=Math.min(endUnix,Date.now()/1000),start=end-24*3600;

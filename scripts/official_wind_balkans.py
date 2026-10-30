@@ -23,9 +23,9 @@ from official_wind_eastern import synop
 from adriatic_greece_temperature import BASE, download_bulletin
 from official_wind_us import parse_us_metars
 
-BOUNDS={'RO':(43.5,48.5,20,30),'RS':(42.2,46.3,18.8,23.1),'BG':(41.2,44.3,22.2,28.8)}
-URLS={'RO':RO_URL,'RS':BALKAN_URLS['RS'],'BG':SOUTHEAST_URLS['BG']}
-NAMES={'RO':'Administrația Națională de Meteorologie (ANM), Romania',
+BOUNDS={'MK':(40.8,42.4,20.4,23.1),'GR':(34.7,41.8,19.3,29.8),'AL':(39.6,42.7,19.2,21.1),'RO':(43.5,48.5,20,30),'RS':(42.2,46.3,18.8,23.1),'BG':(41.2,44.3,22.2,28.8)}
+URLS={'MK':'https://uhmr.gov.mk/aktuelni-podatoci/','GR':'https://emy.gr/','AL':'https://tgftp.nws.noaa.gov/data/raw/','RO':RO_URL,'RS':BALKAN_URLS['RS'],'BG':SOUTHEAST_URLS['BG']}
+NAMES={'MK':'Hydrometeorological Service (UHMR), North Macedonia','GR':'Hellenic National Meteorological Service (HNMS), Greece','AL':'Official Albanian WMO station observations','RO':'Administrația Națională de Meteorologie (ANM), Romania',
        'RS':'Republic Hydrometeorological Service of Serbia (RHMZ)',
        'BG':'National Institute of Meteorology and Hydrology (NIMH), Bulgaria'}
 PERIOD=('Official national station wind, supplemented by WMO SYNOP and airport METAR/SPECI observations. '
@@ -34,9 +34,12 @@ PERIOD=('Official national station wind, supplemented by WMO SYNOP and airport M
 SYNOP_PERIOD=('Measured ten-minute mean wind. Reported gust maximum over the preceding ten minutes, '
               'or the native three/six-hour SYNOP period when a ten-minute gust is absent. '
               'Reports with other gust reference periods are excluded. Actual UTC observation time; '
-              'Romanian main SYNOP reports are six-hourly; Serbian and Bulgarian reports are three-hourly. '
+              'Some land stations report only every three or six hours. '
               'Missing gusts remain unavailable.')
-BULLETINS={'RO':['sm/smro01.yrbk..txt','si/siro21.yrbk..txt'],
+BULLETINS={'MK':['sm/smmj20.mjsk..txt','si/simj20.mjsk..txt','sm/smmj01.lwoh..txt','sm/smmj41.lwsk..txt','si/simj01.lwoh..txt','si/simj41.lwsk..txt'],
+ 'GR':['sm/smgr01.lgat..txt','sm/smgr20.lgat..txt','sm/smgr21.lgat..txt','sm/smgr55.lgat..txt','sm/smgr56.lgat..txt','si/sigr20.lgat..txt','si/sigr21.lgat..txt','si/sigr22.lgat..txt'],
+ 'AL':['sm/smab11.zati..txt','si/siab30.zati..txt'],
+ 'RO':['sm/smro01.yrbk..txt','si/siro21.yrbk..txt'],
  'RS':['sm/smyg10.lybm..txt','sm/smyg21.lybm..txt','sm/smyg22.lybm..txt','sm/smyg23.lybm..txt',
        'si/siyg20.lybm..txt','si/siyg21.lybm..txt','si/siyg22.lybm..txt','si/siyg23.lybm..txt'],
  'BG':['sm/smbu01.lzso..txt','sm/smbu40.lzso..txt','si/sibu20.lzso..txt']}
@@ -49,7 +52,7 @@ _aviation_cache=None
 
 
 def finish(country,code,m,rows,now,kind='national'):
-    end=int(now.timestamp());age=7*3600 if country=='RO' and kind=='synop' else 4*3600 if country=='BG' or kind=='synop' else 3*3600
+    end=int(now.timestamp());age=7*3600 if country in ('RO','GR') and kind=='synop' else 4*3600 if country=='BG' or kind=='synop' else 3*3600
     rows=[r for r in rows if end-86400<=r[0]<=end and (r[1] is not None or r[2] is not None)]
     if not rows or max(r[0] for r in rows)<end-age:return None
     south,north,west,east=BOUNDS[country]
@@ -139,18 +142,20 @@ def airport_data(download):
 
 def load(country,now,download=core.download,bulletin_download=download_bulletin,aviation_data=airport_data):
     if country not in BOUNDS:raise ValueError('Unknown Balkan wind country')
-    metadata=(json.loads(Path(__file__).with_name('romania_wind_stations.json').read_text())['stations'] if country=='RO' else
+    metadata=(json.loads(Path(__file__).with_name('southern_balkan_wind_stations.json').read_text())['stations'][country] if country in ('MK','GR','AL') else
+      json.loads(Path(__file__).with_name('romania_wind_stations.json').read_text())['stations'] if country=='RO' else
       json.loads(Path(__file__).with_name('balkan_temperature_stations.json' if country=='RS' else 'southeast_temperature_stations.json').read_text())['stations'][country])
     out=[]
-    try:
-        raw=download(URLS[country])
-        out= parse_romania(json.loads(raw),now) if country=='RO' else (parse_serbia if country=='RS' else parse_bulgaria)(raw,metadata,now)
-    except Exception as e:print(country,'national wind unavailable:',str(e)[:150],flush=True)
+    if country in ('RO','RS','BG'):
+        try:
+            raw=download(URLS[country])
+            out= parse_romania(json.loads(raw),now) if country=='RO' else (parse_serbia if country=='RS' else parse_bulgaria)(raw,metadata,now)
+        except Exception as e:print(country,'national wind unavailable:',str(e)[:150],flush=True)
     def one(path):
         try:
             raw,reference=bulletin_download(BASE+path);parts=path.split('/')[-1].split('.')
             grouped={}
-            for code,row in synop(raw,reference,(parts[0].upper(),parts[1].upper()),metadata,now):grouped.setdefault(code,[]).append(row)
+            for code,row in synop(raw,reference,(parts[0].upper(),parts[1].upper()),metadata,now,allowed_reference_periods=('30',) if country=='GR' else ()):grouped.setdefault(code,[]).append(row)
             return [s for code,rows in grouped.items() if (s:=finish(country,'SYNOP-'+code,metadata[code],rows,now,'synop'))]
         except Exception as e:print(country,'SYNOP wind unavailable',path,str(e)[:130],flush=True);return []
     with futures.ThreadPoolExecutor(max_workers=3) as pool:
@@ -164,6 +169,17 @@ def load(country,now,download=core.download,bulletin_download=download_bulletin,
             s.update(code='METAR-'+s['code'],sourceName='Official airport METAR/SPECI observations via NOAA Aviation Weather Center',sourceUrl='https://aviationweather.gov/data/metar/',period='Airport ten-minute mean wind and explicitly reported METAR/SPECI gusts, in m/s. Knots converted to m/s; actual UTC observation time. Missing gusts remain unavailable.',gustLabel='Reported METAR gust',observationNetwork='balkan-official')
             out.append(s)
     except Exception as e:print(country,'airport wind unavailable:',str(e)[:150],flush=True)
+    if country=='AL':
+        # Kukës reports SYNOP even when no METAR is present in the airport cache.
+        try:
+            from europe_synop import POI, parse, SPEED, GUST, DIRECTION
+            m=metadata['13610']
+            rows=[(t,None if v[SPEED] is None else v[SPEED]/3.6,None if v[GUST] is None else v[GUST]/3.6,v[DIRECTION]) for t,v in parse(download(POI+'13610-BEOB.csv'),'13610',(SPEED,GUST,DIRECTION))]
+            s=finish('AL','SYNOP-13610',m,rows,now,'synop')
+            if s:
+                s.update(sourceUrl=POI+'13610-BEOB.csv',sourceName='Official Kukës airport SYNOP via DWD',gustLabel='Gust max · 1 hour',period='Ten-minute mean wind and maximum gust over the preceding hour, converted from km/h to m/s. Actual UTC SYNOP observation time; missing gusts remain unavailable.')
+                out.append(s)
+        except Exception as e:print('AL Kukës SYNOP unavailable:',str(e)[:150],flush=True)
     # Keep independent national/SYNOP/airport measurement products distinct:
     # a newer mean must not inherit an older gust from another report.
     out=core.merge([],out,now)

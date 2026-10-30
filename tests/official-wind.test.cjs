@@ -235,3 +235,19 @@ test('Romanian six-hour SYNOP gusts retain native freshness without extending na
 test('SYNOP source links use the actual national bulletin publisher',()=>{
  const h=harness();h.fixture.sources.RO={status:'ok',timeKind:'observation',name:'ANM'};h.fixture.stations=[{country:'RO',code:'SYNOP-15020',name:'Botosani',lat:47.7,lon:26.7,sourceUrl:'https://www.meteoromania.ro/',rows:[[h.now-600,3,6,30]]}];h.run('officialWindData=validateOfficialWind(fixture)');const popup=h.run('officialWindPopup(fixture.stations[0],fixture.stations[0].rows[0])');assert.match(popup,/href="https:\/\/www.meteoromania.ro\//);assert.doesNotMatch(popup,/opendata.dwd.de/);
 });
+test('North Macedonia Greece and Albania validate and filter official wind and explicit gusts',()=>{
+ const h=harness();h.fixture.sources={};h.fixture.stations=[];
+ for(const [country,lat,lon,name] of [['MK',41.99,21.62,'North Macedonia'],['GR',35.34,25.18,'Greece'],['AL',41.42,19.72,'Albania']]){
+  h.fixture.sources[country]={status:'ok',timeKind:'observation',name:'Official '+name};h.fixture.stations.push({country,code:'METAR-'+country,name,lat,lon,rows:[[h.now-600,0,12,90]]});
+ }
+ h.run('officialWindData=validateOfficialWind(fixture)');h.elements.officialWindGusts.checked=true;
+ for(const country of ['MK','GR','AL']){
+  h.context.NorthernCountryFocus={allowsStation:s=>s.country===country,matchesCountry:c=>c===country};h.run("officialWindRenderKey='';renderOfficialWind()");assert.equal(h.group.children.length,1);assert.match(h.group.children[0].popup,/12.0/);
+ }
+ h.fixture.stations[2].lat=59;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+});
+test('Greek land SYNOP gusts expire after seven hours, without using future reports',()=>{
+ const h=harness();h.context.greek={country:'GR',code:'SYNOP-16716',rows:[[h.now-6*3600,2,5,90]]};assert.equal(h.run('officialWindReading(greek,fixture.generatedAt)[2]'),5);
+ h.context.greek.rows[0][0]=h.now-7*3600-1;assert.equal(h.run('officialWindReading(greek,fixture.generatedAt)'),null);
+ h.context.greek.rows[0][0]=h.now+60;assert.equal(h.run('officialWindReading(greek,fixture.generatedAt)'),null);
+});

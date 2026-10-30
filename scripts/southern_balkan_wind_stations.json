@@ -1,0 +1,790 @@
+{
+  "source": "Existing verified national/airport catalogues supplemented by NOAA NCEI ISD WMO metadata for stations reporting since 2024. Current airport positions take priority. Unknown stations and locations outside national bounds are excluded.",
+  "url": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv",
+  "stations": {
+    "GR": {
+      "16614": {
+        "name": "Aristotelis",
+        "lat": 40.446,
+        "lon": 21.282,
+        "code": "SYNOP-16614",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "16622": {
+        "name": "Thessaloniki Intl",
+        "lat": 40.52,
+        "lon": 22.971,
+        "code": "AIRPORT-LGTS",
+        "icao": "LGTS",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16627": {
+        "name": "Alexandroupolis/Dimokritos Arpt",
+        "lat": 40.856,
+        "lon": 25.945,
+        "code": "AIRPORT-LGAL",
+        "icao": "LGAL",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16641": {
+        "name": "Corfu/Kapodistinas Arpt",
+        "lat": 39.61,
+        "lon": 19.913,
+        "code": "AIRPORT-LGKR",
+        "icao": "LGKR",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16643": {
+        "name": "Preveza/Aktion Arpt",
+        "lat": 38.921,
+        "lon": 20.761,
+        "code": "AIRPORT-LGPZ",
+        "icao": "LGPZ",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16648": {
+        "name": "Larisa",
+        "lat": 39.65,
+        "lon": 22.466,
+        "code": "SYNOP-16648",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "16650": {
+        "name": "Limnos Island Arpt",
+        "lat": 39.917,
+        "lon": 25.236,
+        "code": "AIRPORT-LGLM",
+        "icao": "LGLM",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16667": {
+        "name": "Mitilini Arpt",
+        "lat": 39.054,
+        "lon": 26.604,
+        "code": "AIRPORT-LGMT",
+        "icao": "LGMT",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16675": {
+        "name": "Lamia",
+        "lat": 38.883,
+        "lon": 22.433,
+        "code": "SYNOP-16675",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "16682": {
+        "name": "Andravida Arpt",
+        "lat": 37.923,
+        "lon": 21.287,
+        "code": "AIRPORT-LGAD",
+        "icao": "LGAD",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16684": {
+        "name": "Skiros Arpt",
+        "lat": 38.968,
+        "lon": 24.487,
+        "code": "AIRPORT-LGSY",
+        "icao": "LGSY",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16710": {
+        "name": "Tripolis",
+        "lat": 37.531,
+        "lon": 22.404,
+        "code": "SYNOP-16710",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "16716": {
+        "name": "Athinai",
+        "lat": 37.882,
+        "lon": 23.735,
+        "code": "SYNOP-16716",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "16723": {
+        "name": "Samos Arpt",
+        "lat": 37.69,
+        "lon": 26.912,
+        "code": "AIRPORT-LGSM",
+        "icao": "LGSM",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16732": {
+        "name": "Naxos",
+        "lat": 37.1,
+        "lon": 25.367,
+        "code": "SYNOP-16732",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "16734": {
+        "name": "Methoni",
+        "lat": 36.833,
+        "lon": 21.7,
+        "code": "SYNOP-16734",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "16738": {
+        "name": "Milos",
+        "lat": 36.733,
+        "lon": 24.433,
+        "code": "SYNOP-16738",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "16743": {
+        "name": "Kythira Arpt",
+        "lat": 36.274,
+        "lon": 23.017,
+        "code": "AIRPORT-LGKC",
+        "icao": "LGKC",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16746": {
+        "name": "Souda Bay/Chania Intl",
+        "lat": 35.54,
+        "lon": 24.141,
+        "code": "AIRPORT-LGSA",
+        "icao": "LGSA",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16749": {
+        "name": "Rhodes/Diagoras Arpt",
+        "lat": 36.405,
+        "lon": 28.086,
+        "code": "AIRPORT-LGRP",
+        "icao": "LGRP",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16754": {
+        "name": "Iraklion Intl",
+        "lat": 35.337,
+        "lon": 25.173,
+        "code": "AIRPORT-LGIR",
+        "icao": "LGIR",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGAD": {
+        "name": "Andravida Arpt",
+        "lat": 37.923,
+        "lon": 21.287,
+        "code": "AIRPORT-LGAD",
+        "icao": "LGAD",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGAL": {
+        "name": "Alexandroupolis/Dimokritos Arpt",
+        "lat": 40.856,
+        "lon": 25.945,
+        "code": "AIRPORT-LGAL",
+        "icao": "LGAL",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGAV": {
+        "name": "Athens/Venizelos Intl",
+        "lat": 37.936,
+        "lon": 23.945,
+        "code": "AIRPORT-LGAV",
+        "icao": "LGAV",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGBL": {
+        "name": "Nea Anchialos Arpt",
+        "lat": 39.22,
+        "lon": 22.794,
+        "code": "AIRPORT-LGBL",
+        "icao": "LGBL",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16665": {
+        "name": "Nea Anchialos Arpt",
+        "lat": 39.22,
+        "lon": 22.794,
+        "code": "AIRPORT-LGBL",
+        "icao": "LGBL",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGEL": {
+        "name": "Elefsis",
+        "lat": 38.064,
+        "lon": 23.556,
+        "code": "AIRPORT-LGEL",
+        "icao": "LGEL",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16718": {
+        "name": "Elefsis",
+        "lat": 38.064,
+        "lon": 23.556,
+        "code": "AIRPORT-LGEL",
+        "icao": "LGEL",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGHI": {
+        "name": "Chios Isl Arpt",
+        "lat": 38.343,
+        "lon": 26.141,
+        "code": "AIRPORT-LGHI",
+        "icao": "LGHI",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16706": {
+        "name": "Chios Isl Arpt",
+        "lat": 38.343,
+        "lon": 26.141,
+        "code": "AIRPORT-LGHI",
+        "icao": "LGHI",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGIO": {
+        "name": "Ioannina Arpt",
+        "lat": 39.696,
+        "lon": 20.823,
+        "code": "AIRPORT-LGIO",
+        "icao": "LGIO",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16642": {
+        "name": "Ioannina Arpt",
+        "lat": 39.696,
+        "lon": 20.823,
+        "code": "AIRPORT-LGIO",
+        "icao": "LGIO",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGIR": {
+        "name": "Iraklion Intl",
+        "lat": 35.337,
+        "lon": 25.173,
+        "code": "AIRPORT-LGIR",
+        "icao": "LGIR",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGKC": {
+        "name": "Kythira Arpt",
+        "lat": 36.274,
+        "lon": 23.017,
+        "code": "AIRPORT-LGKC",
+        "icao": "LGKC",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGKF": {
+        "name": "Cephalonia Arpt",
+        "lat": 38.12,
+        "lon": 20.5,
+        "code": "AIRPORT-LGKF",
+        "icao": "LGKF",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16685": {
+        "name": "Cephalonia Arpt",
+        "lat": 38.12,
+        "lon": 20.5,
+        "code": "AIRPORT-LGKF",
+        "icao": "LGKF",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGKL": {
+        "name": "Kalamata Arpt",
+        "lat": 37.068,
+        "lon": 22.026,
+        "code": "AIRPORT-LGKL",
+        "icao": "LGKL",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16726": {
+        "name": "Kalamata Arpt",
+        "lat": 37.068,
+        "lon": 22.026,
+        "code": "AIRPORT-LGKL",
+        "icao": "LGKL",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGKO": {
+        "name": "Kos Arpt",
+        "lat": 36.801,
+        "lon": 27.091,
+        "code": "AIRPORT-LGKO",
+        "icao": "LGKO",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16742": {
+        "name": "Kos Arpt",
+        "lat": 36.801,
+        "lon": 27.091,
+        "code": "AIRPORT-LGKO",
+        "icao": "LGKO",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGKP": {
+        "name": "Karpathos Isl Arpt",
+        "lat": 35.421,
+        "lon": 27.146,
+        "code": "AIRPORT-LGKP",
+        "icao": "LGKP",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGKR": {
+        "name": "Corfu/Kapodistinas Arpt",
+        "lat": 39.61,
+        "lon": 19.913,
+        "code": "AIRPORT-LGKR",
+        "icao": "LGKR",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGKV": {
+        "name": "Kavala Intl",
+        "lat": 40.915,
+        "lon": 24.622,
+        "code": "AIRPORT-LGKV",
+        "icao": "LGKV",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16624": {
+        "name": "Kavala Intl",
+        "lat": 40.915,
+        "lon": 24.622,
+        "code": "AIRPORT-LGKV",
+        "icao": "LGKV",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGKZ": {
+        "name": "Kozani/Filippos Arpt",
+        "lat": 40.288,
+        "lon": 21.842,
+        "code": "AIRPORT-LGKZ",
+        "icao": "LGKZ",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16632": {
+        "name": "Kozani/Filippos Arpt",
+        "lat": 40.288,
+        "lon": 21.842,
+        "code": "AIRPORT-LGKZ",
+        "icao": "LGKZ",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGLM": {
+        "name": "Limnos Island Arpt",
+        "lat": 39.917,
+        "lon": 25.236,
+        "code": "AIRPORT-LGLM",
+        "icao": "LGLM",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGMK": {
+        "name": "Mykonos Arpt",
+        "lat": 37.435,
+        "lon": 25.348,
+        "code": "AIRPORT-LGMK",
+        "icao": "LGMK",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGMT": {
+        "name": "Mitilini Arpt",
+        "lat": 39.054,
+        "lon": 26.604,
+        "code": "AIRPORT-LGMT",
+        "icao": "LGMT",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGNX": {
+        "name": "Naxos Arpt",
+        "lat": 37.081,
+        "lon": 25.369,
+        "code": "AIRPORT-LGNX",
+        "icao": "LGNX",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGPA": {
+        "name": "Paros/Kratikos Arpt",
+        "lat": 37.022,
+        "lon": 25.114,
+        "code": "AIRPORT-LGPA",
+        "icao": "LGPA",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGPZ": {
+        "name": "Preveza/Aktion Arpt",
+        "lat": 38.921,
+        "lon": 20.761,
+        "code": "AIRPORT-LGPZ",
+        "icao": "LGPZ",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGRP": {
+        "name": "Rhodes/Diagoras Arpt",
+        "lat": 36.405,
+        "lon": 28.086,
+        "code": "AIRPORT-LGRP",
+        "icao": "LGRP",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGRX": {
+        "name": "Araxos Arpt",
+        "lat": 38.151,
+        "lon": 21.426,
+        "code": "AIRPORT-LGRX",
+        "icao": "LGRX",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16687": {
+        "name": "Araxos Arpt",
+        "lat": 38.151,
+        "lon": 21.426,
+        "code": "AIRPORT-LGRX",
+        "icao": "LGRX",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGSA": {
+        "name": "Souda Bay/Chania Intl",
+        "lat": 35.54,
+        "lon": 24.141,
+        "code": "AIRPORT-LGSA",
+        "icao": "LGSA",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGSK": {
+        "name": "Skiathos Isl Arpt",
+        "lat": 39.177,
+        "lon": 23.504,
+        "code": "AIRPORT-LGSK",
+        "icao": "LGSK",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGSM": {
+        "name": "Samos Arpt",
+        "lat": 37.69,
+        "lon": 26.912,
+        "code": "AIRPORT-LGSM",
+        "icao": "LGSM",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGSO": {
+        "name": "Syros Island Arpt",
+        "lat": 37.422,
+        "lon": 24.95,
+        "code": "AIRPORT-LGSO",
+        "icao": "LGSO",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGSR": {
+        "name": "Santorini Isl Arpt",
+        "lat": 36.399,
+        "lon": 25.479,
+        "code": "AIRPORT-LGSR",
+        "icao": "LGSR",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGSY": {
+        "name": "Skiros Arpt",
+        "lat": 38.968,
+        "lon": 24.487,
+        "code": "AIRPORT-LGSY",
+        "icao": "LGSY",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGTS": {
+        "name": "Thessaloniki Intl",
+        "lat": 40.52,
+        "lon": 22.971,
+        "code": "AIRPORT-LGTS",
+        "icao": "LGTS",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "LGZA": {
+        "name": "Zakinthos/Salomos Arpt",
+        "lat": 37.751,
+        "lon": 20.884,
+        "code": "AIRPORT-LGZA",
+        "icao": "LGZA",
+        "metadataUrl": "https://aviationweather.gov/data/cache/stations.cache.json.gz"
+      },
+      "16613": {
+        "name": "Florina",
+        "lat": 40.783,
+        "lon": 21.4
+      },
+      "16606": {
+        "name": "Serrai",
+        "lat": 41.067,
+        "lon": 23.567
+      },
+      "16699": {
+        "name": "Tanagra",
+        "lat": 38.34,
+        "lon": 23.565
+      },
+      "16715": {
+        "name": "Tatoi / Dekelia",
+        "lat": 38.109,
+        "lon": 23.784
+      },
+      "16719": {
+        "name": "Zakinthos",
+        "lat": 37.783,
+        "lon": 20.883
+      },
+      "16741": {
+        "name": "El Venizelos",
+        "lat": 37.917,
+        "lon": 23.933
+      },
+      "16757": {
+        "name": "Sitia",
+        "lat": 35.2,
+        "lon": 26.1
+      },
+      "16760": {
+        "name": "Kasteli (Airport)",
+        "lat": 35.183,
+        "lon": 25.317
+      },
+      "16765": {
+        "name": "Karpathos (Airport)",
+        "lat": 35.428,
+        "lon": 27.147
+      }
+    },
+    "AL": {
+      "13600": {
+        "name": "Shkodra",
+        "lat": 42.1,
+        "lon": 19.533,
+        "code": "SYNOP-13600",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13601": {
+        "name": "Tirana-La Praka",
+        "lat": 41.333,
+        "lon": 19.8,
+        "code": "SYNOP-13601",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13610": {
+        "name": "Kukes Arpt",
+        "lat": 42.034,
+        "lon": 20.416,
+        "icao": "LAKU",
+        "wmo": "13610",
+        "metadataUrl": "https://aviationweather.gov/api/data/stationinfo?ids=LAKU&format=json",
+        "code": "AIRPORT-LAKU"
+      },
+      "13611": {
+        "name": "Durres",
+        "lat": 41.3,
+        "lon": 19.45,
+        "code": "SYNOP-13611",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13612": {
+        "name": "Durres",
+        "lat": 41.3,
+        "lon": 19.467,
+        "code": "SYNOP-13612",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13615": {
+        "name": "Tirana Intl",
+        "lat": 41.419,
+        "lon": 19.716,
+        "icao": "LATI",
+        "wmo": "13615",
+        "metadataUrl": "https://aviationweather.gov/api/data/stationinfo?ids=LATI&format=json",
+        "code": "AIRPORT-LATI"
+      },
+      "13619": {
+        "name": "Peshkopi",
+        "lat": 41.683,
+        "lon": 20.433,
+        "code": "SYNOP-13619",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13622": {
+        "name": "Vlore",
+        "lat": 40.467,
+        "lon": 19.483,
+        "code": "SYNOP-13622",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13623": {
+        "name": "Sazan Island",
+        "lat": 40.5,
+        "lon": 19.283,
+        "code": "SYNOP-13623",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13624": {
+        "name": "Qyteti Stalin",
+        "lat": 40.8,
+        "lon": 19.9,
+        "code": "SYNOP-13624",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13625": {
+        "name": "Gjirokastra",
+        "lat": 40.083,
+        "lon": 20.15,
+        "code": "SYNOP-13625",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13629": {
+        "name": "Korca",
+        "lat": 40.6,
+        "lon": 20.767,
+        "code": "SYNOP-13629",
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      }
+    },
+    "MK": {
+      "13571": {
+        "name": "Тетово",
+        "lat": 42.0,
+        "lon": 20.967,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13575": {
+        "name": "Пожаране/Гостивар",
+        "lat": 41.85,
+        "lon": 20.867,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13577": {
+        "name": "Лазарополе",
+        "lat": 41.533,
+        "lon": 20.7,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13580": {
+        "name": "Претор",
+        "lat": 40.983,
+        "lon": 21.067,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13581": {
+        "name": "Тополчани/Прилеп",
+        "lat": 41.217,
+        "lon": 21.467,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13582": {
+        "name": "Крушево",
+        "lat": 41.367,
+        "lon": 21.25,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13583": {
+        "name": "Битола",
+        "lat": 41.05,
+        "lon": 21.367,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13585": {
+        "name": "Прилеп",
+        "lat": 41.333,
+        "lon": 21.567,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13588": {
+        "name": "Скопје/Зајчев Рид",
+        "lat": 42.017,
+        "lon": 21.4,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13590": {
+        "name": "Ѓуриште/Свети Николе",
+        "lat": 41.9,
+        "lon": 21.85,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13591": {
+        "name": "Штип",
+        "lat": 41.75,
+        "lon": 22.183,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13592": {
+        "name": "Демир Капија",
+        "lat": 41.417,
+        "lon": 22.25,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13594": {
+        "name": "Виница",
+        "lat": 41.883,
+        "lon": 22.5,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13595": {
+        "name": "Струмица",
+        "lat": 41.433,
+        "lon": 22.65,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13597": {
+        "name": "Гевгелија",
+        "lat": 41.15,
+        "lon": 22.5,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13598": {
+        "name": "Берово",
+        "lat": 41.717,
+        "lon": 22.85,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13599": {
+        "name": "Кавадарци",
+        "lat": 41.433,
+        "lon": 22.033,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "13493": {
+        "name": "Крива Паланка",
+        "lat": 42.2,
+        "lon": 22.333,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "LWOH": {
+        "name": "Ohrid Arpt",
+        "lat": 41.181,
+        "lon": 20.744,
+        "icao": "LWOH",
+        "wmo": "13578",
+        "metadataUrl": "https://aviationweather.gov/api/data/stationinfo?ids=LWOH&format=json"
+      },
+      "LWSK": {
+        "name": "Skopje Intl",
+        "lat": 41.952,
+        "lon": 21.627,
+        "icao": "LWSK",
+        "wmo": "13586",
+        "metadataUrl": "https://aviationweather.gov/api/data/stationinfo?ids=LWSK&format=json"
+      },
+      "13492": {
+        "name": "Popova Sapka",
+        "lat": 41.017,
+        "lon": 20.883
+      },
+      "13576": {
+        "name": "Mavrovo",
+        "lat": 41.7,
+        "lon": 20.75
+      },
+      "13578": {
+        "name": "Ohrid",
+        "lat": 41.18,
+        "lon": 20.742
+      },
+      "13586": {
+        "name": "Skopje",
+        "lat": 41.962,
+        "lon": 21.621
+      },
+      "13593": {
+        "name": "Pozar-Pgc",
+        "lat": 41.3,
+        "lon": 22.417
+      }
+    }
+  }
+}

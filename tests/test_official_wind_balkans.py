@@ -61,3 +61,30 @@ class BalkanWind(unittest.TestCase):
   self.assertEqual(len(s),1);self.assertEqual(s[0]['code'],'METAR-LROP');self.assertGreater(s[0]['rows'][0][2],10)
 
 if __name__=='__main__':unittest.main()
+
+class SouthernBalkanWind(unittest.TestCase):
+ def test_greek_explicit_three_hour_gust_knots_and_unknown_period(self):
+  raw='SMGR55 LGAT 301800\nAAXX 30184\n16606 17/// /0000 10125 333 90730 91120 555 91199='
+  args=(raw,NOW,('SMGR55','LGAT'),{'16606':{}},NOW)
+  self.assertIsNone(synop(*args)[0][1][2])
+  row=synop(*args,allowed_reference_periods=('30',))[0][1]
+  self.assertEqual(row[1],0);self.assertAlmostEqual(row[2],20*1852/3600)
+  self.assertIsNone(synop(raw.replace('90730','90766'),*args[1:],allowed_reference_periods=('30',))[0][1][2])
+  self.assertIsNone(synop(raw.replace('90730','90730 90430'),*args[1:],allowed_reference_periods=('30',))[0][1][2])
+ def test_new_country_metadata_bounds_and_no_foreign_station_in_bulletins(self):
+  meta=json.loads(Path(b.__file__).with_name('southern_balkan_wind_stations.json').read_text())['stations']
+  for country in ('MK','GR','AL'):
+   south,north,west,east=b.BOUNDS[country]
+   self.assertTrue(meta[country]);self.assertTrue(all(south<=m['lat']<=north and west<=m['lon']<=east for m in meta[country].values()))
+  raw='SMMJ20 MJSK 301800\nAAXX 30181\n13571 12698 83104 10110 333 91012=\n13600 12698 83104 10110 333 91015='
+  rows=synop(raw,NOW,('SMMJ20','MJSK'),meta['MK'],NOW)
+  self.assertEqual([c for c,r in rows],['13571'])
+  for country,point in [('MK',(41.99,21.62)),('GR',(35.34,25.18)),('AL',(41.42,19.72))]:
+   s=b.finish(country,'SYNOP-test',dict(name=country,lat=point[0],lon=point[1]),[(int(NOW.timestamp())-7200,0,12,30)],NOW,'synop')
+   self.assertEqual(s['rows'][0][1:3],[0,12])
+   self.assertIsNone(b.finish(country,'bad',dict(name=country,lat=59,lon=25),s['rows'],NOW,'synop'))
+ def test_greek_sparse_synop_age_is_not_applied_to_airport_reports(self):
+  m=dict(name='Greece',lat=38,lon=24);t=int(NOW.timestamp())
+  self.assertIsNotNone(b.finish('GR','SYNOP-16716',m,[(t-6*3600,2,5,90)],NOW,'synop'))
+  self.assertIsNone(b.finish('GR','SYNOP-16716',m,[(t-7*3600-1,2,5,90)],NOW,'synop'))
+  self.assertIsNone(b.finish('GR','METAR-LGAV',m,[(t-4*3600,2,5,90)],NOW))
