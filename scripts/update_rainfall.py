@@ -64,6 +64,7 @@ def amount(value):
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
     valid = (41 <= lat <= 84 and -142 <= lon <= -52) if country == 'CA' else (47 <= lat <= 72.5 and -26 <= lon <= 33)
+    if country=='TR':valid=35.8<=lat<=42.2 and 25.6<=lon<=45
     if country in ('FR','AD','ES','AT','CH','IT','HR','SI'):
         from rainfall_southwest import BOUNDS as SOUTHWEST_BOUNDS
         from alpine_observations import BOUNDS as ALPINE_BOUNDS
@@ -449,7 +450,8 @@ def merge(previous, incoming, now):
                 target['_periods'][(t, hours)] = {'end': t, 'hours': hours, 'value': value}
         for total in ([] if 'periods' in s else s.get('accumulations', [])):
             t, hours, value = total['end'], total['hours'], amount(total['value'])
-            if cutoff <= t <= end and t % 3600 == 0 and hours in (24, 48) and value is not None:
+            if (cutoff <= t <= (int(now.timestamp()) if s['country']=='TR' else end) and
+                (s['country']=='TR' or t % 3600 == 0) and hours in ((1,24,48) if s['country']=='TR' else (24,48)) and value is not None):
                 target['_totals'][(t, hours)] = {'end': t, 'hours': hours, 'value': value}
     result = []
     for s in merged.values():
@@ -542,8 +544,11 @@ def main():
     install_alpine(sys.modules[__name__])
     from rainfall_adriatic import install as install_adriatic, PERIODS as ADRIATIC_PERIODS
     install_adriatic(sys.modules[__name__])
-    PERIODS={**PERIODS,**SOUTHWEST_PERIODS,**ALPINE_PERIODS,**ADRIATIC_PERIODS}
-    now = dt.datetime.now(dt.timezone.utc).replace(minute=0, second=0, microsecond=0)
+    from rainfall_turkey import install as install_turkey, PERIOD as TURKEY_PERIOD
+    install_turkey(sys.modules[__name__])
+    PERIODS={**PERIODS,**SOUTHWEST_PERIODS,**ALPINE_PERIODS,**ADRIATIC_PERIODS,'TR':TURKEY_PERIOD}
+    collection_now = dt.datetime.now(dt.timezone.utc)
+    now = collection_now.replace(minute=0, second=0, microsecond=0)
     try:
         old = json.loads(OUTPUT.read_text())
         previous = old['stations'] if old.get('version') == 1 else []
@@ -553,7 +558,7 @@ def main():
     def collect(item):
         code, loader = item
         try:
-            records = loader(now, previous)
+            records = loader(collection_now if code=='TR' else now, previous)
             if not any(s['times'] or s.get('accumulations') or s.get('periods') for s in records):
                 raise ValueError('No measured hourly precipitation returned')
             return code, records, None
@@ -566,7 +571,7 @@ def main():
                             'checkedAt': int(dt.datetime.now(dt.timezone.utc).timestamp()), 'error': error,
                             'period': PERIODS.get(code, 'Complete measured hourly precipitation; missing values stay unavailable.')}
             print(code, len(records), error or 'ok', flush=True)
-    stations = merge(previous, incoming, now)
+    stations = merge(previous, incoming, collection_now)
     result = dict(version=1, generatedAt=int(dt.datetime.now(dt.timezone.utc).timestamp()), sources=states, stations=stations)
     OUTPUT.parent.mkdir(exist_ok=True)
     OUTPUT.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':'), allow_nan=False) + '\n')

@@ -1,6 +1,6 @@
 // Official gauge histories are published as a same-origin snapshot by Actions.
-const RAIN_COUNTRY_CODES={'191':'HR','705':'SI','380':'IT','348':'HU','620':'PT','040':'AT','756':'CH','250':'FR','020':'AD','724':'ES','233':'EE','428':'LV','440':'LT','246':'FI','752':'SE','578':'NO','352':'IS','616':'PL','208':'DK','124':'CA','826':'GB','372':'IE','276':'DE','528':'NL','056':'BE','442':'LU','703':'SK','203':'CZ'};
-const RAIN_COUNTRY_NAMES={IT:'Italy',HR:'Croatia',SI:'Slovenia',AT:'Austria',CH:'Switzerland',FR:'France',AD:'Andorra',ES:'Spain',EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',CA:'Canada',GB:'United Kingdom',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg',SK:'Slovakia',CZ:'Czechia'};
+const RAIN_COUNTRY_CODES={'792':'TR','191':'HR','705':'SI','380':'IT','348':'HU','620':'PT','040':'AT','756':'CH','250':'FR','020':'AD','724':'ES','233':'EE','428':'LV','440':'LT','246':'FI','752':'SE','578':'NO','352':'IS','616':'PL','208':'DK','124':'CA','826':'GB','372':'IE','276':'DE','528':'NL','056':'BE','442':'LU','703':'SK','203':'CZ'};
+const RAIN_COUNTRY_NAMES={TR:'Turkey',IT:'Italy',HR:'Croatia',SI:'Slovenia',AT:'Austria',CH:'Switzerland',FR:'France',AD:'Andorra',ES:'Spain',EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',CA:'Canada',GB:'United Kingdom',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',LU:'Luxembourg',SK:'Slovakia',CZ:'Czechia'};
 const OFFICIAL_RAIN_RADIUS_KM=100;
 let officialRainData=null,officialRainLoadedAt=0,officialRainLoadPromise=null;
 let officialRainLabels=null;
@@ -11,12 +11,12 @@ function validOfficialRainSnapshot(data){
   if(data?.version!==1 || !Number.isFinite(data.generatedAt) || data.generatedAt>Date.now()/1000+300 ||
      !Array.isArray(data.stations) || !data.sources) return false;
   return data.stations.every(s=>RAIN_COUNTRY_NAMES[s.country] && Number.isFinite(s.lat) && Number.isFinite(s.lon) &&
-    (s.country==='IT'?s.lat>=35.3&&s.lat<=47.2&&s.lon>=6.3&&s.lon<=19:s.country==='HR'?s.lat>=42.2&&s.lat<=46.7&&s.lon>=13.1&&s.lon<=19.5:s.country==='SI'?s.lat>=45.4&&s.lat<=46.95&&s.lon>=13.3&&s.lon<=16.7:s.country==='CA'?s.lat>=41&&s.lat<=84&&s.lon>=-142&&s.lon<=-52:s.country==='AT'?s.lat>=46.3&&s.lat<=49.1&&s.lon>=9.4&&s.lon<=17.2:s.country==='CH'?s.lat>=45.7&&s.lat<=47.9&&s.lon>=5.9&&s.lon<=10.6:s.country==='FR'?s.lat>=41&&s.lat<=51.5&&s.lon>=-5.5&&s.lon<=10:s.country==='AD'?s.lat>=42.4&&s.lat<=42.7&&s.lon>=1.4&&s.lon<=1.8:s.country==='ES'?s.lat>=27&&s.lat<=44.5&&s.lon>=-19&&s.lon<=5:s.lat>=47&&s.lat<=72.5&&s.lon>=-26&&s.lon<=33) && typeof s.code==='string' &&
+    (s.country==='TR'?s.lat>=35.8&&s.lat<=42.2&&s.lon>=25.6&&s.lon<=45:s.country==='IT'?s.lat>=35.3&&s.lat<=47.2&&s.lon>=6.3&&s.lon<=19:s.country==='HR'?s.lat>=42.2&&s.lat<=46.7&&s.lon>=13.1&&s.lon<=19.5:s.country==='SI'?s.lat>=45.4&&s.lat<=46.95&&s.lon>=13.3&&s.lon<=16.7:s.country==='CA'?s.lat>=41&&s.lat<=84&&s.lon>=-142&&s.lon<=-52:s.country==='AT'?s.lat>=46.3&&s.lat<=49.1&&s.lon>=9.4&&s.lon<=17.2:s.country==='CH'?s.lat>=45.7&&s.lat<=47.9&&s.lon>=5.9&&s.lon<=10.6:s.country==='FR'?s.lat>=41&&s.lat<=51.5&&s.lon>=-5.5&&s.lon<=10:s.country==='AD'?s.lat>=42.4&&s.lat<=42.7&&s.lon>=1.4&&s.lon<=1.8:s.country==='ES'?s.lat>=27&&s.lat<=44.5&&s.lon>=-19&&s.lon<=5:s.lat>=47&&s.lat<=72.5&&s.lon>=-26&&s.lon<=33) && typeof s.code==='string' &&
     Array.isArray(s.times) && Array.isArray(s.amounts) && s.times.length===s.amounts.length &&
     s.times.every((t,i)=>Number.isFinite(t)&&t%3600===0&&(!i||t>s.times[i-1])) &&
     s.amounts.every(v=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1000) &&
     (s.accumulations===undefined || (Array.isArray(s.accumulations) &&
-      s.accumulations.every((v,i)=>Number.isFinite(v.end)&&v.end%3600===0&&[24,48].includes(v.hours)&&
+      s.accumulations.every((v,i)=>Number.isInteger(v.end)&&(s.country==='TR'?v.end<=data.generatedAt+60:v.end%3600===0)&&(s.country==='TR'?[1,24,48]:[24,48]).includes(v.hours)&&
         typeof v.value==='number'&&Number.isFinite(v.value)&&v.value>=0&&v.value<=1000&&
         (!i||v.end>s.accumulations[i-1].end||(v.end===s.accumulations[i-1].end&&v.hours>s.accumulations[i-1].hours))))));
 }
@@ -32,7 +32,8 @@ async function loadOfficialRainfall(force=false){
     officialRainLoadPromise=(async()=>{
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
       try{
-        const response=await fetch('data/official-rainfall.json',{cache:'no-store',signal:controller.signal});
+        const cacheKey=force?'refresh-'+Math.floor(Date.now()/10000):Math.floor(Date.now()/600000);
+        const response=await fetch('data/official-rainfall.json?v='+cacheKey,{cache:'no-store',signal:controller.signal});
         if(!response.ok) throw new Error('official snapshot HTTP '+response.status);
         const data=await response.json();
         if(!validOfficialRainSnapshot(data)) throw new Error('invalid official rainfall snapshot');
@@ -50,6 +51,14 @@ function rainfallCountryAt(lat,lon){
   return rainCountryFeatures?.find(f=>RAIN_COUNTRY_CODES[String(f.id)]&&weatherPointInFeature(lat,lon,f))?.id;
 }
 
+// Turkish rolling reports end at their actual minute. The Latest map view may
+// use those reports even while its radar clock trails the station feed.
+function officialRainSelectionEnd(country,end){
+  const timeline=$('timeline');
+  return country==='TR'&&timeline&&Number(timeline.value)===Number(timeline.max)&&end===rainWindowEnd()
+    ?Math.floor(Date.now()/1000):end;
+}
+
 function officialRainWindow(country,hours,end){
   const key=country+'|'+hours+'|'+end;
   if(!officialRainData || Date.now()/1000-officialRainData.generatedAt>3*3600) return null;
@@ -59,11 +68,12 @@ function officialRainWindow(country,hours,end){
     const stations=officialRainData.stations.filter(s=>s.country===country);
     // National reporting can lag. Use a consistent country window and display
     // its actual end; never label an older measurement as the selected hour.
-    const maxDelay=hours>1&&['FR','AD','ES','GB','IT','HR'].includes(country)?24:(['FR','IT','HR'].includes(country)?4:2);
-    for(let offset=0;offset<=maxDelay;offset++){
-      const actualEnd=end-offset*3600;
+    const maxDelay=hours>1&&['FR','AD','ES','GB','IT','HR','TR'].includes(country)?24:(['FR','IT','HR'].includes(country)?4:2);
+    const limit=officialRainSelectionEnd(country,end);
+    const ends=country==='TR'?[...new Set(stations.flatMap(s=>(s.accumulations||[]).filter(v=>v.hours===hours&&v.end<=limit&&limit-v.end<=maxDelay*3600).map(v=>v.end)))].sort((a,b)=>b-a):Array.from({length:maxDelay+1},(_,i)=>end-i*3600);
+    for(const actualEnd of ends){
       const rows=stations.map(station=>({station,value:officialGaugeRainTotal(station,actualEnd,hours)})).filter(s=>Number.isFinite(s.value));
-      if(rows.length>=(country==='LU'?1:3)){result={rows,end:actualEnd,country,source:officialRainData.sources[country]?.name||country,delayed:offset>2};break;}
+      if(rows.length>=(country==='LU'?1:3)){result={rows,end:actualEnd,country,source:officialRainData.sources[country]?.name||country,delayed:limit-actualEnd>2*3600};break;}
     }
   }
   officialRainWindows.set(key,result);
@@ -96,6 +106,13 @@ function crossBorderRainWindows(hours,end){
   const ends=new Set([end]),allowedCountries=new Set();
   for(const country of Object.keys(RAIN_COUNTRY_NAMES)){
     const w=officialRainWindow(country,hours,end);if(w){ends.add(w.end);allowedCountries.add(country);}
+  }
+  // Dense MGM daily gauges can supplement sparse rolling gauges, while each
+  // interpolated field still uses one exact interval end.
+  const trLimit=officialRainSelectionEnd('TR',end);
+  if(hours===24&&allowedCountries.has('TR')){
+    const daily=officialRainData.stations.filter(s=>s.country==='TR').flatMap(s=>(s.accumulations||[]).filter(v=>v.hours===24&&v.end%86400===21600&&v.end<=trLimit&&trLimit-v.end<=86400).map(v=>v.end));
+    if(daily.length)ends.add(Math.max(...daily));
   }
   // Never combine an hour ending now with an hour ending earlier, or label an
   // old 24-hour total as current. Each pooled field has one actual end time.
@@ -178,12 +195,13 @@ function removeOfficialRainLabels(){
 // A number at a gauge is a measurement, independent of whether there are enough
 // neighbours for a heatmap. Preserve a delayed complete window with its true end.
 function officialStationRainWindow(station,hours,end){
+  const limit=officialRainSelectionEnd(station.country,end);
   const ends=[...new Set([...station.times,...(station.accumulations||[]).filter(v=>v.hours===hours).map(v=>v.end)])].sort((a,b)=>b-a);
   for(const actualEnd of ends){
-    if(actualEnd>end)continue;
-    if(end-actualEnd>24*3600)break;
+    if(actualEnd>limit)continue;
+    if(limit-actualEnd>24*3600)break;
     const value=officialGaugeRainTotal(station,actualEnd,hours);
-    if(Number.isFinite(value))return {value,end:actualEnd,delayed:end-actualEnd>2*3600};
+    if(Number.isFinite(value))return {value,end:actualEnd,delayed:limit-actualEnd>2*3600};
   }
   return null;
 }

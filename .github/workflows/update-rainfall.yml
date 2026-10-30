@@ -6,6 +6,8 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/rainfall_turkey.py
+      - scripts/mediterranean_temperature.py
       - scripts/rainfall_adriatic.py
       - scripts/slovenia_rain_stations.json
       - scripts/croatia_synop_stations.json

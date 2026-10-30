@@ -494,3 +494,30 @@ test('Croatian daily reports never become hourly values and their actual delayed
  assert.equal(h.run("officialRainWindow('HR',48,rainWindowEnd())"),null);
  assert.equal(h.run("officialRainWindow('HR',24,rainWindowEnd()).end"),h.run('rainWindowEnd()-8*3600'));
 });
+
+test('Turkey native-minute rolling totals and daily 48 hours validate without manufacturing hourly history',()=>{
+ const h=harness(true);h.seed();h.elements.timeline={value:'1',max:'1'};h.context.minuteEnd=Math.floor(Date.now()/60000)*60;
+ h.run(`officialRainData={version:1,generatedAt:Date.now()/1000,sources:{TR:{name:'MGM'}},stations:[0,.01,.02].map((d,i)=>({country:'TR',code:'MGM-'+i,name:'Turkish gauge',lat:40+d,lon:33,times:[],amounts:[],accumulations:[{end:rainWindowEnd()-12*3600,hours:24,value:2},{end:rainWindowEnd()-12*3600,hours:48,value:5},{end:minuteEnd,hours:1,value:0},{end:minuteEnd,hours:24,value:7}]}))};officialRainWindows.clear();`);
+ assert(h.run('validOfficialRainSnapshot(officialRainData)'));
+ assert(h.run('RAIN_REGIONS.some(r=>r.id==="turkey")'));
+ assert(h.run('OFFICIAL_ONLY_RAIN_COUNTRIES.has("TR")'));
+ assert.equal(h.run('officialRainWindow("TR",1,rainWindowEnd()).end'),h.context.minuteEnd);
+ assert.equal(h.run('officialRainWindow("TR",1,rainWindowEnd()).rows[0].value'),0);
+ assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],24,rainWindowEnd()).value'),7);
+ assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],48,rainWindowEnd()).value'),5);
+ assert(h.run('Number.isNaN(rollingRainTotal(officialRainData.stations[0],rainWindowEnd(),24))'));
+ h.elements.timeline.value='0';
+ assert.equal(h.run('officialStationRainWindow(officialRainData.stations[0],1,rainWindowEnd()-3600)'),null);
+ h.run('officialRainData.stations[0].accumulations[0].end=Date.now()/1000+500');assert(!h.run('validOfficialRainSnapshot(officialRainData)'));
+});
+test('Turkish daily gauges supplement rolling coverage without mixing different ending times',()=>{
+ const h=harness(true);h.seed();h.elements.timeline={value:'1',max:'1'};h.context.minuteEnd=Math.floor(Date.now()/60000)*60;
+ h.run(`const dailyEnd=Math.floor(rainWindowEnd()/86400)*86400+21600-(rainWindowEnd()%86400<21600?86400:0);officialRainData={version:1,generatedAt:Date.now()/1000,sources:{TR:{name:'MGM'}},stations:[0,.01,.02].flatMap((d,i)=>[{country:'TR',code:'roll'+i,name:'Rolling',lat:40+d,lon:33,times:[],amounts:[],accumulations:[{end:minuteEnd,hours:24,value:4}]},{country:'TR',code:'day'+i,name:'Daily',lat:39+d,lon:30,times:[],amounts:[],accumulations:[{end:dailyEnd,hours:24,value:20}]}])};officialRainWindows.clear();`);
+ const windows=h.run('crossBorderRainWindows(24,rainWindowEnd()).filter(w=>w.rows.some(r=>r.station.country==="TR"))');assert.equal(windows.length,2);
+ assert(windows.every(w=>w.rows.every(r=>r.value===(w.end===h.context.minuteEnd?4:20))));
+});
+test('rain refresh uses shared time keys and a separate manual refresh key',async()=>{
+ const h=harness();let urls=[];h.context.fetch=async url=>{urls.push(url);return {ok:true,json:async()=>({version:1,generatedAt:Date.now()/1000,sources:{},stations:[]})};};
+ await h.run('loadOfficialRainfall(true)');assert.match(urls[0],/^data\/official-rainfall\.json\?v=refresh-\d+$/);
+ h.run('officialRainLoadedAt=0');await h.run('loadOfficialRainfall()');assert.match(urls[1],/\?v=\d+$/);
+});

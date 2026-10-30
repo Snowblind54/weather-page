@@ -2,9 +2,9 @@
 // Model coverage stays bounded; additional European countries use official gauges.
 const RAIN_REGION_IDS=new Set(['baltics','scandinavia','iceland','poland','denmark']);
 const RAIN_GRID_SPECS=TEMP_GRID_SPECS.filter(spec=>RAIN_REGION_IDS.has(spec.id));
-const OFFICIAL_ONLY_RAIN_COUNTRIES=new Set(['HR','SI','IT','HU','PT','CA','GB','IE','DE','NL','BE','LU','CZ','SK','FR','AD','ES','AT','CH']);
+const OFFICIAL_ONLY_RAIN_COUNTRIES=new Set(['TR','HR','SI','IT','HU','PT','CA','GB','IE','DE','NL','BE','LU','CZ','SK','FR','AD','ES','AT','CH']);
 const RAIN_REGIONS=[...TEMP_REGIONS.filter(region=>RAIN_REGION_IDS.has(region.id)||region.id==='canada'),
-  ...(globalThis.NorthernUSTemperature?.regions||[]).filter(region=>['british-isles','western-europe','central-europe','france','andorra','iberia','spain-canaries','austria','switzerland','italy','hungary','adriatic'].includes(region.id)).map(region=>region.id==='iberia'?{...region,id:'spain-rain',countries:['ES']}:region),
+  ...(globalThis.NorthernUSTemperature?.regions||[]).filter(region=>['british-isles','western-europe','central-europe','france','andorra','iberia','spain-canaries','austria','switzerland','italy','hungary','adriatic','turkey'].includes(region.id)).map(region=>region.id==='iberia'?{...region,id:'spain-rain',countries:['ES']}:region),
   ...(globalThis.NorthernUSTemperature?[{id:'portugal-rain',countries:['PT'],bounds:[[36.8,-9.6],[42.2,-6]],w:180,h:280,stationBased:true}]:[])];
 const RAIN_CACHE_KEY='balticWeatherRainAccumulationV814';
 const RAIN_CACHE_TTL=30*60*1000;
