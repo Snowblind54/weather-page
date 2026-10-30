@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/eastern_temperature.py
+      - scripts/ukraine_temperature_stations.json
+      - tests/test_eastern_temperature.py
+      - tests/eastern-temperature.test.cjs
       - scripts/adriatic_observations.py
       - scripts/croatia_synop_stations.json
       - tests/test_adriatic_observations.py
@@ -132,6 +136,10 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p test_adriatic_observations.py -v
           node --test tests/adriatic-observations.test.cjs
+      - name: Check Ukrainian and Romanian official temperatures
+        run: |
+          python3 -m unittest discover -s tests -p test_eastern_temperature.py -v
+          node --test tests/eastern-temperature.test.cjs
       - name: Fetch official temperature observations
         run: python3 scripts/update_official_temperature_all.py
       - name: Validate snapshot

@@ -181,6 +181,16 @@ def parse_adriatic(country):
 
 core.LOADERS.update({c:lambda c=c:parse_adriatic(c) for c in ('HR','SI')})
 
+from eastern_temperature import BOUNDS as EASTERN_BOUNDS, SOURCES as EASTERN_SOURCES
+core.COUNTRY_BOUNDS.update(EASTERN_BOUNDS)
+core.SOURCES.update(EASTERN_SOURCES)
+
+def parse_eastern(country):
+    from eastern_temperature import load
+    return load(country,core.dt.datetime.now(core.dt.timezone.utc),core.download)
+
+core.LOADERS.update({c:lambda c=c:parse_eastern(c) for c in ('UA','RO')})
+
 if __name__ == "__main__":
     core.main()
 
