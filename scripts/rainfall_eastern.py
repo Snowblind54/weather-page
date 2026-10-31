@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import re
 import zipfile
+import urllib.parse
 
 import update_rainfall as core
 import rainfall_europe as europe
@@ -19,11 +20,13 @@ from official_wind_eastern import BULLETINS as EASTERN_BULLETINS
 from official_wind_balkans import BULLETINS as BALKAN_BULLETINS
 
 BOUNDS={'UA':(44,52.5,22,40.5),'RO':(43.5,48.5,20,30),'HU':(45.7,48.7,16,23)}
+UA_WIS='https://wis2.meteo.gov.ua/oapi/collections/urn:wmo:md:ua-hmc:aws1h/items'
 HU_BASE='https://odp.met.hu/weather/weather_reports/synoptic/hungary/'
-SOURCES={'UA':('Ukrainian Hydrometeorological Center / official WMO SYNOP via NOAA and DWD',europe.POI),
+SOURCES={'UA':('Ukrainian Hydrometeorological Center / WIS2 automatic gauges with official SYNOP backup',UA_WIS),
          'RO':('Administrația Națională de Meteorologie (ANM) / official SYNOP via NOAA and DWD',europe.POI),
          'HU':('HungaroMet / official hourly automatic rain gauges and 06–06 UTC daily totals',HU_BASE)}
 PERIODS={c:'Official national SYNOP precipitation in mm, with actual UTC observation times. Explicit one-hour reports are used for 1h; longer reports are never divided into invented hours. Complete, non-overlapping measured intervals form 24/48h totals. The shared 72-hour history builds automatically; incomplete windows remain unavailable. Delayed totals retain their actual ending times.' for c in ('UA','RO')}
+PERIODS['UA']='UHMC WIS2 provisional measured precipitation/water equivalent: explicit 1-, 3-, 6-, 12- and 24-hour intervals, with native UTC start and end times. kg m-2 equals mm. Only adjacent complete intervals from the same WIGOS station form 24/48h totals. Official SYNOP observations supplement coverage. Missing, future, unknown-station and wrong-unit reports are excluded; no interval is divided into invented hourly rain.'
 PERIODS['HU']='HungaroMet provisional hourly precipitation r in mm, at native UTC clock hours. Daily rau covers 06 UTC on the stated date to 06 UTC the following day. Only complete adjacent intervals from the same station form 24/48h totals. Daily-based totals retain their actual 06 UTC ending time; missing/sentinel values stay unavailable. Source quality columns are reserved for development, not quality-approved flags.'
 TR_HOURS={'1':6,'2':12,'3':18,'4':24,'5':1,'6':2,'7':3,'8':9,'9':15}
 
@@ -85,7 +88,60 @@ def load_synop(country,now,previous,download=core.download,bulletin_download=dow
             raw,reference=bulletin_download(BASE+path);parts=path.split('/')[-1].split('.')
             out.extend(parse_bulletin(raw,reference,(parts[0].upper(),parts[1].upper()),metadata,country,now))
         except Exception as e:print(country,'rain bulletin unavailable',path,str(e)[:100],flush=True)
+    if country=='UA':
+        try:out.extend(load_ukraine_wis(now,previous,download))
+        except Exception as e:print('UA WIS2 rain unavailable:',str(e)[:150],flush=True)
     return europe.trimmed(out,now)
+
+
+def parse_ukraine_wis(features,metadata,now):
+    groups={};end=int(now.timestamp())
+    for f in features:
+        p=f.get('properties') or {};coords=(f.get('geometry') or {}).get('coordinates') or []
+        wigos=p.get('wigos_station_identifier');match=re.fullmatch(r'0-20000-0-(\d{5})',wigos or '')
+        if not match or match[1] not in metadata or (f.get('geometry') or {}).get('type')!='Point' or len(coords)!=2:continue
+        code=match[1]
+        if not location('UA',coords[1],coords[0]) or p.get('name')!='total_precipitation_or_total_water_equivalent' or p.get('units')!='kg m-2':continue
+        # 1 kg m-2 liquid-water equivalent equals exactly 1 mm. A reported
+        # 6h/24h amount never becomes a 1h amount; use its explicit interval.
+        value=core.amount(p.get('value'));period=p.get('phenomenonTime')
+        if value is None or not isinstance(period,str) or period.count('/')!=1:continue
+        try:
+            dates=[dt.datetime.fromisoformat(v.replace('Z','+00:00')) for v in period.split('/')]
+            reported=dt.datetime.fromisoformat(p['reportTime'].replace('Z','+00:00'))
+            if any(v.tzinfo is None for v in dates+[reported]):continue
+            start,t=[int(v.timestamp()) for v in dates];hours=(t-start)/3600
+        except (ValueError,TypeError,KeyError):continue
+        if hours not in (1,3,6,12,24) or t%3600 or start%3600 or t!=int(reported.timestamp()) or not end-72*3600<=t<=end:continue
+        s=groups.setdefault(code,core.station('UA',code,metadata[code]['name'],coords[1],coords[0],[]))
+        if abs(s['lat']-float(coords[1]))>.001 or abs(s['lon']-float(coords[0]))>.001:raise ValueError('UHMC WIS2 gauge coordinates changed')
+        s.setdefault('periods',[])
+        if hours==1:s['times'].append(t);s['amounts'].append(value)
+        else:s['periods'].append(dict(end=t,hours=int(hours),value=value))
+    return list(groups.values())
+
+
+def load_ukraine_wis(now,previous,download=core.download):
+    end=int(now.timestamp());latest=max((t for s in previous if s['country']=='UA' for t in s['times']),default=end-72*3600)
+    start=max(end-72*3600,latest-6*3600)
+    stamp=lambda t:dt.datetime.fromtimestamp(t,dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    params=dict(f='json',limit=10000,datetime=stamp(start)+'/'+stamp(end),name='total_precipitation_or_total_water_equivalent',sortby='reportTime')
+    url=UA_WIS+'?'+urllib.parse.urlencode(params);seen=set();features=[]
+    for _ in range(4):
+        if url in seen:raise ValueError('Repeated UHMC WIS2 page')
+        seen.add(url);p=download(url);rows=p.get('features')
+        if p.get('type')!='FeatureCollection' or not isinstance(rows,list) or len(rows)>10000:raise ValueError('Invalid UHMC WIS2 rain page')
+        features.extend(rows)
+        next_url=next((l['href'] for l in p.get('links',[]) if l.get('rel')=='next'),None)
+        if not next_url:break
+        parsed=urllib.parse.urlsplit(next_url);base=urllib.parse.urlsplit(UA_WIS)
+        if (parsed.scheme,parsed.netloc,parsed.path)!=(base.scheme,base.netloc,base.path):raise ValueError('Unexpected UHMC WIS2 pagination destination')
+        url=next_url
+    else:raise ValueError('UHMC WIS2 rain response exceeds bounded history')
+    metadata=json.loads(Path(__file__).with_name('ukraine_temperature_stations.json').read_text())['stations']
+    result=parse_ukraine_wis(features,metadata,now)
+    if not result:raise ValueError('No current UHMC WIS2 gauge rain')
+    return result
 
 
 def parse_hungary(raw,now,daily=False,expected_day=None):

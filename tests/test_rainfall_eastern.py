@@ -49,3 +49,24 @@ class EasternRain(unittest.TestCase):
   for c in ('UA','RO'):self.assertTrue(meta[c]);self.assertTrue(all(e.location(c,m['lat'],m['lon']) for m in meta[c].values()))
 
 if __name__=='__main__':unittest.main()
+
+class UkraineWisRain(unittest.TestCase):
+ def feature(self,hours=1,value=2,end=T):
+  fmt=lambda t:dt.datetime.fromtimestamp(t,dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+  return dict(type='Feature',geometry=dict(type='Point',coordinates=[30.53,50.39]),properties=dict(name='total_precipitation_or_total_water_equivalent',units='kg m-2',value=value,wigos_station_identifier='0-20000-0-33345',reportTime=fmt(end),phenomenonTime=fmt(end-hours*3600)+'/'+fmt(end)))
+ def test_explicit_interval_water_equivalent_and_full_48h(self):
+  meta={'33345':dict(name='Kyiv')};features=[self.feature(1,0),self.feature(24,3),self.feature(24,5,T-86400)]
+  s=e.core.merge([],e.parse_ukraine_wis(features,meta,NOW),NOW)[0]
+  self.assertEqual(s['amounts'],[0]);self.assertIn(dict(end=T,hours=48,value=8),s['accumulations'])
+  s=e.parse_ukraine_wis([self.feature(6,12)],meta,NOW)[0];self.assertFalse(s['times']);self.assertEqual(s['periods'][0]['hours'],6)
+ def test_wrong_parameter_units_missing_future_and_interval_identity_rejected(self):
+  meta={'33345':dict(name='Kyiv')}
+  for key,value in [('units','m'),('name','rainfall_rate'),('value',-9999),('value',None),('wigos_station_identifier','0-20000-0-99999'),('reportTime','2026-10-31T12:00:00Z')]:
+   f=self.feature();f['properties'][key]=value;self.assertFalse(e.parse_ukraine_wis([f],meta,NOW))
+  self.assertFalse(e.parse_ukraine_wis([self.feature(end=T+3600)],meta,NOW))
+  f=self.feature();f['geometry']['coordinates']=[25,59];self.assertFalse(e.parse_ukraine_wis([f],meta,NOW))
+ def test_pagination_destination_is_checked_before_download(self):
+  urls=[]
+  def download(url,*args):urls.append(url);return dict(type='FeatureCollection',features=[],links=[dict(rel='next',href='https://foreign.example/items')])
+  with self.assertRaisesRegex(ValueError,'destination'):e.load_ukraine_wis(NOW,[],download)
+  self.assertEqual(len(urls),1)
