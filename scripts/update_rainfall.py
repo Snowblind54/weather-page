@@ -64,7 +64,7 @@ def amount(value):
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
     valid = (41 <= lat <= 84 and -142 <= lon <= -52) if country == 'CA' else (47 <= lat <= 72.5 and -26 <= lon <= 33)
-    if country in ('UA','RO','HU','RS','BG','GR'):
+    if country in ('UA','RO','HU','RS','BG','GR','BA','ME','XK'):
         from rainfall_eastern import location
         valid=location(country,lat,lon)
     if country=='TR':valid=35.8<=lat<=42.2 and 25.6<=lon<=45
@@ -565,7 +565,7 @@ def main():
     def collect(item):
         code, loader = item
         try:
-            records = loader(collection_now if code in ('TR','UA','RO','RS','BG','HR','GR') else now, previous)
+            records = loader(collection_now if code in ('TR','UA','RO','RS','BG','HR','GR','BA','ME','XK') else now, previous)
             if not any(s['times'] or s.get('accumulations') or s.get('periods') for s in records):
                 raise ValueError('No measured hourly precipitation returned')
             return code, records, None

@@ -6,9 +6,12 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/rainfall_bosnia.py
       - scripts/rainfall_balkans.py
       - scripts/balkan_rain_stations.json
       - scripts/southern_balkan_wind_stations.json
+      - scripts/balkan_temperature_stations.json
+      - scripts/adriatic_greece_temperature_stations.json
       - scripts/balkan_temperature.py
       - scripts/moldova_belarus_temperature.py
       - scripts/official_wind_balkans.py

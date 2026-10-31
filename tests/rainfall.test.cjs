@@ -560,3 +560,19 @@ test('Greece validates official rainfall, keeps explicit hourly zeros and delaye
  assert.equal(h.run('officialStationRainWindow(greek.stations[0],48,greek.generatedAt).value'),7.2);
  h.context.greek.stations[0].lat=59;assert.equal(h.run('validOfficialRainSnapshot(greek)'),false);
 });
+test('Bosnia Montenegro and Kosovo validate gauge bounds and preserve exact measurement windows',()=>{
+ const h=harness(),end=h.context.frameTime;
+ for(const [country,lat,lon] of [['BA',44.8,16.54],['ME',42.367,19.25],['XK',42.57,21.03]]){
+  h.context.westBalkan={version:1,generatedAt:end,sources:{[country]:{name:'Official '+country}},stations:[{country,code:'test',name:'Gauge',lat,lon,times:country==='BA'?[end]:[],amounts:country==='BA'?[0]:[],accumulations:[{end:end-6*3600,hours:24,value:3}]}]};
+  assert.equal(h.run('validOfficialRainSnapshot(westBalkan)'),true);h.run('officialRainData=westBalkan;officialRainWindows.clear()');h.context.westBalkanCode=country;
+  assert.equal(h.run('officialStationRainWindow(westBalkan.stations[0],24,westBalkan.generatedAt).value'),3);
+  if(country==='ME')assert.equal(h.run('officialRainWindow(westBalkanCode,24,westBalkan.generatedAt).rows.length'),1);
+  h.context.westBalkan.stations[0].lat=59;assert.equal(h.run('validOfficialRainSnapshot(westBalkan)'),false);
+ }
+});
+test('Kosovo shading can use nearby official gauges without inventing local measurements',()=>{
+ const h=harness(),end=h.context.frameTime;
+ h.context.nearby={version:1,generatedAt:end,sources:{RS:{name:'Official Serbian rain gauges'},XK:{name:'No current local gauge reports'}},stations:Array.from({length:3},(_,i)=>({country:'RS',code:String(i),name:'Serbian gauge',lat:42.55+i*.01,lon:21.9,times:[],amounts:[],accumulations:[{end:end-6*3600,hours:24,value:3}]}))};
+ h.run('officialRainData=nearby;officialRainWindows.clear()');assert.equal(h.run("officialRainWindow('XK',24,nearby.generatedAt)"),null);
+ const estimate=h.run("officialRainAt(42.65,21.2,24,nearby.generatedAt,'XK')");assert.ok(estimate);assert.equal(estimate.country,'RS');assert.ok(estimate.distance>0.1);assert.match(estimate.source,/Serbian/);assert.equal(h.run("officialRainData.stations.filter(s=>s.country==='XK').length"),0);
+});

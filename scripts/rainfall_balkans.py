@@ -21,7 +21,10 @@ from moldova_belarus_temperature import normalized
 DHMZ='https://vrijeme.hr/oborina.xml'
 DHMZ_STATIONS='https://vrijeme.hr/hrvatska_n.xml'
 RS_DAILY='https://www.hidmet.gov.rs/eng/osmotreni/padavine.php'
-SOURCES={'GR':('Hellenic National Meteorological Service (HNMS) / official Greek SYNOP rain gauges','https://emy.gr/en/hnms-stations'),
+SOURCES={'BA':('FHMZ / official Bosnia and Herzegovina automatic and SYNOP rain gauges','https://fop.fhmzbih.gov.ba/'),
+         'ME':('ZHMS Montenegro / official SYNOP rain gauges','https://www.meteo.co.me/'),
+         'XK':('Official Kosovo SYNOP gauge reports via DWD (limited reporting subset)',europe.POI),
+         'GR':('Hellenic National Meteorological Service (HNMS) / official Greek SYNOP rain gauges','https://emy.gr/en/hnms-stations'),
          'RS':('Republic Hydrometeorological Service of Serbia (RHMZ) / official SYNOP and daily gauge measurements',RS_DAILY),
          'BG':('National Institute of Meteorology and Hydrology (NIMH), Bulgaria / official SYNOP gauges',europe.POI),
          'HR':('DHMZ / official Croatian SYNOP and daily rain gauges',DHMZ)}
@@ -30,6 +33,11 @@ PERIODS['GR']+=' Mainland and island stations; land SYNOP reports may be three- 
 PERIODS['HR']+=' DHMZ daily reports cover 06 UTC yesterday to 06 UTC today; the public daily list includes wet gauges only. Omitted gauges are not assumed dry. Izvor: DHMZ; Otvorena dozvola Republike Hrvatske.'
 PERIODS['RS']+=' RHMZ dated daily reports cover 06 UTC yesterday to 06 UTC today; blank cells are not treated as zero.'
 BULLETINS={c:WIND_BULLETINS[c] for c in ('RS','BG','GR')}
+BULLETINS['BA']=[]  # The published NOAA LQSM rain bulletins are archived/stale.
+BULLETINS['ME']=['sm/smmk10.lypg..txt','si/siyg20.lybm..txt']
+BULLETINS['XK']=[]
+PERIODS['BA']+=' FHMZ automatic gauges additionally provide explicit hourly precipitation and rolling 24-hour totals, with dated chart history. Local Europe/Sarajevo times are converted to UTC; ambiguous DST hours are excluded.'
+PERIODS['XK']+=' No current gauge rainfall is available in the connected Kosovo feed. Where nearby foreign official gauges support it, the map shows a terrain-weighted estimate within 100 km; that shading is not a Kosovo station measurement.'
 BULLETINS['HR']=['sm/smrh10.ldzm..txt','sm/smrh21.ldzm..txt','sm/smrh50.ldzm..txt','sm/smrh80.ldzm..txt','si/sirh20.ldzm..txt','si/sirh21.ldzm..txt','si/sirh50.ldzm..txt','si/sirh80.ldzm..txt']
 
 
@@ -91,6 +99,9 @@ def load(country,now,previous,download=core.download,bulletin_download=download_
     with futures.ThreadPoolExecutor(max_workers=3) as pool:
         for rows in pool.map(bulletin,BULLETINS[country]):out.extend(rows)
     try:
+        if country=='BA':
+            from rainfall_bosnia import parse as parse_bosnia, URL as BOSNIA_URL
+            out.extend(parse_bosnia(download(BOSNIA_URL,False),now))
         if country=='HR':out.extend(parse_croatia_daily(download(DHMZ,False),download(DHMZ_STATIONS,False),now))
         if country=='RS':out.extend(parse_serbia_daily(download(RS_DAILY,False),metadata,now))
     except Exception as e:print(country,'national daily rain unavailable:',str(e)[:140],flush=True)
