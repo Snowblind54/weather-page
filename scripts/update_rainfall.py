@@ -565,7 +565,7 @@ def main():
     def collect(item):
         code, loader = item
         try:
-            records = loader(collection_now if code=='TR' else now, previous)
+            records = loader(collection_now if code in ('TR','UA','RO','RS','BG','HR') else now, previous)
             if not any(s['times'] or s.get('accumulations') or s.get('periods') for s in records):
                 raise ValueError('No measured hourly precipitation returned')
             return code, records, None
