@@ -1,0 +1,647 @@
+{
+  "source": "NOAA NCEI ISD station metadata, country-checked WMO stations active since 2024. Not a list of current measurements.",
+  "url": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv",
+  "stations": {
+    "MT": {
+      "16597": {
+        "name": "Luqa",
+        "lat": 35.857,
+        "lon": 14.478
+      },
+      "16599": {
+        "name": "Gudja",
+        "lat": 35.85,
+        "lon": 14.5
+      }
+    },
+    "CY": {
+      "17500": {
+        "name": "Guzelyurt",
+        "lat": 35.183,
+        "lon": 32.983
+      },
+      "17505": {
+        "name": "Akdeniz",
+        "lat": 35.3,
+        "lon": 32.967
+      },
+      "17507": {
+        "name": "Yesilirmak",
+        "lat": 35.167,
+        "lon": 32.733
+      },
+      "17510": {
+        "name": "Girne",
+        "lat": 35.35,
+        "lon": 33.333
+      },
+      "17515": {
+        "name": "Lefkosa",
+        "lat": 35.2,
+        "lon": 33.35
+      },
+      "17530": {
+        "name": "Gecitkale",
+        "lat": 35.233,
+        "lon": 33.733
+      },
+      "17535": {
+        "name": "Iskele",
+        "lat": 35.283,
+        "lon": 33.883
+      },
+      "17540": {
+        "name": "Gazimagusa",
+        "lat": 35.133,
+        "lon": 33.933
+      },
+      "17547": {
+        "name": "Dipkarpaz",
+        "lat": 35.583,
+        "lon": 34.383
+      },
+      "17550": {
+        "name": "Yenierenkoy",
+        "lat": 35.533,
+        "lon": 34.017
+      },
+      "17600": {
+        "name": "Pafos Intl",
+        "lat": 34.718,
+        "lon": 32.486
+      },
+      "17601": {
+        "name": "Akrotiri",
+        "lat": 34.59,
+        "lon": 32.988
+      },
+      "17607": {
+        "name": "Nicosia/Athalassa",
+        "lat": 35.15,
+        "lon": 33.4
+      },
+      "17609": {
+        "name": "Larnaka Intl",
+        "lat": 34.875,
+        "lon": 33.625
+      }
+    },
+    "TR": {
+      "17020": {
+        "name": "Bartin",
+        "lat": 41.633,
+        "lon": 32.333
+      },
+      "17024": {
+        "name": "Inebolu",
+        "lat": 41.983,
+        "lon": 33.783
+      },
+      "17026": {
+        "name": "Sinop",
+        "lat": 42.033,
+        "lon": 35.167
+      },
+      "17030": {
+        "name": "Samsun",
+        "lat": 41.283,
+        "lon": 36.3
+      },
+      "17031": {
+        "name": "Carsamba",
+        "lat": 41.254,
+        "lon": 36.567
+      },
+      "17033": {
+        "name": "Ordu",
+        "lat": 40.983,
+        "lon": 37.9
+      },
+      "17034": {
+        "name": "Giresun",
+        "lat": 40.917,
+        "lon": 38.383
+      },
+      "17038": {
+        "name": "Trabzon",
+        "lat": 40.995,
+        "lon": 39.79
+      },
+      "17040": {
+        "name": "Rize",
+        "lat": 41.033,
+        "lon": 40.517
+      },
+      "17042": {
+        "name": "Hopa",
+        "lat": 41.4,
+        "lon": 41.433
+      },
+      "17045": {
+        "name": "Artvin",
+        "lat": 41.183,
+        "lon": 41.817
+      },
+      "17046": {
+        "name": "Ardahan",
+        "lat": 41.117,
+        "lon": 42.717
+      },
+      "17050": {
+        "name": "Edirne",
+        "lat": 41.667,
+        "lon": 26.567
+      },
+      "17052": {
+        "name": "Kirklareli",
+        "lat": 41.733,
+        "lon": 27.233
+      },
+      "17054": {
+        "name": "Corlu",
+        "lat": 41.138,
+        "lon": 27.919
+      },
+      "17056": {
+        "name": "Tekirdag",
+        "lat": 40.983,
+        "lon": 27.55
+      },
+      "17060": {
+        "name": "Ataturk",
+        "lat": 40.977,
+        "lon": 28.821
+      },
+      "17061": {
+        "name": "Sariyer",
+        "lat": 41.133,
+        "lon": 29.067
+      },
+      "17063": {
+        "name": "Sabiha Gokcen",
+        "lat": 40.899,
+        "lon": 29.309
+      },
+      "17064": {
+        "name": "Istanbul Bolge (Kartal)",
+        "lat": 40.9,
+        "lon": 29.15
+      },
+      "17068": {
+        "name": "Cengiztopel",
+        "lat": 40.85,
+        "lon": 29.9
+      },
+      "17069": {
+        "name": "Adapazari",
+        "lat": 40.783,
+        "lon": 30.417
+      },
+      "17070": {
+        "name": "Bolu",
+        "lat": 40.733,
+        "lon": 31.6
+      },
+      "17072": {
+        "name": "Duzce",
+        "lat": 40.833,
+        "lon": 31.167
+      },
+      "17074": {
+        "name": "Kastamonu",
+        "lat": 41.314,
+        "lon": 33.796
+      },
+      "17080": {
+        "name": "Cankiri",
+        "lat": 40.6,
+        "lon": 33.617
+      },
+      "17082": {
+        "name": "Merzifon",
+        "lat": 40.829,
+        "lon": 35.522
+      },
+      "17084": {
+        "name": "Corum",
+        "lat": 40.55,
+        "lon": 34.95
+      },
+      "17085": {
+        "name": "Amasya",
+        "lat": 40.65,
+        "lon": 35.85
+      },
+      "17088": {
+        "name": "Gumushane",
+        "lat": 40.467,
+        "lon": 39.467
+      },
+      "17089": {
+        "name": "Bayburt",
+        "lat": 40.25,
+        "lon": 40.233
+      },
+      "17090": {
+        "name": "Sivas",
+        "lat": 39.75,
+        "lon": 37.017
+      },
+      "17092": {
+        "name": "Erzincan",
+        "lat": 39.71,
+        "lon": 39.527
+      },
+      "17095": {
+        "name": "Erzurum Bolge",
+        "lat": 39.9,
+        "lon": 41.283
+      },
+      "17096": {
+        "name": "Erzurum",
+        "lat": 39.957,
+        "lon": 41.17
+      },
+      "17100": {
+        "name": "Igdir",
+        "lat": 39.917,
+        "lon": 44.05
+      },
+      "17112": {
+        "name": "Canakkale",
+        "lat": 40.138,
+        "lon": 26.427
+      },
+      "17115": {
+        "name": "Bandirma",
+        "lat": 40.318,
+        "lon": 27.978
+      },
+      "17116": {
+        "name": "Bursa",
+        "lat": 40.183,
+        "lon": 29.067
+      },
+      "17117": {
+        "name": "Kutahya(Tafb)",
+        "lat": 39.433,
+        "lon": 30.017
+      },
+      "17118": {
+        "name": "Yenisehir",
+        "lat": 40.255,
+        "lon": 29.563
+      },
+      "17119": {
+        "name": "Yalova",
+        "lat": 40.667,
+        "lon": 29.283
+      },
+      "17120": {
+        "name": "Bilecik",
+        "lat": 40.15,
+        "lon": 29.967
+      },
+      "17124": {
+        "name": "Eskisehir",
+        "lat": 39.784,
+        "lon": 30.582
+      },
+      "17128": {
+        "name": "Esenboga",
+        "lat": 40.128,
+        "lon": 32.995
+      },
+      "17129": {
+        "name": "Etimesgut",
+        "lat": 39.95,
+        "lon": 32.689
+      },
+      "17130": {
+        "name": "Ankara/Central",
+        "lat": 39.95,
+        "lon": 32.883
+      },
+      "17131": {
+        "name": "Guvercinlik",
+        "lat": 39.935,
+        "lon": 32.741
+      },
+      "17135": {
+        "name": "Kirikkale",
+        "lat": 39.85,
+        "lon": 33.517
+      },
+      "17140": {
+        "name": "Yozgat",
+        "lat": 39.817,
+        "lon": 34.8
+      },
+      "17150": {
+        "name": "Balikesir",
+        "lat": 39.619,
+        "lon": 27.926
+      },
+      "17155": {
+        "name": "Kutahya",
+        "lat": 39.417,
+        "lon": 29.967
+      },
+      "17160": {
+        "name": "Kirsehir",
+        "lat": 39.15,
+        "lon": 34.167
+      },
+      "17165": {
+        "name": "Tunceli",
+        "lat": 39.117,
+        "lon": 39.55
+      },
+      "17170": {
+        "name": "Van",
+        "lat": 38.468,
+        "lon": 43.332
+      },
+      "17175": {
+        "name": "Ayvalik",
+        "lat": 39.3,
+        "lon": 26.7
+      },
+      "17180": {
+        "name": "Dikili",
+        "lat": 39.067,
+        "lon": 26.883
+      },
+      "17184": {
+        "name": "Akhisar",
+        "lat": 38.809,
+        "lon": 27.834
+      },
+      "17186": {
+        "name": "Manisa",
+        "lat": 38.617,
+        "lon": 27.433
+      },
+      "17190": {
+        "name": "Afyon",
+        "lat": 38.726,
+        "lon": 30.601
+      },
+      "17191": {
+        "name": "Cihanbeyli",
+        "lat": 38.65,
+        "lon": 32.95
+      },
+      "17192": {
+        "name": "Aksaray",
+        "lat": 38.383,
+        "lon": 34.05
+      },
+      "17193": {
+        "name": "Nevsehir",
+        "lat": 38.617,
+        "lon": 34.7
+      },
+      "17194": {
+        "name": "Kapadokya",
+        "lat": 38.772,
+        "lon": 34.535
+      },
+      "17197": {
+        "name": "Tulga",
+        "lat": 38.354,
+        "lon": 38.254
+      },
+      "17202": {
+        "name": "Elazig",
+        "lat": 38.607,
+        "lon": 39.291
+      },
+      "17203": {
+        "name": "Bingol",
+        "lat": 38.867,
+        "lon": 40.5
+      },
+      "17204": {
+        "name": "Mus",
+        "lat": 38.733,
+        "lon": 41.517
+      },
+      "17210": {
+        "name": "Siirt",
+        "lat": 37.917,
+        "lon": 41.95
+      },
+      "17218": {
+        "name": "Cigli",
+        "lat": 38.513,
+        "lon": 27.01
+      },
+      "17219": {
+        "name": "Adnan Menderes",
+        "lat": 38.292,
+        "lon": 27.157
+      },
+      "17220": {
+        "name": "Izmir/Guzelyali",
+        "lat": 38.433,
+        "lon": 27.167
+      },
+      "17221": {
+        "name": "Cesme",
+        "lat": 38.3,
+        "lon": 26.3
+      },
+      "17232": {
+        "name": "Kusadasi",
+        "lat": 37.867,
+        "lon": 27.25
+      },
+      "17237": {
+        "name": "Denizli",
+        "lat": 37.783,
+        "lon": 29.083
+      },
+      "17238": {
+        "name": "Burdur",
+        "lat": 37.667,
+        "lon": 30.333
+      },
+      "17239": {
+        "name": "Aksehir",
+        "lat": 38.35,
+        "lon": 31.417
+      },
+      "17240": {
+        "name": "Isparta",
+        "lat": 37.785,
+        "lon": 30.582
+      },
+      "17241": {
+        "name": "Suleyman Demirel",
+        "lat": 37.855,
+        "lon": 30.368
+      },
+      "17244": {
+        "name": "Konya",
+        "lat": 37.979,
+        "lon": 32.562
+      },
+      "17246": {
+        "name": "Karaman",
+        "lat": 37.2,
+        "lon": 33.217
+      },
+      "17248": {
+        "name": "Eregli/Konya",
+        "lat": 37.5,
+        "lon": 34.05
+      },
+      "17250": {
+        "name": "Nigde",
+        "lat": 37.967,
+        "lon": 34.683
+      },
+      "17255": {
+        "name": "Kahramanmaras",
+        "lat": 37.6,
+        "lon": 36.933
+      },
+      "17262": {
+        "name": "Kilis",
+        "lat": 36.717,
+        "lon": 37.117
+      },
+      "17265": {
+        "name": "Adiyaman",
+        "lat": 37.75,
+        "lon": 38.283
+      },
+      "17270": {
+        "name": "Sanliurfa",
+        "lat": 37.133,
+        "lon": 38.767
+      },
+      "17271": {
+        "name": "Gap/Sanliurfa",
+        "lat": 37.483,
+        "lon": 38.883
+      },
+      "17275": {
+        "name": "Mardin",
+        "lat": 37.3,
+        "lon": 40.733
+      },
+      "17280": {
+        "name": "Diyarbakir",
+        "lat": 37.894,
+        "lon": 40.201
+      },
+      "17282": {
+        "name": "Batman",
+        "lat": 37.929,
+        "lon": 41.117
+      },
+      "17285": {
+        "name": "Hakkari",
+        "lat": 37.567,
+        "lon": 43.767
+      },
+      "17290": {
+        "name": "Imsik",
+        "lat": 37.14,
+        "lon": 27.67
+      },
+      "17291": {
+        "name": "Milas Bodrum",
+        "lat": 37.251,
+        "lon": 27.664
+      },
+      "17292": {
+        "name": "Mugla",
+        "lat": 37.217,
+        "lon": 28.367
+      },
+      "17295": {
+        "name": "Dalaman",
+        "lat": 36.713,
+        "lon": 28.793
+      },
+      "17296": {
+        "name": "Fethiye",
+        "lat": 36.617,
+        "lon": 29.117
+      },
+      "17297": {
+        "name": "Datca",
+        "lat": 36.7,
+        "lon": 27.667
+      },
+      "17298": {
+        "name": "Marmaris",
+        "lat": 36.85,
+        "lon": 28.267
+      },
+      "17300": {
+        "name": "Antalya",
+        "lat": 36.899,
+        "lon": 30.8
+      },
+      "17302": {
+        "name": "Antalya-Bolge",
+        "lat": 36.867,
+        "lon": 30.7
+      },
+      "17310": {
+        "name": "Alanya",
+        "lat": 36.55,
+        "lon": 32.0
+      },
+      "17320": {
+        "name": "Anamur",
+        "lat": 36.083,
+        "lon": 32.833
+      },
+      "17330": {
+        "name": "Silifke",
+        "lat": 36.383,
+        "lon": 33.933
+      },
+      "17340": {
+        "name": "Mersin",
+        "lat": 36.8,
+        "lon": 34.633
+      },
+      "17350": {
+        "name": "Incirlik Ab",
+        "lat": 37.002,
+        "lon": 35.426
+      },
+      "17352": {
+        "name": "Adana",
+        "lat": 36.982,
+        "lon": 35.28
+      },
+      "17355": {
+        "name": "Osmaniye",
+        "lat": 37.1,
+        "lon": 36.25
+      },
+      "17370": {
+        "name": "Iskenderun",
+        "lat": 36.573,
+        "lon": 36.154
+      },
+      "17375": {
+        "name": "Finike",
+        "lat": 36.3,
+        "lon": 30.15
+      },
+      "17380": {
+        "name": "Kas",
+        "lat": 36.2,
+        "lon": 29.65
+      }
+    }
+  }
+}

@@ -251,3 +251,21 @@ test('Greek land SYNOP gusts expire after seven hours, without using future repo
  h.context.greek.rows[0][0]=h.now-7*3600-1;assert.equal(h.run('officialWindReading(greek,fixture.generatedAt)'),null);
  h.context.greek.rows[0][0]=h.now+60;assert.equal(h.run('officialWindReading(greek,fixture.generatedAt)'),null);
 });
+test('Malta Cyprus and Türkiye validate, filter national winds and show only explicit gusts',()=>{
+ const h=harness();h.fixture.sources={};h.fixture.stations=[];
+ for(const [country,lat,lon,name] of [['MT',35.858,14.477,'Malta'],['CY',35.0255,33.7744,'Cyprus'],['TR',41.6,32.3,'Türkiye']]){
+  h.fixture.sources[country]={status:'ok',timeKind:'observation',name:'Official '+name};h.fixture.stations.push({country,code:'METAR-'+country,name,lat,lon,rows:[[h.now-600,0,12,90]]});
+ }
+ h.run('officialWindData=validateOfficialWind(fixture)');h.elements.officialWindGusts.checked=true;
+ for(const country of ['MT','CY','TR']){
+  h.context.NorthernCountryFocus={allowsStation:s=>s.country===country,matchesCountry:c=>c===country};h.run("officialWindRenderKey='';renderOfficialWind()");assert.equal(h.group.children.length,1);assert.match(h.group.children[0].popup,/12.0/);
+ }
+ h.fixture.stations[2].rows[0][2]=null;h.run("officialWindRenderKey='';renderOfficialWind()");assert.equal(h.group.children.length,0);
+ h.elements.officialWindGusts.checked=false;h.elements.officialWindSustained.checked=true;h.run('renderOfficialWind()');assert.equal(h.group.children.length,1);
+ h.fixture.stations[0].lat=59;assert.throws(()=>h.run('validateOfficialWind(fixture)'));
+});
+test('Turkish six-hour SYNOP gusts expire at seven hours without extending national winds',()=>{
+ const h=harness();h.context.med={country:'TR',code:'SYNOP-17020',rows:[[h.now-6*3600,2,5,90]]};assert.equal(h.run('officialWindReading(med,fixture.generatedAt)[2]'),5);
+ h.context.med.rows[0][0]=h.now-7*3600-1;assert.equal(h.run('officialWindReading(med,fixture.generatedAt)'),null);
+ h.context.med.code='MGM-17020';h.context.med.rows[0][0]=h.now-4*3600;assert.equal(h.run('officialWindReading(med,fixture.generatedAt)'),null);
+});

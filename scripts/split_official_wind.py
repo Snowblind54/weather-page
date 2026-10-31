@@ -13,7 +13,7 @@ LATEST = ROOT / 'data/official-wind.json'
 HISTORY = ROOT / 'data/official-wind-history.json'
 RECENT_SECONDS = 3 * 3600
 # Three-hourly reports need the preceding report as well for two-hour playback.
-RECENT_SECONDS_BY_COUNTRY = {'MK':6*3600,'GR':9*3600,'AL':6*3600,'RO':9*3600,'RS':6*3600,'BG':6*3600,'FR': 6*3600, 'LV': 6*3600, 'BY': 6*3600, 'UA': 6*3600}
+RECENT_SECONDS_BY_COUNTRY = {'MT':5*3600,'CY':5*3600,'TR':9*3600,'MK':6*3600,'GR':9*3600,'AL':6*3600,'RO':9*3600,'RS':6*3600,'BG':6*3600,'FR': 6*3600, 'LV': 6*3600, 'BY': 6*3600, 'UA': 6*3600}
 
 
 def atomic_json(path, payload):

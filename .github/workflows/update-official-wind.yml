@@ -43,6 +43,10 @@ on:
       - scripts/official_wind_western.py
       - scripts/official_wind_scotland.py
       - scripts/southern_balkan_wind_stations.json
+      - scripts/official_wind_mediterranean.py
+      - scripts/mediterranean_wind_stations.json
+      - scripts/mediterranean_temperature.py
+      - tests/test_official_wind_mediterranean.py
       - scripts/official_wind_balkans.py
       - scripts/romania_wind_stations.json
       - scripts/balkan_temperature.py
