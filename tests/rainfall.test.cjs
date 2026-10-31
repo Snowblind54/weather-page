@@ -551,3 +551,12 @@ test('Serbia Bulgaria and Croatia accept official totals, preserve missing hours
   h.context.balkan.stations[0].lat=59;assert.equal(h.run('validOfficialRainSnapshot(balkan)'),false);
  }
 });
+test('Greece validates official rainfall, keeps explicit hourly zeros and delayed complete 24/48h intervals',()=>{
+ const h=harness(),end=h.context.frameTime;
+ h.context.greek={version:1,generatedAt:end,sources:{GR:{name:'HNMS'}},stations:Array.from({length:3},(_,i)=>({country:'GR',code:String(i),name:'Greek gauge',lat:37.9,lon:23.74,times:[end],amounts:[0],accumulations:[{end:end-6*3600,hours:24,value:4.2},{end:end-6*3600,hours:48,value:7.2}]}))};
+ assert.equal(h.run('validOfficialRainSnapshot(greek)'),true);h.run('officialRainData=greek;officialRainWindows.clear()');
+ assert.equal(h.run("officialRainWindow('GR',1,greek.generatedAt).rows[0].value"),0);
+ assert.equal(h.run("officialRainWindow('GR',24,greek.generatedAt).end"),end-6*3600);
+ assert.equal(h.run('officialStationRainWindow(greek.stations[0],48,greek.generatedAt).value'),7.2);
+ h.context.greek.stations[0].lat=59;assert.equal(h.run('validOfficialRainSnapshot(greek)'),false);
+});

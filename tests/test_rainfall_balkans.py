@@ -44,3 +44,18 @@ class BalkanRain(unittest.TestCase):
    s=b.parse_bulletin(raw.replace('60015','60011'),NOW,header,{code:dict(name=c,lat=lat,lon=lon)},c,NOW,include_daily=True)[0];self.assertFalse(s['times']);self.assertEqual(s['periods'][0]['hours'],6)
 
 if __name__=='__main__':unittest.main()
+
+class GreekRain(unittest.TestCase):
+ def test_greek_six_hour_and_daily_amounts_keep_original_end_without_inventing_hours(self):
+  meta={'16716':dict(name='Elliniko',lat=37.9,lon=23.74)}
+  raw='SMGR20 LGAT 311200\nAAXX 31121\n16716 12682 70503 60021 333 70042 555 79997=\n17020 12682 70503 69991 333 79997='
+  s=b.parse_bulletin(raw,NOW,('SMGR20','LGAT'),meta,'GR',NOW,include_daily=True)[0]
+  self.assertFalse(s['times']);self.assertEqual(s['periods'],[dict(end=T-3*3600,hours=6,value=2),dict(end=T-3*3600,hours=24,value=4.2)])
+  earlier={**s,'periods':[dict(end=T-27*3600,hours=24,value=3)]}
+  merged=b.core.merge([],[earlier,s],NOW)[0];self.assertIn(dict(end=T-3*3600,hours=48,value=7.2),merged['accumulations'])
+  self.assertFalse(any(p['hours']==48 for p in b.core.merge([],[s],NOW)[0]['accumulations']))
+ def test_greek_gauge_catalogue_country_bounds_and_native_hour(self):
+  data=json.loads(Path(b.__file__).with_name('balkan_rain_stations.json').read_text())
+  self.assertGreater(len(data['stations']['GR']),20);self.assertTrue(all(b.location('GR',m['lat'],m['lon']) for m in data['stations']['GR'].values()));self.assertTrue(all(k in data['stations']['GR'] for k in data['poi']['GR']))
+  s=b.core.station('GR','16716','Elliniko',37.9,23.74,[(T,0,False)]);self.assertEqual(s['amounts'],[0])
+  with self.assertRaises(ValueError):b.core.station('GR','bad','Foreign',59,25,[(T,1,False)])

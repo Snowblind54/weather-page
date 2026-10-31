@@ -615,6 +615,208 @@
         "lon": 14.583333,
         "icao": "LDRI"
       }
+    },
+    "GR": {
+      "16614": {
+        "name": "Aristotelis",
+        "lat": 40.446,
+        "lon": 21.282
+      },
+      "16622": {
+        "name": "Thessaloniki Intl",
+        "lat": 40.52,
+        "lon": 22.971
+      },
+      "16627": {
+        "name": "Alexandroupolis/Dimokritos Arpt",
+        "lat": 40.856,
+        "lon": 25.945
+      },
+      "16641": {
+        "name": "Corfu/Kapodistinas Arpt",
+        "lat": 39.61,
+        "lon": 19.913
+      },
+      "16643": {
+        "name": "Preveza/Aktion Arpt",
+        "lat": 38.921,
+        "lon": 20.761
+      },
+      "16648": {
+        "name": "Larisa",
+        "lat": 39.65,
+        "lon": 22.466
+      },
+      "16650": {
+        "name": "Limnos Island Arpt",
+        "lat": 39.917,
+        "lon": 25.236
+      },
+      "16667": {
+        "name": "Mitilini Arpt",
+        "lat": 39.054,
+        "lon": 26.604
+      },
+      "16675": {
+        "name": "Lamia",
+        "lat": 38.883,
+        "lon": 22.433
+      },
+      "16682": {
+        "name": "Andravida Arpt",
+        "lat": 37.923,
+        "lon": 21.287
+      },
+      "16684": {
+        "name": "Skiros Arpt",
+        "lat": 38.968,
+        "lon": 24.487
+      },
+      "16710": {
+        "name": "Tripolis",
+        "lat": 37.531,
+        "lon": 22.404
+      },
+      "16716": {
+        "name": "Athinai",
+        "lat": 37.882,
+        "lon": 23.735
+      },
+      "16723": {
+        "name": "Samos Arpt",
+        "lat": 37.69,
+        "lon": 26.912
+      },
+      "16732": {
+        "name": "Naxos",
+        "lat": 37.1,
+        "lon": 25.367
+      },
+      "16734": {
+        "name": "Methoni",
+        "lat": 36.833,
+        "lon": 21.7
+      },
+      "16738": {
+        "name": "Milos",
+        "lat": 36.733,
+        "lon": 24.433
+      },
+      "16743": {
+        "name": "Kythira Arpt",
+        "lat": 36.274,
+        "lon": 23.017
+      },
+      "16746": {
+        "name": "Souda Bay/Chania Intl",
+        "lat": 35.54,
+        "lon": 24.141
+      },
+      "16749": {
+        "name": "Rhodes/Diagoras Arpt",
+        "lat": 36.405,
+        "lon": 28.086
+      },
+      "16754": {
+        "name": "Iraklion Intl",
+        "lat": 35.337,
+        "lon": 25.173
+      },
+      "16665": {
+        "name": "Nea Anchialos Arpt",
+        "lat": 39.22,
+        "lon": 22.794
+      },
+      "16718": {
+        "name": "Elefsis",
+        "lat": 38.064,
+        "lon": 23.556
+      },
+      "16706": {
+        "name": "Chios Isl Arpt",
+        "lat": 38.343,
+        "lon": 26.141
+      },
+      "16642": {
+        "name": "Ioannina Arpt",
+        "lat": 39.696,
+        "lon": 20.823
+      },
+      "16685": {
+        "name": "Cephalonia Arpt",
+        "lat": 38.12,
+        "lon": 20.5
+      },
+      "16726": {
+        "name": "Kalamata Arpt",
+        "lat": 37.068,
+        "lon": 22.026
+      },
+      "16742": {
+        "name": "Kos Arpt",
+        "lat": 36.801,
+        "lon": 27.091
+      },
+      "16624": {
+        "name": "Kavala Intl",
+        "lat": 40.915,
+        "lon": 24.622
+      },
+      "16632": {
+        "name": "Kozani/Filippos Arpt",
+        "lat": 40.288,
+        "lon": 21.842
+      },
+      "16687": {
+        "name": "Araxos Arpt",
+        "lat": 38.151,
+        "lon": 21.426
+      },
+      "16613": {
+        "name": "Florina",
+        "lat": 40.783,
+        "lon": 21.4
+      },
+      "16606": {
+        "name": "Serrai",
+        "lat": 41.067,
+        "lon": 23.567
+      },
+      "16699": {
+        "name": "Tanagra",
+        "lat": 38.34,
+        "lon": 23.565
+      },
+      "16715": {
+        "name": "Tatoi / Dekelia",
+        "lat": 38.109,
+        "lon": 23.784
+      },
+      "16719": {
+        "name": "Zakinthos",
+        "lat": 37.783,
+        "lon": 20.883
+      },
+      "16741": {
+        "name": "El Venizelos",
+        "lat": 37.917,
+        "lon": 23.933
+      },
+      "16757": {
+        "name": "Sitia",
+        "lat": 35.2,
+        "lon": 26.1
+      },
+      "16760": {
+        "name": "Kasteli (Airport)",
+        "lat": 35.183,
+        "lon": 25.317
+      },
+      "16765": {
+        "name": "Karpathos (Airport)",
+        "lat": 35.428,
+        "lon": 27.147
+      }
     }
   },
   "poi": {
@@ -649,6 +851,26 @@
       "14444",
       "14445",
       "14474"
+    ],
+    "GR": [
+      "16622",
+      "16627",
+      "16641",
+      "16648",
+      "16650",
+      "16667",
+      "16675",
+      "16682",
+      "16684",
+      "16710",
+      "16716",
+      "16723",
+      "16732",
+      "16741",
+      "16743",
+      "16746",
+      "16749",
+      "16754"
     ]
   }
 }

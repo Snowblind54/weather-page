@@ -1,4 +1,4 @@
-"""Official Serbian, Bulgarian and Croatian rain with native reporting periods.
+"""Official Serbian, Bulgarian, Croatian and Greek rain with native reporting periods.
 
 SYNOP totals retain their actual UTC times. An omitted dry station, blank value,
 trace or longer reporting interval never becomes an invented hourly reading.
@@ -21,13 +21,15 @@ from moldova_belarus_temperature import normalized
 DHMZ='https://vrijeme.hr/oborina.xml'
 DHMZ_STATIONS='https://vrijeme.hr/hrvatska_n.xml'
 RS_DAILY='https://www.hidmet.gov.rs/eng/osmotreni/padavine.php'
-SOURCES={'RS':('Republic Hydrometeorological Service of Serbia (RHMZ) / official SYNOP and daily gauge measurements',RS_DAILY),
+SOURCES={'GR':('Hellenic National Meteorological Service (HNMS) / official Greek SYNOP rain gauges','https://emy.gr/en/hnms-stations'),
+         'RS':('Republic Hydrometeorological Service of Serbia (RHMZ) / official SYNOP and daily gauge measurements',RS_DAILY),
          'BG':('National Institute of Meteorology and Hydrology (NIMH), Bulgaria / official SYNOP gauges',europe.POI),
          'HR':('DHMZ / official Croatian SYNOP and daily rain gauges',DHMZ)}
 PERIODS={c:'Official measured precipitation in mm. Native 1-, 3-, 6-, 12- and 24-hour SYNOP reporting periods retain their UTC ending times. Only complete adjacent measurements from the same gauge form 24/48h totals. A 1h reading appears only when explicitly reported; longer totals are never divided into hourly estimates. Missing, blank, trace-only and lower-bound values stay unavailable as numeric amounts. Older complete totals show their actual ending time.' for c in SOURCES}
+PERIODS['GR']+=' Mainland and island stations; land SYNOP reports may be three- or six-hourly. The shared updater retains 72 hours of measured history. Missing hourly values are never estimated from longer reports.'
 PERIODS['HR']+=' DHMZ daily reports cover 06 UTC yesterday to 06 UTC today; the public daily list includes wet gauges only. Omitted gauges are not assumed dry. Izvor: DHMZ; Otvorena dozvola Republike Hrvatske.'
 PERIODS['RS']+=' RHMZ dated daily reports cover 06 UTC yesterday to 06 UTC today; blank cells are not treated as zero.'
-BULLETINS={c:WIND_BULLETINS[c] for c in ('RS','BG')}
+BULLETINS={c:WIND_BULLETINS[c] for c in ('RS','BG','GR')}
 BULLETINS['HR']=['sm/smrh10.ldzm..txt','sm/smrh21.ldzm..txt','sm/smrh50.ldzm..txt','sm/smrh80.ldzm..txt','si/sirh20.ldzm..txt','si/sirh21.ldzm..txt','si/sirh50.ldzm..txt','si/sirh80.ldzm..txt']
 
 

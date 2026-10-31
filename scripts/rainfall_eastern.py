@@ -19,7 +19,7 @@ from adriatic_greece_temperature import BASE, download_bulletin, observation_tim
 from official_wind_eastern import BULLETINS as EASTERN_BULLETINS
 from official_wind_balkans import BULLETINS as BALKAN_BULLETINS
 
-BOUNDS={'RS':(42.2,46.3,18.8,23.1),'BG':(41.2,44.3,22.2,28.8),'HR':(42.2,46.7,13.1,19.5),'UA':(44,52.5,22,40.5),'RO':(43.5,48.5,20,30),'HU':(45.7,48.7,16,23)}
+BOUNDS={'GR':(34.7,41.8,19.3,29.8),'RS':(42.2,46.3,18.8,23.1),'BG':(41.2,44.3,22.2,28.8),'HR':(42.2,46.7,13.1,19.5),'UA':(44,52.5,22,40.5),'RO':(43.5,48.5,20,30),'HU':(45.7,48.7,16,23)}
 UA_WIS='https://wis2.meteo.gov.ua/oapi/collections/urn:wmo:md:ua-hmc:aws1h/items'
 HU_BASE='https://odp.met.hu/weather/weather_reports/synoptic/hungary/'
 SOURCES={'UA':('Ukrainian Hydrometeorological Center / WIS2 automatic gauges with official SYNOP backup',UA_WIS),
