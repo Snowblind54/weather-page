@@ -1,0 +1,99 @@
+{
+  "source": "Official national station catalogues and NOAA NCEI ISD WMO metadata, matched to the DWD official SYNOP reporting subset.",
+  "stations": {
+    "UA": {
+      "34504": {
+        "country": "UA",
+        "name": "Dnipro",
+        "lat": 48.36003112793,
+        "lon": 35.085071563721
+      },
+      "34519": {
+        "country": "UA",
+        "name": "Donetsk",
+        "lat": 48.072322845459,
+        "lon": 37.726551055908
+      },
+      "33526": {
+        "country": "UA",
+        "name": "Ivano-Frankivsk",
+        "lat": 48.889198303223,
+        "lon": 24.689027786255
+      },
+      "33345": {
+        "country": "UA",
+        "name": "Kyiv",
+        "lat": 50.391792297363,
+        "lon": 30.53563117981
+      },
+      "33261": {
+        "country": "UA",
+        "name": "Konotop",
+        "lat": 51.240856170654,
+        "lon": 33.187049865723
+      },
+      "33791": {
+        "country": "UA",
+        "name": "Kryvyi Rih",
+        "lat": 48.053714752197,
+        "lon": 33.211139678955
+      },
+      "33837": {
+        "country": "UA",
+        "name": "Odesa",
+        "lat": 46.440753936768,
+        "lon": 30.770336151123
+      }
+    },
+    "RO": {
+      "15020": {
+        "country": "RO",
+        "name": "Botosani",
+        "lat": 47.733,
+        "lon": 26.65
+      },
+      "15120": {
+        "country": "RO",
+        "name": "Cluj Napoca / Avram Iancu",
+        "lat": 46.785,
+        "lon": 23.686
+      },
+      "15150": {
+        "country": "RO",
+        "name": "George Enescu Bacau Intl",
+        "lat": 46.522,
+        "lon": 26.91
+      },
+      "15200": {
+        "country": "RO",
+        "name": "Arad",
+        "lat": 46.177,
+        "lon": 21.262
+      },
+      "15247": {
+        "country": "RO",
+        "name": "Traian Vuia",
+        "lat": 45.81,
+        "lon": 21.338
+      },
+      "15260": {
+        "country": "RO",
+        "name": "Sibiu",
+        "lat": 45.786,
+        "lon": 24.091
+      },
+      "15421": {
+        "country": "RO",
+        "name": "Henri Coanda",
+        "lat": 44.571,
+        "lon": 26.085
+      },
+      "15480": {
+        "country": "RO",
+        "name": "Constanta",
+        "lat": 44.217,
+        "lon": 28.65
+      }
+    }
+  }
+}

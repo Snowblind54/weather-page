@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/rainfall_eastern.py
+      - scripts/eastern_rain_stations.json
+      - scripts/ukraine_temperature_stations.json
+      - scripts/romania_wind_stations.json
       - scripts/rainfall_turkey.py
       - scripts/mediterranean_temperature.py
       - scripts/rainfall_adriatic.py

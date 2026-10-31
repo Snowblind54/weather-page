@@ -521,3 +521,22 @@ test('rain refresh uses shared time keys and a separate manual refresh key',asyn
  await h.run('loadOfficialRainfall(true)');assert.match(urls[0],/^data\/official-rainfall\.json\?v=refresh-\d+$/);
  h.run('officialRainLoadedAt=0');await h.run('loadOfficialRainfall()');assert.match(urls[1],/\?v=\d+$/);
 });
+test('Ukraine Romania and Hungary validate measured rain, preserve zeros and reject foreign coordinates',()=>{
+ const h=harness(),end=h.context.frameTime;
+ for(const [country,lat,lon] of [['UA',50.4,30.5],['RO',44.4,26.1],['HU',47.5,19.1]]){
+  h.context.eastern={version:1,generatedAt:end,sources:{[country]:{name:'Official '+country}},stations:[{country,code:'test',name:'Gauge',lat,lon,times:[end],amounts:[0],accumulations:[{end,hours:24,value:3},{end,hours:48,value:5}]}]};
+  assert.equal(h.run('validOfficialRainSnapshot(eastern)'),true);h.run('officialRainData=eastern;officialRainWindows.clear()');
+  assert.equal(h.run('officialStationRainWindow(eastern.stations[0],1,eastern.generatedAt).value'),0);
+  assert.equal(h.run('officialStationRainWindow(eastern.stations[0],48,eastern.generatedAt).value'),5);
+  h.context.eastern.stations[0].lat=59;assert.equal(h.run('validOfficialRainSnapshot(eastern)'),false);
+ }
+});
+test('six-hourly Ukrainian and Romanian totals retain delayed native ends, never invented hourly totals',()=>{
+ const h=harness(),end=h.context.frameTime;
+ for(const country of ['UA','RO']){
+  h.context.eastern={version:1,generatedAt:end,sources:{[country]:{name:'Official '+country}},stations:Array.from({length:3},(_,i)=>({country,code:String(i),name:'Gauge',lat:country==='UA'?50:46,lon:country==='UA'?30:25,times:[],amounts:[],accumulations:[{end:end-6*3600,hours:24,value:3}]}))};
+  h.run('officialRainData=eastern;officialRainWindows.clear()');h.context.easternCountry=country;
+  assert.equal(h.run('officialRainWindow(easternCountry,24,eastern.generatedAt).end'),end-6*3600);
+  assert.equal(h.run('officialRainWindow(easternCountry,1,eastern.generatedAt)'),null);
+ }
+});
