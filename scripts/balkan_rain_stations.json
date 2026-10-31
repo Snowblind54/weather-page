@@ -1,0 +1,654 @@
+{
+  "source": "Verified national station metadata supplemented by NOAA NCEI ISD WMO stations reporting since 2024. Country membership and coordinates are checked; no station positions are guessed.",
+  "url": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv",
+  "stations": {
+    "RS": {
+      "13067": {
+        "name": "Palić",
+        "lat": 46.1,
+        "lon": 19.766667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13067"
+      },
+      "13160": {
+        "name": "Sombor",
+        "lat": 45.766667,
+        "lon": 19.15,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13160"
+      },
+      "13168": {
+        "name": "Novi Sad",
+        "lat": 45.333333,
+        "lon": 19.85,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13168"
+      },
+      "13173": {
+        "name": "Zrenjanin",
+        "lat": 45.366667,
+        "lon": 20.416667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13173"
+      },
+      "13174": {
+        "name": "Kikinda",
+        "lat": 45.85,
+        "lon": 20.466667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13174"
+      },
+      "13180": {
+        "name": "B. Karlovac",
+        "lat": 45.05,
+        "lon": 21.033333,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13180"
+      },
+      "13183": {
+        "name": "Vrsac",
+        "lat": 45.147,
+        "lon": 21.31
+      },
+      "13262": {
+        "name": "Loznica",
+        "lat": 44.55,
+        "lon": 19.233333,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13262"
+      },
+      "13266": {
+        "name": "S. Mitrovica",
+        "lat": 45.1,
+        "lon": 19.55,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13266"
+      },
+      "13269": {
+        "name": "Valjevo",
+        "lat": 44.316667,
+        "lon": 19.916667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13269"
+      },
+      "13272": {
+        "name": "Beograd",
+        "lat": 44.818,
+        "lon": 20.309
+      },
+      "13274": {
+        "name": "Beograd",
+        "lat": 44.8,
+        "lon": 20.466667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13274"
+      },
+      "13278": {
+        "name": "Kragujevac",
+        "lat": 44.033333,
+        "lon": 20.933333,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13278"
+      },
+      "13279": {
+        "name": "S. Palanka",
+        "lat": 44.366667,
+        "lon": 20.95,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13279"
+      },
+      "13285": {
+        "name": "V. Gradište",
+        "lat": 44.75,
+        "lon": 21.516667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13285"
+      },
+      "13289": {
+        "name": "Crni Vrh",
+        "lat": 44.116667,
+        "lon": 21.95,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13289"
+      },
+      "13295": {
+        "name": "Negotin",
+        "lat": 44.233333,
+        "lon": 22.55,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13295"
+      },
+      "13367": {
+        "name": "Zlatibor",
+        "lat": 43.733333,
+        "lon": 19.716667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13367"
+      },
+      "13369": {
+        "name": "Sjenica",
+        "lat": 43.283333,
+        "lon": 20.0,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13369"
+      },
+      "13370": {
+        "name": "Požega",
+        "lat": 43.85,
+        "lon": 20.033333,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13370"
+      },
+      "13376": {
+        "name": "Kraljevo",
+        "lat": 43.7,
+        "lon": 20.7,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13376"
+      },
+      "13378": {
+        "name": "Kopaonik",
+        "lat": 43.283333,
+        "lon": 20.8,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13378"
+      },
+      "13383": {
+        "name": "Kruševac",
+        "lat": 43.566667,
+        "lon": 21.35,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13383"
+      },
+      "13384": {
+        "name": "Ćuprija",
+        "lat": 43.933333,
+        "lon": 21.383333,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13384"
+      },
+      "13388": {
+        "name": "Niš",
+        "lat": 43.333333,
+        "lon": 21.9,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13388"
+      },
+      "13389": {
+        "name": "Leskovac",
+        "lat": 42.983333,
+        "lon": 21.95,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13389"
+      },
+      "13397": {
+        "name": "Dimitrovgrad",
+        "lat": 43.016667,
+        "lon": 22.75,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13397"
+      },
+      "13489": {
+        "name": "Vranje",
+        "lat": 42.55,
+        "lon": 21.916667,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13489"
+      },
+      "13392": {
+        "name": "Zaječar",
+        "lat": 43.883333,
+        "lon": 22.3,
+        "metadataUrl": "https://www.hidmet.gov.rs/eng/meteorologija/stanica_moss.php?moss_id=13392"
+      }
+    },
+    "BG": {
+      "15502": {
+        "name": "Vidin",
+        "lat": 43.983,
+        "lon": 22.85,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15525": {
+        "name": "Lovech",
+        "lat": 43.15,
+        "lon": 24.7,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15549": {
+        "name": "Razgrad",
+        "lat": 43.567,
+        "lon": 26.5,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15552": {
+        "name": "Varna",
+        "lat": 43.232,
+        "lon": 27.825
+      },
+      "15600": {
+        "name": "Murgash peak",
+        "lat": 42.833,
+        "lon": 23.667,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15614": {
+        "name": "Sofia",
+        "lat": 42.695,
+        "lon": 23.406
+      },
+      "15615": {
+        "name": "Musala peak",
+        "lat": 42.183,
+        "lon": 23.583,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15625": {
+        "name": "Plovdiv",
+        "lat": 42.068,
+        "lon": 24.851
+      },
+      "15640": {
+        "name": "Sliven",
+        "lat": 42.667,
+        "lon": 26.333,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15655": {
+        "name": "Burgas",
+        "lat": 42.57,
+        "lon": 27.515
+      },
+      "15712": {
+        "name": "Sandanski",
+        "lat": 41.55,
+        "lon": 23.267,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15730": {
+        "name": "Kardzhali",
+        "lat": 41.65,
+        "lon": 25.383,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15501": {
+        "name": "Novo Selo",
+        "lat": 44.167,
+        "lon": 22.8,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15505": {
+        "name": "Vratsa",
+        "lat": 43.2,
+        "lon": 23.533,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15507": {
+        "name": "Montana",
+        "lat": 43.417,
+        "lon": 23.217,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15511": {
+        "name": "Lom",
+        "lat": 43.817,
+        "lon": 23.25,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15514": {
+        "name": "Oryahovo",
+        "lat": 43.683,
+        "lon": 23.967,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15526": {
+        "name": "Pleven",
+        "lat": 43.417,
+        "lon": 24.6,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15530": {
+        "name": "Veliko Tarnovo",
+        "lat": 43.083,
+        "lon": 25.65,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15533": {
+        "name": "Svishtov",
+        "lat": 43.617,
+        "lon": 25.35,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15544": {
+        "name": "Shumen",
+        "lat": 43.267,
+        "lon": 26.933,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15550": {
+        "name": "Silistra",
+        "lat": 44.117,
+        "lon": 27.267,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15561": {
+        "name": "Shabla",
+        "lat": 43.533,
+        "lon": 28.533,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15562": {
+        "name": "Kaliakra",
+        "lat": 43.367,
+        "lon": 28.467,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15601": {
+        "name": "Kyustendil",
+        "lat": 42.267,
+        "lon": 22.767,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15605": {
+        "name": "Dragoman",
+        "lat": 42.933,
+        "lon": 22.933,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15613": {
+        "name": "Cherni Vrah",
+        "lat": 42.583,
+        "lon": 23.267,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15627": {
+        "name": "Botev peak",
+        "lat": 42.667,
+        "lon": 24.833,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15628": {
+        "name": "Pazardzhik",
+        "lat": 42.217,
+        "lon": 24.333,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15631": {
+        "name": "Kazanlak",
+        "lat": 42.617,
+        "lon": 25.4,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15635": {
+        "name": "Chirpan",
+        "lat": 42.2,
+        "lon": 25.333,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15642": {
+        "name": "Elhovo",
+        "lat": 42.183,
+        "lon": 26.567,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15646": {
+        "name": "Karnobat",
+        "lat": 42.65,
+        "lon": 26.983,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15661": {
+        "name": "Ahtopol",
+        "lat": 42.1,
+        "lon": 27.85,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      },
+      "15726": {
+        "name": "Rozhen",
+        "lat": 41.883,
+        "lon": 24.733,
+        "metadataUrl": "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+      }
+    },
+    "HR": {
+      "13116": {
+        "name": "Rijeka",
+        "lat": 45.217,
+        "lon": 14.57
+      },
+      "14216": {
+        "name": "Rijeka/Kozala",
+        "lat": 45.333,
+        "lon": 14.45
+      },
+      "14219": {
+        "name": "Parg",
+        "lat": 45.6,
+        "lon": 14.633
+      },
+      "14232": {
+        "name": "Karlovac",
+        "lat": 45.5,
+        "lon": 15.567
+      },
+      "14234": {
+        "name": "Krapina",
+        "lat": 46.133,
+        "lon": 15.883
+      },
+      "14235": {
+        "name": "Puntijarka",
+        "lat": 45.917,
+        "lon": 15.967
+      },
+      "14236": {
+        "name": "Zagreb/Gric",
+        "lat": 45.8,
+        "lon": 15.967
+      },
+      "14240": {
+        "name": "Zagreb\\Maksimir",
+        "lat": 45.817,
+        "lon": 16.033
+      },
+      "14241": {
+        "name": "Zagreb/Pleso",
+        "lat": 45.733333,
+        "lon": 16.066667,
+        "icao": "LDZA"
+      },
+      "14244": {
+        "name": "Sisak",
+        "lat": 45.5,
+        "lon": 16.367
+      },
+      "14246": {
+        "name": "Varazdin",
+        "lat": 46.295,
+        "lon": 16.381
+      },
+      "14248": {
+        "name": "Krizevci",
+        "lat": 46.033,
+        "lon": 16.55
+      },
+      "14253": {
+        "name": "Bjelovar",
+        "lat": 45.917,
+        "lon": 16.867
+      },
+      "14256": {
+        "name": "Bilogora",
+        "lat": 45.883,
+        "lon": 17.2
+      },
+      "14258": {
+        "name": "Daruvar",
+        "lat": 45.6,
+        "lon": 17.233
+      },
+      "14280": {
+        "name": "Osijek-Cepin",
+        "lat": 45.5,
+        "lon": 18.566667,
+        "icao": null
+      },
+      "14284": {
+        "name": "Osijek",
+        "lat": 45.463,
+        "lon": 18.81
+      },
+      "14307": {
+        "name": "Pula",
+        "lat": 44.9,
+        "lon": 13.916667,
+        "icao": "LDPL"
+      },
+      "14308": {
+        "name": "Pazin",
+        "lat": 45.233,
+        "lon": 13.933
+      },
+      "14314": {
+        "name": "Mali Losinj",
+        "lat": 44.533,
+        "lon": 14.483
+      },
+      "14321": {
+        "name": "Rab",
+        "lat": 44.75,
+        "lon": 14.767
+      },
+      "14323": {
+        "name": "Senj",
+        "lat": 45.0,
+        "lon": 14.9
+      },
+      "14324": {
+        "name": "Zavizan",
+        "lat": 44.817,
+        "lon": 14.983
+      },
+      "14328": {
+        "name": "Ogulin",
+        "lat": 45.267,
+        "lon": 15.233
+      },
+      "14330": {
+        "name": "Gospic",
+        "lat": 44.55,
+        "lon": 15.366667,
+        "icao": null
+      },
+      "14370": {
+        "name": "Slavonski Brod",
+        "lat": 45.167,
+        "lon": 18.0
+      },
+      "14382": {
+        "name": "Gradiste",
+        "lat": 45.15,
+        "lon": 18.7
+      },
+      "14428": {
+        "name": "Zadar Puntamika",
+        "lat": 44.133,
+        "lon": 15.217
+      },
+      "14431": {
+        "name": "Zadar",
+        "lat": 44.108,
+        "lon": 15.347
+      },
+      "14438": {
+        "name": "Sibenik",
+        "lat": 43.733,
+        "lon": 15.917
+      },
+      "14441": {
+        "name": "Komiza",
+        "lat": 43.05,
+        "lon": 16.1
+      },
+      "14442": {
+        "name": "Knin",
+        "lat": 44.033333,
+        "lon": 16.2,
+        "icao": null
+      },
+      "14443": {
+        "name": "Palagruza",
+        "lat": 42.4,
+        "lon": 16.267
+      },
+      "14444": {
+        "name": "Split/Resnik",
+        "lat": 43.533333,
+        "lon": 16.3,
+        "icao": "LDSP"
+      },
+      "14445": {
+        "name": "Split/Marjan",
+        "lat": 43.516667,
+        "lon": 16.433333,
+        "icao": null
+      },
+      "14446": {
+        "name": "Brac",
+        "lat": 43.286,
+        "lon": 16.68
+      },
+      "14447": {
+        "name": "Hvar",
+        "lat": 43.167,
+        "lon": 16.45
+      },
+      "14452": {
+        "name": "Lastovo",
+        "lat": 42.767,
+        "lon": 16.9
+      },
+      "14454": {
+        "name": "Makarska",
+        "lat": 43.283,
+        "lon": 17.017
+      },
+      "14462": {
+        "name": "Ploce",
+        "lat": 43.05,
+        "lon": 17.45
+      },
+      "14472": {
+        "name": "Dubrovnik/Gorica",
+        "lat": 42.65,
+        "lon": 18.083
+      },
+      "14474": {
+        "name": "Dubrovnik",
+        "lat": 42.566667,
+        "lon": 18.266667,
+        "icao": "LDDU"
+      },
+      "14301": {
+        "name": "Porec",
+        "lat": 45.233333,
+        "lon": 13.6,
+        "icao": null
+      },
+      "14317": {
+        "name": "Rijeka",
+        "lat": 45.216667,
+        "lon": 14.583333,
+        "icao": "LDRI"
+      }
+    }
+  },
+  "poi": {
+    "RS": [
+      "13168",
+      "13262",
+      "13269",
+      "13272",
+      "13274",
+      "13278",
+      "13295",
+      "13367",
+      "13376",
+      "13378",
+      "13388",
+      "13389",
+      "13489"
+    ],
+    "BG": [
+      "15552",
+      "15614",
+      "15655"
+    ],
+    "HR": [
+      "14241",
+      "14280",
+      "14301",
+      "14307",
+      "14317",
+      "14330",
+      "14442",
+      "14444",
+      "14445",
+      "14474"
+    ]
+  }
+}

@@ -540,3 +540,14 @@ test('six-hourly Ukrainian and Romanian totals retain delayed native ends, never
   assert.equal(h.run('officialRainWindow(easternCountry,1,eastern.generatedAt)'),null);
  }
 });
+test('Serbia Bulgaria and Croatia accept official totals, preserve missing hours and keep their delayed daily ends',()=>{
+ const h=harness(),end=h.context.frameTime;
+ for(const [country,lat,lon] of [['RS',44.12,21.95],['BG',43.98,22.85],['HR',45.73,16.06]]){
+  h.context.balkan={version:1,generatedAt:end,sources:{[country]:{name:'Official '+country}},stations:Array.from({length:3},(_,i)=>({country,code:String(i),name:'Gauge',lat,lon,times:[],amounts:[],accumulations:[{end:end-9*3600,hours:24,value:6.4},{end:end-9*3600,hours:48,value:8.4}]}))};
+  assert.equal(h.run('validOfficialRainSnapshot(balkan)'),true);h.run('officialRainData=balkan;officialRainWindows.clear()');h.context.balkanCountry=country;
+  assert.equal(h.run('officialRainWindow(balkanCountry,24,balkan.generatedAt).end'),end-9*3600);
+  assert.equal(h.run('officialStationRainWindow(balkan.stations[0],48,balkan.generatedAt).value'),8.4);
+  assert.equal(h.run('officialRainWindow(balkanCountry,1,balkan.generatedAt)'),null);
+  h.context.balkan.stations[0].lat=59;assert.equal(h.run('validOfficialRainSnapshot(balkan)'),false);
+ }
+});

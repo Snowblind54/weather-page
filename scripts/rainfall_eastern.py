@@ -19,7 +19,7 @@ from adriatic_greece_temperature import BASE, download_bulletin, observation_tim
 from official_wind_eastern import BULLETINS as EASTERN_BULLETINS
 from official_wind_balkans import BULLETINS as BALKAN_BULLETINS
 
-BOUNDS={'UA':(44,52.5,22,40.5),'RO':(43.5,48.5,20,30),'HU':(45.7,48.7,16,23)}
+BOUNDS={'RS':(42.2,46.3,18.8,23.1),'BG':(41.2,44.3,22.2,28.8),'HR':(42.2,46.7,13.1,19.5),'UA':(44,52.5,22,40.5),'RO':(43.5,48.5,20,30),'HU':(45.7,48.7,16,23)}
 UA_WIS='https://wis2.meteo.gov.ua/oapi/collections/urn:wmo:md:ua-hmc:aws1h/items'
 HU_BASE='https://odp.met.hu/weather/weather_reports/synoptic/hungary/'
 SOURCES={'UA':('Ukrainian Hydrometeorological Center / WIS2 automatic gauges with official SYNOP backup',UA_WIS),
@@ -38,7 +38,7 @@ def location(country,lat,lon):
     return s<=lat<=n and w<=lon<=e
 
 
-def parse_bulletin(raw,reference,expected,metadata,country,now):
+def parse_bulletin(raw,reference,expected,metadata,country,now,include_daily=False):
     if reference.tzinfo is None or not -60<=(now-reference).total_seconds()<=86400:raise ValueError('Stale or undated SYNOP rain bulletin')
     text=raw.decode('ascii') if isinstance(raw,bytes) else raw
     if len(text)>512*1024:raise ValueError('Oversized SYNOP rain bulletin')
@@ -54,13 +54,14 @@ def parse_bulletin(raw,reference,expected,metadata,country,now):
         if len(tokens)<3 or tokens[0] not in metadata or not re.fullmatch(r'[0-4][\d/]{4}',tokens[1]):continue
         code=tokens[0];m=metadata[code]
         if not location(country,m['lat'],m['lon']):continue
-        section=1;groups={1:[],3:[]};changed=False
+        section=1;groups={1:[],3:[]};daily=[];changed=False
         for g in tokens[3:]:
             if g in ('444','555'):break
             if g.startswith('222'):section=2;continue
             if g=='333':section=3;continue
             if section==1 and re.fullmatch(r'9\d{4}',g):changed=True
             if section in groups and re.fullmatch(r'6\d{4}',g):groups[section].append(g)
+            if section==3 and re.fullmatch(r'7\d{4}',g):daily.append(g)
         if changed:continue
         rows=[];periods=[]
         for sec,gg in groups.items():
@@ -70,6 +71,11 @@ def parse_bulletin(raw,reference,expected,metadata,country,now):
             trace=rrr==990;v=0 if trace else rrr if rrr<990 else (rrr-990)/10
             if hours==1:rows.append((t,v,trace))
             else:periods.append(dict(end=t,hours=hours,value=v))
+        if include_daily and len(daily)==1 and tokens[1][0]!='4':
+            # WMO FM-12 section 3: 24h total in tenths of mm, ending now.
+            # 9999 is trace and 9998 is a lower bound, not exact numeric totals.
+            n=int(daily[0][1:])
+            if n<9998:periods.append(dict(end=t,hours=24,value=n/10))
         if rows or periods:
             s=core.station(country,code,m['name'],m['lat'],m['lon'],rows);s['periods']=periods;out.append(s)
     return out

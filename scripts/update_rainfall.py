@@ -64,7 +64,7 @@ def amount(value):
 def station(country, code, name, lat, lon, rows):
     lat, lon = float(lat), float(lon)
     valid = (41 <= lat <= 84 and -142 <= lon <= -52) if country == 'CA' else (47 <= lat <= 72.5 and -26 <= lon <= 33)
-    if country in ('UA','RO','HU'):
+    if country in ('UA','RO','HU','RS','BG'):
         from rainfall_eastern import location
         valid=location(country,lat,lon)
     if country=='TR':valid=35.8<=lat<=42.2 and 25.6<=lon<=45
@@ -551,7 +551,9 @@ def main():
     install_turkey(sys.modules[__name__])
     from rainfall_eastern import install as install_eastern, PERIODS as EASTERN_PERIODS
     install_eastern(sys.modules[__name__])
-    PERIODS={**EASTERN_PERIODS,**PERIODS,**SOUTHWEST_PERIODS,**ALPINE_PERIODS,**ADRIATIC_PERIODS,'TR':TURKEY_PERIOD}
+    from rainfall_balkans import install as install_balkans, PERIODS as BALKAN_PERIODS
+    install_balkans(sys.modules[__name__])
+    PERIODS={**EASTERN_PERIODS,**PERIODS,**SOUTHWEST_PERIODS,**ALPINE_PERIODS,**ADRIATIC_PERIODS,'TR':TURKEY_PERIOD,**BALKAN_PERIODS}
     collection_now = dt.datetime.now(dt.timezone.utc)
     now = collection_now.replace(minute=0, second=0, microsecond=0)
     try:
