@@ -7,7 +7,7 @@
 
   const SNAPSHOT_URL='data/space-weather.json';
   const CLOUD_URL='data/aurora-cloud.json';
-  const SPACE_REFRESH_MS=2*60*1000;
+  const SPACE_REFRESH_MS=60*1000;
   const CLOUD_REFRESH_MS=30*60*1000;
   const STALE={
     power:30*60,

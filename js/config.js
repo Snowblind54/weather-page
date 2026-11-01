@@ -63,7 +63,7 @@ const CLOUD_BOUNDS = APP_CONFIG.CLOUD_BOUNDS;
     </div>
 
     <div class="section space-dashboard-section">
-      <div class="space-section-title"><div><div class="label">Aurora now</div><div class="small">NOAA OVATION &amp; geomagnetic activity</div></div><button id="spaceWeatherRefresh" type="button" title="Refresh space weather">↻</button></div>
+      <div class="space-section-title"><div><div class="label">Aurora now</div><div class="small">NOAA OVATION &amp; geomagnetic activity</div><div class="small">Checks every minute · shared data refreshes about every 5 minutes. Source observation times are shown.</div></div><button id="spaceWeatherRefresh" type="button" title="Refresh space weather">↻</button></div>
       <div class="space-dashboard space-dashboard-aurora">
         <div class="space-metric space-metric-power">
           <div class="space-metric-heading"><span>Aurora power</span><button class="space-metric-info" type="button" data-space-help="spaceHelpPower" aria-controls="spaceHelpPower" aria-expanded="false" aria-label="Why hemispheric aurora power matters">i</button></div>
@@ -154,10 +154,10 @@ window.addEventListener('load',()=>{
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');
-  spaceWeatherScript.src='js/space-weather-v4.js?v=ifs-9km-1';
+  spaceWeatherScript.src='js/space-weather-v4.js?v=aurora-refresh-1';
   spaceWeatherScript.onload=()=>{
     const dashboardScript=document.createElement('script');
-    dashboardScript.src='js/space-weather-dashboard.js?v=cme-1';
+    dashboardScript.src='js/space-weather-dashboard.js?v=aurora-refresh-1';
     document.body.appendChild(dashboardScript);
   };
   document.body.appendChild(spaceWeatherScript);

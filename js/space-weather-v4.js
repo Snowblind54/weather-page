@@ -4,7 +4,7 @@
 
   const SNAPSHOT_URL='data/space-weather.json';
   const CLOUD_URL='data/aurora-cloud.json';
-  const REFRESH_MS=2*60*1000;
+  const REFRESH_MS=60*1000;
   const CLOUD_REFRESH_MS=30*60*1000;
   const SAMPLE_STEP=4;
   const AURORA_FLOOR=3;
