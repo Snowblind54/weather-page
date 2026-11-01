@@ -20,6 +20,10 @@ const WARNING_COUNTRY_TIMEZONES={
   Luxembourg:'Europe/Luxembourg',
   Czechia:'Europe/Prague',
   Slovakia:'Europe/Bratislava',
+  Spain:'Europe/Madrid',
+  Italy:'Europe/Rome',
+  Greece:'Europe/Athens',
+  Turkey:'Europe/Istanbul',
   Greenland:'America/Nuuk',
   Canada:'UTC',
   USA:'UTC'
@@ -75,7 +79,7 @@ function warningIsTodayOrTomorrow(record){
   const messageEnd=Date.parse(record?.messageExpires||'');
   if(Number.isFinite(messageEnd) && messageEnd<=Date.now()) return false;
   // Snapshot age describes update health; validity decides visibility.
-  if(['Latvia','Poland','Denmark','Greenland','Canada','USA','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia'].includes(country) && !Number.isFinite(endMs)) return false;
+  if(['Latvia','Poland','Denmark','Greenland','Canada','USA','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia','Spain','Italy','Greece','Turkey'].includes(country) && !Number.isFinite(endMs)) return false;
   const timeZone=record?.timeZone || WARNING_COUNTRY_TIMEZONES[country] || 'Europe/Tallinn';
   const today=warningDateKey(new Date(),timeZone);
   const tomorrow=warningAddDays(today,1);
@@ -131,7 +135,7 @@ renderLithuaniaWarnings=async function(){
 };
 
 function isFinnishMarineWarning(record){
-  if(['USA','Ireland','United Kingdom','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia'].includes(record?.country))return record.marine===true;
+  if(['USA','Ireland','United Kingdom','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia','Spain','Italy','Greece','Turkey'].includes(record?.country))return record.marine===true;
   if(record?.country!=='Finland') return false;
 
   const text=normalizeWarningArea([
@@ -288,7 +292,7 @@ renderNordicWarnings=async function(){
 function overdueWarningCountries(){
   const updates=new Map();
   for(const record of nordicWarnings){
-    if(['Latvia','Poland','Denmark','Greenland','Canada','USA','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia'].includes(warningCountry(record))) updates.set(warningCountry(record),record.sourceUpdatedAt);
+    if(['Latvia','Poland','Denmark','Greenland','Canada','USA','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia','Spain','Italy','Greece','Turkey'].includes(warningCountry(record))) updates.set(warningCountry(record),record.sourceUpdatedAt);
   }
   if(latviaWarningSnapshotUpdatedAt) updates.set('Latvia',latviaWarningSnapshotUpdatedAt);
   for(const country of Object.values(nationalWarningSnapshot?.countries||{})) updates.set(country.country,country.updatedAt);
@@ -319,11 +323,11 @@ function updateVisibleWarningStatus(){
 
   for(const [country,label] of [
     ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
-    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['United Kingdom','UK'],['Ireland','IE'],['Germany','DE'],['Netherlands','NL'],['Belgium','BE'],['Luxembourg','LU'],['Czechia','CZ'],['Slovakia','SK'],['Greenland','GL'],['Canada','CA'],['USA','US']
+    ['Sweden','SE'],['Norway','NO'],['Iceland','IS'],['Poland','PL'],['Denmark','DK'],['United Kingdom','UK'],['Ireland','IE'],['Germany','DE'],['Netherlands','NL'],['Belgium','BE'],['Luxembourg','LU'],['Czechia','CZ'],['Slovakia','SK'],['Spain','ES'],['Italy','IT'],['Greece','GR'],['Turkey','TR'],['Greenland','GL'],['Canada','CA'],['USA','US']
   ]){
     if(globalThis.NorthernCountryFocus?.matchesCountry && !globalThis.NorthernCountryFocus?.matchesCountry(country))continue;
     const count=counts.get(country)||0;
-    if(count || (['Denmark','Canada','Greenland','USA','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia'].includes(country) && nationalWarningSnapshot?.countries?.[label])) parts.push(`${label} ${count}`);
+    if(count || (['Denmark','Canada','Greenland','USA','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia','Spain','Italy','Greece','Turkey'].includes(country) && nationalWarningSnapshot?.countries?.[label])) parts.push(`${label} ${count}`);
   }
 
   if(previous.includes('cached')) parts.push('cached source used');
@@ -371,7 +375,7 @@ function scheduleWarningExpiryRefresh(){
     if(Number.isFinite(expiry) && expiry>now) deadlines.push(expiry);
     const messageExpiry=Date.parse(record.messageExpires);
     if(Number.isFinite(messageExpiry) && messageExpiry>now) deadlines.push(messageExpiry);
-    if(['Latvia','Poland','Denmark','Greenland','Canada','USA','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia'].includes(warningCountry(record))){
+    if(['Latvia','Poland','Denmark','Greenland','Canada','USA','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia','Spain','Italy','Greece','Turkey'].includes(warningCountry(record))){
       const maxAge=warningCountry(record)==='Latvia'?LATVIA_WARNING_MAX_AGE:NATIONAL_WARNING_MAX_AGE;
       const staleAt=Date.parse(record.sourceUpdatedAt)+maxAge+1;
       if(Number.isFinite(staleAt) && staleAt>now) deadlines.push(staleAt);

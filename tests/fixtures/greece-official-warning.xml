@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.300.0.GR.261031134500.010000015</identifier>
+  <sender>emk@hnms.gr</sender>
+  <sent>2026-10-31T13:45:00+00:00</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <scope>Public</scope>
+  <info>
+    <language>en-GB</language>
+    <category>Met</category>
+    <event>Severe Thunderstorm warning</event>
+    <responseType>None</responseType>
+    <urgency>Expected</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <effective>2026-10-31T13:45:00+00:00</effective>
+    <onset>2026-11-01T00:00:00+00:00</onset>
+    <expires>2026-11-01T18:00:00+00:00</expires>
+    <senderName>Hnms Forecaster</senderName>
+    <headline>Orange warning for East Peloponnisos</headline>
+    <description>Severe thunderstorms in place probably accompanied by strong winds  and hail at times. BE PREPARED for severe thunderstorms causing significant impact and protect yourself from lightning. Damage to property and trees may occur. Flash flooding, wind gusts and hail are possible. Transport and outdoor activities disruption can be expected.</description>
+    <web>https://www.emy.gr</web>
+    <parameter>
+      <valueName>awareness_type</valueName>
+      <value>3; Thunderstorm</value>
+    </parameter>
+    <parameter>
+      <valueName>awareness_level</valueName>
+      <value>3; Orange; Severe</value>
+    </parameter>
+    <area>
+      <areaDesc>East Peloponnisos</areaDesc>
+      <geocode>
+        <valueName>EMMA_ID</valueName>
+        <value>GR015</value>
+      </geocode>
+    </area>
+  </info>
+  <info>
+    <language>el-GR</language>
+    <category>Met</category>
+    <event>Προειδοποίηση για Καταιγίδες</event>
+    <responseType>None</responseType>
+    <urgency>Expected</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <effective>2026-10-31T13:45:00+00:00</effective>
+    <onset>2026-11-01T00:00:00+00:00</onset>
+    <expires>2026-11-01T18:00:00+00:00</expires>
+    <senderName>Hnms Forecaster</senderName>
+    <headline>Πορτοκαλί προειδοποίηση για Ανατολική Πελοπόννησο</headline>
+    <description>Καταιγίδες κατά τόπους ισχυρές που πιθανώς να συνοδεύονται πρόσκαιρα από χαλαζοπτώσεις και ισχυρούς ριπαίους ανέμους. ΠΡΟΕΤΟΙΜΑΣΤΕΙΤΕ για ισχυρές καταιγίδες που έχουν σημαντικές επιπτώσεις και προστατεύστε τον εαυτό σας από τους κεραυνούς. Είναι δυνατό να προκληθούν ζημιές σε περιουσίες και δέντρα από τις πλημμύρες, τις ριπές του ανέμου και το χαλάζι. Αναμένονται προβλήματα στις υπαίθριες δραστηριότητες και τις μεταφορές.</description>
+    <web>https://www.emy.gr</web>
+    <parameter>
+      <valueName>awareness_type</valueName>
+      <value>3; Thunderstorm</value>
+    </parameter>
+    <parameter>
+      <valueName>awareness_level</valueName>
+      <value>3; Orange; Severe</value>
+    </parameter>
+    <area>
+      <areaDesc>Ανατολική Πελοπόννησο</areaDesc>
+      <geocode>
+        <valueName>EMMA_ID</valueName>
+        <value>GR015</value>
+      </geocode>
+    </area>
+  </info>
+</alert>

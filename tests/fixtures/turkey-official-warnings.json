@@ -1,0 +1,150 @@
+[
+  {
+    "_id": "6ae60b41585f3c1d282da6e8",
+    "text": {
+      "orange": "Yerel olarak çok kuvvetli ve şiddetli (50-100 kg/m2) gök gürültülü sağanak yağış beklendiğinden sel, su baskını, heyelan, ulaşımda aksamalar, yıldırım, yerel dolu yağışı, yağış anında kuvvetli rüzgar  ve hortum gibi olumsuzluklara karşı dikkatli ve tedbirli olunmalıdır"
+    },
+    "weather": {
+      "yellow": [],
+      "orange": [
+        "thunderstorm"
+      ],
+      "red": []
+    },
+    "towns": {
+      "yellow": [],
+      "orange": [
+        94801,
+        94802,
+        94803,
+        94804,
+        94805,
+        94806,
+        94807,
+        94808,
+        94809,
+        94810,
+        94811,
+        94812,
+        94813
+      ],
+      "red": []
+    },
+    "alertNo": 2026103105,
+    "begin": "2026-11-01T15:00:00.000Z",
+    "end": "2026-11-03T01:00:00.000Z"
+  },
+  {
+    "_id": "6ae60ae8585f3c1d282da6e7",
+    "text": {
+      "yellow": "Yerel olarak kuvvetli (21-50 kg/m2) gök gürültülü sağanak yağış beklendiğinden sel, su baskını, heyelan, ulaşımda aksamalar, yıldırım, yerel dolu yağışı, yağış anında kuvvetli rüzgar  ve hortum gibi olumsuzluklara karşı dikkatli ve tedbirli olunmalıdır"
+    },
+    "weather": {
+      "yellow": [
+        "thunderstorm"
+      ],
+      "orange": [],
+      "red": []
+    },
+    "towns": {
+      "yellow": [
+        94801,
+        94802,
+        94803,
+        94804,
+        94805,
+        94806,
+        94807,
+        94808,
+        94809,
+        94810,
+        94811,
+        94812,
+        94813
+      ],
+      "orange": [],
+      "red": []
+    },
+    "alertNo": 2026103104,
+    "begin": "2026-11-01T09:00:00.000Z",
+    "end": "2026-11-01T15:00:00.000Z"
+  },
+  {
+    "_id": "6ae607c0585f3c1d282da6e6",
+    "text": {
+      "yellow": "Yerel olarak kuvvetli ve çok kuvvetli (21-75 kg/m2) gök gürültülü sağanak yağış beklendiğinden sel, su baskını,  heyelan, ulaşımda aksamalar, yıldırım, yerel dolu yağışı, yağış anında kuvvetli rüzgar ve hortum gibi olumsuzluklara karşı dikkatli ve tedbirli olunmalıdır."
+    },
+    "weather": {
+      "yellow": [
+        "thunderstorm"
+      ],
+      "orange": [],
+      "red": []
+    },
+    "towns": {
+      "yellow": [
+        90908,
+        90911,
+        90918
+      ],
+      "orange": [],
+      "red": []
+    },
+    "alertNo": 2026103103,
+    "begin": "2026-11-01T15:00:00.000Z",
+    "end": "2026-11-02T03:00:00.000Z"
+  },
+  {
+    "_id": "6ae60789585f3c1d282da6e5",
+    "text": {
+      "yellow": "Yerel olarak kuvvetli (21-50 kg/m2) gök gürültülü sağanak yağış beklendiğinden sel, su baskını,  heyelan, ulaşımda aksamalar, yıldırım, yerel dolu yağışı, yağış anında kuvvetli rüzgar ve hortum gibi olumsuzluklara karşı dikkatli ve tedbirli olunmalıdır."
+    },
+    "weather": {
+      "yellow": [
+        "thunderstorm"
+      ],
+      "orange": [],
+      "red": []
+    },
+    "towns": {
+      "yellow": [
+        93502,
+        93503,
+        93506,
+        93507,
+        93509,
+        93524
+      ],
+      "orange": [],
+      "red": []
+    },
+    "alertNo": 2026103102,
+    "begin": "2026-11-01T13:00:00.000Z",
+    "end": "2026-11-02T03:00:00.000Z"
+  },
+  {
+    "_id": "6ae606ee585f3c1d282da6e4",
+    "text": {
+      "yellow": "Yerel olarak kuvvetli ve çok kuvvetli (21-75 kg/m2) gök gürültülü sağanak yağış beklendiğinden sel, su baskını,  heyelan, ulaşımda aksamalar, yıldırım, yerel dolu yağışı, yağış anında kuvvetli rüzgar ve hortum gibi olumsuzluklara karşı dikkatli ve tedbirli olunmalıdır."
+    },
+    "weather": {
+      "yellow": [
+        "thunderstorm"
+      ],
+      "orange": [],
+      "red": []
+    },
+    "towns": {
+      "yellow": [
+        93514,
+        93517,
+        93528
+      ],
+      "orange": [],
+      "red": []
+    },
+    "alertNo": 2026103101,
+    "begin": "2026-11-01T11:00:00.000Z",
+    "end": "2026-11-02T03:00:00.000Z"
+  }
+]

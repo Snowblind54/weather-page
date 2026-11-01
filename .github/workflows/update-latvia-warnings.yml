@@ -1,4 +1,4 @@
-name: Update official Latvia, Poland, Denmark, UK, Ireland, Germany, Netherlands, Belgium, Luxembourg, Czechia, Slovakia, Greenland, Canada and USA warnings
+name: Update official national weather warnings
 
 on:
   schedule:
@@ -10,6 +10,18 @@ on:
       - scripts/update_latvia_warnings.py
       - scripts/update_national_warnings.py
       - scripts/update_europe_warnings.py
+      - scripts/update_turkey_warnings.py
+      - scripts/build_southern_warning_regions.py
+      - data/southern-warning-regions.json.gz
+      - tests/test_turkey_warnings.py
+      - tests/fixtures/spain-official-warning.xml
+      - tests/fixtures/italy-official-warning.xml
+      - tests/fixtures/greece-official-warning.xml
+      - tests/fixtures/turkey-official-warnings.json
+      - js/national-warnings.js
+      - js/warnings.js
+      - js/warning-filters.js
+      - tests/warning-*.test.cjs
       - scripts/build_central_warning_regions.py
       - data/central-warning-regions.json.gz
       - tests/fixtures/slovakia-official-warning.xml
@@ -63,9 +75,11 @@ jobs:
         run: python3 scripts/hydrate_r2_data.py data/latvia-warnings.json data/national-warnings.json
       - name: Check national warning parsers
         run: python3 -m unittest discover -s tests -p 'test_*warnings.py' -v
+      - name: Check warning map rendering, filtering and large warning volumes
+        run: node --test tests/warning-*.test.cjs tests/us-warnings.test.cjs
       - name: Fetch official LVGMC warnings and polygons
         run: python3 scripts/update_latvia_warnings.py
-      - name: Fetch official IMGW, DMI, UK Met Office, Met Éireann, DWD, KNMI, RMI/KMI, MeteoLux, ČHMÚ, SHMÚ, ECCC and NWS warnings and polygons
+      - name: Fetch official IMGW, DMI, UK Met Office, Met Éireann, DWD, KNMI, RMI/KMI, MeteoLux, ČHMÚ, SHMÚ, AEMET, MeteoAM, HNMS, MGM, ECCC and NWS warnings and polygons
         if: ${{ !cancelled() }}
         run: python3 scripts/update_national_warnings.py
       - name: Save updated warning snapshots

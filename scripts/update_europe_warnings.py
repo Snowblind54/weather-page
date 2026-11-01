@@ -13,6 +13,9 @@ import xml.etree.ElementTree as ET
 from update_latvia_warnings import download, text, polygon, NS
 
 SOURCES = {
+    'ES': ('Spain', '🇪🇸', 'spain', 'Europe/Madrid', 'Agencia Estatal de Meteorología (AEMET)'),
+    'IT': ('Italy', '🇮🇹', 'italy', 'Europe/Rome', 'Italian Air Force National Meteorological Service'),
+    'GR': ('Greece', '🇬🇷', 'greece', 'Europe/Athens', 'Hellenic National Meteorological Service (HNMS)'),
     'UK': ('United Kingdom', '🇬🇧', 'united-kingdom', 'Europe/London', 'UK Met Office'),
     'IE': ('Ireland', '🇮🇪', 'ireland', 'Europe/Dublin', 'Met Éireann'),
     'DE': ('Germany', '🇩🇪', 'germany', 'Europe/Berlin', 'Deutscher Wetterdienst (DWD)'),
@@ -25,6 +28,7 @@ SOURCES = {
 ATOM = {'a': 'http://www.w3.org/2005/Atom'}
 COUNTIES = pathlib.Path(__file__).resolve().parents[1] / 'data/ireland-warning-counties.json.gz'
 REGIONS = pathlib.Path(__file__).resolve().parents[1] / 'data/western-warning-regions.json.gz'
+SOUTHERN_REGIONS = pathlib.Path(__file__).resolve().parents[1] / 'data/southern-warning-regions.json.gz'
 CENTRAL_REGIONS = pathlib.Path(__file__).resolve().parents[1] / 'data/central-warning-regions.json.gz'
 
 
@@ -90,7 +94,8 @@ def parse_cap(payload, code, url, now, counties=None, regions=None):
                 shapes.append([ring])
             geocodes=[(text(g,'valueName'), text(g,'value')) for g in area.findall('cap:geocode',NS)]
             codes=[value for kind,value in geocodes if kind in ('EMMA_ID','FIPS')]
-            marine = ((code=='IE' and any(c.startswith('EI8') for c in codes)) or
+            marine = ((code=='ES' and any(text(p,'valueName')=='awareness_type' and text(p,'value').split(';')[0].strip()=='7' for p in info.findall('cap:parameter',NS))) or
+                      (code=='IE' and any(c.startswith('EI8') for c in codes)) or
                       (code=='NL' and any(c.startswith('NL8') for c in codes)) or
                       (code=='DE' and any(kind=='WARNCELLID' and value.startswith(('2','5')) for kind,value in geocodes)))
             missing=[]
@@ -121,6 +126,13 @@ def parse_cap(payload, code, url, now, counties=None, regions=None):
                         if geometry: shapes.extend(geometry)
                         else: missing.append(value)
                     break
+            if not shapes and code in ('ES','IT','GR'):
+                for kind,value in dict.fromkeys(geocodes):
+                    if kind not in ('EMMA_ID','EMMAID'):continue
+                    geometry=(regions or {}).get(code,{}).get('EMMA_ID:'+value)
+                    if geometry:shapes.extend(geometry)
+                    else:missing.append(value)
+            area_timezone='Atlantic/Canary' if code=='ES' and shapes and all(point[0]<30 for shape in shapes for ring in shape for point in ring) else timezone
             # Never replace an unknown official area with a guessed rectangle.
             rows.append({
                 'country':name,'flag':flag,'identifier':f'{identifier}:{info_index}:{area_index}',
@@ -130,7 +142,7 @@ def parse_cap(payload, code, url, now, counties=None, regions=None):
                 'language':text(info,'language'),'effective':effective,'onset':onset,'expires':expires,
                 'description':html.unescape(re.sub(r'<[^>]*>', ' ', text(info,'description'))).strip(),
                 'instruction':html.unescape(re.sub(r'<[^>]*>', ' ', text(info,'instruction'))).strip(),
-                'certainty':text(info,'certainty'),'timeZone':timezone,
+                'certainty':text(info,'certainty'),'timeZone':area_timezone,
                 'sourceName':service+' via Meteoalarm / EUMETNET',
                 'sourceUrl':url,'sourcePage':text(info,'web') or 'https://meteoalarm.org/',
                 'polygons':shapes,'circles':[],'marine':marine,
@@ -161,6 +173,8 @@ def load_europe(code, now):
         regions=catalogue['regions']
         for key,targets in catalogue.get('aliases',{}).get(code,{}).items():
             regions[code][key]=[shape for target in targets for shape in regions[code][target]]
+    if code in ('ES','IT','GR'):
+        regions=json.loads(gzip.decompress(SOUTHERN_REGIONS.read_bytes()))['regions']
     rows=[];superseded=set()
     def fetch(url):
         data=fetch_warning(url);alert=ET.fromstring(data)

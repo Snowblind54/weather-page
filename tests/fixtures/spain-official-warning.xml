@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.724.0.ES.261101094209.711502COCO022326129</identifier>
+  <sender>http://www.aemet.es</sender>
+  <sent>2026-11-01T09:42:09+00:00</sent>
+  <status>Actual</status>
+  <msgType>Update</msgType>
+  <scope>Public</scope>
+  <references>http://www.aemet.es,2.49.0.0.724.0.ES.261031104408.711502COCO022343448,2026-10-31T10:44:08+00:00</references>
+  <info>
+    <language>es-ES</language>
+    <category>Met</category>
+    <event>Aviso de costeros de nivel amarillo</event>
+    <responseType>Monitor</responseType>
+    <urgency>Future</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <effective>2026-11-01T10:40:30+01:00</effective>
+    <onset>2026-11-02T18:00:00+01:00</onset>
+    <expires>2026-11-02T23:59:59+01:00</expires>
+    <senderName>AEMET. Agencia Estatal de Meteorología</senderName>
+    <headline>Aviso de costeros de nivel amarillo. Costa - Oeste de A Coruña</headline>
+    <description>Viento del Noreste de 50 a 61 km/h (fuerza 7).</description>
+    <instruction>Esté atento. Manténgase informado de la predicción meteorológica más actualizada. Se pueden producir daños moderados a personas y bienes, especialmente a aquellos vulnerables o en zonas expuestas al fenómeno.</instruction>
+    <web>https://www.aemet.es/es/eltiempo/prediccion/avisos</web>
+    <contact>AEMET</contact>
+    <parameter>
+      <valueName>awareness_level</valueName>
+      <value>2; yellow; Moderate</value>
+    </parameter>
+    <parameter>
+      <valueName>awareness_type</valueName>
+      <value>7; coastalevent</value>
+    </parameter>
+    <area>
+      <areaDesc>Costa - Oeste de A Coruña</areaDesc>
+      <geocode>
+        <valueName>EMMA_ID</valueName>
+        <value>ES847</value>
+      </geocode>
+    </area>
+  </info>
+  <info>
+    <language>en-GB</language>
+    <category>Met</category>
+    <event>Moderate coastalevent warning</event>
+    <responseType>Monitor</responseType>
+    <urgency>Future</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <effective>2026-11-01T10:40:30+01:00</effective>
+    <onset>2026-11-02T18:00:00+01:00</onset>
+    <expires>2026-11-02T23:59:59+01:00</expires>
+    <senderName>AEMET. State Meteorological Agency</senderName>
+    <headline>Moderate coastalevent warning. Costa - Oeste de A Coruña</headline>
+    <description>Viento del Noreste de 50 a 61 km/h (fuerza 7).</description>
+    <instruction>Be aware, keep up to date with the latest weather forecast. Moderate damages to people and properties may occur, especially to those vulnerable or in exposed areas.</instruction>
+    <web>https://www.aemet.es/en/eltiempo/prediccion/avisos</web>
+    <contact>AEMET</contact>
+    <parameter>
+      <valueName>awareness_level</valueName>
+      <value>2; yellow; Moderate</value>
+    </parameter>
+    <parameter>
+      <valueName>awareness_type</valueName>
+      <value>7; coastalevent</value>
+    </parameter>
+    <area>
+      <areaDesc>Costa - Oeste de A Coruña</areaDesc>
+      <geocode>
+        <valueName>EMMA_ID</valueName>
+        <value>ES847</value>
+      </geocode>
+    </area>
+  </info>
+</alert>

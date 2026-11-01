@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.380.3.IT.261031105004.078</identifier>
+  <sender>aerocnmca.1sv.prv1@aeronautica.difesa.it</sender>
+  <sent>2026-10-31T10:50:06+01:00</sent>
+  <status>Actual</status>
+  <msgType>Update</msgType>
+  <scope>Public</scope>
+  <references>aerocnmca.1sv.prv1@aeronautica.difesa.it,2.49.0.0.380.3.IT.261030105458.046,2026-10-30T10:54:58+01:00</references>
+  <info>
+    <language>en-GB</language>
+    <category>Met</category>
+    <event>Yellow Wind Warning</event>
+    <responseType>Monitor</responseType>
+    <urgency>Future</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <audience>Private</audience>
+    <effective>2026-11-02T01:00:00+01:00</effective>
+    <onset>2026-11-02T01:00:00+01:00</onset>
+    <expires>2026-11-02T23:59:00+01:00</expires>
+    <senderName>Italian Air Force National Meteorological Service</senderName>
+    <headline>Yellow Wind Warning for Italy - Sardegna</headline>
+    <description>Moderate intensity weather phenomena expected EAST COASTS
+ (DISCLAIMER: "Information provided on METEOALARM for Italy regard only the intensity and recurrence of the phenomena, further details can be found at www.meteoam.it. METEOALARM information do not provide the assessment of impact on the territory and they do not represent the Official Alerts messages that are issued by the National Civil Protection Service https://www.protezionecivile.gov.it")</description>
+    <instruction>BE AWARE, keep up to date with the latest weather forecast. Expect some minor disruption to outdoor activities</instruction>
+    <web>https://meteoalarm.org/en/live/region/IT?s=sardegna</web>
+    <parameter>
+      <valueName>awareness_level</valueName>
+      <value>2; yellow; Moderate</value>
+    </parameter>
+    <parameter>
+      <valueName>awareness_type</valueName>
+      <value>1; Wind</value>
+    </parameter>
+    <area>
+      <areaDesc>Sardegna</areaDesc>
+      <geocode>
+        <valueName>EMMA_ID</valueName>
+        <value>IT019</value>
+      </geocode>
+    </area>
+  </info>
+  <info>
+    <language>it-IT</language>
+    <category>Met</category>
+    <event>Giallo Vento Allerta</event>
+    <responseType>Monitor</responseType>
+    <urgency>Future</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <audience>Privato</audience>
+    <effective>2026-11-02T01:00:00+01:00</effective>
+    <onset>2026-11-02T01:00:00+01:00</onset>
+    <expires>2026-11-02T23:59:00+01:00</expires>
+    <senderName>Servizio Meteorologico dell'Aeronautica Militare</senderName>
+    <headline>Allerta Vento Giallo per l'Italia - Sardegna</headline>
+    <description>Sono previsti fenomeni meteorologici di moderata intensità COSTE ORIENTALI
+ (DISCLAIMER: "Le informazioni fornite su METEOALARM per l'Italia riguardano esclusivamente l'intensità e la ricorrenza dei fenomeni, maggiori dettagli sono disponibili su www.meteoam.it. Le informazioni METEOALARM non forniscono la valutazione di impatto sul territorio e non rappresentano i messaggi di Allerta Ufficiali che vengono emessi dal Servizio Nazionale di Protezione Civile https://www.protezionecivile.gov.it")</description>
+    <instruction>STARE (RIMANERE) ATTENTI. Tenersi aggiornati con le previsioni del tempo più recenti. Aspettarsi alcuni disagi minori per le attività all'aria aperta.</instruction>
+    <web>https://meteoalarm.org/it/live/region/IT?s=sardegna</web>
+    <parameter>
+      <valueName>awareness_level</valueName>
+      <value>2; yellow; Moderate</value>
+    </parameter>
+    <parameter>
+      <valueName>awareness_type</valueName>
+      <value>1; Wind</value>
+    </parameter>
+    <area>
+      <areaDesc>Sardegna</areaDesc>
+      <geocode>
+        <valueName>EMMA_ID</valueName>
+        <value>IT019</value>
+      </geocode>
+    </area>
+  </info>
+</alert>

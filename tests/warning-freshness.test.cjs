@@ -18,11 +18,11 @@ const polygon=[[55,20],[56,20],[56,21],[55,20]];
 const updatedAt=new Date(Date.now()-3*3600000).toISOString();
 const future=new Date(Date.now()+3600000).toISOString();
 const past=new Date(Date.now()-1000).toISOString();
-for(const country of ['Latvia','Poland','Denmark','Greenland','Canada','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia'])test(`${country}: overdue warnings remain visible, expired ones disappear`,()=>{
+for(const country of ['Latvia','Poland','Denmark','Greenland','Canada','United Kingdom','Ireland','Germany','Netherlands','Belgium','Luxembourg','Czechia','Slovakia','Spain','Italy','Greece','Turkey'])test(`${country}: overdue warnings remain visible, expired ones disappear`,()=>{
   const h=harness();const record={country,level:'Moderate',effective:updatedAt,expires:future,messageExpires:future,polygons:[polygon]};
   h.c.record=record;h.c.snapshot={version:1,updatedAt,records:[record]};
   if(country==='Latvia')h.run('records=validateLatviaSnapshot(snapshot)');
-  else {h.c.snapshot.countries={[({Poland:'PL',Denmark:'DK',Greenland:'GL',Canada:'CA','United Kingdom':'UK',Ireland:'IE',Germany:'DE',Netherlands:'NL',Belgium:'BE',Luxembourg:'LU',Czechia:'CZ',Slovakia:'SK'})[country]]:{country,updatedAt,records:[record]}};h.run(`records=validateNationalWarningCountry(snapshot,'${({Poland:'PL',Denmark:'DK',Greenland:'GL',Canada:'CA','United Kingdom':'UK',Ireland:'IE',Germany:'DE',Netherlands:'NL',Belgium:'BE',Luxembourg:'LU',Czechia:'CZ',Slovakia:'SK'})[country]}')`);}
+  else {h.c.snapshot.countries={[({Poland:'PL',Denmark:'DK',Greenland:'GL',Canada:'CA','United Kingdom':'UK',Ireland:'IE',Germany:'DE',Netherlands:'NL',Belgium:'BE',Luxembourg:'LU',Czechia:'CZ',Slovakia:'SK',Spain:'ES',Italy:'IT',Greece:'GR',Turkey:'TR'})[country]]:{country,updatedAt,records:[record]}};h.run(`records=validateNationalWarningCountry(snapshot,'${({Poland:'PL',Denmark:'DK',Greenland:'GL',Canada:'CA','United Kingdom':'UK',Ireland:'IE',Germany:'DE',Netherlands:'NL',Belgium:'BE',Luxembourg:'LU',Czechia:'CZ',Slovakia:'SK',Spain:'ES',Italy:'IT',Greece:'GR',Turkey:'TR'})[country]}')`);}
   assert.equal(h.run('records.length'),1);
   assert.equal(h.run('warningIsTodayOrTomorrow(records[0])'),true);
   h.c.nordicWarnings=h.run('records');
@@ -86,9 +86,9 @@ test('Western and Central European warnings create map paths, preserve popup det
  h.run(src.slice(src.indexOf('function nordicWarningPopupHtml('),src.indexOf('async function renderNordicWarnings(')));
  h.run(filters.slice(filters.indexOf('function isFinnishMarineWarning'),filters.indexOf('// Nordic renderer')));
  h.run(filters.slice(filters.indexOf('renderNordicWarnings=async function(){'),filters.indexOf('// Counts always describe')));
- const definitions=[['Germany','DE','DWD'],['Netherlands','NL','KNMI'],['Belgium','BE','RMI/KMI'],['Luxembourg','LU','MeteoLux'],['Czechia','CZ','ČHMÚ'],['Slovakia','SK','SHMÚ']];
+ const definitions=[['Germany','DE','DWD'],['Netherlands','NL','KNMI'],['Belgium','BE','RMI/KMI'],['Luxembourg','LU','MeteoLux'],['Czechia','CZ','ČHMÚ'],['Slovakia','SK','SHMÚ'],['Spain','ES','AEMET'],['Italy','IT','MeteoAM'],['Greece','GR','HNMS'],['Turkey','TR','MGM']];
  h.c.nordicWarnings=definitions.map(([country,code,service])=>({country,identifier:code,level:'Moderate',effective:updatedAt,onset:updatedAt,expires:future,polygons:[polygon],circles:[],area:'Official region',headline:'Official wind warning',event:'Wind',instruction:'Take care',sourceName:service,sourcePage:'https://meteoalarm.org/',marine:code==='NL'}));
- assert.equal(await h.run('renderNordicWarnings()'),6);
+ assert.equal(await h.run('renderNordicWarnings()'),definitions.length);
  definitions.forEach(([country,code,service],i)=>{assert.equal(layers[i].warningRecord.country,country);assert.match(layers[i].content(),new RegExp(service));assert.match(layers[i].content(),/Take care/);assert.equal(layers[i].options.fill===false,code==='NL');});
- assert.equal(layers[1].options.dashArray,'9 6');assert.equal(cards.length,6);
+ assert.equal(layers[1].options.dashArray,'9 6');assert.equal(cards.length,definitions.length);
 });

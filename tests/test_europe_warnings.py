@@ -158,3 +158,31 @@ class CentralWarnings(unittest.TestCase):
   feed='<feed xmlns="http://www.w3.org/2005/Atom"><id>tag:meteoalarm.org:CZ</id></feed>'
   with patch.object(w,'download',return_value=feed) as dl:r=w.load_europe('CZ',NOW)
   self.assertEqual(r['records'],[]);self.assertEqual(r['country'],'Czechia');self.assertEqual(dl.call_count,1)
+
+class SouthernWarnings(unittest.TestCase):
+ def setUp(self):
+  self.now=dt.datetime(2026,11,1,10,tzinfo=dt.timezone.utc)
+  self.catalogue=json.loads(gzip.decompress(w.SOUTHERN_REGIONS.read_bytes()));self.regions=self.catalogue['regions']
+ def test_real_cap_alerts_map_exact_geocodes_and_keep_original_severity_text(self):
+  for code,slug,count in [('ES','spain',233),('IT','italy',20),('GR','greece',16)]:
+   raw=(pathlib.Path(__file__).parent/'fixtures'/f'{slug}-official-warning.xml').read_bytes()
+   rows=w.parse_cap(raw,code,'https://feeds.meteoalarm.org/',self.now,regions=self.regions)
+   self.assertEqual(len(rows),1);r=rows[0];self.assertTrue(r['polygons']);self.assertFalse(r['geometryIncomplete']);self.assertTrue(r['language'].startswith('en'));self.assertGreaterEqual(len(self.regions[code]),count)
+   self.assertEqual(r['timeZone'],{'ES':'Europe/Madrid','IT':'Europe/Rome','GR':'Europe/Athens'}[code]);self.assertIn('via Meteoalarm',r['sourceName']);self.assertTrue(r['description'])
+   self.assertEqual(r['level'],'Severe' if code=='GR' else 'Moderate')
+   if code=='ES':self.assertTrue(r['marine'])
+   if code=='IT':self.assertIn('Civil Protection',r['description'])
+ def test_canary_time_zone_and_unknown_zone_never_paints_whole_country(self):
+  code=next(k.split(':')[1] for k,ps in self.regions['ES'].items() if all(p[0]<30 for poly in ps for ring in poly for p in ring))
+  xml=CAP.replace('AREA',f'<geocode><valueName>EMMA_ID</valueName><value>{code}</value></geocode>')
+  r=w.parse_cap(xml,'ES','url',NOW,regions=self.regions)[0];self.assertEqual(r['timeZone'],'Atlantic/Canary');self.assertTrue(r['polygons'])
+  r=w.parse_cap(xml.replace(code,'ES999999'),'ES','url',NOW,regions=self.regions)[0];self.assertFalse(r['polygons']);self.assertTrue(r['geometryIncomplete'])
+ def test_all_prepared_zone_and_district_rings_are_valid_and_preserve_holes(self):
+  import math
+  self.assertGreater(len(self.regions['TR']),950)
+  for country,regions in self.regions.items():
+   for code,polygons in regions.items():
+    self.assertTrue(polygons,(country,code))
+    for polygon in polygons:
+     for ring in polygon:
+      self.assertGreaterEqual(len(ring),4);self.assertEqual(ring[0],ring[-1]);self.assertTrue(all(math.isfinite(x) and math.isfinite(y) and -90<=x<=90 and -180<=y<=180 for x,y in ring))
