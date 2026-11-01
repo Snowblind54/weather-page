@@ -576,3 +576,16 @@ test('Kosovo shading can use nearby official gauges without inventing local meas
  h.run('officialRainData=nearby;officialRainWindows.clear()');assert.equal(h.run("officialRainWindow('XK',24,nearby.generatedAt)"),null);
  const estimate=h.run("officialRainAt(42.65,21.2,24,nearby.generatedAt,'XK')");assert.ok(estimate);assert.equal(estimate.country,'RS');assert.ok(estimate.distance>0.1);assert.match(estimate.source,/Serbian/);assert.equal(h.run("officialRainData.stations.filter(s=>s.country==='XK').length"),0);
 });
+test('Albania Belarus and North Macedonia accept complete daily history without inventing hourly rain',()=>{
+ const h=harness(),end=h.context.frameTime;
+ for(const [country,lat,lon,count] of [['AL',42.03,20.42,1],['BY',53.9,27.56,1],['MK',41.96,21.62,3]]){
+  h.context.addedRain={version:1,generatedAt:end,sources:{[country]:{name:'Official '+country}},stations:Array.from({length:count},(_,i)=>({country,code:String(i),name:'Official gauge',lat,lon,times:[],amounts:[],accumulations:[{end:end-9*3600,hours:24,value:4},{end:end-9*3600,hours:48,value:8}]}))};
+  assert.equal(h.run('validOfficialRainSnapshot(addedRain)'),true);h.run('officialRainData=addedRain;officialRainWindows.clear()');h.context.addedRainCountry=country;
+  assert.equal(h.run('officialRainWindow(addedRainCountry,24,addedRain.generatedAt).end'),end-9*3600);
+  assert.equal(h.run('officialRainWindow(addedRainCountry,48,addedRain.generatedAt).rows[0].value'),8);
+  assert.equal(h.run('officialRainWindow(addedRainCountry,1,addedRain.generatedAt)'),null);
+  assert.equal(h.run('OFFICIAL_ONLY_RAIN_COUNTRIES.has(addedRainCountry)'),true);
+  h.context.addedRain.stations[0].lat=60;assert.equal(h.run('validOfficialRainSnapshot(addedRain)'),false);
+ }
+ assert.equal(h.run("RAIN_COUNTRY_CODES['008']"),'AL');assert.equal(h.run("RAIN_COUNTRY_CODES['112']"),'BY');assert.equal(h.run("RAIN_COUNTRY_CODES['807']"),'MK');
+});

@@ -14,6 +14,7 @@ on:
       - scripts/adriatic_greece_temperature_stations.json
       - scripts/balkan_temperature.py
       - scripts/moldova_belarus_temperature.py
+      - scripts/official_wind_eastern.py
       - scripts/official_wind_balkans.py
       - scripts/rainfall_eastern.py
       - scripts/eastern_rain_stations.json

@@ -59,3 +59,32 @@ class GreekRain(unittest.TestCase):
   self.assertGreater(len(data['stations']['GR']),20);self.assertTrue(all(b.location('GR',m['lat'],m['lon']) for m in data['stations']['GR'].values()));self.assertTrue(all(k in data['stations']['GR'] for k in data['poi']['GR']))
   s=b.core.station('GR','16716','Elliniko',37.9,23.74,[(T,0,False)]);self.assertEqual(s['amounts'],[0])
   with self.assertRaises(ValueError):b.core.station('GR','bad','Foreign',59,25,[(T,1,False)])
+
+class AlbanianBelarusianMacedonianRain(unittest.TestCase):
+ def test_verified_station_catalogues_and_national_bounds(self):
+  data=json.loads(Path(b.__file__).with_name('balkan_rain_stations.json').read_text())
+  for country in ('AL','BY','MK'):
+   self.assertGreater(len(data['stations'][country]),5)
+   self.assertTrue(all(b.location(country,m['lat'],m['lon']) for m in data['stations'][country].values()))
+   self.assertTrue(data['poi'][country]);self.assertTrue(all(code in data['stations'][country] for code in data['poi'][country]))
+   with self.assertRaises(ValueError):b.core.station(country,'foreign','Foreign gauge',60,10,[(T,1,False)])
+ def test_adjacent_twelve_hour_reports_form_24_and_48_hours_but_gaps_do_not(self):
+  for country,code,header,lat,lon in [('AL','13610',('SMAB11','ZATI'),42.03,20.42),('BY','26850',('SMBY01','UMMN'),53.9,27.56),('MK','13586',('SMMJ41','LWSK'),41.96,21.62)]:
+   metadata={code:dict(name='Official gauge',lat=lat,lon=lon)}
+   # Include a foreign station; it cannot become a local gauge.
+   text=header[0]+' '+header[1]+' 311200\nAAXX 31121\n'+code+' 12682 70503 60022=\n99999 12682 70503 60092='
+   s=b.parse_bulletin(text,NOW,header,metadata,country,NOW,include_daily=True)[0]
+   self.assertFalse(s['times']);self.assertEqual(s['periods'],[dict(end=T-10800,hours=12,value=2)])
+   records=[{**s,'periods':[dict(end=T-10800-i*12*3600,hours=12,value=2)]} for i in range(4)]
+   full=b.core.merge([],records,NOW)[0]['accumulations']
+   self.assertIn(dict(end=T-10800,hours=24,value=4),full);self.assertIn(dict(end=T-10800,hours=48,value=8),full)
+   partial=b.core.merge([],records[:1]+records[2:],NOW)[0]['accumulations']
+   self.assertFalse(any(p['end']==T-10800 and p['hours'] in (24,48) for p in partial))
+ def test_sparse_explicit_hourly_and_daily_values_keep_zeros_but_not_missing_reports(self):
+  meta={'13586':dict(name='Skopje Petrovec',lat=41.96,lon=21.62)}
+  raw='SMMJ41 LWSK 311200\nAAXX 31121\n13586 01570 80301 60002 333 60005 70000='
+  s=b.parse_bulletin(raw,NOW,('SMMJ41','LWSK'),meta,'MK',NOW,include_daily=True)[0]
+  self.assertEqual(s['amounts'],[0]);self.assertIn(dict(end=T-10800,hours=24,value=0),s['periods'])
+  absent=raw.replace('60002','6////').replace('60005','6////').replace('70000','7////')
+  self.assertFalse(b.parse_bulletin(absent,NOW,('SMMJ41','LWSK'),meta,'MK',NOW,include_daily=True))
+  with self.assertRaises(ValueError):b.parse_bulletin(raw,NOW-dt.timedelta(days=2),('SMMJ41','LWSK'),meta,'MK',NOW,include_daily=True)

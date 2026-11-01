@@ -1,4 +1,4 @@
-"""Official Serbian, Bulgarian, Croatian and Greek rain with native reporting periods.
+"""Official European SYNOP rain with native reporting periods.
 
 SYNOP totals retain their actual UTC times. An omitted dry station, blank value,
 trace or longer reporting interval never becomes an invented hourly reading.
@@ -16,12 +16,16 @@ import rainfall_europe as europe
 from rainfall_eastern import parse_bulletin, location
 from adriatic_greece_temperature import BASE, download_bulletin
 from official_wind_balkans import BULLETINS as WIND_BULLETINS
+from official_wind_eastern import BULLETINS as EASTERN_BULLETINS
 from moldova_belarus_temperature import normalized
 
 DHMZ='https://vrijeme.hr/oborina.xml'
 DHMZ_STATIONS='https://vrijeme.hr/hrvatska_n.xml'
 RS_DAILY='https://www.hidmet.gov.rs/eng/osmotreni/padavine.php'
-SOURCES={'BA':('FHMZ / official Bosnia and Herzegovina automatic and SYNOP rain gauges','https://fop.fhmzbih.gov.ba/'),
+SOURCES={'AL':('Official Albanian national SYNOP rain gauges via NOAA and DWD',europe.POI),
+         'BY':('Belhydromet / official Belarusian SYNOP rain gauges via NOAA and DWD','https://pogoda.by/observation/interactive-maps'),
+         'MK':('Hydrometeorological Service (UHMR), North Macedonia / official SYNOP rain gauges','https://uhmr.gov.mk/aktuelni-podatoci/'),
+         'BA':('FHMZ / official Bosnia and Herzegovina automatic and SYNOP rain gauges','https://fop.fhmzbih.gov.ba/'),
          'ME':('ZHMS Montenegro / official SYNOP rain gauges','https://www.meteo.co.me/'),
          'XK':('Official Kosovo SYNOP gauge reports via DWD (limited reporting subset)',europe.POI),
          'GR':('Hellenic National Meteorological Service (HNMS) / official Greek SYNOP rain gauges','https://emy.gr/en/hnms-stations'),
@@ -32,7 +36,10 @@ PERIODS={c:'Official measured precipitation in mm. Native 1-, 3-, 6-, 12- and 24
 PERIODS['GR']+=' Mainland and island stations; land SYNOP reports may be three- or six-hourly. The shared updater retains 72 hours of measured history. Missing hourly values are never estimated from longer reports.'
 PERIODS['HR']+=' DHMZ daily reports cover 06 UTC yesterday to 06 UTC today; the public daily list includes wet gauges only. Omitted gauges are not assumed dry. Izvor: DHMZ; Otvorena dozvola Republike Hrvatske.'
 PERIODS['RS']+=' RHMZ dated daily reports cover 06 UTC yesterday to 06 UTC today; blank cells are not treated as zero.'
-BULLETINS={c:WIND_BULLETINS[c] for c in ('RS','BG','GR')}
+BULLETINS={c:WIND_BULLETINS[c] for c in ('RS','BG','GR','AL','MK')}
+BULLETINS['BY']=EASTERN_BULLETINS['BY']
+for c in ('AL','BY','MK'):
+    PERIODS[c]+=' Longer reports, including 12-hour observations, form daily totals only when adjacent and complete. Hourly observations are sparse or unavailable; no hourly amount is inferred from a daily total.'
 BULLETINS['BA']=[]  # The published NOAA LQSM rain bulletins are archived/stale.
 BULLETINS['ME']=['sm/smmk10.lypg..txt','si/siyg20.lybm..txt']
 BULLETINS['XK']=[]
