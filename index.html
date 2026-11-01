@@ -7,7 +7,7 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
-<link rel="stylesheet" href="css/style.css?v=warnings-scale-1">
+<link rel="stylesheet" href="css/style.css?v=warning-severity-1">
 <link rel="stylesheet" href="css/cyclone-fronts.css?v=1">
 <link rel="stylesheet" href="css/mobile.css?v=1" media="(max-width:760px)">
 <link rel="stylesheet" href="css/forecast.css?v=compact-player-2">
@@ -187,6 +187,12 @@
       <label class="label"><input id="warningOn" type="checkbox"> Severe weather warnings</label>
       <span class="badge">EE · LV · LT · FI · SE · NO · IS · PL · DK · UK · IE · DE · NL · BE · LU · CZ · SK · GL · CA · US</span>
     </div>
+    <div class="warning-severity-filters" role="group" aria-label="Warning severity filters">
+      <label class="warning-severity-option" style="--severity:#ffd43b"><input id="warningSeverityYellow" type="checkbox" checked aria-label="Yellow warnings"><span>Yellow</span></label>
+      <label class="warning-severity-option" style="--severity:#ff8c1a"><input id="warningSeverityOrange" type="checkbox" checked aria-label="Orange warnings"><span>Orange</span></label>
+      <label class="warning-severity-option" style="--severity:#e03131"><input id="warningSeverityRed" type="checkbox" checked aria-label="Red warnings"><span>Red</span></label>
+      <label class="warning-severity-option" style="--severity:#8dabc4" title="Informational alerts"><input id="warningSeverityOther" type="checkbox" checked aria-label="Other warnings"><span>Other</span></label>
+    </div>
     <div class="weather-extremes-shell">
       <button class="info-button weather-extremes-info-button" data-info="weatherExtremesInfo" aria-controls="weatherExtremesInfo" aria-expanded="false" aria-label="About current extremes">i</button>
       <div id="weatherExtremesInfo" class="source-card weather-extremes-info" hidden><h3>Current extremes</h3><p>Highest and lowest recent readings among reporting stations in our coverage, independent of the map timeline. Coverage varies by measurement; these are not worldwide records.</p><p>Temperature: past 95 minutes. Wind: past 3 hours; reporting periods differ between services. Precipitation: complete 24-hour totals ending within the past 3 hours, including melted snow where measured. Snow depth: past 36 hours.</p></div>
@@ -276,9 +282,9 @@
 <script src="js/estonia-warning-data.js?v=8.61"></script>
 <script src="js/warning-geometry.js?v=warnings-scale-1"></script>
 <script src="js/warning-viewport.js?v=warnings-scale-1"></script>
-<script src="js/warnings.js?v=southern-warnings-1"></script>
+<script src="js/warnings.js?v=warning-severity-1"></script>
 <script src="js/warning-list.js?v=warnings-scale-1"></script>
-<script src="js/warning-filters.js?v=southern-warnings-1"></script>
+<script src="js/warning-filters.js?v=warning-severity-1"></script>
 <script src="js/warning-fill.js?v=warnings-scale-1"></script>
 <script src="js/terrain-context.js?v=3"></script>
 <script src="js/temperature-us.js?v=mediterranean-1"></script>

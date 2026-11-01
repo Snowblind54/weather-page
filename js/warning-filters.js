@@ -102,8 +102,20 @@ function warningIsTodayOrTomorrow(record){
   return startKey<=tomorrow && endKey>=today;
 }
 
+function warningSeveritySelected(record){
+  const value=String(record?.level||'').toLowerCase();
+  let group='Yellow';
+  if(value==='information')group='Other';
+  else if(warningCountry(record)==='Estonia'){
+    const level=Number(value.match(/\d+/)?.[0]||0);
+    group=level>=3?'Red':level===2?'Orange':'Yellow';
+  }else if(/extreme|red|raudon|catastrophic/.test(value))group='Red';
+  else if(/severe|orange|oran|stich/.test(value))group='Orange';
+  return $('warningSeverity'+group)?.checked!==false;
+}
+
 function warningsForTodayAndTomorrow(records){
-  return (records||[]).filter(r=>(!globalThis.NorthernCountryFocus?.matchesCountry||globalThis.NorthernCountryFocus?.matchesCountry(warningCountry(r)))&&warningIsTodayOrTomorrow(r));
+  return (records||[]).filter(r=>(!globalThis.NorthernCountryFocus?.matchesCountry||globalThis.NorthernCountryFocus?.matchesCountry(warningCountry(r)))&&warningIsTodayOrTomorrow(r)&&warningSeveritySelected(r));
 }
 
 // Filter Estonia and Lithuania at render time without destroying the full
@@ -182,6 +194,7 @@ renderNordicWarnings=async function(){
 
   const generation=warningLoadGeneration;let processed=0;
   for(const record of visibleWarnings){
+    if(!warningSeveritySelected(record))continue;
     if(++processed%16===0){await new Promise(resolve=>setTimeout(resolve,0));if(generation!==warningLoadGeneration||!$('warningOn').checked)return mapped;}
     const sev=warningSeverity(record.level);
     const marine=isFinnishMarineWarning(record);
@@ -320,6 +333,7 @@ function updateVisibleWarningStatus(){
 
   const previous=$('warningStatus').textContent||'';
   const parts=[`${visible.length} warnings · today + tomorrow`];
+  if(['Yellow','Orange','Red','Other'].some(level=>$('warningSeverity'+level)?.checked===false))parts.push('severity filters active');
 
   for(const [country,label] of [
     ['Estonia','EE'],['Latvia','LV'],['Lithuania','LT'],['Finland','FI'],
@@ -354,12 +368,12 @@ function purgeExpiredWarningDisplay(){
   // another feed request or reloading administrative boundary geometry.
   const expiredLayers=[];
   warningLayerGroup.eachLayer(layer=>{
-    if(layer.warningRecord && !warningIsTodayOrTomorrow(layer.warningRecord)) expiredLayers.push(layer);
+    if(layer.warningRecord && (!warningIsTodayOrTomorrow(layer.warningRecord)||!warningSeveritySelected(layer.warningRecord))) expiredLayers.push(layer);
   });
   for(const layer of expiredLayers) warningLayerGroup.removeLayer(layer);
   window.NorthernWarningList?.purge();
   for(const card of [...$('warningList').children]){
-    if(card.warningRecord && !warningIsTodayOrTomorrow(card.warningRecord)) card.remove();
+    if(card.warningRecord && (!warningIsTodayOrTomorrow(card.warningRecord)||!warningSeveritySelected(card.warningRecord))) card.remove();
   }
   if(!$('warningStatus').textContent.startsWith('Loading')) updateVisibleWarningStatus();
   scheduleWarningExpiryRefresh();
@@ -408,3 +422,16 @@ $('warningOn').addEventListener('change',()=>{
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible') purgeExpiredWarningDisplay();
 });
+
+// Coalesce quick clicks and reuse the normal cached warning sources.
+let warningSeverityRefreshTimer=null;
+for(const level of ['Yellow','Orange','Red','Other']){
+  $('warningSeverity'+level)?.addEventListener('change',()=>{
+    clearTimeout(warningSeverityRefreshTimer);
+    if(!$('warningOn').checked)return;
+    purgeExpiredWarningDisplay();
+    warningSeverityRefreshTimer=setTimeout(()=>{
+      if($('warningOn').checked)loadWarnings(false).catch(console.warn);
+    },50);
+  });
+}

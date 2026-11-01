@@ -549,7 +549,7 @@ async function renderWarnings(){
   let mapped=0;
 
   for(const w of warningRecords){
-    if(Date.parse(w.expires)<=Date.now()) continue;
+    if(Date.parse(w.expires)<=Date.now() || (typeof warningSeveritySelected==='function'&&!warningSeveritySelected(w))) continue;
     const sev=severityInfo(w.level);
     const marineKey=normalizeMarineArea(w.area);
     const county=marineKey?'':canonicalCountyName(w.area);
@@ -1044,7 +1044,7 @@ async function renderLithuaniaWarnings(){
   let mapped=0;
 
   for(const w of lithuaniaWarnings){
-    if(Date.parse(w.expires)<=Date.now()) continue;
+    if(Date.parse(w.expires)<=Date.now() || (typeof warningSeveritySelected==='function'&&!warningSeveritySelected(w))) continue;
     const sev=ltSeverity(w.level);
     let firstLayer=null;
 

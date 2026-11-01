@@ -91,4 +91,34 @@ test('Western and Central European warnings create map paths, preserve popup det
  assert.equal(await h.run('renderNordicWarnings()'),definitions.length);
  definitions.forEach(([country,code,service],i)=>{assert.equal(layers[i].warningRecord.country,country);assert.match(layers[i].content(),new RegExp(service));assert.match(layers[i].content(),/Take care/);assert.equal(layers[i].options.fill===false,code==='NL');});
  assert.equal(layers[1].options.dashArray,'9 6');assert.equal(cards.length,definitions.length);
+ // The same selection removes map paths and cards, while retaining source data.
+ const originalDollar=h.c.$;
+ h.c.$=id=>id==='warningSeverityYellow'?{checked:false}:originalDollar(id);
+ h.c.nordicWarnings[0].level='Extreme';h.c.nordicWarnings[1].level='Severe';
+ layers.length=0;cards.length=0;
+ assert.equal(await h.run('renderNordicWarnings()'),2);
+ assert.equal(layers.length,2);assert.equal(cards.length,2);
+ assert.equal(layers[0].options.color,'#e03131');assert.equal(layers[1].options.color,'#ff8c1a');
+ assert.equal(h.c.nordicWarnings.length,definitions.length);
+ h.c.$=originalDollar;layers.length=0;cards.length=0;
+ assert.equal(await h.run('renderNordicWarnings()'),definitions.length);
+
+});
+
+test('severity boxes default to all levels and combine with country and date filters',()=>{
+ const h=harness(),nodes=Object.fromEntries(['Yellow','Orange','Red','Other'].map(name=>['warningSeverity'+name,{checked:true}]));
+ h.c.$=id=>nodes[id]||h.status;
+ const base={effective:updatedAt,expires:future,country:'Greece'};
+ h.c.selection=[{...base,level:'Extreme'},{...base,level:'Severe'},{...base,level:'Moderate'},{...base,level:'Information'},
+  {...base,country:'Estonia',level:'3'},{...base,country:'Estonia',level:'2'},{...base,country:'Estonia',level:'1'}];
+ assert.equal(h.run('warningsForTodayAndTomorrow(selection).length'),7);
+ nodes.warningSeverityYellow.checked=false;nodes.warningSeverityOther.checked=false;
+ assert.equal(h.run('warningsForTodayAndTomorrow(selection).length'),4);
+ nodes.warningSeverityOrange.checked=false;
+ assert.equal(h.run('warningsForTodayAndTomorrow(selection).length'),2);
+ h.c.NorthernCountryFocus={matchesCountry:c=>c==='Greece'};
+ assert.equal(h.run('warningsForTodayAndTomorrow(selection).length'),1);
+ h.c.selection[0].expires=past;assert.equal(h.run('warningsForTodayAndTomorrow(selection).length'),0);
+ nodes.warningSeverityRed.checked=false;assert.equal(h.run('warningsForTodayAndTomorrow(selection).length'),0);
+ assert.equal(h.c.selection.length,7);
 });
