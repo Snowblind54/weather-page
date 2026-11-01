@@ -94,3 +94,20 @@ test('Germany and France accept their national bounds and preserve measured zero
  nodes.snowDepthZero.checked=false;vm.runInContext('renderSnowDepth()',context);assert.equal(labels.length,0);
  context.row=rows[1];assert.equal(vm.runInContext('snowDepthValid({...row,lat:59})',context),false);assert.equal(vm.runInContext('snowDepthValid({...row,lat:42,lon:9})',context),true,'Corsica');
 });
+
+test('Belarus and Ukraine snow depths use national sources and preserve trace patchy and country focus',()=>{
+ const {context,nodes,labels}=snowContext(),time=Math.floor(Date.now()/1000)-60;
+ context.map.latLngToContainerPoint=ll=>({x:(ll.lng-20)*20,y:(60-ll.lat)*20});
+ context.snapshot={stations:[{country:'BY',code:'26850',name:'Minsk',lat:53.9,lon:27.56,time,timePrecision:'instant',depthCm:12,state:'depth'},
+  {country:'UA',code:'33345',name:'Kyiv',lat:50.4,lon:30.5,time,timePrecision:'instant',depthCm:null,state:'trace'}],providers:{}};
+ vm.runInContext('snowDepthData=snapshot;renderSnowDepth()',context);assert.equal(labels.length,2);
+ assert.match(labels[0].html,/Belhydromet/);assert.match(labels[1].html,/Ukrainian Hydrometeorological Center/);assert.match(labels[1].html,/&lt;0.5 cm/);
+ context.NorthernCountryFocus={allowsStation:s=>s.country==='UA',matchesCountry:c=>c==='UA'};
+ vm.runInContext('renderSnowDepth()',context);assert.equal(labels.length,1);assert.match(nodes.snowDepthStatus.textContent,/UA: 1/);assert.doesNotMatch(nodes.snowDepthStatus.textContent,/BY:/);
+ context.snapshot.stations[1].depthCm=0;context.snapshot.stations[1].state='bare';nodes.snowDepthZero.checked=false;
+ vm.runInContext('renderSnowDepth()',context);assert.equal(labels.length,0);
+ context.snapshot.stations[1].depthCm=null;context.snapshot.stations[1].state='patchy';vm.runInContext('renderSnowDepth()',context);assert.equal(labels.length,1);assert.match(labels[0].html,/Patchy/);
+ context.row={country:'UA',name:'Foreign',lat:60,lon:10,time,depthCm:1,state:'depth'};assert.equal(vm.runInContext('snowDepthValid(row)',context),false);
+ context.row.country='BY';assert.equal(vm.runInContext('snowDepthValid(row)',context),false);
+ context.snapshot={stations:[],providers:{UA:{status:'no-data'}}};vm.runInContext('snowDepthData=snapshot;renderSnowDepth()',context);assert.match(nodes.snowDepthStatus.textContent,/No recent official snow-depth readings.*Missing data is not zero snow/);
+});

@@ -9,6 +9,11 @@ on:
       - scripts/update_snow_depth.py
       - scripts/snow_depth_expansion.py
       - scripts/snow_depth_central.py
+      - scripts/snow_depth_eastern.py
+      - scripts/belarus_snow_stations.json
+      - scripts/ukraine_temperature_stations.json
+      - scripts/adriatic_greece_temperature.py
+      - tests/test_snow_depth_eastern.py
       - scripts/update_western_temperature.py
       - tests/test_snow_depth_central.py
       - tests/snow-depth.test.cjs

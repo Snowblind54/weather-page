@@ -15,6 +15,8 @@ import xml.etree.ElementTree as ET
 
 OUTPUT = pathlib.Path(__file__).resolve().parents[1] / 'data/official-snow-depth.json'
 SOURCES = {
+    'BY': {'name':'Belhydromet / official SYNOP snow-depth observations via NOAA and DWD','url':'https://pogoda.by/observation/interactive-maps'},
+    'UA': {'name':'Ukrainian Hydrometeorological Center / official SYNOP snow-depth observations via NOAA and DWD','url':'https://www.meteo.gov.ua/'},
     'DE': {'name':'DWD / daily snow depths and official SYNOP backup','url':'https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/'},
     'FR': {'name':'Météo-France / SYNOP and mountain snow observations','url':'https://www.data.gouv.fr/datasets/archive-reseau-nivo-meteorologique'},
     'EE': {'name': 'Keskkonnaagentuur', 'url': 'https://www.ilmateenistus.ee/'},
@@ -95,7 +97,7 @@ def depth(value, country):
 def record(country, code, name, lat, lon, time, value, quality='', precision='day'):
     parsed = depth(value, country)
     lat, lon = number(lat), number(lon)
-    south, north, west, east = {'DE':(47,55.2,5.5,15.6),'FR':(41,51.5,-5.5,10),'CA': (41, 85, -142, -52), 'GL': (59, 85, -74, -10), 'PL': (49, 55, 14, 25), 'DK': (54, 58, 7, 16), 'IE': (51, 56, -11, -5), 'UK': (49, 61, -9, 3), 'US': (18, 73, -180, -65)}.get(country, (53, 81, -25, 33))
+    south, north, west, east = {'BY':(51.2,56.3,23,33),'UA':(44,52.5,22,40.5),'DE':(47,55.2,5.5,15.6),'FR':(41,51.5,-5.5,10),'CA': (41, 85, -142, -52), 'GL': (59, 85, -74, -10), 'PL': (49, 55, 14, 25), 'DK': (54, 58, 7, 16), 'IE': (51, 56, -11, -5), 'UK': (49, 61, -9, 3), 'US': (18, 73, -180, -65)}.get(country, (53, 81, -25, 33))
     if parsed is None or lat is None or lon is None or not (south <= lat <= north and west <= lon <= east):
         return None
     cm, state, note = parsed
@@ -515,7 +517,9 @@ def main():
     expansion = SnowDepthExpansion(download, record, latest, NoRecentSnowData, previous.get('stations', []))
     from snow_depth_central import CentralSnowDepth
     central = CentralSnowDepth(expansion)
-    loaders = {'DE':central.load_germany,'FR':central.load_france,'EE': load_estonia, 'FI': load_finland, 'SE': load_sweden,
+    from snow_depth_eastern import EasternSnowDepth
+    eastern = EasternSnowDepth(expansion)
+    loaders = {'BY':eastern.load_belarus,'UA':eastern.load_ukraine,'DE':central.load_germany,'FR':central.load_france,'EE': load_estonia, 'FI': load_finland, 'SE': load_sweden,
                'LV': load_latvia, 'LT': load_lithuania, 'NO': load_norway, 'IS': load_iceland, 'CA': load_canada, 'GL': load_greenland, 'PL': central.load_poland, 'DK': expansion.load_denmark,
                'IE': expansion.load_ireland, 'UK': expansion.load_uk, 'US': expansion.load_usa}
     with futures.ThreadPoolExecutor(max_workers=7) as pool:

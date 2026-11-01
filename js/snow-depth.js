@@ -1,6 +1,8 @@
 // Station measurements are independent of the satellite snow-cover colours.
 const snowDepthLabels=L.layerGroup();
 const snowDepthSources={
+  BY:{name:'Belhydromet / official SYNOP snow-depth observations',url:'https://pogoda.by/observation/interactive-maps'},
+  UA:{name:'Ukrainian Hydrometeorological Center / official SYNOP snow-depth observations',url:'https://www.meteo.gov.ua/'},
   DE:{name:'DWD / official snow-depth observations',url:'https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/'},
   FR:{name:'Météo-France / official snow-depth observations',url:'https://www.data.gouv.fr/datasets/archive-reseau-nivo-meteorologique'},
   EE:{name:'Keskkonnaagentuur',url:'https://www.ilmateenistus.ee/'},
@@ -28,7 +30,7 @@ function snowDepthEscape(value){
 }
 function snowDepthValid(s,now=Date.now()/1000){
   if(!s || !snowDepthSources[s.country] || !s.name || !Number.isFinite(s.lat) || !Number.isFinite(s.lon))return false;
-  const [south,north,west,east]=s.country==='DE'?[47,55.2,5.5,15.6]:s.country==='FR'?[41,51.5,-5.5,10]:s.country==='CA'?[41,85,-142,-52]:s.country==='GL'?[59,85,-74,-10]:s.country==='PL'?[49,55,14,25]:s.country==='DK'?[54,58,7,16]:s.country==='IE'?[51,56,-11,-5]:s.country==='UK'?[49,61,-9,3]:s.country==='US'?[18,73,-180,-65]:[53,81,-25,33];
+  const [south,north,west,east]=s.country==='BY'?[51.2,56.3,23,33]:s.country==='UA'?[44,52.5,22,40.5]:s.country==='DE'?[47,55.2,5.5,15.6]:s.country==='FR'?[41,51.5,-5.5,10]:s.country==='CA'?[41,85,-142,-52]:s.country==='GL'?[59,85,-74,-10]:s.country==='PL'?[49,55,14,25]:s.country==='DK'?[54,58,7,16]:s.country==='IE'?[51,56,-11,-5]:s.country==='UK'?[49,61,-9,3]:s.country==='US'?[18,73,-180,-65]:[53,81,-25,33];
   if(s.lat<south || s.lat>north || s.lon<west || s.lon>east || !Number.isFinite(s.time) || s.time>now || now-s.time>snowDepthMaxAge)return false;
   if(['trace','patchy'].includes(s.state))return s.depthCm===null;
   return Number.isFinite(s.depthCm) && s.depthCm>=0 && s.depthCm<=1500;
