@@ -29,7 +29,8 @@ const address=input=>input instanceof Request?input.url:String(input);
  assert.equal(window.weatherDataUrl('data/radar-tiles/frame/3/1/2.png'),R2+'data/radar-tiles/frame/3/1/2.png');
  for(const path of ['data/official-temperature.json','data/space-weather.json','data/aurora-cloud.json','data/aurora-planner.json']){
   const critical=setup({critical:true});const response=await critical.window.fetch(path);
-  assert(Date.now()/1000-(await response.json()).generatedAt<120,'stale HTTP 200 must use fresh standby');
+  const payload=await response.json();
+  assert(Date.now()/1000-payload.generatedAt<120,'stale HTTP 200 must use fresh standby for '+path+' (status '+response.status+', data '+JSON.stringify(payload)+')');
   assert(critical.calls.some(([input])=>address(input)===GH+path));
  }
  const fallbackPlanner=setup({critical:true});
