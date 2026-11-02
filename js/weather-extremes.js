@@ -44,7 +44,8 @@
    }else card.append(el('span',checkedAt?'No recent complete measurements in this area.':'Open this section to load observations.','weather-extreme-meta'));
    list.append(card);
   }
-  if(!pending)status.textContent=checkedAt?(failed.size?failed.size+' of 4 feeds could not refresh. Available readings retain their observation times.':'Checked '+new Date(checkedAt).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})+' · refreshes every 5 minutes while open.'):'Expand to load current observations.';
+  const delayed=Object.entries(snapshots).filter(([kind,data])=>Number.isFinite(data.generatedAt)&&Date.now()/1000-data.generatedAt>({temperature:2700,wind:2700,rain:3600,snow:43200}[kind])).map(([kind])=>({temperature:'Temperature',wind:'Wind',rain:'Rain',snow:'Snow'}[kind]));
+  if(!pending)status.textContent=checkedAt?(failed.size?failed.size+' of 4 feeds could not refresh. Available readings retain their observation times.':delayed.length?delayed.join(', ')+' collection is delayed. Values retain their actual observation times.':'Checked '+new Date(checkedAt).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})+' · refreshes every 5 minutes while open.'):'Expand to load current observations.';
  }
  async function load(force=false){
   if(pending)return pending;if(!force&&Date.now()-checkedAt<5*60000){render();return;}
@@ -52,7 +53,8 @@
   pending=(async()=>{
    await Promise.all(Object.entries(paths).map(async([kind,path])=>{
     try{
-     const response=await fetch('data/'+path+'.json',{cache:'no-cache',signal:AbortSignal.timeout(15000)});
+     const key=force?'refresh-'+Math.floor(Date.now()/10000):Math.floor(Date.now()/300000);
+     const response=await fetch('data/'+path+'.json?v='+key,{cache:'no-cache',signal:AbortSignal.timeout(15000)});
      if(!response.ok)throw Error('Snapshot unavailable');const data=await response.json();
      if(!Array.isArray(data.stations))throw Error('Invalid observations');snapshots[kind]=data;failed.delete(kind);
     }catch{failed.add(kind);}
@@ -76,3 +78,4 @@
  map.on('moveend',()=>{if(active()&&scope.value==='view')render();});
  setInterval(()=>{if(active())load();},60000);
 })();
+

@@ -17,7 +17,8 @@
   function useGithub(){return fallbackUntil>Date.now();}
   async function staleCritical(response,path,method){
     const file=path.split('?')[0];
-    const limit=file==='data/official-temperature.json'?30*60000:
+    const limit=['data/official-temperature.json','data/official-wind.json'].includes(file)?30*60000:
+      file==='data/official-rainfall.json'?45*60000:
       file==='data/space-weather.json'?20*60000:null;
     if(!limit||method.toUpperCase()!=='GET')return false;
     try{

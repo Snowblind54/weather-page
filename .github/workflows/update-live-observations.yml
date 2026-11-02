@@ -1,0 +1,47 @@
+name: Keep live weather observations current
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Guard monthly R2 operations, pages build and deployment]
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - scripts/run_live_observations.py
+      - tests/test_live_observations.py
+      - .github/workflows/update-live-observations.yml
+permissions:
+  contents: write
+concurrency:
+  group: continuous-live-observations
+  cancel-in-progress: false
+env:
+  METEOFRANCE_API_KEY: ${{ secrets.METEOFRANCE_API_KEY }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  R2_PAUSED: ${{ vars.R2_PAUSED }}
+  CLOUDFLARE_R2_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_R2_ANALYTICS_TOKEN }}
+  R2_BILLING_DAY: ${{ vars.R2_BILLING_DAY }}
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+  R2_BUCKET: ${{ secrets.R2_BUCKET }}
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install boto3==1.40.50
+      - name: Verify continuous collection and outage delivery
+        run: |
+          python3 -m unittest discover -s tests -p test_live_observations.py -v
+          python3 -m unittest discover -s tests -p test_github_fallback.py -v
+          node --test tests/weather-extremes.test.cjs tests/rainfall.test.cjs tests/r2-storage.test.cjs
+      - name: Collect and publish independent ten-minute observation cycles
+        run: python3 -u scripts/run_live_observations.py --cycles 30

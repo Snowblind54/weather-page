@@ -1,9 +1,6 @@
 name: Update official Northern Europe wind
 on:
-  schedule:
-    # Each scheduled runner publishes six ten-minute cycles. A half-hourly
-    # trigger keeps a successor queued without depending on six punctual crons.
-    - cron: '6,36 * * * *'
+  # Recurring collection is owned by update-live-observations.yml.
   workflow_dispatch:
   push:
     branches: [main]
@@ -153,5 +150,6 @@ jobs:
         env:
           WIND_CYCLES: ${{ github.event_name == 'schedule' && '6' || '1' }}
         run: python3 scripts/run_official_wind.py --cycles "$WIND_CYCLES"
+
 
 

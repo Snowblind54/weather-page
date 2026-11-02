@@ -1,7 +1,6 @@
 name: Update official station temperatures
 on:
-  schedule:
-    - cron: '2,12,22,32,42,52 * * * *'
+  # Recurring collection is owned by update-live-observations.yml.
   workflow_dispatch:
   push:
     branches: [main]
@@ -206,6 +205,7 @@ jobs:
         run: bash scripts/publish_generated_data.sh 'Refresh official station temperature observations' data/official-temperature.json data/official-temperature-history.json
       - name: Keep outage delivery current after every collection
         run: python3 scripts/github_fallback.py mirror data/official-temperature.json data/official-temperature-history.json
+
 
 
 

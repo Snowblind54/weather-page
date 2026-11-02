@@ -40,6 +40,15 @@ test('an unavailable feed does not remove other leaders and tied winners are det
  const temperature={stations:[station('B',{rows:[[now-60,5]]}),station('A',{rows:[[now-60,5]]})]};
  const results=summarize({temperature},{now});assert.equal(results[0].winner.name,'A');assert.equal(results.find(x=>x.id==='wind').winner,null);
 });
+test('expanded countries and official non-hourly 24-hour totals are included without inventing hours',()=>{
+ const end=now-600;
+ const rain={stations:[station('Turkish gauge',{country:'TR',times:[],amounts:[],accumulations:[{end,hours:24,value:42}]}),station('Romanian gauge',{country:'RO',times:[],amounts:[],accumulations:[{end:now+1,hours:24,value:99}]})]};
+ assert.equal(pick({rain},'rain').winner.value,42);assert.equal(pick({rain},'rain').winner.time,end);
+ assert.equal(pick({rain},'rain',{country:'TR'}).count,1);
+ const temperature={stations:[station('Greek station',{country:'GR',rows:[[now-60,25]]}),station('Austrian station',{country:'AT',rows:[[now-60,-5]]})]};
+ assert.equal(pick({temperature},'warm').winner.country,'GR');assert.equal(pick({temperature},'cold').winner.country,'AT');
+ assert.equal(pick({rain:{stations:[{...rain.stations[0],accumulations:[{end:now-7201,hours:24,value:88}]}]}},'rain').winner,null);
+});
 test('panel loads lazily, tolerates one failed feed, and rerenders saved wind units',async()=>{
  class Element{constructor(){this.children=[];this.listeners={};this.value='all';this.open=false;this.hidden=false;this.textContent='';}append(...nodes){this.children.push(...nodes);}replaceChildren(...nodes){this.children=nodes;}addEventListener(type,fn){this.listeners[type]=fn;}}
  const ids=Object.fromEntries(['weatherExtremes','weatherExtremesList','weatherExtremesStatus','weatherExtremesScope','weatherExtremesRefresh','warningSection'].map(id=>[id,new Element()]));

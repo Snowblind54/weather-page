@@ -18,11 +18,11 @@ REPO = 'Snowblind54/weather-page'
 BRANCH = 'weather-fallback'
 GIT_URL = f'https://github.com/{REPO}.git'
 RAW = f'https://raw.githubusercontent.com/{REPO}/{BRANCH}/'
-# Temperature (including history) and space weather are mirrored by their
+# Temperature, wind, rainfall and space weather are mirrored by their
 # collectors. An older R2 copy must not hold up the bulk backup or replace them.
 BACKUP_SCOPES = ['data/'+name for name in (
-    'temperature-americas-model.json', 'temperature-europe-model.json', 'official-wind.json',
-    'model-wind.json', 'official-rainfall.json', 'official-snow-depth.json',
+    'temperature-americas-model.json', 'temperature-europe-model.json',
+    'model-wind.json', 'official-snow-depth.json',
     'iceland-snow-stations.json', 'snow-history.json', 'snow-history',
     'forecast-map.json', 'forecast-cache', 'forecast-iceland.json', 'forecast-iceland-cache',
     'forecast-canada.json', 'forecast-canada-cache',

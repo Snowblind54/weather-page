@@ -24,6 +24,7 @@ def publish_cycle():
         ['python3', 'scripts/split_official_wind.py'],
         ['bash', 'scripts/publish_generated_data.sh', 'Refresh official Northern Europe wind observations',
          'data/official-wind.json', 'data/official-wind-history.json'],
+        ['python3', 'scripts/github_fallback.py', 'mirror', 'data/official-wind.json', 'data/official-wind-history.json'],
     ]
     for command in commands:
         subprocess.run(command, cwd=ROOT, check=True)
@@ -42,3 +43,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cycles', type=int, choices=range(1, 7), default=1)
     run(parser.parse_args().cycles)
+

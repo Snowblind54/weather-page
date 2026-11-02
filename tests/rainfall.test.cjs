@@ -53,6 +53,14 @@ function harness(europe=false){
   return {context,run,elements,layers,canvases,events,storage,seed};
 }
 
+test('Latest rain follows the current completed hour while historical playback keeps its time',()=>{
+ const h=harness(),now=Math.floor(Date.now()/3600000)*3600;
+ h.context.frameTime=now-3*3600;
+ h.elements.timeline={value:'10',max:'10'};
+ assert.equal(h.run('rainWindowEnd()'),now);
+ assert.equal(h.run('rainWindowEnd(selectedWindTime())'),now-3*3600);
+ h.elements.timeline.value='0';assert.equal(h.run('rainWindowEnd()'),now-3*3600);
+});
 test('completed rolling windows: correct boundaries, midnight/DST, missing and future hours',()=>{
   const h=harness();h.seed();
   assert.equal(h.run('rollingRainTotal(rainData.grids.poland[0],rainWindowEnd(),1)'),2);

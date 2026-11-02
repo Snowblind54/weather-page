@@ -2,6 +2,7 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.WeatherExtremesData=api;})(typeof window==='object'?window:globalThis,function(){
  'use strict';
  const names={ES:'Spain',PT:'Portugal',FR:'France',AD:'Andorra',EE:'Estonia',LV:'Latvia',LT:'Lithuania',FI:'Finland',SE:'Sweden',NO:'Norway',IS:'Iceland',PL:'Poland',DK:'Denmark',GL:'Greenland',CA:'Canada',US:'USA',FO:'Faroe Islands',GB:'UK',UK:'UK',IE:'Ireland',DE:'Germany',NL:'Netherlands',BE:'Belgium',CZ:'Czechia',SK:'Slovakia',LU:'Luxembourg'};
+ Object.assign(names,{AT:'Austria',CH:'Switzerland',IT:'Italy',HU:'Hungary',HR:'Croatia',SI:'Slovenia',UA:'Ukraine',RO:'Romania',MD:'Moldova',BY:'Belarus',BA:'Bosnia and Herzegovina',RS:'Serbia',BG:'Bulgaria',XK:'Kosovo',AL:'Albania',MK:'North Macedonia',ME:'Montenegro',GR:'Greece',MT:'Malta',CY:'Cyprus',TR:'Turkey',MC:'Monaco'});
  const metrics=[['cold','Coldest temperature','temperature',false],['warm','Warmest temperature','temperature',true],['wind','Strongest sustained wind','wind',true],['gust','Strongest wind gust','wind',true],['rain','Most precipitation · 24 h','rain',true],['snow','Deepest snow','snow',true]];
  const valid=(v,min,max)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max;
  function recent(t,now,age){return valid(t,0,now)&&now-t<=age;}
@@ -24,15 +25,18 @@
   if(!Array.isArray(s.times)||!Array.isArray(s.amounts)||s.times.length!==s.amounts.length)return null;
   const amounts=new Map(),duplicates=new Set();
   s.times.forEach((t,i)=>{if(amounts.has(t))duplicates.add(t);amounts.set(t,s.amounts[i]);});
+  let best=null;
+  for(const report of Array.isArray(s.accumulations)?s.accumulations:[]){
+   if(report?.hours===24&&recent(report.end,now,2*3600)&&valid(report.value,0,1000)&&(!best||report.end>best.time))best={time:report.end,value:report.value};
+  }
   for(let offset=0;offset<=2;offset++){
    const time=end-offset*3600;
-   const published=s.country==='IS'&&Array.isArray(s.accumulations)?s.accumulations.find(a=>a?.hours===24&&a.end===time&&valid(a.value,0,1000)):null;
-   if(published)return {time,value:published.value};
+   if(best&&best.time>=time)return best;
    let total=0,complete=true;
    for(let hour=0;hour<24;hour++){const t=time-hour*3600,value=amounts.get(t);if(duplicates.has(t)||!valid(value,0,1000)){complete=false;break;}total+=value;}
    if(complete&&total<=1000)return {time,value:total};
   }
-  return null;
+  return best;
  }
  function summarize(data,options={}){
   const now=options.now??Date.now()/1000,all={};
@@ -40,7 +44,7 @@
   function add(kind,s,reading,snapshot){
    if(!reading)return;
    const source=snapshot?.sources?.[s.country],key=s.country+'|'+(s.code||s.lat+','+s.lon);
-   const item={...reading,lat:s.lat,lon:s.lon,name:s.name,country:s.country,code:s.code,source:typeof s.source==='string'?s.source:source?.name||'Official weather service',period:source?.period||'',timeKind:source?.timeKind||'observation',timePrecision:s.timePrecision||'instant'};
+   const item={...reading,lat:s.lat,lon:s.lon,name:s.name,country:s.country,code:s.code,source:typeof s.source==='string'?s.source:s.sourceName||source?.name||'Official weather service',period:s.period||source?.period||'',timeKind:source?.timeKind||'observation',timePrecision:s.timePrecision||'instant'};
    const previous=all[kind].get(key);if(!previous||item.time>previous.time)all[kind].set(key,item);
   }
   for(const s of rows(data.temperature))if(inside(s,options)){
@@ -58,3 +62,4 @@
  }
  return {summarize,names};
 });
+

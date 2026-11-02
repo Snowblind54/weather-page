@@ -34,9 +34,13 @@ function activeAccumulationHours(){
   return RAIN_PERIODS.find(hours=>$('rain'+hours+'h')?.checked)||0;
 }
 
-function rainWindowEnd(unix=selectedWindTime()){
+function rainWindowEnd(unix){
   // API rain at 10:00 means the amount in 09:00–10:00. Never sum a future hour.
-  return Math.floor(Math.min(unix,Date.now()/1000)/3600)*3600;
+  // Latest gauges follow the completed clock hour, not an older radar frame.
+  // An explicit time and historical playback retain their selected interval.
+  const timeline=$('timeline'),latest=unix===undefined&&timeline&&Number(timeline.value)===Number(timeline.max);
+  const selected=latest?Date.now()/1000:(unix??selectedWindTime());
+  return Math.floor(Math.min(selected,Date.now()/1000)/3600)*3600;
 }
 
 function rainColour(mm){

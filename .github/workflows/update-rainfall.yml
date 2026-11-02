@@ -1,7 +1,6 @@
 name: Update official rainfall observations
 on:
-  schedule:
-    - cron: '13,28,43,58 * * * *'
+  # Recurring collection is owned by update-live-observations.yml.
   workflow_dispatch:
   push:
     branches: [main]
@@ -86,3 +85,7 @@ jobs:
         run: python3 scripts/update_rainfall.py
       - name: Save official precipitation snapshot
         run: bash scripts/publish_generated_data.sh 'Refresh official rainfall observations' data/official-rainfall.json
+
+
+      - name: Keep verified outage delivery current
+        run: python3 scripts/github_fallback.py mirror data/official-rainfall.json
