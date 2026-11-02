@@ -8,7 +8,7 @@ function setup({fail=false,active=false,activeReason='budget_guard',failGithub=f
   if(opts?.signal?.aborted)throw opts.signal.reason;
   if(url.includes('_fallback/status'))return new Response(JSON.stringify({version:1,mode:active?'active':'standby',reason:active?activeReason:undefined,until:active?now/1000+120:0}));
   if(critical&&/data\/(official-temperature|space-weather|aurora-cloud|aurora-planner)\.json/.test(url)){
-   const age=url.startsWith(R2)?9*3600:60;
+   const age=url.startsWith(R2)?(url.includes('aurora-planner.json')?27*3600:9*3600):60;
    return new Response(JSON.stringify({version:1,generatedAt:now/1000-age,
     generated_at:new Date(now-age*1000).toISOString(),
     runTime:new Date(now-age*1000).toISOString(),
