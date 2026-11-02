@@ -154,10 +154,10 @@ window.addEventListener('load',()=>{
   document.body.appendChild(windChillScript);
 
   const spaceWeatherScript=document.createElement('script');
-  spaceWeatherScript.src='js/space-weather-v4.js?v=aurora-refresh-1';
+  spaceWeatherScript.src='js/space-weather-v4.js?v=aurora-freshness-1';
   spaceWeatherScript.onload=()=>{
     const dashboardScript=document.createElement('script');
-    dashboardScript.src='js/space-weather-dashboard.js?v=aurora-refresh-1';
+    dashboardScript.src='js/space-weather-dashboard.js?v=aurora-freshness-1';
     document.body.appendChild(dashboardScript);
   };
   document.body.appendChild(spaceWeatherScript);
