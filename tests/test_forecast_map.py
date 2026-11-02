@@ -57,7 +57,8 @@ class ForecastMapTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             dest=Path(directory)/'data';dest.mkdir()
             def save(url,path,size):path.write_bytes(b'valid test image')
-            result=module.publish_cache(manifest,dest,save)
+            with patch.object(module.wind_vectors,'write_nordic',side_effect=lambda m,t,p:p.write_text('{}')):
+                result=module.publish_cache(manifest,dest,save)
             self.assertTrue(module.cache_complete(result,dest))
             self.assertEqual(len(result['images']['rain']),2)
             self.assertIn('2026-10-07T19:00:00.000Z',result['images']['rain'])
@@ -82,8 +83,9 @@ class SnowPhasePublication(unittest.TestCase):
         def save(url,path,size):
             query=parse_qs(urlparse(url).query);colour=(255,0,255,255) if query.get('layers')==['probability_of_snow_phase'] else (0,120,240,255)
             Image.new('RGBA',size,colour).save(path,lossless=True)
-        with tempfile.TemporaryDirectory() as tmp,patch.object(module,'WIDTH',32),patch.object(module,'HEIGHT',32):
+        with tempfile.TemporaryDirectory() as tmp,patch.object(module,'WIDTH',32),patch.object(module,'HEIGHT',32),patch.object(module.wind_vectors,'write_nordic',side_effect=lambda m,t,p:p.write_text('{}')):
             data=Path(tmp)/'data';data.mkdir();result=module.publish_cache(m,data,save)
             self.assertEqual(result['precipitation_types']['version'],1)
             self.assertFalse(list((data/'forecast-cache').rglob('phase-*.webp')))
             with Image.open(data.parent/next(iter(result['images']['rain'].values()))) as im:self.assertEqual(im.getpixel((0,0))[:3],(234,94,218))
+

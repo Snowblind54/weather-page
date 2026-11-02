@@ -7,6 +7,7 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/forecast_wind_vectors.py
       - scripts/forecast_precipitation.py
       - scripts/update_forecast_map.py
       - .github/workflows/update-forecast-map.yml
@@ -53,8 +54,14 @@ jobs:
         run: python3 -m pip install Pillow==11.3.0 numpy==2.3.5
       - name: Check precipitation phase colours
         run: PYTHONPATH=scripts python3 -m unittest discover -s tests -p test_forecast_precipitation.py -v
+      - name: Check forecast direction grids and map arrows
+        run: |
+          python3 -m pip install scipy==1.17.0
+          python3 -m unittest discover -s tests -p test_forecast_wind_vectors.py -v
+          node --test tests/forecast-wind-directions.test.cjs tests/forecast-map.test.cjs
       - name: Save shared MET Nordic forecast images
         run: python3 scripts/update_forecast_map.py
       - name: Publish shared forecast maps
         run: bash scripts/publish_generated_data.sh 'Refresh shared MET Nordic forecast maps' data/forecast-map.json data/forecast-cache
+
 

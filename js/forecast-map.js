@@ -24,7 +24,7 @@
   const date=t=>new Date(t).toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
   function status(s,bad=false){$('forecastMapStatus').textContent=s;$('forecastMapStatus').className='status'+(bad?' bad':'');}
   function opacity(){overlay?.forEach(layer=>layer.setOpacity(Number($('forecastMapOpacity').value)/100));}
-  function clearOverlay(){precipKey.hidden=true;overlay?.forEach(layer=>map.removeLayer(layer));overlay=null;visibleRegions=[];visibleTime=null;visibleUrl=null;$('forecastMapLegend').hidden=true;}
+  function clearOverlay(){window.ForecastWindDirections?.clear();precipKey.hidden=true;overlay?.forEach(layer=>map.removeLayer(layer));overlay=null;visibleRegions=[];visibleTime=null;visibleUrl=null;$('forecastMapLegend').hidden=true;}
   function syncView(){document.body.classList.toggle('forecast-view',forecastMode);document.body.classList.toggle('forecast-model-view',active());$('nav-forecastSection').classList.toggle('layer-active',active());dock.hidden=!forecastMode;for(const child of dock.children)child.hidden=child!==layerSwitch&&!active();}
   async function metadata(){
     if(meta&&Date.now()-metaChecked<15*60000)return meta;
@@ -106,12 +106,14 @@
       const period=region.periods?.[new Date(visibleTime).toISOString()];
       notes.push(D.regionLabel(region)+': '+(region.precipitation_types?.version===1&&period?.precipitation_type_time?'precipitation type valid '+date(Date.parse(period.precipitation_type_time))+' (held from three-hour steps).':'precipitation type unavailable for this cache.'));
     }
+    if(['wind','gusts'].includes(kind))notes.push('Arrows point where the wind is blowing; they show sustained-wind direction at the selected hour, including on the gust map.');
     $('forecastMapVisibleTime').textContent=notes.join(' ')+(kind==='rain'?' Pink/purple with ❄ marks forecast snow, not snow already on the ground. Snow/mixed colours identify type, not intensity. Amounts are liquid-water equivalent, not snow depth.':'');
     $('forecastMapLegend').hidden=false;
   }
   async function render(){
     const id=++generation;syncView();if(!active()){clearOverlay();return;}
     const kind=$('forecastMapLayer').value;precipKey.hidden=kind!=='rain';
+    window.ForecastWindDirections?.clear();
     status(meta?'Updating forecast map…':'Loading forecast map availability…');
     try{
       await metadata();if(id!==generation||!active())return;updateTimeline();
@@ -121,7 +123,7 @@
       const regions=D.visibleRegions(meta.regions,bounds,kind,selectedTime);
       if(!regions.length){clearOverlay();status('No forecast map available in this view at this hour. Location forecasts remain available.');return;}
       const urls=regions.map(region=>D.assetUrl(region,kind,selectedTime)),key=urls.map((url,i)=>url+'@'+regions[i].bounds[0]).join('|');
-      if(overlay&&visibleUrl===key){visibleRegions=regions;opacity();legend(kind);status('Forecast map ready · cached images.');return;}
+      if(overlay&&visibleUrl===key){visibleRegions=regions;opacity();legend(kind);if(['wind','gusts'].includes(kind))window.ForecastWindDirections?.show(regions,visibleTime);status('Forecast map ready · cached images.');return;}
       status(visibleTime!==null?'Loading forecast maps… Previous images valid '+date(visibleTime)+'.':'Loading forecast map images…');
       const imgs=await Promise.all(urls.map(image));if(id!==generation||!active())return;
       const next=imgs.map((img,index)=>{
@@ -131,6 +133,7 @@
         return L.imageOverlay(display,[[region.bounds[1],region.bounds[0]],[region.bounds[3],region.bounds[2]]],{pane:'forecastModel',zIndex:region.region==='Iceland'?0:1,opacity:Number($('forecastMapOpacity').value)/100,interactive:false,attribution:region.region!=='Nordics'?'Forecast © <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data" target="_blank" rel="noopener">ECMWF</a> · CC BY 4.0 · hourly interpolation':'Forecast © <a href="https://api.met.no/" target="_blank" rel="noopener">MET Norway</a> · CC BY 4.0'}).addTo(map);
       });
       overlay?.forEach(layer=>map.removeLayer(layer));overlay=next;visibleRegions=regions;visibleTime=selectedTime;visibleUrl=key;legend(kind);
+      if(['wind','gusts'].includes(kind))window.ForecastWindDirections?.show(regions,visibleTime);
       status('Forecast map ready · '+D.layers[kind].label+' · '+date(visibleTime));
     }catch(error){if(id===generation&&active()){clearOverlay();status('Forecast map unavailable. Location forecasts still work; retry using Check for updates.',true);console.warn(error);}}
   }
@@ -148,6 +151,7 @@
   setInterval(()=>{if(!document.hidden&&active()&&Date.now()-metaChecked>=15*60000)schedule(0);},60000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&active())schedule(0);});
 })();
+
 
 
 

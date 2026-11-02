@@ -9,6 +9,7 @@ on:
     paths:
       - scripts/ecmwf_open_grid.py
       - tests/test_ecmwf_open_grid.py
+      - scripts/forecast_wind_vectors.py
       - scripts/forecast_precipitation.py
       - scripts/update_canada_forecast.py
       - scripts/update_iceland_forecast.py
@@ -64,6 +65,7 @@ jobs:
         run: python3 scripts/update_canada_forecast.py
       - name: Publish complete North America cache
         run: bash scripts/publish_generated_data.sh 'Refresh ECMWF North America and Atlantic forecast maps' data/forecast-canada.json data/forecast-canada-cache
+
 
 
 

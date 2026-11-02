@@ -16,6 +16,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 from forecast_precipitation import recolour_nordic
+import forecast_wind_vectors as wind_vectors
 
 ROOT = 'https://thredds.met.no/thredds/'
 VARIABLES = {'temperature': ('air_temperature_2m', 'K'), 'rain': ('precipitation_amount', 'kg/m^2'),
@@ -180,6 +181,10 @@ def publish_cache(manifest, data_dir, downloader=download_image):
             for valid in times:
                 filename='rain-'+valid.strftime('%Y%m%dT%HZ')+'.webp'
                 phase=stage/('phase-'+filename);recolour_nordic(stage/filename,phase);phase.unlink()
+        vector_times = [iso(t) for t in times]
+        for valid in vector_times:
+            wind_vectors.write_nordic(manifest, valid, stage/wind_vectors.filename(valid))
+            time.sleep(.4)
         size = sum(p.stat().st_size for p in stage.iterdir())
         if size > 200*1024*1024:
             raise ValueError('Forecast cache exceeds 200 MiB publishing budget')
@@ -189,6 +194,7 @@ def publish_cache(manifest, data_dir, downloader=download_image):
         cached = {**manifest, 'delivery':'static-regional-images', 'images':frames,
                   'asset_version':'precipitation-v2', 'temperature_range_celsius':[-60,60],
                   'precipitation_types':{'version':1,'source':'MET Nordic snow-phase probability','method':'Snow above 70%; rain below 30%; 30–70% is an uncertain rain/snow transition. Valid at the end of the hourly precipitation period.'} if manifest.get('snow_phase_variable') else None,
+                  'wind_vectors':wind_vectors.descriptor('forecast-cache', cycle, vector_times),
                   'legends':legends, 'image_size':[WIDTH,HEIGHT], 'cache_bytes':size,
                   'cached_times':[iso(t) for t in times], 'refresh_interval_hours':6}
         # Images are complete before the new manifest becomes visible.
@@ -208,6 +214,7 @@ def cache_complete(previous, data_dir):
     if previous.get('delivery') != 'static-regional-images' or previous.get('temperature_range_celsius') != [-60,60]: return False
     files = [p for frames in previous.get('images',{}).values() for p in frames.values()]
     files += list(previous.get('legends',{}).values())
+    files += list(previous.get('wind_vectors',{}).get('frames',{}).values())
     return bool(files) and all((data_dir.parent / p).is_file() for p in files)
 
 def main():
@@ -221,7 +228,15 @@ def main():
     for path in paths[:3]:
         reference = datetime.strptime(PATTERN.match(path).group(1),'%Y%m%dT%HZ').replace(tzinfo=timezone.utc).isoformat()
         if reference == previous.get('reference_time') and cache_complete(previous,dest):
-            print('Shared forecast images already current; no image requests.')
+            if previous.get('wind_vectors', {}).get('version') != 1:
+                cycle = Path(next(iter(previous['images']['wind'].values()))).parent.name
+                for valid in previous['cached_times']:
+                    wind_vectors.write_nordic(previous, valid, dest/'forecast-cache'/cycle/wind_vectors.filename(valid))
+                    time.sleep(.4)
+                previous['wind_vectors'] = wind_vectors.descriptor('forecast-cache', cycle, previous['cached_times'])
+                temp = dest/'forecast-map.json.tmp'
+                temp.write_text(json.dumps(previous, indent=2)+'\n'); temp.replace(dest/'forecast-map.json')
+            print('Shared forecast images already current; directions verified.')
             return
         try:
             caps = parse_capabilities(get(ROOT+'wms/'+path+'?service=WMS&version=1.3.0&request=GetCapabilities'))
@@ -236,5 +251,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 

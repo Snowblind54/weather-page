@@ -23,6 +23,7 @@ import numpy as np
 from PIL import Image
 from scipy.interpolate import RegularGridInterpolator
 import ecmwf_open_grid as tiers
+import forecast_wind_vectors as wind_vectors
 from forecast_precipitation import ecmwf_phase,paint_phase
 
 ROOT = 'https://data.ecmwf.int/forecasts/'
@@ -274,7 +275,8 @@ def main():
         cycle=trial.strftime('%Y%m%dT%HZ')+'-'+asset_version(resolution)
         paths=[p for frames in previous.get('images',{}).values() for p in frames.values()]
         info=gust_manifest(cycle);europe=europe_gust_manifest(cycle)
-        return len(paths)==435 and previous.get('gust_grid')==info and previous.get('europe_gust_grids')==europe and all((data.parent/p).is_file() for p in paths+[info['path']]+[g['path'] for g in europe])
+        vectors=previous.get('wind_vectors',{}).get('frames',{})
+        return previous.get('wind_vectors',{}).get('version')==1 and len(vectors)==87 and len(paths)==435 and previous.get('gust_grid')==info and previous.get('europe_gust_grids')==europe and all((data.parent/p).is_file() for p in paths+[info['path']]+[g['path'] for g in europe]+list(vectors.values()))
     run,resolution,first,last=tiers.choose_cycle(now,index,cached)
     if first is None:
         print('Europe and Arctic IFS tier already current:',resolution,run,flush=True);return
@@ -306,6 +308,7 @@ def main():
             gust_step=int(round(hour/3))*3
             fields['gusts']=frames[gust_step]['10fg']
             key = iso(valid);times.append(key)
+            wind_vectors.write_ecmwf(frames[lower],frames[upper],(hour-lower)/3,BOUNDS,key,stage/wind_vectors.filename(key))
             periods[key] = {'start':iso(run+timedelta(hours=lower)), 'end':iso(run+timedelta(hours=upper)),
                             'interpolated':hour%3!=0,
                             'precipitation_type_time':iso(run+timedelta(hours=lower)),
@@ -326,6 +329,7 @@ def main():
         manifest = {'delivery':'static-regional-images','asset_root':'forecast-iceland-cache',
                     'asset_version':asset_version(resolution),'temperature_range_celsius':[-60,60],'source':'ECMWF IFS open data · Europe, Iceland and Arctic','reference_time':run.isoformat(),
                     'generated_at':datetime.now(timezone.utc).isoformat(),'bounds':BOUNDS,'layers':FIELDS,
+                    'wind_vectors':wind_vectors.descriptor('forecast-iceland-cache',cycle,times),
                     'images':images,'cached_times':times,'periods':periods,'image_size':[SIZE,SIZE],
                     'legends':{k:f'data/forecast-iceland-cache/{cycle}/{k}-legend.webp' for k in FIELDS},
                     'grid_spacing_degrees':resolution,'resolution_label':'9 km · 0.1°' if resolution==.1 else '0.25° fallback','native_step_hours':3,'cache_bytes':size,'licence':'CC BY 4.0',
@@ -346,6 +350,7 @@ def main():
         if stage.exists(): shutil.rmtree(stage)
 
 if __name__=='__main__': main()
+
 
 
 

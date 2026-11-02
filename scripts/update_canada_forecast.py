@@ -102,6 +102,10 @@ def complete_previous(previous, run, root, resolution=None):
         images=previous.get('images',{}).get(kind,{})
         if len(images)!=expected:return False
         paths.extend(images.values());paths.append(previous.get('legends',{}).get(kind,''))
+    if previous.get('wind_vectors',{}).get('version')!=1:return False
+    vectors=previous['wind_vectors'].get('frames',{})
+    if len(vectors)!=expected:return False
+    paths.extend(vectors.values())
     if previous.get('gust_grids')!=gust_manifest(run,resolution):return False
     paths.extend(g['path'] for g in previous['gust_grids'])
     prefix=f'data/{ASSET_ROOT}/{cycle_name(run,resolution)}/'
@@ -124,6 +128,7 @@ def publish(frames, run, nordic, palettes, data=DATA, size=None):
             gust_step=int(round(hour/3))*3
             fields['gusts']=frames[gust_step]['10fg']
             key=ifs.iso(valid);times.append(key)
+            ifs.wind_vectors.write_ecmwf(frames[lower],frames[upper],(hour-lower)/3,BOUNDS,key,stage/ifs.wind_vectors.filename(key))
             periods[key]={'start':ifs.iso(run+timedelta(hours=lower)),
                           'end':ifs.iso(run+timedelta(hours=upper)), 'interpolated':hour%3!=0,
                           'precipitation_type_time':ifs.iso(run+timedelta(hours=lower)),
@@ -140,6 +145,7 @@ def publish(frames, run, nordic, palettes, data=DATA, size=None):
         manifest={'delivery':'static-regional-images','asset_root':ASSET_ROOT,'asset_version':version,'temperature_range_celsius':[-60,60],
                   'source':'ECMWF IFS open data · North America and Atlantic','reference_time':run.isoformat(),
                   'generated_at':datetime.now(timezone.utc).isoformat(),'bounds':BOUNDS,'layers':ifs.FIELDS,
+                  'wind_vectors':ifs.wind_vectors.descriptor(ASSET_ROOT,cycle_name(run,resolution),times),
                   'images':images,'cached_times':times,'periods':periods,'image_size':[size,size],
                   'legends':{k:f'data/{ASSET_ROOT}/{cycle_name(run,resolution)}/{k}-legend.webp' for k in ifs.FIELDS},
                   'grid_spacing_degrees':resolution,'resolution_label':'9 km / 0.1°' if resolution==.1 else '0.25° fallback','native_step_hours':3,'cache_bytes':total,'licence':'CC BY 4.0',
@@ -185,6 +191,7 @@ def main():
     publish(frames,run,nordic,palettes)
 
 if __name__=='__main__':main()
+
 
 
 

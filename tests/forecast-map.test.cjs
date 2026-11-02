@@ -45,6 +45,16 @@ const americaManifest=structuredClone(canadaManifest);americaManifest.asset_vers
 for(const kind of Object.keys(D.layers)){americaManifest.legends[kind]=americaManifest.legends[kind].replace('canada-v1','northamerica-v2');americaManifest.images[kind]={};for(const time of americaManifest.cached_times)americaManifest.images[kind][time]='data/forecast-canada-cache/20261007T21Z-northamerica-v2/'+kind+'-'+time.replace(/[-:]/g,'').slice(0,11)+'Z.webp';}
 for(const [i,time] of americaManifest.cached_times.entries())americaManifest.periods[time]={start:new Date(first+Math.floor(i/3)*3*3600000).toISOString(),end:new Date(first+(Math.floor(i/3)*3+3)*3600000).toISOString(),interpolated:i%3!==0};
 const flush=()=>new Promise(r=>setImmediate(r));
+test('arrows follow the displayed wind hour and clear when another layer is selected',async()=>{
+ const h=harness(),shown=[];let cleared=0;
+ h.c.window.ForecastWindDirections={clear:()=>cleared++,show:(regions,time)=>shown.push(time)};
+ h.open();await h.run();await h.loaded(0);assert.equal(shown.length,0);
+ h.ids.forecastMapLayer.value='wind';h.ids.forecastMapLayer.events.change();await h.run();await h.loaded(1);
+ assert.equal(shown.at(-1),first);
+ h.time(first+3600000);await h.run();await h.loaded(2);assert.equal(shown.at(-1),first+3600000);
+ const before=cleared;h.ids.forecastMapLayer.value='temperature';h.ids.forecastMapLayer.events.change();await h.run();
+ assert(cleared>before);assert.equal(shown.length,2);
+});
 const europeManifest=structuredClone(americaManifest);europeManifest.asset_root='forecast-iceland-cache';europeManifest.asset_version='euroatlantic-v2';europeManifest.bounds=[-30,18,60,84];
 for(const kind of Object.keys(D.layers)){europeManifest.legends[kind]=europeManifest.legends[kind].replace('forecast-canada-cache','forecast-iceland-cache').replace('northamerica-v2','euroatlantic-v2');for(const time of europeManifest.cached_times)europeManifest.images[kind][time]=europeManifest.images[kind][time].replace('forecast-canada-cache','forecast-iceland-cache').replace('northamerica-v2','euroatlantic-v2');}
 test('Europe and Arctic assets fill the screenshot gaps and join North America across the full latitude range',()=>{
@@ -210,3 +220,4 @@ test('precipitation exposes the snowflake key and warns when old caches lack pre
  assert.match(h.ids.forecastMapVisibleTime.textContent,/forecast snow, not snow already on the ground/);
  h.ids.forecastMapLayer.value='wind';h.ids.forecastMapLayer.events.change();await h.run();assert.equal(h.ids.forecastPrecipKey.hidden,true);
 });
+
