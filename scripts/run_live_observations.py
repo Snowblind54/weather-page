@@ -1,6 +1,6 @@
 """Keep measured weather fresh between delayed GitHub schedule starts.
 
-One bounded five-hour runner collects three independent feeds every ten minutes.
+One bounded five-hour runner collects four independent feeds every ten minutes.
 The workflow queues a successor hourly; a failed provider never stops other feeds.
 """
 import argparse
@@ -11,12 +11,15 @@ from pathlib import Path
 import signal
 import subprocess
 import time
+import urllib.request
+from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
 SCOPES = {
     'temperature': ['data/official-temperature.json', 'data/official-temperature-history.json'],
     'wind': ['data/official-wind.json', 'data/official-wind-history.json'],
     'rain': ['data/official-rainfall.json'],
+    'space': ['data/space-weather.json'],
 }
 
 
@@ -32,6 +35,8 @@ def commands(kind):
         return prepare
     elif kind == 'rain':
         prepare = [['python3', 'scripts/update_rainfall.py']]
+    elif kind == 'space':
+        prepare = [['python3', 'scripts/update_space_weather.py']]
     else:
         raise ValueError('Unknown observation feed')
     return prepare + [
@@ -95,18 +100,59 @@ def collect(kind, deadline):
                       'stations': len(snapshot.get('stations', [])), 'published': True}), flush=True)
 
 
+def cyclone_run_recent(payload, now):
+    """Avoid duplicating a recently successful or already running cyclone job."""
+    for run in payload.get('workflow_runs', []):
+        try:
+            stamp = datetime.fromisoformat(run['created_at'].replace('Z', '+00:00')).timestamp()
+        except (ValueError, KeyError, TypeError):
+            continue
+        if 0 <= now-stamp < 55*60 and (
+                run.get('status') != 'completed' or run.get('conclusion') == 'success'):
+            return True
+    return False
+
+
+def dispatch_cyclones():
+    """An hourly heartbeat independent of GitHub's frequently delayed cron."""
+    token, repo = os.environ.get('GITHUB_TOKEN'), os.environ.get('GITHUB_REPOSITORY')
+    if not token or not repo:
+        return
+    base = f'https://api.github.com/repos/{repo}/actions/workflows/update-cyclones.yml'
+    headers = {'Authorization': 'Bearer '+token, 'Accept': 'application/vnd.github+json',
+               'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'NorthernWeather'}
+    with urllib.request.urlopen(urllib.request.Request(
+            base+'/runs?per_page=10', headers=headers), timeout=15) as response:
+        recent = json.load(response)
+    if cyclone_run_recent(recent, time.time()):
+        return
+    request = urllib.request.Request(base+'/dispatches', data=b'{"ref":"main"}',
+                                     headers={**headers, 'Content-Type':'application/json'},
+                                     method='POST')
+    with urllib.request.urlopen(request, timeout=15) as response:
+        if response.status != 204:
+            raise RuntimeError('Cyclone dispatch was not accepted')
+    print(json.dumps({'feed':'cyclones','action':'hourly-dispatch'}),flush=True)
+
+
 def run(cycles=30, interval=600, collect_feed=collect, restore_feed=restore,
-        clock=time.monotonic, sleep=time.sleep):
+        clock=time.monotonic, sleep=time.sleep, cyclone_dispatch=None):
     started = clock()
     deadline = started + 5 * 3600
     for cycle in range(cycles):
         if clock() >= deadline:
             break
         print(f'Live observation cycle {cycle + 1}/{cycles}', flush=True)
+        if cyclone_dispatch is not None and cycle % 6 == 0:
+            try:
+                cyclone_dispatch()
+            except Exception as error:
+                print(json.dumps({'feed':'cyclones','action':'dispatch-failed',
+                                  'error':type(error).__name__}),flush=True)
         def work(kind):
             restore_feed(kind)
             collect_feed(kind, deadline)
-        with ThreadPoolExecutor(max_workers=3) as pool:
+        with ThreadPoolExecutor(max_workers=4) as pool:
             jobs = {pool.submit(work, kind): kind for kind in SCOPES}
             for job in as_completed(jobs):
                 try:
@@ -125,4 +171,4 @@ def run(cycles=30, interval=600, collect_feed=collect, restore_feed=restore,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cycles', type=int, choices=range(1, 31), default=30)
-    run(parser.parse_args().cycles)
+    run(parser.parse_args().cycles, cyclone_dispatch=dispatch_cyclones)

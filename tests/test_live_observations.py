@@ -1,6 +1,7 @@
 import sys
 import threading
 import subprocess
+from datetime import datetime
 import unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
@@ -42,12 +43,33 @@ class LiveObservationTests(unittest.TestCase):
         self.assertEqual(c[-1][2:4],['mirror','data/official-temperature.json'])
         self.assertIn('data/official-temperature-history.json',c[-1])
 
+    def test_space_weather_uses_same_ten_minute_continuous_pipeline(self):
+        c=live.commands('space')
+        self.assertEqual(c[0][1],'scripts/update_space_weather.py')
+        self.assertEqual(c[-1][2:4],['mirror','data/space-weather.json'])
+
+    def test_cyclone_dispatch_is_hourly_and_does_not_block_observations(self):
+        now=[0.];dispatches=[]
+        def dispatch():
+            dispatches.append(now[0])
+            raise RuntimeError('actions temporarily unavailable')
+        live.run(cycles=7,interval=600,collect_feed=lambda k,d:None,
+                 restore_feed=lambda k:None,clock=lambda:now[0],
+                 sleep=lambda n:now.__setitem__(0,now[0]+n),cyclone_dispatch=dispatch)
+        self.assertEqual(dispatches,[0,3600])
+        self.assertTrue(live.cyclone_run_recent({'workflow_runs':[{
+            'created_at':'2026-11-02T16:00:00Z','status':'completed','conclusion':'success'}]},
+            datetime.fromisoformat('2026-11-02T16:40:00+00:00').timestamp()))
+        self.assertFalse(live.cyclone_run_recent({'workflow_runs':[{
+            'created_at':'2026-11-02T16:00:00Z','status':'completed','conclusion':'failure'}]},
+            datetime.fromisoformat('2026-11-02T16:40:00+00:00').timestamp()))
+
     def test_waits_are_bounded_and_collector_has_a_five_hour_handover(self):
         now=[0.];waits=[];deadlines=[]
         def sleep(seconds):waits.append(seconds);now[0]+=seconds
         live.run(cycles=30,interval=600,collect_feed=lambda k,d:deadlines.append(d),
                  restore_feed=lambda k:None,clock=lambda:now[0],sleep=sleep)
-        self.assertEqual(len(deadlines),90)
+        self.assertEqual(len(deadlines),30*len(live.SCOPES))
         self.assertEqual(set(deadlines),{18000})
         self.assertLessEqual(max(waits),30)
         self.assertEqual(now[0],17400)

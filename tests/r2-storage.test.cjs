@@ -1,12 +1,12 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const code=fs.readFileSync('js/r2-storage.js','utf8');
 const R2='https://example.r2.dev/weather/',GH='https://raw.githubusercontent.com/Snowblind54/weather-page/weather-fallback/';
-function setup({fail=false,active=false,failGithub=false,critical=false}={}){
+function setup({fail=false,active=false,activeReason='budget_guard',failGithub=false,critical=false}={}){
  const calls=[];let now=Date.now();
  const window={WEATHER_R2_BASE:'https://example.r2.dev',location:{href:'https://snowblind54.github.io/weather-page/'},fetch:async(input,opts)=>{
   const url=input instanceof Request?input.url:String(input);calls.push([input,opts]);
   if(opts?.signal?.aborted)throw opts.signal.reason;
-  if(url.includes('_fallback/status'))return new Response(JSON.stringify({version:1,mode:active?'active':'standby',until:active?now/1000+120:0}));
+  if(url.includes('_fallback/status'))return new Response(JSON.stringify({version:1,mode:active?'active':'standby',reason:active?activeReason:undefined,until:active?now/1000+120:0}));
   if(critical&&/data\/(official-temperature|space-weather)\.json/.test(url))return new Response(JSON.stringify({version:1,generatedAt:now/1000-(url.startsWith(R2)?7200:60)}));
   return new Response(url,{status:(fail&&url.startsWith(R2))||(failGithub&&url.startsWith(GH))?503:200});
  }};
@@ -29,8 +29,12 @@ const address=input=>input instanceof Request?input.url:String(input);
  await window.fetch('data/estonia-marine-warning-zones.geojson');assert.equal(address(calls.at(-1)[0]),'data/estonia-marine-warning-zones.geojson');
  ({window,calls}=setup({fail:true}));result=await window.fetch('data/official-wind.json');
  assert.equal(await result.text(),GH+'data/official-wind.json');
- assert.equal(window.weatherDataUrl('data/forecast-cache/run/temperature.webp'),GH+'data/forecast-cache/run/temperature.webp');
+ assert.equal(window.weatherDataUrl('data/forecast-cache/run/temperature.webp'),R2+'data/forecast-cache/run/temperature.webp');
+ assert.equal(window.weatherDataUrl('data/official-wind.json'),GH+'data/official-wind.json');
  await window.fetch('data/official-temperature.json');assert.equal(address(calls.at(-1)[0]),GH+'data/official-temperature.json');
+ ({window,calls}=setup({active:true,activeReason:'publisher_error'}));result=await window.fetch('data/cyclones.json');
+ assert.equal(await result.text(),R2+'data/cyclones.json');
+ assert(!calls.some(([input])=>address(input)===GH+'data/cyclones.json'),'one failed feed must not replace healthy cyclone data');
  ({window,calls}=setup({active:true}));result=await window.fetch('data/model-wind.json');
  assert.equal(await result.text(),GH+'data/model-wind.json');assert(!calls.some(([input])=>address(input).startsWith(R2))); // Even stale HTTP-200 R2 responses are bypassed during a publishing pause.
  ({window,calls}=setup({active:true,failGithub:true}));result=await window.fetch(R2+'data/model-wind.json');assert.equal(result.status,503);assert(!calls.some(([input])=>address(input).startsWith(R2)));

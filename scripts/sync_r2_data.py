@@ -303,7 +303,19 @@ def main():
         return
     with publication_lease(client, bucket) as lease:
         registry, _ = get_json(client, bucket, INDEX_KEY, {'version': 1, 'files': {}})
-        sync(client, bucket, selected=args.paths, registry=registry, lease=lease, cleanup_only=args.cleanup_only)
+        try:
+            sync(client, bucket, selected=args.paths, registry=registry, lease=lease, cleanup_only=args.cleanup_only)
+        except RuntimeError as error:
+            # GitHub's hourly maintenance schedule can be delayed for hours.
+            # Renew the same bounded inventory audit while holding the existing
+            # cross-publisher lease; NEVER bypass the storage budget or R2 cutoff.
+            if (args.cleanup_only or not registry.get('files') or
+                    str(error) != 'Fresh central R2 storage audit required; keeping last successful data'):
+                raise
+            print('R2 audit expired; renewing central inventory under publication lock.', flush=True)
+            audit_cleanup(client, bucket, registry, datetime.now(timezone.utc), ROOT, lease)
+            registry, _ = get_json(client, bucket, INDEX_KEY, {'version': 1, 'files': {}})
+            sync(client, bucket, selected=args.paths, registry=registry, lease=lease)
 
 
 if __name__ == '__main__':

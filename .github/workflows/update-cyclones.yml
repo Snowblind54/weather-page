@@ -75,3 +75,6 @@ jobs:
       - name: Save cyclone snapshot
         if: ${{ !cancelled() }}
         run: bash scripts/publish_generated_data.sh 'Refresh North Atlantic and Europe cyclone tracks' data/cyclones.json data/fronts.json data/cyclone-ensemble.json
+      - name: Mirror cyclone data for R2 outage delivery
+        if: ${{ !cancelled() && success() }}
+        run: python3 scripts/github_fallback.py mirror data/cyclones.json data/fronts.json data/cyclone-ensemble.json

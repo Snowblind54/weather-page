@@ -4,7 +4,14 @@
   const nativeFetch=window.fetch.bind(window),site=new URL('.',window.location.href);
   const github='https://raw.githubusercontent.com/Snowblind54/weather-page/weather-fallback/';
   const r2=base.replace(/\/$/,'')+'/weather/';
-  let fallbackUntil=0,checkedAt=0,modePending=null;
+  let fallbackUntil=0,checkedAt=0,modePending=null,fallbackReason=null;
+  const pathFallback=new Map();
+  const fallbackKey=path=>{
+    const file=path.split('?')[0];
+    if(/^data\/(cloud-tiles|radar-tiles)(\/|\.json$)/.test(file))
+      return file.startsWith('data/cloud-tiles')?'data/cloud-tiles':'data/radar-tiles';
+    return file;
+  };
   const excluded=path=>/^data\/(cloud-tiles|radar-tiles)(\/|\.json(?:\?|$))/.test(path);
   function dataPath(value){
     const url=new URL(value,site);let path=null;
@@ -14,7 +21,12 @@
     if(!path||path==='data/estonia-marine-warning-zones.geojson')return null;
     return path+url.search;
   }
-  function useGithub(){return fallbackUntil>Date.now();}
+  // A single broken feed must never send unrelated, fresher data to an old
+  // GitHub copy. Only a confirmed account-wide operation cutoff is global.
+  function useGithub(path){
+    return (fallbackReason==='budget_guard' && fallbackUntil>Date.now()) ||
+      (pathFallback.get(fallbackKey(path))||0)>Date.now();
+  }
   async function staleCritical(response,path,method){
     const file=path.split('?')[0];
     const limit=['data/official-temperature.json','data/official-wind.json'].includes(file)?30*60000:
@@ -43,8 +55,11 @@
       try{
         const response=await timedFetch(github+'_fallback/status.json?minute='+Math.floor(Date.now()/60000),{credentials:'omit'},1500);
         if(response.ok){const status=await response.json();
-          if(status.version===1&&status.mode==='active'&&Number.isFinite(status.until)){
+          if(status.version===1&&status.mode==='active'&&status.reason==='budget_guard'&&Number.isFinite(status.until)){
+            fallbackReason='budget_guard';
             fallbackUntil=Math.max(fallbackUntil,Math.min(status.until*1000,Date.now()+1800000));
+          }else if(status.version===1&&status.mode==='standby'){
+            fallbackUntil=0;fallbackReason=null;
           }
         }
       }catch{/* R2 stays primary if the standby check is unavailable. */}
@@ -52,7 +67,7 @@
     })();return modePending;
   }
   window.weatherGithubDataUrl=value=>{const path=dataPath(value);return path?github+path:value;};
-  window.weatherDataUrl=value=>{const path=dataPath(value);return path?(useGithub()?github:r2)+path:value;};
+  window.weatherDataUrl=value=>{const path=dataPath(value);return path?(useGithub(path)?github:r2)+path:value;};
   if(typeof document!=='undefined'){
     setInterval(()=>{if(!document.hidden)checkMode();},60000);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden){checkedAt=0;checkMode();}});
@@ -67,13 +82,13 @@
     const requestFor=url=>isRequest?new Request(url,input):url;
     // Check the cutoff before issuing any new R2 request.
     await checkMode();
-    const primary=useGithub()?null:timedFetch(requestFor(r2+path),remoteOptions,4000)
+    const primary=useGithub(path)?null:timedFetch(requestFor(r2+path),remoteOptions,4000)
       .then(response=>({response}),error=>({error}));
-    if(!useGithub()&&primary){
+    if(!useGithub(path)&&primary){
       const result=await primary;
       if(signal?.aborted){if(result.error)throw result.error;return result.response;}
       if(result.response?.ok && !await staleCritical(result.response,path,method))return result.response;
-      if(!excluded(path))fallbackUntil=Date.now()+60000;
+      if(!excluded(path))pathFallback.set(fallbackKey(path),Date.now()+60000);
     }
     if(signal?.aborted)throw signal.reason||new DOMException('Aborted','AbortError');
     // Prepared archives have the same relative paths in the GitHub mirror.
@@ -83,12 +98,12 @@
       if(response.ok){
         // A mirrored manifest must load its images from the same healthy
         // source, including native Image requests outside the fetch wrapper.
-        fallbackUntil=Math.max(fallbackUntil,Date.now()+60000);
+        pathFallback.set(fallbackKey(path),Date.now()+60000);
         return response;
       }
       if(signal?.aborted)return response;
     }catch(error){if(signal?.aborted)throw error;}
-    if(useGithub())return new Response('',{status:503});
+    if(useGithub(path))return new Response('',{status:503});
     return nativeFetch(input,options);
   };
 })();

@@ -17,6 +17,7 @@ on:
       - .github/workflows/update-live-observations.yml
 permissions:
   contents: write
+  actions: write
 concurrency:
   group: continuous-live-observations
   cancel-in-progress: ${{ github.event_name == 'push' }}
