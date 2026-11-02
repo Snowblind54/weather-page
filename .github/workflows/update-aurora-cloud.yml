@@ -2,7 +2,7 @@ name: Update ECMWF aurora cloud field
 
 on:
   schedule:
-    - cron: '37 * * * *'
+    - cron: '17,47 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -12,6 +12,10 @@ on:
       - scripts/forecast_precipitation.py
       - tests/test_ecmwf_open_grid.py
       - tests/test_aurora_planner.py
+      - tests/r2-storage.test.cjs
+      - js/r2-storage.js
+      - js/space-weather-v4.js
+      - js/space-weather-dashboard.js
       - scripts/update_aurora_cloud.py
       - scripts/update_aurora_planner.py
       - scripts/publish_generated_data.sh
@@ -65,7 +69,10 @@ jobs:
       - name: Fetch ECMWF IFS total cloud cover
         run: python3 scripts/update_aurora_cloud.py
       - name: Verify aurora planner data processing
-        run: python3 -m unittest discover -s tests -p 'test_aurora*.py' -v
+        run: |
+          python3 -m unittest discover -s tests -p 'test_aurora*.py' -v
+          node tests/aurora-planner.test.cjs
+          node tests/r2-storage.test.cjs
       - name: Prepare shared aurora planner cloud forecasts
         run: python3 scripts/update_aurora_planner.py
       - name: Publish ECMWF aurora cloud field
