@@ -37,11 +37,11 @@ def iso_z(value: datetime) -> str:
     return utc(value).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def choose_step(run_time: datetime) -> int:
-    """Choose the 3-hour IFS step closest to the short-term aurora forecast time."""
-    target = datetime.now(timezone.utc) + timedelta(hours=1)
+def choose_step(run_time: datetime, now: datetime | None = None) -> int:
+    """Choose the next 3-hour IFS field at least one hour ahead, not an expired one."""
+    target = utc(now or datetime.now(timezone.utc)) + timedelta(hours=1)
     hours = max(0.0, (target - utc(run_time)).total_seconds() / 3600.0)
-    step = int(round(hours / 3.0) * 3)
+    step = int(math.ceil(hours / 3.0) * 3)
     return max(0, min(144, step))
 
 
