@@ -326,7 +326,12 @@
   function updateCloudDashboard(){
     if(!cloudMeta)return;
     const valid=$('spaceCloudValid');
-    if(valid)valid.textContent='Valid '+shortTime(cloudMeta.validTime);
+    if(valid){
+      const time=unixTime(cloudMeta.validTime);
+      valid.textContent=time!==null&&Date.now()/1000-time>3*3600?
+        'Forecast expired · '+shortTime(cloudMeta.validTime):
+        'Valid '+shortTime(cloudMeta.validTime);
+    }
     setAge('spaceCloudAge',cloudMeta.generatedAt||cloudMeta.runTime,STALE.cloud);
   }
 
