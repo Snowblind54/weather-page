@@ -39,19 +39,20 @@
   map.createPane('forecastWindDirections');
   const pane=map.getPane('forecastWindDirections');pane.style.zIndex='440';pane.style.pointerEvents='none';
   const canvas=document.createElement('canvas');canvas.className='leaflet-zoom-hide';
+  canvas.id='forecastWindDirectionsCanvas';
   canvas.style.cssText='position:absolute;pointer-events:none;';canvas.setAttribute('aria-hidden','true');
   let grids=[],revision=0;
   const cache=new Map(),pending=new Map();
   function clear(){revision++;grids=[];canvas.remove();}
   function draw(){
     if(!grids.length){canvas.remove();return;}
-    const size=map.getSize(),ratio=Math.min(root.devicePixelRatio||1,2);
+    const size=map.getSize(),ratio=Math.min(root.devicePixelRatio||1,2,Math.sqrt(8000000/(size.x*size.y)));
     canvas.width=Math.round(size.x*ratio);canvas.height=Math.round(size.y*ratio);
     canvas.style.width=size.x+'px';canvas.style.height=size.y+'px';
     L.DomUtil.setPosition(canvas,map.containerPointToLayerPoint([0,0]));
     if(!canvas.parentNode)pane.append(canvas);
     const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);ctx.lineCap='round';ctx.lineJoin='round';
-    const spacing=size.x<600?76:66;
+    const spacing=Math.max(size.x<600?76:66,Math.sqrt(size.x*size.y/900));
     for(let y=spacing/2;y<size.y;y+=spacing)for(let x=spacing/2;x<size.x;x+=spacing){
       const point=map.containerPointToLatLng([x,y]);
       const canonical=((point.lng+180)%360+360)%360-180;
@@ -88,6 +89,7 @@
     if(id!==revision)return;
     grids=results.filter(r=>r.status==='fulfilled'&&r.value).map(r=>r.value)
       .sort((a,b)=>(a.region==='Nordics'?0:1)-(b.region==='Nordics'?0:1));
+    canvas.dataset.forecastTime=new Date(time).toISOString();
     draw();
   };
   map.on('moveend resize zoomend',draw);
