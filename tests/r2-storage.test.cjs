@@ -7,7 +7,14 @@ function setup({fail=false,active=false,activeReason='budget_guard',failGithub=f
   const url=input instanceof Request?input.url:String(input);calls.push([input,opts]);
   if(opts?.signal?.aborted)throw opts.signal.reason;
   if(url.includes('_fallback/status'))return new Response(JSON.stringify({version:1,mode:active?'active':'standby',reason:active?activeReason:undefined,until:active?now/1000+120:0}));
-  if(critical&&/data\/(official-temperature|space-weather)\.json/.test(url))return new Response(JSON.stringify({version:1,generatedAt:now/1000-(url.startsWith(R2)?7200:60)}));
+  if(critical&&/data\/(official-temperature|space-weather|aurora-cloud|aurora-planner)\.json/.test(url)){
+   const age=url.startsWith(R2)?9*3600:60;
+   return new Response(JSON.stringify({version:1,generatedAt:now/1000-age,
+    generated_at:new Date(now-age*1000).toISOString(),
+    runTime:new Date(now-age*1000).toISOString(),
+    validTime:new Date(now-age*1000+3600000).toISOString(),
+    reference_time:new Date(now-age*1000).toISOString()}));
+  }
   return new Response(url,{status:(fail&&url.startsWith(R2))||(failGithub&&url.startsWith(GH))?503:200});
  }};
  vm.runInNewContext(code,{window,URL,Request,Response,AbortController,DOMException,setTimeout,clearTimeout,Date:class extends Date{static now(){return now;}}});
@@ -20,11 +27,15 @@ const address=input=>input instanceof Request?input.url:String(input);
  assert.equal(await result.text(),R2+'data/cyclones.json?v=1');
  const primary=calls.find(([input])=>address(input).startsWith(R2));assert.equal(primary[1].cache,'no-store');assert.equal(primary[1].credentials,'omit');
  assert.equal(window.weatherDataUrl('data/radar-tiles/frame/3/1/2.png'),R2+'data/radar-tiles/frame/3/1/2.png');
- for(const path of ['data/official-temperature.json','data/space-weather.json']){
+ for(const path of ['data/official-temperature.json','data/space-weather.json','data/aurora-cloud.json','data/aurora-planner.json']){
   const critical=setup({critical:true});const response=await critical.window.fetch(path);
   assert(Date.now()/1000-(await response.json()).generatedAt<120,'stale HTTP 200 must use fresh standby');
   assert(critical.calls.some(([input])=>address(input)===GH+path));
  }
+ const fallbackPlanner=setup({critical:true});
+ await fallbackPlanner.window.fetch('data/aurora-planner.json');
+ assert.equal(fallbackPlanner.window.weatherDataUrl('data/aurora-planner-cloud/20261102T12Z-cloud-v2/cloud-1-v1.json'),
+   GH+'data/aurora-planner-cloud/20261102T12Z-cloud-v2/cloud-1-v1.json');
  await window.fetch('https://official.example/data/file.json');assert.equal(address(calls.at(-1)[0]),'https://official.example/data/file.json');
  await window.fetch('data/estonia-marine-warning-zones.geojson');assert.equal(address(calls.at(-1)[0]),'data/estonia-marine-warning-zones.geojson');
  ({window,calls}=setup({fail:true}));result=await window.fetch('data/official-wind.json');
