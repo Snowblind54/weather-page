@@ -60,8 +60,16 @@
     return values;
   }
 
+  function cloudIsFresh(snapshot){
+    if(!snapshot)return false;
+    const now=Date.now(),run=Date.parse(snapshot.runTime),valid=Date.parse(snapshot.validTime);
+    const generated=snapshot.generatedAt*1000;
+    return Number.isFinite(run)&&Number.isFinite(valid)&&Number.isFinite(generated)&&
+      generated<=now+5*60000&&now-generated<=6*3600000&&
+      now-run<=18*3600000&&now-valid<=3*3600000&&valid-now<=8*3600000;
+  }
   function validCloudSnapshot(snapshot,values){
-    return snapshot?.version===1 && Number.isFinite(snapshot.generatedAt) &&
+    return snapshot?.version===1 && cloudIsFresh(snapshot) &&
       Number.isFinite(snapshot.latMin) && Number.isFinite(snapshot.latMax) &&
       Number.isFinite(snapshot.resolution) && snapshot.resolution>0 &&
       Number.isInteger(snapshot.width) && Number.isInteger(snapshot.height) &&
@@ -88,7 +96,7 @@
   }
 
   async function fetchCloud(force=false){
-    if(!force && cloudData && cloudBytes && Date.now()-cloudLoadedAt<CLOUD_REFRESH_MS)return cloudData;
+    if(!force && cloudData && cloudBytes && cloudIsFresh(cloudData) && Date.now()-cloudLoadedAt<CLOUD_REFRESH_MS)return cloudData;
     if(cloudLoadPromise)return cloudLoadPromise;
     cloudLoadPromise=(async()=>{
       const bucket=Math.floor(Date.now()/CLOUD_REFRESH_MS);
@@ -96,7 +104,10 @@
       if(!response.ok)throw new Error(`ECMWF cloud snapshot HTTP ${response.status}`);
       const snapshot=await response.json();
       const values=decodeCloudValues(snapshot);
-      if(!validCloudSnapshot(snapshot,values))throw new Error('ECMWF cloud snapshot is invalid');
+      if(!validCloudSnapshot(snapshot,values)){
+        cloudData=null;cloudBytes=null;viewingLayer?.redraw();
+        throw new Error('ECMWF cloud forecast is stale or invalid; waiting for the next update');
+      }
       cloudData=snapshot;
       cloudBytes=values;
       cloudLoadedAt=Date.now();
@@ -124,7 +135,7 @@
   function cloudValue(lat,lon){
     const c=cloudData;
     const values=cloudBytes;
-    if(!c||!values||lat<c.latMin||lat>c.latMax)return null;
+    if(!c||!values||!cloudIsFresh(c)||lat<c.latMin||lat>c.latMax)return null;
 
     const resolution=c.resolution;
     const wrapped=((lon+180)%360+360)%360;
@@ -353,7 +364,10 @@
         setStatus('NOAA OVATION aurora forecast is displayed for the forecast time shown below.'+activityDescription(),'ok');
       }
     }catch(error){
-      if(generation===renderGeneration)setStatus('Space weather could not load: '+error.message,'bad');
+      if(generation===renderGeneration){
+        if(viewingOn){removeLayer(viewingLayer);viewingLayer=null;}
+        setStatus('Space weather could not load: '+error.message,'bad');
+      }
     }
   }
 
