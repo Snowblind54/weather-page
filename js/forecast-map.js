@@ -32,9 +32,12 @@
     metaPromise=(async()=>{
       const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),20000);
       try{
+        // New tabs and explicit retries must not reuse a cached manifest whose
+        // old cycle has already retired from the independent delivery mirror.
+        const cacheKey=metaChecked===0?'refresh-'+Math.floor(Date.now()/10000):Math.floor(Date.now()/900000);
         const sources=[['data/forecast-map.json','Nordics','forecast-cache'],['data/forecast-iceland.json','Iceland','forecast-iceland-cache'],['data/forecast-canada.json','Canada','forecast-canada-cache']];
         const results=await Promise.allSettled(sources.map(async([path,region,assetRoot])=>{
-          const response=await fetch(path+'?v='+Math.floor(Date.now()/900000),{signal:abort.signal,cache:'no-cache'});
+          const response=await fetch(path+'?v='+cacheKey,{signal:abort.signal,cache:'no-cache'});
           if(!response.ok)throw Error(region+' map index unavailable');
           const candidate=await response.json();
           if(candidate.delivery!=='static-regional-images'||(candidate.asset_root||'forecast-cache')!==assetRoot||!Array.isArray(candidate.bounds)||candidate.bounds.length!==4||!candidate.bounds.every(Number.isFinite)||candidate.bounds[0]>=candidate.bounds[2]||candidate.bounds[1]>=candidate.bounds[3]||candidate.bounds[1]<-85||candidate.bounds[3]>85||candidate.bounds[0]<(assetRoot==='forecast-canada-cache'?-190:-180)||candidate.bounds[2]>180||!Number.isFinite(Date.parse(candidate.reference_time))||!D.cachedTimes(candidate).length)throw Error('Invalid '+region+' map index');
@@ -75,7 +78,7 @@
       const backup=window.weatherGithubDataUrl?.(url)||url;let retried=false,timer;
       const failed=()=>{clearTimeout(timer);
         if(!retried&&backup!==url){retried=true;load(backup);return;}
-        img.onload=img.onerror=null;img.src='';reject(Error('Forecast image unavailable'));
+        img.onload=img.onerror=null;img.src='';reject(Error('Forecast image unavailable: '+url));
       };
       const load=source=>{timer=setTimeout(failed,source===url&&backup!==url?8000:25000);img.src=source;};
       img.onload=()=>{clearTimeout(timer);img.onload=img.onerror=null;cache.set(url,img);while(cache.size>8)cache.delete(cache.keys().next().value);resolve(img);};
