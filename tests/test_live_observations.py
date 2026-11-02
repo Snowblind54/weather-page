@@ -21,7 +21,7 @@ class LiveObservationTests(unittest.TestCase):
             if kind=='rain':raise RuntimeError('provider offline')
         live.run(cycles=3,interval=600,collect_feed=collect,restore_feed=restored.append,
                  clock=lambda:now[0],sleep=lambda seconds:now.__setitem__(0,now[0]+seconds))
-        self.assertEqual(sorted(restored),sorted(live.SCOPES))
+        self.assertEqual({kind:restored.count(kind) for kind in live.SCOPES},dict.fromkeys(live.SCOPES,3))
         self.assertEqual({kind:calls.count(kind) for kind in live.SCOPES},dict.fromkeys(live.SCOPES,3))
         self.assertEqual(now[0],1200)
 

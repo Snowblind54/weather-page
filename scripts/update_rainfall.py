@@ -106,7 +106,19 @@ def parse_estonia(raw):
 
 
 def load_estonia(now, previous):
-    return parse_estonia(download('https://www.ilmateenistus.ee/ilma_andmed/xml/observations.php', False))
+    error=None
+    try:current=parse_estonia(download('https://www.ilmateenistus.ee/ilma_andmed/xml/observations.php', False))
+    except Exception as exc:
+        error=exc;current=[]
+    try:
+        from rainfall_estonia_history import recover
+        reference=current or [s for s in previous if s['country']=='EE']
+        recovered=recover(now,reference,previous)
+    except Exception as exc:
+        print('EE history recovery unavailable:',type(exc).__name__,flush=True);recovered=[]
+    if error and not recovered:raise error
+    # Archived measurements only fill holes. Direct live XML remains authoritative.
+    return recovered+current
 
 
 def csv_rows(raw):
@@ -553,7 +565,7 @@ def main():
     install_eastern(sys.modules[__name__])
     from rainfall_balkans import install as install_balkans, PERIODS as BALKAN_PERIODS
     install_balkans(sys.modules[__name__])
-    PERIODS={**EASTERN_PERIODS,**PERIODS,**SOUTHWEST_PERIODS,**ALPINE_PERIODS,**ADRIATIC_PERIODS,'TR':TURKEY_PERIOD,**BALKAN_PERIODS}
+    PERIODS={**EASTERN_PERIODS,**PERIODS,**SOUTHWEST_PERIODS,**ALPINE_PERIODS,**ADRIATIC_PERIODS,'TR':TURKEY_PERIOD,**BALKAN_PERIODS,'EE':'Official hourly XML measurements; missing history can be recovered from the University of Tartu archive of the same feed. Missing hours are never estimated.'}
     collection_now = dt.datetime.now(dt.timezone.utc)
     now = collection_now.replace(minute=0, second=0, microsecond=0)
     try:

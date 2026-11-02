@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/rainfall_estonia_history.py
       - scripts/rainfall_bosnia.py
       - scripts/rainfall_balkans.py
       - scripts/balkan_rain_stations.json

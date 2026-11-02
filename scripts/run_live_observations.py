@@ -43,7 +43,17 @@ def commands(kind):
 def restore(kind):
     # The mirror follows every successful publication. Private R2 can still
     # accept reads while its publisher is paused; that copy may be much older.
-    from github_fallback import restore as github_restore
+    from github_fallback import restore as github_restore, download
+    from sync_r2_data import generation
+    paths=[ROOT/p for p in SCOPES[kind]]
+    if all(p.is_file() for p in paths):
+        try:
+            records=json.loads(download('_fallback/index.json'))['files']
+            if all(generation(p) is not None and records.get(path,{}).get('generation') is not None and generation(p)>=records[path]['generation'] for path,p in zip(SCOPES[kind],paths)):
+                return
+        except Exception:
+            # Locally retained, valid histories are preferable to an old R2 copy.
+            if all(generation(p) is not None for p in paths):return
     try:
         github_restore(SCOPES[kind])
     except Exception:
@@ -89,15 +99,12 @@ def run(cycles=30, interval=600, collect_feed=collect, restore_feed=restore,
         clock=time.monotonic, sleep=time.sleep):
     started = clock()
     deadline = started + 5 * 3600
-    ready = set()
     for cycle in range(cycles):
         if clock() >= deadline:
             break
         print(f'Live observation cycle {cycle + 1}/{cycles}', flush=True)
         def work(kind):
-            if kind not in ready:
-                restore_feed(kind)
-                ready.add(kind)
+            restore_feed(kind)
             collect_feed(kind, deadline)
         with ThreadPoolExecutor(max_workers=3) as pool:
             jobs = {pool.submit(work, kind): kind for kind in SCOPES}
