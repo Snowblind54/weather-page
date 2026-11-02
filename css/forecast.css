@@ -47,6 +47,7 @@
 .forecast-model-view .leaflet-map-pane > .leaflet-tile-pane,
 .forecast-model-view .leaflet-map-pane > .leaflet-bathymetryPane-pane,
 .forecast-model-view .leaflet-map-pane > .leaflet-forecastModel-pane,
+.forecast-model-view .leaflet-map-pane > .leaflet-forecastWindDirections-pane,
 .forecast-model-view .leaflet-map-pane > .leaflet-forecastPoint-pane{visibility:visible}
 /* Make room for the ninth category while keeping the right-hand tools together. */
 @media(min-width:1101px){.topbar{grid-template-columns:200px minmax(0,1fr) 110px}.category-nav{gap:4px}}
@@ -125,3 +126,4 @@
 }
 
 @media(min-width:761px) and (max-width:1700px){body.forecast-view.has-weather-panel .forecast-map-dock{width:min(560px,calc(100vw - var(--weather-drawer-width) - 64px))}}
+
