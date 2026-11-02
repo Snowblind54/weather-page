@@ -13,6 +13,13 @@ import update_aurora_planner as clouds
 import update_space_weather as space
 
 class AuroraPlannerTests(unittest.TestCase):
+    def test_near_term_cloud_step_never_points_to_an_expired_forecast(self):
+        from update_aurora_cloud import choose_step
+        run=datetime(2026,11,2,0,tzinfo=timezone.utc)
+        self.assertEqual(choose_step(run,datetime(2026,11,2,12,14,tzinfo=timezone.utc)),15)
+        self.assertEqual(choose_step(run,datetime(2026,11,2,14,1,tzinfo=timezone.utc)),18)
+        self.assertEqual(choose_step(run,datetime(2026,11,2,0,1,tzinfo=timezone.utc)),3)
+
     def test_native_bands_overlap_and_wrap_date_line(self):
         values=bytes(x%101 for y in range(clouds.HEIGHT) for x in range(clouds.WIDTH))
         self.assertEqual(len(clouds.split_cloud(values,0)),301*551)
