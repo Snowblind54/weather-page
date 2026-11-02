@@ -6,7 +6,9 @@ The workflow queues a successor hourly; a failed provider never stops other feed
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
+import os
 from pathlib import Path
+import signal
 import subprocess
 import time
 
@@ -49,12 +51,34 @@ def restore(kind):
         restore_inputs(SCOPES[kind], allow_empty=kind == 'wind')
 
 
+def execute(command, timeout):
+    process = subprocess.Popen(command, cwd=ROOT, start_new_session=True)
+    try:
+        result = process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # Wind has nested updater processes. Stop the whole process group so
+        # a timed-out collection cannot race the next cycle's publication.
+        for sig, grace in ((signal.SIGTERM, 5), (signal.SIGKILL, None)):
+            try:
+                os.killpg(process.pid, sig)
+            except ProcessLookupError:
+                break
+            try:
+                process.wait(timeout=grace)
+                break
+            except subprocess.TimeoutExpired:
+                continue
+        raise
+    if result:
+        raise subprocess.CalledProcessError(result, command)
+
+
 def collect(kind, deadline):
     for command in commands(kind):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError('Collector handover deadline reached')
-        subprocess.run(command, cwd=ROOT, check=True, timeout=min(480, remaining))
+        execute(command, timeout=min(480, remaining))
     path = ROOT / SCOPES[kind][0]
     snapshot = json.loads(path.read_text())
     print(json.dumps({'feed': kind, 'generatedAt': snapshot.get('generatedAt'),

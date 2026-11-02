@@ -86,9 +86,15 @@ function rollingRainTotal(series,end,hours){
   return total;
 }
 
-function validRainData(data,end){
+function requiredRainfallSpecs(){
+  const ids=new Set(visibleRainfallRegions().filter(r=>!r.stationBased&&r.id!=='canada').map(r=>r.id));
+  return RAIN_GRID_SPECS.filter(spec=>ids.has(spec.id));
+}
+
+function validRainData(data,end,specs=requiredRainfallSpecs()){
   return data?.version===1 && Number.isFinite(data.savedAt) && data.savedAt<=Date.now()+300000 &&
-    Date.now()-data.savedAt<RAIN_CACHE_TTL && RAIN_GRID_SPECS.every(spec=>{
+    Date.now()-data.savedAt<RAIN_CACHE_TTL && specs.every(spec=>{
+      if(Date.now()-(data.savedAtByRegion?.[spec.id]??data.savedAt)>=RAIN_CACHE_TTL)return false;
       const series=data.grids?.[spec.id];
       return Array.isArray(series) && series.length===spec.points.length && series.every((s,i)=>
         s.lat===spec.points[i][0] && s.lon===spec.points[i][1] &&
@@ -150,8 +156,9 @@ async function loadRainfall(force=false){
     rainLoadPromise=(async()=>{
       // Avoid competing with the startup temperature grid requests.
       if(temperatureLoadPromise) await temperatureLoadPromise.catch(()=>{});
-      const grids={};
-      for(const spec of RAIN_GRID_SPECS){
+      const specs=requiredRainfallSpecs(),grids={...(rainData?.grids||{})};
+      const savedAtByRegion={...(rainData?.savedAtByRegion||{})};
+      for(const spec of specs){
         if(!activeAccumulationHours()||!visibleRainfallNeedsModel()) return null;
         $('rainAccumStatus').textContent='Loading rainfall · '+spec.id+'…';
         $('rainAccumStatus').className='status';
@@ -162,9 +169,10 @@ async function loadRainfall(force=false){
           await sleep(450);
         }
         grids[spec.id]=rows;
+        savedAtByRegion[spec.id]=Date.now();
       }
-      const data={version:1,savedAt:Date.now(),grids};
-      if(!validRainData(data,rainWindowEnd())) throw new Error('Completed rainfall hours missing');
+      const data={version:1,savedAt:Date.now(),savedAtByRegion,grids};
+      if(!validRainData(data,rainWindowEnd(),specs)) throw new Error('Completed rainfall hours missing');
       rainData=data;rainModelError='';
       rainImageCache.clear();
       try{localStorage.setItem(RAIN_CACHE_KEY,JSON.stringify(data));}catch(_){}
@@ -181,6 +189,8 @@ async function loadRainfall(force=false){
     }).finally(()=>{rainLoadPromise=null;});
   }
   await rainLoadPromise;
+  // If the viewport moved during loading, fetch only its still-missing grids.
+  if(activeAccumulationHours()&&visibleRainfallNeedsModel()&&!rainModelError&&!validRainData(rainData,rainWindowEnd()))return loadRainfall(false);
   if(activeAccumulationHours() && rainData) queueRainfallRender(0);
 }
 

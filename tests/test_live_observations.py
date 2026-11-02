@@ -1,5 +1,6 @@
 import sys
 import threading
+import subprocess
 import unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
@@ -7,6 +8,12 @@ import run_live_observations as live
 
 
 class LiveObservationTests(unittest.TestCase):
+    def test_timed_out_or_failed_commands_cannot_continue_to_publication(self):
+        with self.assertRaises(subprocess.TimeoutExpired):
+            live.execute([sys.executable,'-c','import time; time.sleep(20)'],timeout=.05)
+        with self.assertRaises(subprocess.CalledProcessError):
+            live.execute([sys.executable,'-c','import sys; sys.exit(3)'],timeout=5)
+
     def test_failed_rain_does_not_stop_temperature_or_wind_or_next_cycles(self):
         now=[0.];calls=[];restored=[];lock=threading.Lock()
         def collect(kind,deadline):

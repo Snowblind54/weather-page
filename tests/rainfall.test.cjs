@@ -174,6 +174,20 @@ test('loader requests past hours once, validates cache coverage, and respects di
   assert.equal(race.layers.size,0);
 });
 
+test('model requests stay within the visible region and load newly visited areas on demand',async()=>{
+ const h=harness();h.elements.rain24h.checked=true;let requests=0;
+ const view=(south,west,north,east)=>({getSouth:()=>south,getWest:()=>west,getNorth:()=>north,getEast:()=>east});
+ h.context.map.getBounds=()=>view(58,24,60,26);
+ h.context.fetch=async url=>{
+  requests++;const query=new URL(url).searchParams;
+  return {ok:true,json:async()=>query.get('latitude').split(',').map(()=>({hourly_units:{rain:'mm',showers:'mm'},hourly:{time:Array.from({length:55},(_,i)=>h.context.frameTime-(54-i)*3600),rain:Array(55).fill(1),showers:Array(55).fill(0)}}))};
+ };
+ await h.run('loadRainfall()');assert(requests>0&&requests<5);
+ assert.equal(h.run('rainData.grids.iceland'),undefined,'offscreen Iceland must not delay Baltic gauges');
+ const before=requests;h.context.map.getBounds=()=>view(63,-24,66,-16);
+ await h.run('loadRainfall()');assert(requests>before);assert(h.run('validRainData(rainData,rainWindowEnd())'));
+ await h.run('loadRainfall()');assert.equal(requests,before+1,'newly visited region is cached');
+});
 test('rate-limit cooldown prevents repeated requests on period switches',async()=>{
   const h=harness();h.elements.rain1h.checked=true;let calls=0;
   h.context.fetch=async()=>{calls++;return {ok:false,status:429};};
