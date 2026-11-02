@@ -65,6 +65,8 @@ jobs:
         run: python3 scripts/update_canada_forecast.py
       - name: Publish complete North America cache
         run: bash scripts/publish_generated_data.sh 'Refresh ECMWF North America and Atlantic forecast maps' data/forecast-canada.json data/forecast-canada-cache
+      - name: Mirror maps and direction grids for outage delivery
+        run: python3 scripts/github_fallback.py mirror data/forecast-canada.json data/forecast-canada-cache
 
 
 

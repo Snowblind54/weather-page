@@ -63,5 +63,7 @@ jobs:
         run: python3 scripts/update_forecast_map.py
       - name: Publish shared forecast maps
         run: bash scripts/publish_generated_data.sh 'Refresh shared MET Nordic forecast maps' data/forecast-map.json data/forecast-cache
+      - name: Mirror maps and direction grids for outage delivery
+        run: python3 scripts/github_fallback.py mirror data/forecast-map.json data/forecast-cache
 
 
