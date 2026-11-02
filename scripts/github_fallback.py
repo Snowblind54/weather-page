@@ -18,14 +18,16 @@ REPO = 'Snowblind54/weather-page'
 BRANCH = 'weather-fallback'
 GIT_URL = f'https://github.com/{REPO}.git'
 RAW = f'https://raw.githubusercontent.com/{REPO}/{BRANCH}/'
+# Temperature (including history) and space weather are mirrored by their
+# collectors. An older R2 copy must not hold up the bulk backup or replace them.
 BACKUP_SCOPES = ['data/'+name for name in (
-    'official-temperature.json', 'temperature-americas-model.json', 'temperature-europe-model.json', 'official-wind.json',
+    'temperature-americas-model.json', 'temperature-europe-model.json', 'official-wind.json',
     'model-wind.json', 'official-rainfall.json', 'official-snow-depth.json',
     'iceland-snow-stations.json', 'snow-history.json', 'snow-history',
     'forecast-map.json', 'forecast-cache', 'forecast-iceland.json', 'forecast-iceland-cache',
     'forecast-canada.json', 'forecast-canada-cache',
     'estonia-warnings.json', 'latvia-warnings.json', 'national-warnings.json',
-    'cyclones.json', 'fronts.json', 'cyclone-ensemble.json', 'space-weather.json',
+    'cyclones.json', 'fronts.json', 'cyclone-ensemble.json',
     'aurora-cloud.json', 'nordic-radar-cache.json', 'radar-cache',
     'radar-tiles.json', 'radar-tiles', 'cloud-tiles.json', 'cloud-tiles')]
 MAX_BYTES = 1024 * 1024 * 1024
@@ -198,7 +200,7 @@ def publish(selected, root=ROOT, active=True, control=None):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(); parser.add_argument('command', choices=['publish','backup'])
+    parser = argparse.ArgumentParser(); parser.add_argument('command', choices=['publish','mirror','backup'])
     parser.add_argument('paths', nargs='*'); args=parser.parse_args()
     if args.command == 'backup':
         from hydrate_r2_data import restore_inputs
@@ -206,5 +208,6 @@ if __name__ == '__main__':
         from r2_usage_guard import decision
         publish(BACKUP_SCOPES, active=decision()['paused'])
     else:
-        publish(args.paths)
+        publish(args.paths, active=args.command != 'mirror')
+
 

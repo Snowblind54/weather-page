@@ -60,3 +60,6 @@ jobs:
         run: python3 scripts/update_space_weather.py
       - name: Publish shared space-weather snapshot
         run: bash scripts/publish_generated_data.sh 'Refresh shared space weather snapshot' data/space-weather.json
+      - name: Keep outage delivery current after every collection
+        run: python3 scripts/github_fallback.py mirror data/space-weather.json
+

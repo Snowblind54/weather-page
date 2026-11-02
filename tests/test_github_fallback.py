@@ -64,6 +64,20 @@ class GitHubFallbackTests(unittest.TestCase):
         records=json.loads(self.show('_fallback/index.json'))['files']
         self.assertEqual(set(records),{'data/model-wind.json','data/official-temperature.json'})
 
+    def test_fresh_standby_retains_outage_signal_and_rejects_older_data(self):
+        path='data/official-temperature.json'
+        self.put(path,{'generatedAt':100,'stations':['old']})
+        fallback.publish([path],root=self.root)
+        self.put(path,{'generatedAt':200,'stations':['fresh']})
+        fallback.publish([path],root=self.root,active=False)
+        self.assertEqual(json.loads(self.show(path))['stations'],['fresh'])
+        self.assertEqual(json.loads(self.show('_fallback/status.json'))['mode'],'active')
+        self.put(path,{'generatedAt':150,'stations':['older R2 copy']})
+        fallback.publish([path],root=self.root,active=False)
+        self.assertEqual(json.loads(self.show(path))['stations'],['fresh'])
+        self.assertNotIn(path,fallback.BACKUP_SCOPES)
+        self.assertNotIn('data/space-weather.json',fallback.BACKUP_SCOPES)
+
     def test_budget_control_preserves_data_and_overrides_normal_publications(self):
         import time
         self.put('data/model-wind.json',{'generatedAt':200})
@@ -130,3 +144,4 @@ class GitHubFallbackTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
