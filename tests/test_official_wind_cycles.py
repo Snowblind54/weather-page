@@ -28,7 +28,10 @@ class WindCycles(unittest.TestCase):
                 runner.publish_cycle()
             self.assertEqual([c[1] for c in commands], [
                 'scripts/update_official_wind.py', 'scripts/add_florida_coastal_wind.py',
-                'scripts/split_official_wind.py', 'scripts/publish_generated_data.sh'])
+                'scripts/split_official_wind.py', 'scripts/publish_generated_data.sh',
+                'scripts/github_fallback.py'])
+            self.assertEqual(commands[-1][2:], ['mirror', 'data/official-wind.json',
+                                                'data/official-wind-history.json'])
 
     def test_failed_collection_never_publishes_partial_output(self):
         with patch.object(runner.subprocess, 'run', side_effect=subprocess.CalledProcessError(1, 'collect')) as command:
@@ -47,3 +50,4 @@ class WindCycles(unittest.TestCase):
             runner.run(1)
             cycle.assert_called_once()
             sleep.assert_not_called()
+
