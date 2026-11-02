@@ -93,4 +93,5 @@
     draw();
   };
   map.on('moveend resize zoomend',draw);
+  document.addEventListener('country-focus-change',draw);
 })(typeof window==='undefined'?{}:window);
