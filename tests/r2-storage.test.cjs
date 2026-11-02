@@ -1,12 +1,13 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const code=fs.readFileSync('js/r2-storage.js','utf8');
 const R2='https://example.r2.dev/weather/',GH='https://raw.githubusercontent.com/Snowblind54/weather-page/weather-fallback/';
-function setup({fail=false,active=false,failGithub=false}={}){
+function setup({fail=false,active=false,failGithub=false,critical=false}={}){
  const calls=[];let now=Date.now();
  const window={WEATHER_R2_BASE:'https://example.r2.dev',location:{href:'https://snowblind54.github.io/weather-page/'},fetch:async(input,opts)=>{
   const url=input instanceof Request?input.url:String(input);calls.push([input,opts]);
   if(opts?.signal?.aborted)throw opts.signal.reason;
   if(url.includes('_fallback/status'))return new Response(JSON.stringify({version:1,mode:active?'active':'standby',until:active?now/1000+120:0}));
+  if(critical&&/data\/(official-temperature|space-weather)\.json/.test(url))return new Response(JSON.stringify({version:1,generatedAt:now/1000-(url.startsWith(R2)?7200:60)}));
   return new Response(url,{status:(fail&&url.startsWith(R2))||(failGithub&&url.startsWith(GH))?503:200});
  }};
  vm.runInNewContext(code,{window,URL,Request,Response,AbortController,DOMException,setTimeout,clearTimeout,Date:class extends Date{static now(){return now;}}});
@@ -19,6 +20,11 @@ const address=input=>input instanceof Request?input.url:String(input);
  assert.equal(await result.text(),R2+'data/cyclones.json?v=1');
  const primary=calls.find(([input])=>address(input).startsWith(R2));assert.equal(primary[1].cache,'no-store');assert.equal(primary[1].credentials,'omit');
  assert.equal(window.weatherDataUrl('data/radar-tiles/frame/3/1/2.png'),R2+'data/radar-tiles/frame/3/1/2.png');
+ for(const path of ['data/official-temperature.json','data/space-weather.json']){
+  const critical=setup({critical:true});const response=await critical.window.fetch(path);
+  assert(Date.now()/1000-(await response.json()).generatedAt<120,'stale HTTP 200 must use fresh standby');
+  assert(critical.calls.some(([input])=>address(input)===GH+path));
+ }
  await window.fetch('https://official.example/data/file.json');assert.equal(address(calls.at(-1)[0]),'https://official.example/data/file.json');
  await window.fetch('data/estonia-marine-warning-zones.geojson');assert.equal(address(calls.at(-1)[0]),'data/estonia-marine-warning-zones.geojson');
  ({window,calls}=setup({fail:true}));result=await window.fetch('data/official-wind.json');
@@ -58,3 +64,4 @@ const address=input=>input instanceof Request?input.url:String(input);
  assert.equal(window.ForecastMapData.assetUrl({delivery:'static-regional-images',reference_time:'2026-10-08T12:00:00Z',legends:{temperature:asset}},'temperature'),R2+asset);
  console.log('R2 healthy, outage, pause, recovery, cancellation, asset/CORS and direct-provider fallback checks passed');
 })().catch(e=>{console.error(e);process.exitCode=1;});
+

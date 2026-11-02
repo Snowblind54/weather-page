@@ -15,6 +15,16 @@
     return path+url.search;
   }
   function useGithub(){return fallbackUntil>Date.now();}
+  async function staleCritical(response,path,method){
+    const file=path.split('?')[0];
+    const limit=file==='data/official-temperature.json'?30*60000:
+      file==='data/space-weather.json'?20*60000:null;
+    if(!limit||method.toUpperCase()!=='GET')return false;
+    try{
+      const snapshot=await response.clone().json();
+      return !Number.isFinite(snapshot.generatedAt)||Date.now()-snapshot.generatedAt*1000>limit;
+    }catch{return true;}
+  }
   async function timedFetch(input,options,ms){
     const controller=new AbortController(),source=options.signal;
     const combined=source&&typeof AbortSignal!=='undefined'&&AbortSignal.any?AbortSignal.any([source,controller.signal]):null;
@@ -61,7 +71,7 @@
     if(!useGithub()&&primary){
       const result=await primary;
       if(signal?.aborted){if(result.error)throw result.error;return result.response;}
-      if(result.response?.ok)return result.response;
+      if(result.response?.ok && !await staleCritical(result.response,path,method))return result.response;
       if(!excluded(path))fallbackUntil=Date.now()+60000;
     }
     if(signal?.aborted)throw signal.reason||new DOMException('Aborted','AbortError');
@@ -81,3 +91,4 @@
     return nativeFetch(input,options);
   };
 })();
+
