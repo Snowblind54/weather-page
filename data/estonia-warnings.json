@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "source": "https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/",
+  "fetchedAt": "2026-11-07T02:54:19.356888+00:00",
+  "forecastDays": [
+    "2026-11-07",
+    "2026-11-08",
+    "2026-11-09",
+    "2026-11-10"
+  ],
+  "records": [
+    {
+      "id": "5862",
+      "regionId": "99993",
+      "country": "Estonia",
+      "area": "Peipsi järv",
+      "event": "Wind",
+      "level": 1,
+      "effective": "2026-11-07T00:00:00+00:00",
+      "expires": "2026-11-08T00:00:00+00:00",
+      "description": "West, northwest 8, in gusts 11 m/s. wave height 0.5-1.1",
+      "descriptionEstonian": "Lääne- ja loodetuul 8, puhanguti 11 m/s. Laine kõrgus 0,5-1.1 m.",
+      "preAlert": false
+    },
+    {
+      "id": "6002",
+      "regionId": "99993",
+      "country": "Estonia",
+      "area": "Peipsi järv",
+      "event": "Wind",
+      "level": 1,
+      "effective": "2026-11-08T18:00:00+00:00",
+      "expires": "2026-11-09T03:00:00+00:00",
+      "description": "Southwest, west 8, in gusts 12 m/s.",
+      "descriptionEstonian": "Edela- ja läänetuul 8, puhanguti 12 m/s.",
+      "preAlert": true
+    },
+    {
+      "id": "6001",
+      "regionId": "99995",
+      "country": "Estonia",
+      "area": "Soome lahe idaosa",
+      "event": "Wind",
+      "level": 1,
+      "effective": "2026-11-09T03:00:00+00:00",
+      "expires": "2026-11-10T06:00:00+00:00",
+      "description": "Southwest, west 12, in gusts to 16 m/s.",
+      "descriptionEstonian": "Edela- ja läänetuul 12, puhanguti kuni 16 m/s.",
+      "preAlert": true
+    },
+    {
+      "id": "6000",
+      "regionId": "99996",
+      "country": "Estonia",
+      "area": "Soome lahe lääneosa",
+      "event": "Wind",
+      "level": 1,
+      "effective": "2026-11-09T03:00:00+00:00",
+      "expires": "2026-11-10T00:00:00+00:00",
+      "description": "Southwest, west 12, in gusts to 16 m/s.",
+      "descriptionEstonian": "Edela- ja läänetuul 12, puhanguti kuni 16 m/s.",
+      "preAlert": true
+    }
+  ]
+}
