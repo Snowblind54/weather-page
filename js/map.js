@@ -29,10 +29,23 @@ const satTransport = L.tileLayer(
   {maxZoom:19,opacity:0.95,attribution:'Reference © Esri'}
 ).addTo(map);
 
+// Keep boundaries separate from both the basemap imagery and the forecast
+// raster so their opacity and stacking order can be controlled independently.
+const countryReferencePane=map.createPane('countryReference');
+countryReferencePane.style.zIndex='210';
+countryReferencePane.style.pointerEvents='none';
 const satPlaces = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-  {maxZoom:19,opacity:0.95,attribution:'Reference © Esri'}
+  {pane:'countryReference',maxZoom:19,opacity:0.95,attribution:'Reference © Esri'}
 ).addTo(map);
+let forecastReference=false;
+function setForecastReference(enabled=forecastReference){
+  forecastReference=enabled;
+  countryReferencePane.style.zIndex=enabled?'435':'210'; // Forecast images: 430; wind arrows: 440.
+  if(enabled||map.hasLayer(aerial)){
+    if(!map.hasLayer(satPlaces))satPlaces.addTo(map);
+  }else if(map.hasLayer(satPlaces))map.removeLayer(satPlaces);
+}
 
 // Transparent sea-only depth shading, underneath all weather overlays.
 map.createPane('bathymetryPane');
@@ -136,7 +149,7 @@ function weatherFront(){
 function useStreet(){
   if(map.hasLayer(aerial)) map.removeLayer(aerial);
   if(map.hasLayer(satTransport)) map.removeLayer(satTransport);
-  if(map.hasLayer(satPlaces)) map.removeLayer(satPlaces);
+  setForecastReference();
   if(!map.hasLayer(street)) street.addTo(map);
   if(!map.hasLayer(seaDepth)) seaDepth.addTo(map);
   if(typeof syncSeaDepthLabels==='function') syncSeaDepthLabels();
@@ -151,7 +164,7 @@ function useSatellite(){
   if(map.hasLayer(street)) map.removeLayer(street);
   if(!map.hasLayer(aerial)) aerial.addTo(map);
   if(!map.hasLayer(satTransport)) satTransport.addTo(map);
-  if(!map.hasLayer(satPlaces)) satPlaces.addTo(map);
+  setForecastReference();
   if(typeof syncSeaDepthLabels==='function') syncSeaDepthLabels();
 
   $('streetBtn').classList.remove('active');
