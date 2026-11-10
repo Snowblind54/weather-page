@@ -39,12 +39,39 @@ const satPlaces = L.tileLayer(
   {pane:'countryReference',maxZoom:19,opacity:0.95,attribution:'Reference © Esri'}
 ).addTo(map);
 let forecastReference=false;
+let forecastCountryLines=null,forecastCountryLoading=null,forecastCountryRetryAt=0;
+function syncForecastCountryLines(){
+  if(forecastCountryLines){
+    if(forecastReference&&!map.hasLayer(forecastCountryLines))forecastCountryLines.addTo(map);
+    if(!forecastReference&&map.hasLayer(forecastCountryLines))map.removeLayer(forecastCountryLines);
+    return;
+  }
+  if(!forecastReference||forecastCountryLoading||Date.now()<forecastCountryRetryAt)return;
+  // Use the same Natural Earth atlas as country search. Its shared arcs keep
+  // neighbouring countries from drawing the same border twice.
+  forecastCountryLoading=(async()=>{
+    const response=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json',{cache:'force-cache'});
+    if(!response.ok)throw Error('Country outline data HTTP '+response.status);
+    const atlas=await response.json(),geometry=window.topojson.mesh(atlas,atlas.objects.countries);
+    if(!geometry.coordinates?.length)throw Error('Country outline data is empty');
+    const pane=map.createPane('forecastCountryLines');
+    pane.style.zIndex='434';pane.style.pointerEvents='none';
+    const options={pane:'forecastCountryLines',renderer:L.canvas({pane:'forecastCountryLines'}),interactive:false,attribution:'Boundaries: Natural Earth'};
+    forecastCountryLines=L.layerGroup([
+      L.geoJSON(geometry,{...options,style:{color:'#f0eee5',opacity:.88,weight:2.7}}),
+      L.geoJSON(geometry,{...options,style:{color:'#343a41',opacity:.92,weight:1.2}})
+    ]);
+    if(forecastReference)forecastCountryLines.addTo(map);
+  })().catch(error=>{forecastCountryRetryAt=Date.now()+60000;console.warn('Forecast country outlines unavailable:',error);})
+    .finally(()=>{forecastCountryLoading=null;});
+}
 function setForecastReference(enabled=forecastReference){
   forecastReference=enabled;
   countryReferencePane.style.zIndex=enabled?'435':'210'; // Forecast images: 430; wind arrows: 440.
   if(enabled||map.hasLayer(aerial)){
     if(!map.hasLayer(satPlaces))satPlaces.addTo(map);
   }else if(map.hasLayer(satPlaces))map.removeLayer(satPlaces);
+  syncForecastCountryLines();
 }
 
 // Transparent sea-only depth shading, underneath all weather overlays.
