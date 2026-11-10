@@ -1,0 +1,53 @@
+name: Cache ECMWF European air mass forecast
+
+on:
+  schedule:
+    - cron: '28 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/update_airmass_forecast.py
+      - scripts/ecmwf_open_grid.py
+      - tests/test_airmass_forecast.py
+      - .github/workflows/update-airmass-forecast.yml
+
+permissions:
+  contents: write
+concurrency:
+  group: forecast-airmass-cache
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  R2_PAUSED: ${{ vars.R2_PAUSED }}
+  CLOUDFLARE_R2_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_R2_ANALYTICS_TOKEN }}
+  R2_BILLING_DAY: ${{ vars.R2_BILLING_DAY }}
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+  R2_BUCKET: ${{ secrets.R2_BUCKET }}
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install boto3==1.40.50 numpy==2.3.5 scipy==1.17.0 eccodes==2.46.0 Pillow==11.3.0 contourpy==1.3.3
+      - name: Verify source selection, terrain masking and cache completeness
+        run: |
+          python3 -m unittest discover -s tests -p test_airmass_forecast.py -v
+          node --test tests/forecast-map.test.cjs
+      - name: Prepare the complete ECMWF forecast
+        id: prepare
+        run: |
+          python3 -u scripts/update_airmass_forecast.py
+          if [[ -f data/forecast-airmass.json ]]; then echo 'changed=true' >> "$GITHUB_OUTPUT"; fi
+      - name: Publish forecast assets and then the index
+        if: steps.prepare.outputs.changed == 'true'
+        run: bash scripts/publish_generated_data.sh 'Refresh European air mass forecasts' data/forecast-airmass.json data/forecast-airmass-cache
+      - name: Keep the outage copy current
+        if: steps.prepare.outputs.changed == 'true'
+        run: python3 scripts/github_fallback.py mirror data/forecast-airmass.json data/forecast-airmass-cache

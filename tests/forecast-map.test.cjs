@@ -1,10 +1,11 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');const D=require('../js/forecast-map-data.js');
 const now=Date.parse('2026-10-07T21:30:00Z'),first=Date.parse('2026-10-07T21:00:00Z');
-const manifest={delivery:'static-regional-images',endpoint:'https://thredds.met.no/thredds/wms/metpplatest/met_forecast_1_0km_nordic_20261007T21Z.nc',reference_time:'2026-10-07T21:00:00Z',bounds:[-11,52,42,74],time_dimension:'2026-10-07T21:00:00Z/2026-10-10T07:00:00Z/PT1H',layers:Object.fromEntries(Object.entries(D.layers).map(([key,l])=>[key,l.name]))};
+const surfaceLayers=Object.keys(D.layers).filter(kind=>kind!=='airmass');
+const manifest={delivery:'static-regional-images',endpoint:'https://thredds.met.no/thredds/wms/metpplatest/met_forecast_1_0km_nordic_20261007T21Z.nc',reference_time:'2026-10-07T21:00:00Z',bounds:[-11,52,42,74],time_dimension:'2026-10-07T21:00:00Z/2026-10-10T07:00:00Z/PT1H',layers:Object.fromEntries(surfaceLayers.map(key=>[key,D.layers[key].name]))};
 manifest.cached_times=D.expandTimes(manifest.time_dimension).slice(0,-1).map(t=>new Date(t).toISOString());
 manifest.images={};manifest.legends={};
-for(const kind of Object.keys(D.layers)){manifest.images[kind]={};manifest.legends[kind]='data/forecast-cache/20261007T21Z/'+kind+'-legend.webp';for(const t of manifest.cached_times)manifest.images[kind][t]='data/forecast-cache/20261007T21Z/'+kind+'-'+t.replace(/[-:]/g,'').slice(0,11)+'Z.webp';}
+for(const kind of surfaceLayers){manifest.images[kind]={};manifest.legends[kind]='data/forecast-cache/20261007T21Z/'+kind+'-legend.webp';for(const t of manifest.cached_times)manifest.images[kind][t]='data/forecast-cache/20261007T21Z/'+kind+'-'+t.replace(/[-:]/g,'').slice(0,11)+'Z.webp';}
 test('source hourly intervals are expanded exactly and corrupt dimensions are rejected',()=>{
   assert.equal(D.expandTimes(manifest.time_dimension).length,59);assert.deepEqual(D.expandTimes('bad/bad/PT0H'),[]);assert.deepEqual(D.expandTimes('2026-10-07T21:00:00Z,2026-10-07T21:00:00Z'),[first]);
 });
@@ -37,12 +38,12 @@ test('timeline only exposes complete shared frames and does not discard the fina
   const missing=structuredClone(manifest);delete missing.images.clouds[new Date(first).toISOString()];assert(!D.cachedTimes(missing,now).includes(first));
 });
 const iceManifest=structuredClone(manifest);iceManifest.asset_root='forecast-iceland-cache';iceManifest.bounds=[-28,61,-12,69];iceManifest.periods={};
-for(const kind of Object.keys(D.layers)){iceManifest.legends[kind]=iceManifest.legends[kind].replace('forecast-cache','forecast-iceland-cache');for(const time of iceManifest.cached_times)iceManifest.images[kind][time]=iceManifest.images[kind][time].replace('forecast-cache','forecast-iceland-cache');}
+for(const kind of surfaceLayers){iceManifest.legends[kind]=iceManifest.legends[kind].replace('forecast-cache','forecast-iceland-cache');for(const time of iceManifest.cached_times)iceManifest.images[kind][time]=iceManifest.images[kind][time].replace('forecast-cache','forecast-iceland-cache');}
 for(const time of iceManifest.cached_times)iceManifest.periods[time]={start:time,end:new Date(Date.parse(time)+3*3600000).toISOString(),interpolated:false};
 const canadaManifest=structuredClone(iceManifest);canadaManifest.asset_root='forecast-canada-cache';canadaManifest.asset_version='canada-v1';canadaManifest.bounds=[-142,40,-50,84];
-for(const kind of Object.keys(D.layers)){canadaManifest.legends[kind]=canadaManifest.legends[kind].replace('forecast-iceland-cache/20261007T21Z/','forecast-canada-cache/20261007T21Z-canada-v1/');for(const time of canadaManifest.cached_times)canadaManifest.images[kind][time]=canadaManifest.images[kind][time].replace('forecast-iceland-cache/20261007T21Z/','forecast-canada-cache/20261007T21Z-canada-v1/');}
+for(const kind of surfaceLayers){canadaManifest.legends[kind]=canadaManifest.legends[kind].replace('forecast-iceland-cache/20261007T21Z/','forecast-canada-cache/20261007T21Z-canada-v1/');for(const time of canadaManifest.cached_times)canadaManifest.images[kind][time]=canadaManifest.images[kind][time].replace('forecast-iceland-cache/20261007T21Z/','forecast-canada-cache/20261007T21Z-canada-v1/');}
 const americaManifest=structuredClone(canadaManifest);americaManifest.asset_version='northamerica-v2';americaManifest.bounds=[-190,18,-30,84];americaManifest.cached_times=Array.from({length:87},(_,i)=>new Date(first+i*3600000).toISOString());
-for(const kind of Object.keys(D.layers)){americaManifest.legends[kind]=americaManifest.legends[kind].replace('canada-v1','northamerica-v2');americaManifest.images[kind]={};for(const time of americaManifest.cached_times)americaManifest.images[kind][time]='data/forecast-canada-cache/20261007T21Z-northamerica-v2/'+kind+'-'+time.replace(/[-:]/g,'').slice(0,11)+'Z.webp';}
+for(const kind of surfaceLayers){americaManifest.legends[kind]=americaManifest.legends[kind].replace('canada-v1','northamerica-v2');americaManifest.images[kind]={};for(const time of americaManifest.cached_times)americaManifest.images[kind][time]='data/forecast-canada-cache/20261007T21Z-northamerica-v2/'+kind+'-'+time.replace(/[-:]/g,'').slice(0,11)+'Z.webp';}
 for(const [i,time] of americaManifest.cached_times.entries())americaManifest.periods[time]={start:new Date(first+Math.floor(i/3)*3*3600000).toISOString(),end:new Date(first+(Math.floor(i/3)*3+3)*3600000).toISOString(),interpolated:i%3!==0};
 const flush=()=>new Promise(r=>setImmediate(r));
 test('arrows follow the displayed wind hour and clear when another layer is selected',async()=>{
@@ -56,13 +57,13 @@ test('arrows follow the displayed wind hour and clear when another layer is sele
  assert(cleared>before);assert.equal(shown.length,2);
 });
 const europeManifest=structuredClone(americaManifest);europeManifest.asset_root='forecast-iceland-cache';europeManifest.asset_version='euroatlantic-v2';europeManifest.bounds=[-30,18,60,84];
-for(const kind of Object.keys(D.layers)){europeManifest.legends[kind]=europeManifest.legends[kind].replace('forecast-canada-cache','forecast-iceland-cache').replace('northamerica-v2','euroatlantic-v2');for(const time of europeManifest.cached_times)europeManifest.images[kind][time]=europeManifest.images[kind][time].replace('forecast-canada-cache','forecast-iceland-cache').replace('northamerica-v2','euroatlantic-v2');}
+for(const kind of surfaceLayers){europeManifest.legends[kind]=europeManifest.legends[kind].replace('forecast-canada-cache','forecast-iceland-cache').replace('northamerica-v2','euroatlantic-v2');for(const time of europeManifest.cached_times)europeManifest.images[kind][time]=europeManifest.images[kind][time].replace('forecast-canada-cache','forecast-iceland-cache').replace('northamerica-v2','euroatlantic-v2');}
 test('Europe and Arctic assets fill the screenshot gaps and join North America across the full latitude range',()=>{
   assert.match(D.assetUrl(europeManifest,'wind',first),/euroatlantic-v2/);
   assert.equal(D.regionLabel({...europeManifest,region:'Iceland'}),'Europe / Arctic');
   for(const [west,south,east,north] of [[10,77,20,82],[-27,78,-20,83],[-10,35,15,48],[32,48,45,60]]){
     const view={getWest:()=>west,getSouth:()=>south,getEast:()=>east,getNorth:()=>north};
-    for(const kind of Object.keys(D.layers))assert.equal(D.visibleRegions([europeManifest],view,kind,first+72*3600000).length,1);
+    for(const kind of surfaceLayers)assert.equal(D.visibleRegions([europeManifest],view,kind,first+72*3600000).length,1);
   }
   assert.equal(americaManifest.bounds[2],europeManifest.bounds[0]);
   assert.equal(americaManifest.bounds[1],europeManifest.bounds[1]);
@@ -75,7 +76,7 @@ test('Extended Europe maps stay on the shared 72-hour timeline when the menu clo
   h.bounds([-10,35,15,48]);await h.run();assert.equal(h.images.length,1);h.close();h.time(first+72*3600000);await h.run();await h.loaded(1);
   assert.equal(h.overlays.filter(x=>x.active)[0].img.dataset.forecastTime,new Date(first+72*3600000).toISOString());
 });
-function harness({iceland=false,europe=false,wide=false,canada=false,canadaView=false,nordicMissing=false,america=false,viewBounds=null}={}){
+function harness({iceland=false,europe=false,wide=false,canada=false,canadaView=false,nordicMissing=false,america=false,airmass=null,viewBounds=null}={}){
   const ids={},classes=new Set(),images=[],overlays=[],timers=new Map(),listeners={};let tid=0,observer;
   class Element{
     set id(value){this._id=value;ids[value]=this;}get id(){return this._id;}
@@ -88,7 +89,7 @@ function harness({iceland=false,europe=false,wide=false,canada=false,canadaView=
   const body=new Element(),c={document:{body,hidden:false,createElement:()=>new Element(),addEventListener:(k,f)=>listeners[k]=f,dispatchEvent:e=>listeners[e.type]?.(e)},window:{},$:id=>ids[id],
     ForecastMapData:{...D,cachedTimes:meta=>D.cachedTimes(meta,now),regionalTimes:regions=>D.regionalTimes(regions,now)},Date:class extends Date{static now(){return now;}},URLSearchParams,AbortController,CustomEvent:class{constructor(type,o){this.type=type;this.detail=o.detail;}},console:{warn(){}},
     setTimeout:(f,n)=>{const id=++tid;timers.set(id,{f,n});return id;},clearTimeout:id=>timers.delete(id),setInterval(){},
-    MutationObserver:class{constructor(f){observer=f;}observe(){}},fetch:async url=>({ok:!(url.includes('forecast-map.json')&&nordicMissing),json:async()=>url.includes('forecast-canada')&&america?americaManifest:url.includes('forecast-canada')&&canada?canadaManifest:url.includes('forecast-iceland')&&europe?europeManifest:url.includes('forecast-iceland')&&iceland?iceManifest:manifest}),
+    MutationObserver:class{constructor(f){observer=f;}observe(){}},fetch:async url=>({ok:!(url.includes('forecast-map.json')&&nordicMissing),json:async()=>url.includes('forecast-airmass')?airmass:url.includes('forecast-canada')&&america?americaManifest:url.includes('forecast-canada')&&canada?canadaManifest:url.includes('forecast-iceland')&&europe?europeManifest:url.includes('forecast-iceland')&&iceland?iceManifest:manifest}),
     Image:class{constructor(){images.push(this);this.dataset={};}set src(v){this.url=v;}cloneNode(){return {dataset:{},url:this.url};}},
     L:{DomEvent:{disableClickPropagation(){},disableScrollPropagation(){}},latLng:(lat,lng)=>({lat,lng}),CRS:{EPSG3857:{project:p=>({x:p.lng*100000,y:p.lat*100000})}},imageOverlay:(img,bounds,options)=>{const l={img,bounds,options,active:false,setOpacity(){},addTo(){this.active=true;img.attached=true;overlays.push(this);return this;}};return l;}},
     map:{createPane(){},getPane:()=>({style:{}}),getBounds:()=>({getEast:()=>viewBounds?.[2]??(canadaView?-52:30),getWest:()=>viewBounds?.[0]??(canadaView?-140:wide?-30:10),getNorth:()=>viewBounds?.[3]??(canadaView?84:wide?74:62),getSouth:()=>viewBounds?.[1]??(canadaView?40:52)}),getSize:()=>({x:800,y:600}),removeLayer:l=>{l.active=false;l.img.attached=false;},on(events,f){for(const name of events.split(' '))listeners['map:'+name]=f;}}};
@@ -221,3 +222,36 @@ test('precipitation exposes the snowflake key and warns when old caches lack pre
  h.ids.forecastMapLayer.value='wind';h.ids.forecastMapLayer.events.change();await h.run();assert.equal(h.ids.forecastPrecipKey.hidden,true);
 });
 
+
+test('air masses use one complete ECMWF cycle and reject missing, wrong or stale frames',()=>{
+  const air=airmassFixture(),data=D.airMassMetadata(air,now);
+  assert.equal(data.times[0],first);
+  assert.equal(data.times.at(-1),Date.parse('2026-10-12T12:00:00Z'));
+  assert(data.times.slice(1).every((t,i)=>t-data.times[i]===3*3600000));
+  const invalid=structuredClone(air);delete invalid.images.airmass[air.cached_times[5]];
+  assert.throws(()=>D.airMassMetadata(invalid,now));
+  assert.throws(()=>D.airMassMetadata({...air,pressure_level_hpa:700},now));
+  assert.throws(()=>D.airMassMetadata(air,now+30*3600000));
+});
+function airmassFixture(){
+  const reference_time='2026-10-07T12:00:00.000Z',root='data/forecast-airmass-cache/20261007T12Z-airmass-v1/';
+  const cached_times=Array.from({length:41},(_,i)=>new Date(Date.parse(reference_time)+i*3*3600000).toISOString());
+  return {version:1,delivery:'static-regional-images',asset_root:'forecast-airmass-cache',asset_version:'airmass-v1',
+    generatedAt:now/1000,reference_time,grid_spacing_degrees:.25,forecast_step_hours:3,pressure_level_hpa:850,
+    bounds:[-40,25,60,82],layers:{airmass:D.layers.airmass.name},cached_times,
+    legends:{airmass:root+'airmass-legend.webp'},images:{airmass:Object.fromEntries(cached_times.map(t=>[t,root+'airmass-'+t.replace(/[-:]/g,'').slice(0,11)+'Z.webp']))}};
+}
+test('air mass layer swaps the shared player to three-hour steps, preloads next frame, and restores surface timing',async()=>{
+  const h=harness({airmass:airmassFixture()});h.open();await h.run();await h.loaded(0);
+  const oldMax=h.ids.forecastMapTimeline.max;
+  h.ids.forecastMapLayer.value='airmass';h.ids.forecastMapLayer.events.change();await h.run();await h.loaded(1);
+  assert.equal(h.ids.forecastAirPlay.hidden,false);
+  assert.equal(h.ids.forecastMapTimeline.max,'37');
+  assert.equal(h.overlays.filter(l=>l.active)[0].img.dataset.forecastLayer,'airmass');
+  assert.match(h.images[2].url,/airmass-20261008T00Z/);await h.loaded(2);
+  h.ids.forecastAirPlay.events.click();await h.run();await h.run();
+  assert.equal(h.overlays.filter(l=>l.active)[0].img.dataset.forecastTime,'2026-10-08T00:00:00.000Z');
+  h.ids.forecastMapLayer.value='temperature';h.ids.forecastMapLayer.events.change();await h.run();
+  assert.equal(h.ids.forecastAirPlay.hidden,true);assert.equal(h.ids.forecastAirPlay['aria-pressed'],'false');
+  assert.equal(h.ids.forecastMapTimeline.max,oldMax);
+});

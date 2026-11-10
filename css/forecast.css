@@ -104,6 +104,13 @@
 .forecast-map-layer-switch .label{font-size:11px}
 .forecast-map-layer-switch select{width:100%;min-height:32px;margin:0;padding:5px 8px;font-size:12px}
 .forecast-map-layer-switch #forecastMapInfo,.forecast-map-layer-switch .forecast-precip-key{grid-column:1/-1}
+.forecast-air-key{grid-column:1/-1;font-size:11px;color:var(--muted)}
+.forecast-air-scale{height:6px;border-radius:4px;background:linear-gradient(90deg,#4a277e,#335aa4,#458abb,#83c3d1,#e5d8b0,#d49356,#bd503d,#912e35)}
+.forecast-air-ticks,.forecast-air-note{display:flex;justify-content:space-between;gap:6px}
+.forecast-air-note{margin-top:3px;flex-wrap:wrap}
+.forecast-air-note span:first-child::before{content:'';display:inline-block;width:14px;border-top:2px solid #fff3cf;vertical-align:middle;margin-right:5px}
+.forecast-air-status:not(:empty){margin-top:4px}
+.forecast-map-dock #forecastAirPlay{width:auto;padding-inline:8px;white-space:nowrap}
 .forecast-map-dock .forecast-map-layer-heading .info-button{width:26px;height:26px;min-width:26px;min-height:26px;font-size:12px}
 .forecast-map-dock-heading{gap:6px;font-size:11px}
 .forecast-map-dock-heading time{font-size:11px}

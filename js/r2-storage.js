@@ -11,6 +11,7 @@
     if(/^data\/(cloud-tiles|radar-tiles)(\/|\.json$)/.test(file))
       return file.startsWith('data/cloud-tiles')?'data/cloud-tiles':'data/radar-tiles';
     if(file==='data/aurora-planner.json'||file.startsWith('data/aurora-planner-cloud/'))return 'data/aurora-planner';
+    if(file==='data/forecast-airmass.json'||file.startsWith('data/forecast-airmass-cache/'))return 'data/forecast-airmass';
     return file;
   };
   const excluded=path=>/^data\/(cloud-tiles|radar-tiles)(\/|\.json(?:\?|$))/.test(path);
@@ -30,11 +31,11 @@
   }
   async function staleCritical(response,path,method){
     const file=path.split('?')[0];
-    const cloud=file==='data/aurora-cloud.json',planner=file==='data/aurora-planner.json';
+    const cloud=file==='data/aurora-cloud.json',planner=file==='data/aurora-planner.json',airmass=file==='data/forecast-airmass.json';
     const limit=['data/official-temperature.json','data/official-wind.json'].includes(file)?30*60000:
       file==='data/official-rainfall.json'?45*60000:
       file==='data/space-weather.json'?20*60000:
-      cloud?6*3600000:planner?18*3600000:null;
+      cloud?6*3600000:planner?18*3600000:airmass?30*3600000:null;
     if(!limit||method.toUpperCase()!=='GET')return false;
     try{
       const snapshot=await response.clone().json(),now=Date.now();
@@ -45,9 +46,9 @@
         return !Number.isFinite(run)||!Number.isFinite(valid)||
           now-run>18*3600000||now-valid>3*3600000||valid-now>8*3600000;
       }
-      if(planner){
+      if(planner||airmass){
         const run=Date.parse(snapshot.reference_time);
-        return !Number.isFinite(run)||run>now+5*60000||now-run>24*3600000;
+        return !Number.isFinite(run)||run>now+5*60000||now-run>(airmass?30:24)*3600000;
       }
       return false;
     }catch{return true;}
