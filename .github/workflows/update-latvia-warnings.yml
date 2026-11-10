@@ -11,6 +11,10 @@ on:
       - scripts/update_national_warnings.py
       - scripts/update_europe_warnings.py
       - scripts/update_turkey_warnings.py
+      - scripts/update_portugal_warnings.py
+      - scripts/build_portugal_warning_regions.py
+      - data/portugal-warning-regions.json.gz
+      - tests/test_portugal_warnings.py
       - scripts/build_southern_warning_regions.py
       - data/southern-warning-regions.json.gz
       - tests/test_turkey_warnings.py
@@ -79,11 +83,11 @@ jobs:
         run: node --test tests/warning-*.test.cjs tests/us-warnings.test.cjs
       - name: Fetch official LVGMC warnings and polygons
         run: python3 scripts/update_latvia_warnings.py
-      - name: Fetch official IMGW, DMI, UK Met Office, Met Éireann, DWD, KNMI, RMI/KMI, MeteoLux, ČHMÚ, SHMÚ, AEMET, MeteoAM, HNMS, MGM, ECCC and NWS warnings and polygons
+      - name: Fetch official IMGW, DMI, UK Met Office, Met Éireann, DWD, KNMI, RMI/KMI, MeteoLux, ČHMÚ, SHMÚ, AEMET, IPMA, MeteoAM, HNMS, MGM, ECCC and NWS warnings and polygons
         if: ${{ !cancelled() }}
         run: python3 scripts/update_national_warnings.py
       - name: Save updated warning snapshots
         if: ${{ !cancelled() }}
         run: bash scripts/publish_generated_data.sh 'Refresh official national warning polygons' data/latvia-warnings.json data/national-warnings.json
-
-
+      - name: Keep the GitHub warning fallback current
+        run: python3 scripts/github_fallback.py mirror data/latvia-warnings.json data/national-warnings.json
