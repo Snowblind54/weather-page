@@ -43,11 +43,14 @@ async function fetchNationalWarningSnapshot(){
   if(nationalWarningSnapshotPromise) return nationalWarningSnapshotPromise;
   nationalWarningSnapshotPromise=(async()=>{
     let lastError;
+    // The CDN can retain the previous snapshot beyond the updater cadence.
+    // Share a cache key within each 10-minute window across all countries.
+    const cycle=Math.floor(Date.now()/(10*60*1000));
     for(const url of [NATIONAL_WARNING_URL,'data/national-warnings.json']){
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),10000);
       try{
-        const response=await fetch(url,{cache:'no-store',signal:controller.signal});
+        const response=await fetch(url+'?warningCycle='+cycle,{cache:'no-store',signal:controller.signal});
         if(!response.ok) throw new Error('National warning snapshot HTTP '+response.status);
         const data=await response.json();
         if(data?.version!==1 || !data.countries) throw new Error('Invalid national warning snapshot');
