@@ -28,6 +28,7 @@ on:
       - scripts/update_rainfall.py
       - scripts/rainfall_europe.py
       - scripts/rainfall_southwest.py
+      - scripts/rainfall_portugal.py
       - scripts/rainfall_alpine.py
       - scripts/alpine_observations.py
       - scripts/iberia_observations.py

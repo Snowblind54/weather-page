@@ -12,12 +12,12 @@ on:
     paths:
       - scripts/run_live_observations.py
       - scripts/rainfall_estonia_history.py
+      - scripts/rainfall_portugal.py
       - tests/test_live_observations.py
       - tests/test_rainfall_estonia_history.py
       - .github/workflows/update-live-observations.yml
 permissions:
   contents: write
-  actions: write
 concurrency:
   group: continuous-live-observations
   cancel-in-progress: ${{ github.event_name == 'push' }}

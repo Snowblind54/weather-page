@@ -4,7 +4,7 @@ const RAIN_REGION_IDS=new Set(['baltics','scandinavia','iceland','poland','denma
 const RAIN_GRID_SPECS=TEMP_GRID_SPECS.filter(spec=>RAIN_REGION_IDS.has(spec.id));
 const OFFICIAL_ONLY_RAIN_COUNTRIES=new Set(['AL','BY','MK','BA','ME','XK','GR','RS','BG','UA','RO','TR','HR','SI','IT','HU','PT','CA','GB','IE','DE','NL','BE','LU','CZ','SK','FR','AD','ES','AT','CH']);
 const RAIN_REGIONS=[...TEMP_REGIONS.filter(region=>RAIN_REGION_IDS.has(region.id)||region.id==='canada'),
-  ...(globalThis.NorthernUSTemperature?.regions||[]).filter(region=>['british-isles','western-europe','central-europe','france','andorra','iberia','spain-canaries','austria','switzerland','italy','hungary','ukraine','romania','serbia','bulgaria','greece','bosnia-herzegovina','montenegro','kosovo','albania','belarus','north-macedonia','adriatic','turkey'].includes(region.id)).map(region=>region.id==='iberia'?{...region,id:'spain-rain',countries:['ES']}:region),
+  ...(globalThis.NorthernUSTemperature?.regions||[]).filter(region=>['british-isles','western-europe','central-europe','france','andorra','iberia','spain-canaries','portugal-azores','portugal-madeira','austria','switzerland','italy','hungary','ukraine','romania','serbia','bulgaria','greece','bosnia-herzegovina','montenegro','kosovo','albania','belarus','north-macedonia','adriatic','turkey'].includes(region.id)).map(region=>region.id==='iberia'?{...region,id:'spain-rain',countries:['ES']}:region),
   ...(globalThis.NorthernUSTemperature?[{id:'portugal-rain',countries:['PT'],bounds:[[36.8,-9.6],[42.2,-6]],w:180,h:280,stationBased:true}]:[])];
 const RAIN_CACHE_KEY='balticWeatherRainAccumulationV814';
 const RAIN_CACHE_TTL=30*60*1000;
@@ -374,7 +374,7 @@ function rainfallPopupContent(point,end){
       const station=officialRainData.stations.find(s=>s.country===point.station.country&&s.code===point.station.code)||point.station;
       const stationWindow=officialStationRainWindow(station,hours,end);
       value=stationWindow?.value;actualEnd=stationWindow?.end||end;
-      source=(officialRainData.sources[country]?.name||country)+' · measured'+(stationWindow?.delayed?' · delayed reading':'');
+      source=(station.sourceName||officialRainData.sources[country]?.name||country)+' · measured'+(stationWindow?.delayed?' · delayed reading':'');
     }
     details[hours]={official,value,actualEnd};
     return '<div class="'+(hours===selected?'selected':'')+'"><b>'+hours+' h</b><strong>'+

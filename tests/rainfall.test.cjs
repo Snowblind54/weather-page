@@ -611,3 +611,24 @@ test('Albania Belarus and North Macedonia accept complete daily history without 
  }
  assert.equal(h.run("RAIN_COUNTRY_CODES['008']"),'AL');assert.equal(h.run("RAIN_COUNTRY_CODES['112']"),'BY');assert.equal(h.run("RAIN_COUNTRY_CODES['807']"),'MK');
 });
+
+test('Portugal uses complete gauge windows in the mainland, Madeira and the Azores',()=>{
+  const h=harness(true);
+  h.run(`{
+    const end=rainWindowEnd(),hours=Array.from({length:48},(_,i)=>end-(47-i)*3600);
+    const gauge=(code,lat,lon,lag,value)=>({country:'PT',code,name:code,lat,lon,times:[],amounts:[],
+      accumulations:[{end:end-lag*3600,hours:48,value}],sourceName:'IPMA SYNOP via DWD'});
+    officialRainData={version:1,generatedAt:Date.now()/1000,sources:{PT:{name:'IPMA and DWD'}},stations:[
+      {country:'PT',code:'Porto',name:'Porto',lat:41.15,lon:-8.6,times:hours,amounts:Array(48).fill(1)},
+      gauge('Madeira',32.68,-16.77,3,8.4),gauge('Flores',39.45,-31.13,6,3.6)]};
+  }`);
+  assert(h.run('validOfficialRainSnapshot(officialRainData)'));
+  assert(!h.run('validOfficialRainSnapshot({...officialRainData,stations:[{...officialRainData.stations[0],lat:45}]})'));
+  assert.equal(h.run("officialRainAt(41.15,-8.6,1,rainWindowEnd(),'PT').value"),1);
+  assert.equal(h.run("officialRainAt(41.15,-8.6,24,rainWindowEnd(),'PT').value"),24);
+  assert.equal(h.run("officialRainAt(41.15,-8.6,48,rainWindowEnd(),'PT').value"),48);
+  assert.equal(h.run("officialRainAt(32.68,-16.77,48,rainWindowEnd(),'PT').value"),8.4);
+  assert.equal(h.run("officialRainAt(39.45,-31.13,48,rainWindowEnd(),'PT').end"),h.run('rainWindowEnd()')-21600);
+  assert.equal(h.run("officialRainAt(39.45,-31.13,1,rainWindowEnd(),'PT')"),null);
+  for(const id of ['portugal-rain','portugal-madeira','portugal-azores'])assert(h.run(`RAIN_REGIONS.some(r=>r.id==='${id}')`));
+});

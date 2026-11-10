@@ -68,6 +68,9 @@ def station(country, code, name, lat, lon, rows):
         from rainfall_eastern import location
         valid=location(country,lat,lon)
     if country=='TR':valid=35.8<=lat<=42.2 and 25.6<=lon<=45
+    if country=='PT':
+        from rainfall_portugal import area
+        valid=area(lat,lon) is not None
     if country in ('FR','AD','ES','AT','CH','IT','HR','SI'):
         from rainfall_southwest import BOUNDS as SOUTHWEST_BOUNDS
         from alpine_observations import BOUNDS as ALPINE_BOUNDS
@@ -565,7 +568,11 @@ def main():
     install_eastern(sys.modules[__name__])
     from rainfall_balkans import install as install_balkans, PERIODS as BALKAN_PERIODS
     install_balkans(sys.modules[__name__])
+    import rainfall_portugal
+    SOURCES['PT']=rainfall_portugal.SOURCE
+    LOADERS['PT']=rainfall_portugal.load
     PERIODS={**EASTERN_PERIODS,**PERIODS,**SOUTHWEST_PERIODS,**ALPINE_PERIODS,**ADRIATIC_PERIODS,'TR':TURKEY_PERIOD,**BALKAN_PERIODS,'EE':'Official hourly XML measurements; missing history can be recovered from the University of Tartu archive of the same feed. Missing hours are never estimated.'}
+    PERIODS['PT']=rainfall_portugal.PERIOD
     collection_now = dt.datetime.now(dt.timezone.utc)
     now = collection_now.replace(minute=0, second=0, microsecond=0)
     try:
