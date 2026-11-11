@@ -161,10 +161,10 @@ def collect_native(points, usa_indices, times):
         frames = [first] + list(pool.map(lambda hour: fetch_frame('gfs', run, hour, points), times[1:]))
     if any(any(sample is None for sample in frame) for frame in frames):
         raise RuntimeError('Incomplete global NOAA wind field')
-    hrrr_runs = []
     latest = int(time.time() // 3600) * 3600 - 7200
     usa_points = [points[i] for i in usa_indices]
-    for n, hour in enumerate(times):
+    def collect_detail(item):
+        n, hour = item
         candidate = min(hour, latest)
         used = None
         for offset in (0, 3600, 7200):
@@ -180,7 +180,11 @@ def collect_native(points, usa_indices, times):
                 break
             except RuntimeError as exc:
                 print(f'HRRR fallback at {hour}: {exc}', flush=True)
-        hrrr_runs.append(used)
         print(f'NOAA wind hour {n+1}/{len(times)} ready; HRRR run {used}', flush=True)
+        return used
+    # Keep the same two-worker limit as GFS. Each task owns a separate frame;
+    # longer forecast tails use GFS when the short HRRR horizon is exhausted.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        hrrr_runs = list(pool.map(collect_detail, enumerate(times)))
     series = [[frame[i] for frame in frames] for i in range(len(points))]
     return series, {'gfsRun': run, 'hrrrRuns': hrrr_runs}

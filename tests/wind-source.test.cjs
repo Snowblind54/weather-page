@@ -49,3 +49,34 @@ test('a legacy snapshot is rechecked promptly while hemispheric coverage is bein
  const h=harness();h.run('windData={version:3,savedAt:Date.now()-61000,times:[0,200],grids:[]};');
  await h.run('loadWind()');assert.equal(h.calls.length,1);
 });
+
+test('an expired HTTP-200 primary tries the independent snapshot without re-dating old data',async()=>{
+ const h=harness();h.c.weatherGithubDataUrl=()=> 'https://backup.example/model-wind.json';
+ h.c.fetch=async url=>{h.calls.push(url);return {ok:true,json:async()=>({version:3,savedAt:1,times:url.startsWith('https://backup')?[0,200]:[-9000,-8000],grids:[[[[2,3,4]]]]})};};
+ await h.run('loadWind()');
+ assert.equal(h.calls.length,2);assert.match(h.calls[1],/^https:\/\/backup/);
+ assert.equal(h.run('windData.times.at(-1)'),200);
+ h.run('windData=null');h.c.weatherGithubDataUrl=undefined;
+ await assert.rejects(h.run('loadWind()'),/temporarily unavailable/);
+ assert.equal(h.run('windData'),null);
+});
+test('heatmap-only load errors replace the loading message and keep any usable cache visible',()=>{
+ const h=harness();h.elements.windOn.checked=false;h.elements.windHeatmapOn.checked=true;h.elements.windHeatmapStatus={textContent:'Loading wind heatmap…'};
+ vm.runInContext(source.slice(source.indexOf('function reportWindError('),source.indexOf('async function loadWind(')),h.c);
+ h.c.console={warn(){}};
+ h.c.renderWindHeatmap=()=>false;h.c.error=new Error('Model update unavailable.');
+ h.run('reportWindError(error)');
+ assert.match(h.elements.windHeatmapStatus.textContent,/Wind heatmap unavailable/);
+ h.c.renderWindHeatmap=()=>true;h.run('reportWindError(error)');
+ assert.match(h.elements.windHeatmapStatus.textContent,/Showing cached wind heatmap/);
+});
+test('visible wind periodically refreshes and returning to the tab rechecks it',()=>{
+ const h=harness();let tick,visibility,loads=0;h.c.document={hidden:false,addEventListener:(name,fn)=>{assert.equal(name,'visibilitychange');visibility=fn;}};
+ h.c.setInterval=(fn,ms)=>{assert.equal(ms,300000);tick=fn;};
+ h.c.loadWind=async()=>{loads++;};h.c.reportWindError=()=>{};
+ vm.runInContext(source.slice(source.indexOf('function refreshVisibleWind(')),h.c);
+ tick();assert.equal(loads,1);
+ h.c.document.hidden=true;tick();assert.equal(loads,1);
+ h.c.document.hidden=false;visibility();assert.equal(loads,2);
+ h.elements.windOn.checked=false;tick();assert.equal(loads,2);
+});

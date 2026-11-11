@@ -57,12 +57,15 @@ class ModelWindTests(unittest.TestCase):
     def test_regional_api_failure_uses_current_native_data_with_provenance(self):
         grid = {'south': 0, 'north': 1, 'west': 0, 'east': 1, 'rows': 2, 'cols': 2}
         with mock.patch.object(wind, 'WIND_GRIDS', [grid]), mock.patch.object(wind, 'WIND_EXTRA_GRIDS', []), \
-             mock.patch.object(wind, 'collect_native', return_value=([[[3,4,8]]*11]*4, {'gfsRun': 0})), \
+             mock.patch.object(wind, 'collect_native', side_effect=lambda points, indices, times: ([[[3,4,8]]*len(times)]*len(points), {'gfsRun': 0})), \
              mock.patch.object(wind, 'collect_points', side_effect=RuntimeError('quota')):
             data = wind.build_snapshot(3600)
         self.assertEqual(data['legacyGustTiming'], 'instant')
         self.assertIn('fallback', data['regionalSource'])
-        self.assertEqual(len(data['times']),11)
+        self.assertEqual(len(data['times']),29)
+        self.assertEqual(data['times'][0], 3600 - 4*3600)
+        self.assertEqual(data['times'][-1], 3600 + 24*3600)
+        self.assertEqual(len(data['grids'][0][0]), len(data['times']))
         self.assertEqual(data['grids'][0][0][0],[3,4,8])
 
     def test_failed_collection_keeps_previous_snapshot(self):

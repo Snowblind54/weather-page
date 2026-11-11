@@ -30,6 +30,8 @@ OUTPUT = ROOT / "data" / "model-wind.json"
 API = "https://api.open-meteo.com/v1/forecast"
 BATCH_SIZE = 50
 BATCH_WORKERS = 2
+HISTORY_HOURS = 4
+FORECAST_HOURS = 24
 
 # Two-degree North Atlantic sampling, with half-degree detail around Iceland.
 WIND_GRIDS = [
@@ -188,10 +190,12 @@ def collect_points(points, model, start_hour, end_hour, expected_times=None):
 
 
 def build_snapshot(anchor):
+    # GitHub schedules can arrive hours late. Publish real forecast hours far
+    # enough ahead to bridge those gaps; never extend old vectors in the browser.
     # Pin all regions/models to the same hours, even across an hourly boundary.
-    start_hour = datetime.fromtimestamp(anchor - 4 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
-    end_hour = datetime.fromtimestamp(anchor + 6 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
-    times = list(range(anchor - 4 * 3600, anchor + 6 * 3600 + 1, 3600))
+    start_hour = datetime.fromtimestamp(anchor - HISTORY_HOURS * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
+    end_hour = datetime.fromtimestamp(anchor + FORECAST_HOURS * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M")
+    times = list(range(anchor - HISTORY_HOURS * 3600, anchor + FORECAST_HOURS * 3600 + 1, 3600))
     specs = WIND_GRIDS + WIND_EXTRA_GRIDS
     keys = lambda grid: [(round(lat, 6), round(((lon+180) % 360)-180, 6)) for lat, lon in grid_points(grid)]
     unique = list(dict.fromkeys(key for grid in specs for key in keys(grid)))

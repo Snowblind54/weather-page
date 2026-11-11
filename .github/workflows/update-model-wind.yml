@@ -11,6 +11,8 @@ on:
       - scripts/noaa_model_wind.py
       - tests/test_noaa_model_wind.py
       - tests/test_model_wind.py
+      - tests/wind-source.test.cjs
+      - js/wind.js
       - scripts/publish_generated_data.sh
       - .github/workflows/update-model-wind.yml
 
@@ -60,3 +62,5 @@ jobs:
         run: python3 scripts/update_model_wind.py
       - name: Publish shared wind snapshot
         run: bash scripts/publish_generated_data.sh 'Refresh shared wind model snapshot' data/model-wind.json
+      - name: Keep outage wind delivery current after every collection
+        run: python3 scripts/github_fallback.py mirror data/model-wind.json

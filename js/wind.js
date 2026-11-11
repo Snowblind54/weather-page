@@ -137,22 +137,35 @@ async function fetchWindData(){
     // Five-minute URL buckets avoid a stale intermediary cache while still
     // letting simultaneous visitors share the same static response.
     const cacheBucket=Math.floor(Date.now()/(5*60*1000));
-    const response=await fetch(`${SHARED_WIND_URL}?v=${cacheBucket}`,{
-      cache:'no-store',signal:controller.signal
-    });
-    if(!response.ok)throw new Error(`Shared wind snapshot HTTP ${response.status}`);
-    const data=await response.json();
-    if(!validWindData(data)||!data.grids?.[0]?.some(series=>series.some(Boolean))){
-      throw new Error('Shared wind snapshot is invalid');
-    }
+    const sources=[SHARED_WIND_URL];
+    const fallback=globalThis.weatherGithubDataUrl?.(SHARED_WIND_URL);
+    if(fallback && fallback!==SHARED_WIND_URL)sources.push(fallback);
+    let lastError;
+    for(const source of sources){
+      try{
+        const response=await fetch(`${source}?v=${cacheBucket}`,{
+          cache:'no-store',signal:controller.signal
+        });
+        if(!response.ok)throw new Error(`Shared wind snapshot HTTP ${response.status}`);
+        const data=await response.json();
+        if(!validWindData(data)||!data.grids?.[0]?.some(series=>series.some(Boolean))){
+          throw new Error('Shared wind snapshot is invalid');
+        }
+        const requested=selectedWindTime();
+        if(requested<data.times[0] || requested>data.times.at(-1)+2*3600){
+          throw new Error('Shared wind snapshot does not cover the selected time');
+        }
 
-    // savedAt is used by the existing client as its cache-receipt time. Keep
-    // the server generation time separately so a shared snapshot does not get
-    // re-downloaded on every toggle merely because it was generated earlier.
-    data.generatedAt=data.savedAt;
-    data.savedAt=Date.now();
-    windRetryAt=0;
-    return data;
+        // savedAt is used by the existing client as its cache-receipt time. Keep
+        // the server generation time separately so a shared snapshot does not get
+        // re-downloaded on every toggle merely because it was generated earlier.
+        data.generatedAt=data.savedAt;
+        data.savedAt=Date.now();
+        windRetryAt=0;
+        return data;
+      }catch(error){lastError=error;}
+    }
+    throw lastError;
   }catch(error){
     const detail=error?.name==='AbortError'?'timed out':'is temporarily unavailable';
     const wrapped=new Error(`Shared wind data ${detail}. Please try again shortly.`);
@@ -169,10 +182,17 @@ function selectedWindTime(){
 
 function reportWindError(error){
   console.warn(error);
-  if(!$('windOn').checked) return;
-  const visible=renderWind(selectedWindTime());
-  $('windStatus').textContent=(visible?'Showing cached wind. ':'Wind unavailable. ')+error.message;
-  $('windStatus').className='status warn';
+  if(!windVisualEnabled()) return;
+  const time=selectedWindTime();
+  if($('windOn').checked){
+    const visible=renderWind(time);
+    $('windStatus').textContent=(visible?'Showing cached wind. ':'Wind unavailable. ')+error.message;
+    $('windStatus').className='status warn';
+  }
+  if($('windHeatmapOn').checked){
+    const visible=renderWindHeatmap(time);
+    $('windHeatmapStatus').textContent=(visible?'Showing cached wind heatmap. ':'Wind heatmap unavailable. ')+error.message;
+  }
 }
 
 async function loadWind(){
@@ -650,3 +670,11 @@ function renderWind(unix){
   $('windStatus').className=covered?(slice.cached?'status warn':'status ok'):'status';
   return true;
 }
+
+// Recheck the shared snapshot while either wind visual is enabled. Opening a
+// background tab must also recover without requiring an off/on toggle.
+function refreshVisibleWind(){
+  if(!document.hidden && windVisualEnabled())loadWind().catch(reportWindError);
+}
+setInterval(refreshVisibleWind,5*60*1000);
+document.addEventListener('visibilitychange',refreshVisibleWind);

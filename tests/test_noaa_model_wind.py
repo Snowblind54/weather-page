@@ -68,6 +68,25 @@ class NoaaWindTests(unittest.TestCase):
     def test_missing_values_remain_unavailable(self):
         self.assertTrue(np.isnan(self.sample([(0,0)],missingValue=8)[0]))
 
+    def test_longer_forecast_keeps_real_gfs_after_hrrr_horizon_and_coherent_fallback(self):
+        hours = [90*3600, 100*3600, 119*3600, 124*3600]
+        initial_run = 90*3600
+        requested = []
+        def fetch(model, run, hour, points):
+            requested.append((model, run, hour))
+            if model == 'gfs' and run == initial_run:
+                raise RuntimeError('cycle still publishing')
+            return [[1, 2, 3] if model == 'gfs' else [4, 5, 6] for _ in points]
+        with mock.patch.object(wind, 'fetch_frame', side_effect=fetch), \
+             mock.patch.object(wind.time, 'time', return_value=100*3600):
+            series, runs = wind.collect_native([(50, 0), (40, -100)], [1], hours)
+        self.assertEqual(runs['gfsRun'], initial_run-21600)
+        self.assertEqual(runs['hrrrRuns'], [90*3600, 98*3600, None, None])
+        self.assertEqual(series[0], [[1, 2, 3]]*4)
+        self.assertEqual(series[1], [[4, 5, 6], [4, 5, 6], [1, 2, 3], [1, 2, 3]])
+        self.assertTrue(all(hour-run <= 18*3600 for model, run, hour in requested if model == 'hrrr'))
+        self.assertEqual([hour for model, run, hour in requested if model == 'gfs' and run == runs['gfsRun']], hours)
+
     def test_full_file_instead_of_range_is_rejected(self):
         response=mock.MagicMock(status=200, headers={})
         response.__enter__.return_value=response
