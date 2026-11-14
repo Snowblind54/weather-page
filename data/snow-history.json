@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "resolutionKm": 4,
+  "maxZoom": 5,
+  "windowStart": "2026-10-31",
+  "windowEnd": "2026-11-13",
+  "source": "NOAA / USNIC IMS, archived by NSIDC",
+  "sourceUrl": "https://nsidc.org/data/g02156/versions/1",
+  "frames": [
+    {
+      "date": "2026-10-31",
+      "url": "data/snow-history/2026-10-31-7d5a97f4cdad.json.gz",
+      "bytes": 450914,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026304_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-01",
+      "url": "data/snow-history/2026-11-01-675be7adeaf9.json.gz",
+      "bytes": 445412,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026305_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-02",
+      "url": "data/snow-history/2026-11-02-d837e54294e2.json.gz",
+      "bytes": 446808,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026306_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-03",
+      "url": "data/snow-history/2026-11-03-1e8f6efb15e6.json.gz",
+      "bytes": 447833,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026307_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-04",
+      "url": "data/snow-history/2026-11-04-3ca55c567438.json.gz",
+      "bytes": 446540,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026308_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-05",
+      "url": "data/snow-history/2026-11-05-50e468e4a726.json.gz",
+      "bytes": 443478,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026309_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-06",
+      "url": "data/snow-history/2026-11-06-0594a7f45985.json.gz",
+      "bytes": 448328,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026310_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-07",
+      "url": "data/snow-history/2026-11-07-c84399fe642c.json.gz",
+      "bytes": 448551,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026311_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-08",
+      "url": "data/snow-history/2026-11-08-d13a19a1b650.json.gz",
+      "bytes": 452954,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026312_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-09",
+      "url": "data/snow-history/2026-11-09-22592bf47081.json.gz",
+      "bytes": 458292,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026313_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-10",
+      "url": "data/snow-history/2026-11-10-b8cea43ab42b.json.gz",
+      "bytes": 451552,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026314_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-11",
+      "url": "data/snow-history/2026-11-11-eb0960109b66.json.gz",
+      "bytes": 449460,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026315_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-12",
+      "url": "data/snow-history/2026-11-12-7b3844ac3c16.json.gz",
+      "bytes": 457069,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026316_00UTC_4km_v1.3.asc.gz"
+    },
+    {
+      "date": "2026-11-13",
+      "url": "data/snow-history/2026-11-13-28846559f6bb.json.gz",
+      "bytes": 456740,
+      "source": "https://noaadata.apps.nsidc.org/NOAA/G02156/4km/2026/ims2026317_00UTC_4km_v1.3.asc.gz"
+    }
+  ],
+  "missingDates": []
+}
