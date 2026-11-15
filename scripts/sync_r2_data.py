@@ -83,6 +83,11 @@ def generation(path):
         return None
     data = json.loads(path.read_text())
     value = data.get('generatedAt', data.get('generated_at')) if isinstance(data, dict) else None
+    # Warning snapshots use ISO updatedAt, including quiet feeds with no alerts.
+    # Preserve publication ordering when an older bulk R2 backup races a collector.
+    if value is None and isinstance(data, dict) and path.name in (
+            'national-warnings.json', 'latvia-warnings.json', 'estonia-warnings.json'):
+        value = data.get('updatedAt')
     if isinstance(value, str):
         try:
             return datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()

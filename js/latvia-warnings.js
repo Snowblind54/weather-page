@@ -31,7 +31,7 @@ async function loadLatviaWarnings(){
     const ctrl=new AbortController();
     const timer=setTimeout(()=>ctrl.abort(),10000);
     try{
-      const response=await fetch(url,{cache:'no-store',signal:ctrl.signal});
+      const response=await fetch(url+'?warningCycle='+Math.floor(Date.now()/(10*60*1000)),{cache:'no-store',signal:ctrl.signal});
       if(!response.ok) throw new Error('Latvia warnings HTTP '+response.status);
       const data=await response.json();
       const records=validateLatviaSnapshot(data);

@@ -2,11 +2,15 @@ name: Update official national weather warnings
 
 on:
   schedule:
-    - cron: '7,17,27,37,47,57 * * * *'
+    - cron: '17 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
     paths:
+      - scripts/run_warning_updates.py
+      - tests/test_run_warning_updates.py
+      - scripts/sync_r2_data.py
+      - tests/test_warning_snapshot_generation.py
       - scripts/update_latvia_warnings.py
       - scripts/update_national_warnings.py
       - scripts/update_europe_warnings.py
@@ -25,6 +29,7 @@ on:
       - js/national-warnings.js
       - js/warnings.js
       - js/warning-filters.js
+      - js/warning-refresh.js
       - tests/warning-*.test.cjs
       - scripts/build_central_warning_regions.py
       - data/central-warning-regions.json.gz
@@ -42,10 +47,11 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: update-latvia-warnings
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,7 +65,8 @@ env:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    if: ${{ vars.WARNING_UPDATES_PAUSED != 'true' }}
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -76,18 +83,32 @@ jobs:
           key: r2-input-update-latvia-warnings-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: r2-input-update-latvia-warnings-
       - name: Restore verified last successful R2 data
+        continue-on-error: true
         run: python3 scripts/hydrate_r2_data.py data/latvia-warnings.json data/national-warnings.json
       - name: Check national warning parsers
         run: python3 -m unittest discover -s tests -p 'test_*warnings.py' -v
+      - name: Check repeated collection, isolated failures and snapshot ordering
+        run: |
+          python3 -m unittest discover -s tests -p test_run_warning_updates.py -v
+          python3 -m unittest discover -s tests -p test_warning_snapshot_generation.py -v
       - name: Check warning map rendering, filtering and large warning volumes
         run: node --test tests/warning-*.test.cjs tests/us-warnings.test.cjs
-      - name: Fetch official LVGMC warnings and polygons
-        run: python3 scripts/update_latvia_warnings.py
-      - name: Fetch official IMGW, DMI, UK Met Office, Met Éireann, DWD, KNMI, RMI/KMI, MeteoLux, ČHMÚ, SHMÚ, AEMET, IPMA, MeteoAM, HNMS, MGM, ECCC and NWS warnings and polygons
-        if: ${{ !cancelled() }}
-        run: python3 scripts/update_national_warnings.py
-      - name: Save updated warning snapshots
-        if: ${{ !cancelled() }}
-        run: bash scripts/publish_generated_data.sh 'Refresh official national warning polygons' data/latvia-warnings.json data/national-warnings.json
-      - name: Keep the GitHub warning fallback current
-        run: python3 scripts/github_fallback.py mirror data/latvia-warnings.json data/national-warnings.json
+      - name: Collect and publish warnings every ten minutes
+        run: |
+          # Verify a full handover immediately after a code change.
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            python3 -u scripts/run_warning_updates.py --cycles 1
+          else
+            python3 -u scripts/run_warning_updates.py --cycles 30
+          fi
+      - name: Queue the next collector without waiting for cron
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in 1 2 3; do
+            if gh workflow run update-latvia-warnings.yml --repo "$GITHUB_REPOSITORY" --ref main; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
