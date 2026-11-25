@@ -88,7 +88,10 @@ function prepareBalticRadarFrame(source,unix,latest,force=false){
     .finally(()=>{if(balticRadarPending.get(pendingKey)===promise)balticRadarPending.delete(pendingKey);});
   balticRadarPending.set(pendingKey,promise);return promise;
 }
-function visibleBalticRadarSources(){return DIRECT_RADAR_SOURCES.filter(source=>map.getBounds().intersects(L.latLngBounds(source.bounds)));}
+function visibleBalticRadarSources(){return DIRECT_RADAR_SOURCES.filter(source=>{
+  const profile=typeof radarGeometryProfiles!=='undefined'?radarGeometryProfiles[source.id]:null;
+  return map.getBounds().intersects(L.latLngBounds(profile?.bounds||source.bounds));
+});}
 async function drawDirectNationalRadars(unix,{force=false}={}){
   if(!$('radarOn').checked){clearDirectNationalRadars();return;}
   const generation=++directRadarGeneration,latest=frames.at(-1)?.time||unix,visible=visibleBalticRadarSources();
