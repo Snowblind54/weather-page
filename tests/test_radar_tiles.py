@@ -71,6 +71,25 @@ class RadarTiles(unittest.TestCase):
         with self.assertRaises(ValueError):
             radar.estonia_bounds(dict(projdef='+proj=merc',LL_lat=62,LL_lon=17,UR_lat=55,UR_lon=30))
 
+    def test_png_geometry_explicit_metadata_and_legacy(self):
+        image=Image.new('RGBA',(200,100))
+        bounds,geometry=radar.baltic_png_geometry(image,dict(source='lt'))
+        self.assertEqual(geometry['method'],'legacy-calibration')
+        image.info.update(crs='EPSG:3857',bounds='[[50,16],[60,35]]')
+        bounds,geometry=radar.baltic_png_geometry(image,dict(source='lt'))
+        self.assertEqual(bounds,[[50,16],[60,35]])
+        self.assertEqual(geometry['method'],'official-png-bounds')
+        self.assertFalse(radar.valid_geometry_bounds([[60,16],[50,35]]))
+        self.assertIsNone(radar.explicit_png_bounds({'bounds':[[50,16],[60,35]]}))
+
+    def test_imo_station_discovery_is_bounded_and_safe(self):
+        html='<a href="iskef/">known</a><a href="isnew1/">new</a><a href="../">parent</a><a href="https://evil.example/isfake/">bad</a>'
+        self.assertEqual(radar.archive.imo_stations(html),['iskef','isnew1'])
+
+    def test_lithuanian_bounds_only_from_named_overlay(self):
+        self.assertIsNone(radar.lithuanian_overlay_bounds('L.imageOverlay("other.png", [[50,16],[60,35]])'))
+        self.assertEqual(radar.lithuanian_overlay_bounds('L.imageOverlay("Header_Radar-composite-202611250000.png", [[50,16],[60,35]])'),[[50,16],[60,35]])
+
     def test_estonian_colour_opacity_matches_native_map(self):
         self.assertEqual(radar.estonia_colours(np.array([.05,.2,60.,np.nan])).tolist(),[[156,221,255,155],[54,170,255,175],[90,0,145,245],[0,0,0,0]])
 
