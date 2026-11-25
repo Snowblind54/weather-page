@@ -42,8 +42,15 @@ def parse_dmi(payload, first, last):
     return records
 
 
+def imo_stations(html):
+    """Only simple station directory names from the official daily index."""
+    names = re.findall(r'href=["\'](is[a-z0-9]{1,12})/["\']', html, re.I)
+    return sorted(set(name.lower() for name in names))[:12]
+
+
 def parse_imo(html, day, station, first, last):
     records = []
+    if not re.fullmatch(r'is[a-z0-9]{1,12}', station): return records
     for filename, date in re.findall(r'href="(T_PAGZ\d+_C_BIRK_(\d{14})\.h5)"', html):
         time = int(dt.datetime.strptime(date[:12], '%Y%m%d%H%M').replace(tzinfo=dt.timezone.utc).timestamp())
         if first <= time <= last:
@@ -145,11 +152,15 @@ def project(raw, edge=2000):
             dx, dy = where['xscale'], where['yscale']
         inverse = Transformer.from_crs(projection, 'EPSG:4326', always_xy=True)
         forward = Transformer.from_crs('EPSG:4326', projection, always_xy=True)
+        if not all(np.isfinite([left,top,dx,dy])) or dx<=0 or dy<=0 or not rows or not cols:
+            raise ValueError('Invalid official radar grid')
         t = np.linspace(0, 1, 33)
         xs = np.concatenate([left+dx*cols*t, left+dx*cols*t, np.full(33,left), np.full(33,left+dx*cols)])
         ys = np.concatenate([np.full(33,top), np.full(33,top-dy*rows), top-dy*rows*t, top-dy*rows*t])
         lons, lats = inverse.transform(xs, ys)
         west, east, south, north = float(min(lons)), float(max(lons)), float(min(lats)), float(max(lats))
+        if not all(np.isfinite([west,east,south,north])) or not (-180<=west<east<=180 and -85.05112878<=south<north<=85.05112878):
+            raise ValueError('Invalid official radar extent')
         mtop, mbottom = np.log(np.tan(np.pi/4+np.radians([north,south])/2))
         aspect = np.radians(east-west)/(mtop-mbottom)
         width, height = (edge, round(edge/aspect)) if aspect>1 else (round(edge*aspect), edge)
@@ -187,12 +198,20 @@ def main():
         day, station = item
         raw = download(f'https://brunnur.vedur.is/radar/data/{day}/{station}/').decode()
         return parse_imo(raw,day,station,first,now)
+    items = []
+    for day in days:
+        stations = {'iskef','isska','isx2'}
+        stations.update(f['station'] for f in existing.values() if f.get('source')=='is' and re.fullmatch(r'is[a-z0-9]{1,12}',f.get('station','')))
+        try:
+            stations.update(imo_stations(download(f'https://brunnur.vedur.is/radar/data/{day}/').decode()))
+        except Exception as error:
+            errors.append('IMO station discovery '+day+': '+str(error))
+        items.extend((day, station) for station in sorted(stations)[:15])
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        for item, future in zip([(d,s) for d in days for s in ('iskef','isska','isx2')],
-                               [pool.submit(station_list,(d,s)) for d in days for s in ('iskef','isska','isx2')]):
+        for item, future in zip(items, [pool.submit(station_list,item) for item in items]):
             try: records += future.result()
             except Exception as error: errors.append('/'.join(item)+': '+str(error))
-    pending = [r for r in records if r['source_url'] not in existing]
+    pending = sorted((r for r in records if r['source_url'] not in existing),key=lambda r:-r['time'])[:48]
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         futures = [(record,pool.submit(download,record['source_url'])) for record in pending]
         for record, future in futures:
@@ -200,7 +219,7 @@ def main():
                 png,bounds = project(future.result())
                 filename = record['station']+'-'+str(record['time'])+'-'+hashlib.sha256(png).hexdigest()[:12]+'.png'
                 (IMAGE_DIR/filename).write_bytes(png)
-                existing[record['source_url']] = {**record,'format':'png','bounds':bounds,'url':'data/radar-cache/'+filename}
+                existing[record['source_url']] = {**record,'format':'png','bounds':bounds,'geometry':{'method':'official-grid'},'url':'data/radar-cache/'+filename}
             except Exception as error: errors.append(record['station']+' '+str(record['time'])+': '+str(error))
     frames = sorted(existing.values(),key=lambda frame:frame['time'])
     if not frames: raise RuntimeError('No successful official radar frames: '+'; '.join(errors))
