@@ -50,6 +50,27 @@ class RadarTiles(unittest.TestCase):
                 radar.main()
             result=json.loads(out.read_text());self.assertEqual(result['frames'],[frame]);self.assertEqual(len(result['errors']),7)
 
+    def test_estonian_composite_uses_expanded_file_extent(self):
+        import h5py
+        stream=io.BytesIO()
+        with h5py.File(stream,'w') as file:
+            where=file.create_group('where')
+            where.attrs.update(dict(projdef='+proj=merc +a=6371000 +lon_0=25',LL_lat=55.5,LL_lon=17.0,UR_lat=62.0,UR_lon=30.5))
+            dataset=file.create_group('dataset1')
+            dataset.create_group('what').attrs.update(dict(gain=1,offset=0,nodata=65535,undetect=0))
+            dataset.create_group('data1').create_dataset('data',data=np.array([[0,2],[65535,0]],dtype=np.uint16))
+        with patch.object(radar,'download',return_value=stream.getvalue()):
+            image,bounds,_=radar.image_for(dict(source='ee',source_url='test',format='ee-h5'))
+        self.assertEqual(bounds,[[55.5,17.0],[62.0,30.5]])
+        self.assertEqual(np.array(image)[0,1].tolist(),[255,123,0,215])
+        self.assertEqual(np.array(image)[1,0].tolist(),[0,0,0,0])
+
+    def test_estonian_invalid_geometry_is_not_rendered(self):
+        with self.assertRaises(ValueError):
+            radar.estonia_bounds(dict(projdef='+proj=stere',LL_lat=55,LL_lon=17,UR_lat=62,UR_lon=30))
+        with self.assertRaises(ValueError):
+            radar.estonia_bounds(dict(projdef='+proj=merc',LL_lat=62,LL_lon=17,UR_lat=55,UR_lon=30))
+
     def test_estonian_colour_opacity_matches_native_map(self):
         self.assertEqual(radar.estonia_colours(np.array([.05,.2,60.,np.nan])).tolist(),[[156,221,255,155],[54,170,255,175],[90,0,145,245],[0,0,0,0]])
 
