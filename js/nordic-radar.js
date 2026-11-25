@@ -157,9 +157,7 @@ async function listNordicRadar(source,force=false){
       const prepared=cachedNordicRadar(source).catch(()=>[]);
       try{
         const live=await liveIcelandRadar();
-        let timer;
-        const images=await Promise.race([prepared,new Promise(resolve=>{timer=setTimeout(()=>resolve([]),1500);})]);
-        clearTimeout(timer);
+        const images=await prepared;
         return preparedIcelandRadar(live,images);
       }catch(error){console.warn('Iceland live service unavailable; trying official archive',error);}
     }
