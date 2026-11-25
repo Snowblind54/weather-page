@@ -11,6 +11,7 @@ import io
 import json
 import math
 import pathlib
+import re
 import shutil
 import time
 import urllib.parse
