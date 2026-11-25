@@ -181,6 +181,7 @@ def project_tiff(raw,record):
     from rasterio.warp import transform_bounds,reproject,Resampling
     with MemoryFile(raw) as memory, memory.open() as src:
         crs=src.crs or record.get('projection')
+        record['geometry']={'method':'official-grid','projection':str(crs),'native_size':[src.width,src.height],'grid':list(src.transform)[:6]}
         if not crs: raise ValueError('Missing official GeoTIFF projection')
         west,south,east,north=transform_bounds(crs,'EPSG:4326',*src.bounds,densify_pts=32)
         left,bottom,right,top=transform_bounds('EPSG:4326','EPSG:3857',west,south,east,north)
@@ -233,7 +234,7 @@ def image_for(record):
     raw=download(url)
     if record['format']=='tif':image,bounds=project_tiff(raw,record)
     elif record['format']=='h5':
-        png,bounds=archive.project(raw);image=Image.open(io.BytesIO(png)).convert('RGBA')
+        geometry={};png,bounds=archive.project(raw,geometry_out=geometry);record['geometry']=geometry;image=Image.open(io.BytesIO(png)).convert('RGBA')
     elif record['format']=='ee-h5':
         import h5py
         with h5py.File(io.BytesIO(raw),'r') as file:
@@ -241,7 +242,8 @@ def image_for(record):
             rate=vals.astype(np.float32)*float(what.get('gain',1))+float(what.get('offset',0))
             rate[(vals==what.get('nodata',65535))|(vals==what.get('undetect',0))|(vals>30000)]=np.nan
             image=Image.fromarray(estonia_colours(rate));image.thumbnail((1000,1000),Image.Resampling.NEAREST)
-            bounds=estonia_bounds(archive.attrs(file.get('where')))
+            where=archive.attrs(file.get('where'));bounds=estonia_bounds(where)
+            record['geometry']={'method':'official-grid','projection':str(where.get('projdef','')),'native_size':[vals.shape[1],vals.shape[0]]}
     else:
         original=Image.open(io.BytesIO(raw));bounds,record['geometry']=baltic_png_geometry(original,record);image=original.convert('RGBA')
         # Same achromatic-background filter as the existing browser LHMT layer.
@@ -293,6 +295,7 @@ def main():
     existing={r['source_url']:r for r in retained(previous['frames'],first) if ((ROOT/r['path']).is_dir() or (r.get('archive') and (ROOT/r['archive']['path']).is_file())) and (r['source']!='ee' or r.get('style_version')==3)}
     records=[];errors=[];metrics=[]
     geometry_profiles=dict(previous.get('geometry_profiles',{}))
+    geometry_rejections=dict(previous.get('geometry_rejections',{}))
     for record in existing.values():
         if not record.get('archive') and record.get('tiles') is not None:
             directory=ROOT/record['path']
@@ -325,8 +328,9 @@ def main():
             geometry=r['geometry']; key=r['station']; old=geometry_profiles.get(key)
             if geometry['method']=='legacy-calibration' and old:
                 if old.get('method')!='legacy-calibration' or old.get('size')!=geometry['size']:
+                    geometry_rejections[key]=max(r['time'],geometry_rejections.get(key,0))
                     raise ValueError('Radar geometry changed or official coordinates disappeared; refusing to stretch image')
-            changed=bool(old and (old.get('bounds')!=bounds or old.get('size')!=geometry.get('size') or old.get('method')!=geometry['method']))
+            changed=bool(old and (old.get('bounds')!=bounds or old.get('size')!=geometry.get('size') or old.get('method')!=geometry['method'] or any(old.get(k)!=geometry.get(k) for k in ('projection','native_size','grid'))))
             geometry={**geometry,'bounds':bounds,'changed':changed,'time':r['time']}
             identity=hashlib.sha256(image.tobytes()+json.dumps(bounds).encode()).hexdigest()[:12]
             name=f"{r['station']}-{r['time']}-{identity}";temporary=TILES/(name+'.tmp');temporary.mkdir(exist_ok=True)
@@ -339,13 +343,14 @@ def main():
             existing[r['source_url']]={k:r[k] for k in ['source','station','time','source_url']}
             existing[r['source_url']].update(path='data/radar-tiles/'+name,bounds=bounds,tiles=indices,bytes=size,min_zoom=3,max_zoom=7,style_version=3 if r['source']=='ee' else 2,archive=packed,geometry=geometry)
             if not old or r['time']>=old.get('time',0): geometry_profiles[key]=geometry
+            if r['time']>=geometry_rejections.get(key,0): geometry_rejections.pop(key,None)
             metrics.append(dict(source=r['source'],time=r['time'],raw_bytes=raw_bytes,tile_bytes=size,tile_count=sum(map(len,indices.values())),uploaded_objects=1,seconds=round(time.perf_counter()-begin,3)))
         except Exception as exc:errors.append(r['station']+' '+str(r['time'])+': '+str(exc))
         finally:
             if temporary is not None and temporary.exists():shutil.rmtree(temporary)
     frames=sorted(existing.values(),key=lambda r:(r['time'],r['station']))
     if not frames:raise RuntimeError('No successful radar tiles; previous published archive left untouched: '+'; '.join(errors))
-    result=dict(version=1,generated_at=now,frames=frames,errors=errors,geometry_profiles=geometry_profiles,metrics=dict(processing_seconds=round(time.perf_counter()-started,3),archive_bytes=sum(r['bytes'] for r in frames),new_frames=metrics),trial=dict(min_zoom=3,max_zoom=7,retention_seconds=KEEP,max_archive_bytes=MAX_BYTES,max_new_frames=MAX_NEW))
+    result=dict(version=1,generated_at=now,frames=frames,errors=errors,geometry_profiles=geometry_profiles,geometry_rejections=geometry_rejections,metrics=dict(processing_seconds=round(time.perf_counter()-started,3),archive_bytes=sum(r['bytes'] for r in frames),new_frames=metrics),trial=dict(min_zoom=3,max_zoom=7,retention_seconds=KEEP,max_archive_bytes=MAX_BYTES,max_new_frames=MAX_NEW))
     temp=OUT.with_suffix('.tmp');temp.write_text(json.dumps(result,separators=(',',':'))+'\n');temp.replace(OUT)
     keep={r['path'].split('/')[-1] for r in frames}
     for path in TILES.iterdir():
