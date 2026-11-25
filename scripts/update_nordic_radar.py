@@ -121,7 +121,7 @@ def attrs(group):
     return {key: scalar(value) for key, value in group.attrs.items()} if group is not None else {}
 
 
-def project(raw, edge=2000):
+def project(raw, edge=2000, geometry_out=None):
     import h5py
     import numpy as np
     from PIL import Image
@@ -150,6 +150,8 @@ def project(raw, edge=2000):
             forward = Transformer.from_crs('EPSG:4326', projection, always_xy=True)
             left, top = forward.transform(where['UL_lon'], where['UL_lat'])
             dx, dy = where['xscale'], where['yscale']
+        if geometry_out is not None:
+            geometry_out.update(method='official-grid',projection=str(projection),native_size=[cols,rows],grid=[float(left),float(top),float(dx),float(dy)])
         inverse = Transformer.from_crs(projection, 'EPSG:4326', always_xy=True)
         forward = Transformer.from_crs('EPSG:4326', projection, always_xy=True)
         if not all(np.isfinite([left,top,dx,dy])) or dx<=0 or dy<=0 or not rows or not cols:
@@ -211,15 +213,22 @@ def main():
         for item, future in zip(items, [pool.submit(station_list,item) for item in items]):
             try: records += future.result()
             except Exception as error: errors.append('/'.join(item)+': '+str(error))
+    prior_geometry={}
+    for r in sorted(existing.values(),key=lambda r:r['time']):
+        if r.get('geometry'): prior_geometry[r['station']]=r
     pending = sorted((r for r in records if r['source_url'] not in existing),key=lambda r:-r['time'])[:48]
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         futures = [(record,pool.submit(download,record['source_url'])) for record in pending]
         for record, future in futures:
             try:
-                png,bounds = project(future.result())
+                geometry={}
+                png,bounds = project(future.result(),geometry_out=geometry)
+                old=prior_geometry.get(record['station'])
+                geometry['changed']=bool(old and (old['bounds']!=bounds or any(old['geometry'].get(k)!=geometry.get(k) for k in ('projection','native_size','grid'))))
                 filename = record['station']+'-'+str(record['time'])+'-'+hashlib.sha256(png).hexdigest()[:12]+'.png'
                 (IMAGE_DIR/filename).write_bytes(png)
-                existing[record['source_url']] = {**record,'format':'png','bounds':bounds,'geometry':{'method':'official-grid'},'url':'data/radar-cache/'+filename}
+                existing[record['source_url']] = {**record,'format':'png','bounds':bounds,'geometry':geometry,'url':'data/radar-cache/'+filename}
+                if not old or record['time']>=old['time']: prior_geometry[record['station']]=existing[record['source_url']]
             except Exception as error: errors.append(record['station']+' '+str(record['time'])+': '+str(error))
     frames = sorted(existing.values(),key=lambda frame:frame['time'])
     if not frames: raise RuntimeError('No successful official radar frames: '+'; '.join(errors))
