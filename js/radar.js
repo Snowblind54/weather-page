@@ -65,10 +65,30 @@ async function ensureH5(){
 
 function cacheSet(key,val){
   radarImageCache.delete(key);radarImageCache.set(key,val);
-  while(radarImageCache.size>MAX_CACHE || [...radarImageCache.values()].reduce((bytes,image)=>bytes+image.length*2,0)>16*1024*1024){
+  while(radarImageCache.size>MAX_CACHE || [...radarImageCache.values()].reduce((bytes,image)=>bytes+image.url.length*2,0)>16*1024*1024){
     const first=radarImageCache.keys().next().value;
     radarImageCache.delete(first);
   }
+}
+
+// Use the official file extent, not the historical two-radar grid.
+// Mercator's normalized coordinates match the map's Web Mercator raster.
+function kaiaRadarBounds(attrs){
+  const value=key=>{
+    const raw=attrs[key]?.value;
+    if(ArrayBuffer.isView(raw)){
+      if(key==='projdef'&&raw instanceof Uint8Array)return new TextDecoder().decode(raw).replace(/\0+$/,'');
+      return raw.length===1?raw[0]:raw;
+    }
+    return Array.isArray(raw)&&raw.length===1?raw[0]:raw;
+  };
+  const projection=String(value('projdef')??'').trim();
+  if(!/(?:^|\s)\+proj=merc(?:\s|$)/.test(projection)&&projection.toUpperCase()!=='EPSG:3857')throw new Error('Unsupported KAIA radar projection: '+projection);
+  const keys=['LL_lat','LL_lon','UR_lat','UR_lon'];
+  const values=keys.map(key=>{const v=value(key);return v==null||v===''?NaN:Number(v);});
+  const [south,west,north,east]=values;
+  if(!values.every(Number.isFinite)||!(south>=-85.05112878&&north<=85.05112878&&south<north&&west>=-180&&east<=180&&west<east))throw new Error('Invalid KAIA radar geographical extent');
+  return [[south,west],[north,east]];
 }
 
 const radarImagePending=new Map();
@@ -104,6 +124,7 @@ async function prepareKaiaRadarImage(frame,{quiet=false}={}){
     if(!shape || shape.length<2) throw new Error('unexpected radar array shape');
 
     const h=shape[0], w=shape[1];
+    const bounds=kaiaRadarBounds(f.get('where').attrs||{});
 
     const what=f.get('dataset1/what').attrs || {};
     const gain=what.gain?.value ?? 1;
@@ -140,8 +161,9 @@ async function prepareKaiaRadarImage(frame,{quiet=false}={}){
 
     ctx.putImageData(img,0,0);
     const dataUrl=canvas.toDataURL('image/png');
-    cacheSet(frame.id,dataUrl);
-    return dataUrl;
+    const image={url:dataUrl,bounds};
+    cacheSet(frame.id,image);
+    return image;
   } finally {
     f.close();
     try{FS.unlink(filename)}catch(e){}
@@ -163,10 +185,12 @@ async function drawRadar(frame){
   const oldLayer=radarLayer;
 
   try{
-    const prepared=typeof preparedRadarFrame==='function'?await preparedRadarFrame('ee',frame.time,{canPrepare:()=>myGeneration===radarRenderGeneration&&mySwapGeneration===radarSwapGeneration&&$('radarOn').checked}):null;
+    let prepared=typeof preparedRadarFrame==='function'?await preparedRadarFrame('ee',frame.time,{canPrepare:()=>myGeneration===radarRenderGeneration&&mySwapGeneration===radarSwapGeneration&&$('radarOn').checked}):null;
     if(myGeneration!==radarRenderGeneration||mySwapGeneration!==radarSwapGeneration||!$('radarOn').checked)return;
-    const dataUrl=prepared?null:frame.url?await h5ToRadarImage(frame):null;
-    if(!prepared&&!dataUrl)throw new Error('No official observation at the selected time');
+    // A prepared previous scan must not replace the selected official scan.
+    if(frame.url&&prepared?.time!==frame.time)prepared=null;
+    const native=prepared?null:frame.url?await h5ToRadarImage(frame):null;
+    if(!prepared&&!native)throw new Error('No official observation at the selected time');
 
     if(myGeneration!==radarRenderGeneration ||
        mySwapGeneration!==radarSwapGeneration ||
@@ -174,7 +198,7 @@ async function drawRadar(frame){
       return;
     }
 
-    const nextLayer=(prepared?preparedRadarCanvasLayer(prepared,0):(typeof radarImageOverlay==='function'?radarImageOverlay:L.imageOverlay)(dataUrl,RADAR_BOUNDS,{
+    const nextLayer=(prepared?preparedRadarCanvasLayer(prepared,0):(typeof radarImageOverlay==='function'?radarImageOverlay:L.imageOverlay)(native.url,native.bounds,{
       opacity:0,
       interactive:false
     })).addTo(map);
