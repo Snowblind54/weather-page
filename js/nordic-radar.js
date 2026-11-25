@@ -38,11 +38,12 @@ function radarFootprintVisible(footprint){
 function radarRecordVisible(record){
   if(map.getZoom()<6&&!radarLightMode())return true;
   const known=radarFootprints.get(record.station);
-  if(record.bounds&&!radarFootprintVisible({bounds:record.bounds}))return false;
+  if(record.bounds)return radarFootprintVisible({bounds:record.bounds});
   return !known||Date.now()-known.at>10*60*1000||radarFootprintVisible(known);
 }
 function nordicRadarVisible(source){
-  if(!map.getBounds().intersects(L.latLngBounds(source.bounds)))return false;
+  const profile=typeof radarGeometryProfiles!=='undefined'?radarGeometryProfiles[source.id]:null;
+  if(!map.getBounds().intersects(L.latLngBounds(source.bounds))&&!(profile?.bounds&&radarFootprintVisible(profile)))return false;
   if(map.getZoom()<6&&!radarLightMode())return true;
   if(source.id==='is')return true; // do not hide a newly discovered station using old footprints
   const stations=[source.id];
@@ -126,8 +127,9 @@ function validNordicRadarArchiveFrame(frame,source){
 }
 async function cachedNordicRadar(source){
   if(!nordicRadarArchive||Date.now()-nordicRadarArchive.at>120000){
-    const promise=fetch('data/nordic-radar-cache.json?v='+Math.floor(Date.now()/120000),{cache:'no-cache'})
-      .then(response=>{if(!response.ok)throw new Error('Radar archive HTTP '+response.status);return response.json();});
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
+    const promise=fetch('data/nordic-radar-cache.json?v='+Math.floor(Date.now()/120000),{cache:'no-cache',signal:controller.signal})
+      .then(response=>{if(!response.ok)throw new Error('Radar archive HTTP '+response.status);return response.json();}).finally(()=>clearTimeout(timer));
     nordicRadarArchive={at:Date.now(),promise};
   }
   const data=await nordicRadarArchive.promise;
