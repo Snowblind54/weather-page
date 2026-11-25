@@ -70,3 +70,13 @@ test('Estonian browser uses per-file extent and rejects invalid projection',()=>
  c.attrs.projdef.value='+proj=merc';delete c.attrs.LL_lat;
  assert.throws(()=>vm.runInContext('kaiaRadarBounds(attrs)',c),/Invalid/);
 });
+
+test('new Iceland radar stations from official archive survive live relay merge',()=>{
+ const c={Map,Set,URL,Date};vm.createContext(c);
+ vm.runInContext(fs.readFileSync(__dirname+'/../js/nordic-radar.js','utf8'),c);
+ c.live=[{station:'iskef',time:1000,source_url:'old'}];
+ c.archive=[{station:'isnew1',time:1000,source_url:'new',format:'png'}];
+ const result=vm.runInContext('preparedIcelandRadar(live,archive)',c);
+ assert.equal(result.length,2);
+ assert.equal(result[1].station,'isnew1');
+});
