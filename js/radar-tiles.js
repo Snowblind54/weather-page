@@ -1,6 +1,7 @@
 // Prepared official radar trial. Only visible lossless tiles are downloaded;
 // native feeds remain the fallback and retain full detail above zoom 7.
 let preparedRadarManifest=null;
+let radarGeometryProfiles={};
 const preparedRadarFrames=new Map(),preparedRadarPending=new Map();
 const preparedRadarTileQueue=[],preparedRadarTileJobs=new Map();let preparedRadarTileActive=0;
 function runPreparedRadarTileQueue(){
@@ -36,7 +37,7 @@ async function loadPreparedRadarManifest(){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4000);
     const promise=fetch('data/radar-tiles.json?v='+Math.floor(Date.now()/60000),{cache:'no-cache',signal:controller.signal})
       .then(r=>{if(!r.ok)throw new Error('Prepared radar archive unavailable');return r.json();})
-      .then(data=>{if(data.version!==1||!Array.isArray(data.frames))throw new Error('Invalid prepared radar archive');return data.frames.filter(validPreparedRadarFrame);})
+      .then(data=>{if(data.version!==1||!Array.isArray(data.frames))throw new Error('Invalid prepared radar archive');radarGeometryProfiles=data.geometry_profiles||{};return data.frames.filter(validPreparedRadarFrame);})
       .finally(()=>clearTimeout(timer));
     preparedRadarManifest={at:Date.now(),promise};
   }
