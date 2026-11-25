@@ -50,3 +50,23 @@ test('archive tiles render through the existing viewport queue and release decod
  const frame=await vm.runInContext("preparedRadarFrame('fi',1000)",c);
  assert(frame.prepared);assert.equal(decoded,1);assert.equal(closed,1);assert.equal(calls.length,0);
 });
+
+test('Estonian cached tiles using old fixed boundaries are rejected',()=>{
+ const {c,record}=harness();
+ c.ee={...record,source:'ee',station:'ee',path:'data/radar-tiles/ee-1000-0123456789ab',style_version:2};
+ assert.equal(vm.runInContext('validPreparedRadarFrame(ee)',c),false);
+ c.ee.style_version=3;
+ assert.equal(vm.runInContext('validPreparedRadarFrame(ee)',c),true);
+});
+test('Estonian browser uses per-file extent and rejects invalid projection',()=>{
+ const c={Map,Set,ArrayBuffer,Uint8Array,TextDecoder};
+ vm.createContext(c);
+ vm.runInContext(fs.readFileSync(__dirname+'/../js/radar.js','utf8'),c);
+ const attrs={projdef:'+proj=merc +a=6371000 +lon_0=25',LL_lat:55.5,LL_lon:17,UR_lat:62,UR_lon:30.5};
+ c.attrs=Object.fromEntries(Object.entries(attrs).map(([k,value])=>[k,{value}]));
+ assert.equal(JSON.stringify(vm.runInContext('kaiaRadarBounds(attrs)',c)),JSON.stringify([[55.5,17],[62,30.5]]));
+ c.attrs.projdef.value='+proj=stere';
+ assert.throws(()=>vm.runInContext('kaiaRadarBounds(attrs)',c),/Unsupported/);
+ c.attrs.projdef.value='+proj=merc';delete c.attrs.LL_lat;
+ assert.throws(()=>vm.runInContext('kaiaRadarBounds(attrs)',c),/Invalid/);
+});
