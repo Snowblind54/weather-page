@@ -44,8 +44,12 @@ function radarRecordVisible(record){
 function nordicRadarVisible(source){
   if(!map.getBounds().intersects(L.latLngBounds(source.bounds)))return false;
   if(map.getZoom()<6&&!radarLightMode())return true;
-  const stations=source.id==='is'?['iskef','isska','isx2']:[source.id];
+  if(source.id==='is')return true; // do not hide a newly discovered station using old footprints
+  const stations=[source.id];
   return stations.some(station=>{const known=radarFootprints.get(station);return !known||Date.now()-known.at>10*60*1000||radarFootprintVisible(known);});
+}
+function radarStacBounds(box){
+  return box?.length===4&&box.every(Number.isFinite)&&box[0]>=-180&&box[2]<=180&&box[1]>=-85&&box[3]<=85&&box[0]<box[2]&&box[1]<box[3]?[[box[1],box[0]],[box[3],box[2]]]:undefined;
 }
 function radarObservationAt(records,time,maxDelay=900){
   let best=null;
@@ -112,13 +116,13 @@ function fmiRadarRecords(xml){
   return records;
 }
 function validNordicRadarArchiveFrame(frame,source){
-  return frame.source===source.id&&['dk','iskef','isska','isx2'].includes(frame.station)&&
+  return frame.source===source.id&&(source.id==='dk'?frame.station==='dk':source.id==='is'&&/^is[a-z0-9]{1,12}$/.test(frame.station))&&
     Number.isFinite(frame.time)&&frame.format==='png'&&
-    /^data\/radar-cache\/(dk|iskef|isska|isx2)-\d+-[a-f0-9]{12}\.png$/.test(frame.url)&&
+    /^data\/radar-cache\/(dk|is[a-z0-9]{1,12})-\d+-[a-f0-9]{12}\.png$/.test(frame.url)&&
     frame.bounds?.length===2&&frame.bounds.every(point=>point.length===2&&point.every(Number.isFinite))&&
     frame.bounds[0][0]>=-85&&frame.bounds[1][0]<=85&&frame.bounds[0][0]<frame.bounds[1][0]&&
     frame.bounds[0][1]>=-180&&frame.bounds[1][1]<=180&&frame.bounds[0][1]<frame.bounds[1][1]&&
-    trustedNordicRadarUrl(frame.source_url);
+    frame.url.split('/').at(-1).startsWith(frame.station+'-'+frame.time+'-')&&trustedNordicRadarUrl(frame.source_url);
 }
 async function cachedNordicRadar(source){
   if(!nordicRadarArchive||Date.now()-nordicRadarArchive.at>120000){
@@ -131,10 +135,14 @@ async function cachedNordicRadar(source){
 }
 function preparedIcelandRadar(records,prepared){
   const images=new Map(prepared.map(frame=>[frame.station+'|'+frame.time,frame]));
-  return records.map(record=>{
+  const live=records.map(record=>{
     const image=images.get(record.station+'|'+record.time);
     return image&&image.source_url===(record.source_url||record.url)?image:record;
   });
+  const seen=new Set(live.map(record=>record.station+'|'+record.time));
+  // New stations discovered by the scheduled official archive remain visible
+  // even if the separate live relay still knows only the original three.
+  return [...live,...prepared.filter(record=>!seen.has(record.station+'|'+record.time))].sort((a,b)=>a.time-b.time);
 }
 async function listNordicRadar(source,force=false){
   const cached=nordicRadarLists.get(source.id);
@@ -159,7 +167,7 @@ async function listNordicRadar(source,force=false){
       try{
         const params=new URLSearchParams({limit:'100',sortorder:'datetime,DESC',datetime:new Date(first*1000).toISOString()+'/'+new Date(last*1000).toISOString()});
         const data=await nordicRadarJson('https://opendataapi.dmi.dk/v1/radardata/collections/composite/items?'+params,{proxy:false});
-        records=(data.features||[]).map(file=>({time:Date.parse(file.properties?.datetime)/1000,url:file.asset?.data?.href||file.assets?.data?.href,format:'dmi-wms',station:'dk'}))
+        records=(data.features||[]).map(file=>({time:Date.parse(file.properties?.datetime)/1000,url:file.asset?.data?.href||file.assets?.data?.href,format:'dmi-wms',station:'dk',bounds:radarStacBounds(file.bbox)}))
           .filter(record=>Number.isFinite(record.time)&&record.time>=first&&record.time<=last&&trustedNordicRadarUrl(record.url));
         if(!records.length)throw new Error('DMI has no recent observations');
         return records.sort((a,b)=>a.time-b.time);
@@ -284,7 +292,7 @@ function trimNordicRadarFrames(){
   }
 }
 function nordicRadarFrame(record,edge,{background=false,canPrepare=()=>false}={}){
-  const viewBounds=record.format==='dmi-wms'&&radarLightMode()?radarDmiViewportBounds():null;
+  const viewBounds=record.format==='dmi-wms'&&radarLightMode()?radarDmiViewportBounds(record.bounds):null;
   const key=record.url+'|'+edge+(viewBounds?'|'+JSON.stringify(viewBounds):'');
   if(nordicRadarFrames.has(key)){
     const entry=nordicRadarFrames.get(key);nordicRadarFrames.delete(key);nordicRadarFrames.set(key,entry);
@@ -419,7 +427,7 @@ async function drawNordicRadars(unix,{force=false}={}){
       if(prepared){finishSource(source,index,{rendered:[{status:'fulfilled',value:{record:{station:prepared.station,time:prepared.time},frame:prepared}}]});return;}
       const records=await listNordicRadar(source,force);
       if(generation!==nordicRadarGeneration||!$('radarOn').checked)return;
-    const stations=(source.id==='is'?['iskef','isska','isx2']:[...new Set(records.map(record=>record.station))]).filter(station=>radarRecordVisible({station}));
+    const stations=(source.id==='is'?[...new Set(['iskef','isska','isx2',...records.map(record=>record.station)])]:[...new Set(records.map(record=>record.station))]).filter(station=>radarRecordVisible({station}));
       const observations=stations.map(station=>radarObservationAt(records.filter(record=>record.station===station),unix)).filter(Boolean);
       const selected=observations.filter(radarRecordVisible);
       if(observations.length&&!selected.length){
