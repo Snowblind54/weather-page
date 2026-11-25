@@ -31,8 +31,7 @@ MAX_NEW = 24
 MAX_BYTES = 240 * 1024 * 1024
 HOSTS = {'openwms.fmi.fi','www.meteo.lt','opendata.fmi.fi','opendata-download-radar.smhi.se','radar-stacapi.met.no','rgw.met.no',
          'avaandmed.keskkonnaportaal.ee','new.meteo.lt','videscentrs.lvgmc.lv',*archive.ALLOWED}
-BOUNDS = {'ee':[[56.48834379574241,20.354150207505985],[61.33568305549932,29.760049907697866]],
-          'lt':[[49.876389,15.618611],[59.701667,34.313611]],
+BOUNDS = {'lt':[[49.876389,15.618611],[59.701667,34.313611]],
           'lv':[[54.5934155033868,19.8278947347231],[59.0900395033868,28.0663127347231]]}
 
 
@@ -159,6 +158,22 @@ def estonia_colours(rates):
     return pixels
 
 
+def estonia_bounds(where):
+    """KAIA documents LL and UR as the composite's georeferenced extent.
+
+    A Mercator raster can be placed directly in Web Mercator because the
+    normalized x/y coordinates are identical for spherical Mercator.
+    Never substitute an outdated extent for absent or unsupported metadata.
+    """
+    projection = str(where.get('projdef', ''))
+    if not re.search(r'(?:^|\s)\+proj=merc(?:\s|$)', projection) and projection.upper() != 'EPSG:3857':
+        raise ValueError('Unsupported KAIA radar projection: ' + projection)
+    south, west, north, east = (float(where[key]) for key in ('LL_lat','LL_lon','UR_lat','UR_lon'))
+    if not all(map(math.isfinite, (south, west, north, east))) or not (-85.05112878 <= south < north <= 85.05112878 and -180 <= west < east <= 180):
+        raise ValueError('Invalid KAIA radar geographical extent')
+    return [[south, west], [north, east]]
+
+
 def image_for(record):
     if record['format']=='prepared':return Image.open(ROOT/record['url']).convert('RGBA'),record['bounds'],0
     url=record['source_url']
@@ -177,7 +192,7 @@ def image_for(record):
             rate=vals.astype(np.float32)*float(what.get('gain',1))+float(what.get('offset',0))
             rate[(vals==what.get('nodata',65535))|(vals==what.get('undetect',0))|(vals>30000)]=np.nan
             image=Image.fromarray(estonia_colours(rate));image.thumbnail((1000,1000),Image.Resampling.NEAREST)
-        bounds=BOUNDS['ee']
+            bounds=estonia_bounds(archive.attrs(file.get('where')))
     else:
         image=Image.open(io.BytesIO(raw)).convert('RGBA');bounds=BOUNDS[record['source']]
         # Same achromatic-background filter as the existing browser LHMT layer.
@@ -224,7 +239,7 @@ def main():
     started=time.perf_counter();now=int(time.time());first=now-KEEP
     TILES.mkdir(parents=True,exist_ok=True)
     previous=json.loads(OUT.read_text()) if OUT.exists() else {'frames':[]}
-    existing={r['source_url']:r for r in retained(previous['frames'],first) if ((ROOT/r['path']).is_dir() or (r.get('archive') and (ROOT/r['archive']['path']).is_file())) and (r['source']!='ee' or r.get('style_version')==2)}
+    existing={r['source_url']:r for r in retained(previous['frames'],first) if ((ROOT/r['path']).is_dir() or (r.get('archive') and (ROOT/r['archive']['path']).is_file())) and (r['source']!='ee' or r.get('style_version')==3)}
     records=[];errors=[];metrics=[]
     for record in existing.values():
         if not record.get('archive') and record.get('tiles') is not None:
@@ -264,7 +279,7 @@ def main():
             if sum(v['bytes'] for v in existing.values())+size>MAX_BYTES:raise ValueError('Tile archive storage budget reached')
             shutil.rmtree(temporary)
             existing[r['source_url']]={k:r[k] for k in ['source','station','time','source_url']}
-            existing[r['source_url']].update(path='data/radar-tiles/'+name,bounds=bounds,tiles=indices,bytes=size,min_zoom=3,max_zoom=7,style_version=2,archive=packed)
+            existing[r['source_url']].update(path='data/radar-tiles/'+name,bounds=bounds,tiles=indices,bytes=size,min_zoom=3,max_zoom=7,style_version=3 if r['source']=='ee' else 2,archive=packed)
             metrics.append(dict(source=r['source'],time=r['time'],raw_bytes=raw_bytes,tile_bytes=size,tile_count=sum(map(len,indices.values())),uploaded_objects=1,seconds=round(time.perf_counter()-begin,3)))
         except Exception as exc:errors.append(r['station']+' '+str(r['time'])+': '+str(exc))
         finally:
