@@ -59,6 +59,50 @@ def iso(value): return dt.datetime.fromtimestamp(value,dt.timezone.utc).isoforma
 def query(url,params): return url+'?'+urllib.parse.urlencode(params)
 
 
+def valid_geometry_bounds(bounds):
+    try:
+        (south,west),(north,east)=bounds
+        return all(isinstance(v,(int,float)) and not isinstance(v,bool) and math.isfinite(v) for v in (south,west,north,east)) and -85.05112878<=south<north<=85.05112878 and -180<=west<east<=180
+    except (TypeError,ValueError):
+        return False
+
+
+def explicit_png_bounds(metadata):
+    """Accept only explicitly identified Web Mercator raster bounds in lat/lon.
+    Unspecified coordinate systems and arbitrary image tags are not evidence.
+    """
+    if not isinstance(metadata,dict): return None
+    crs=metadata.get('crs')
+    if crs not in ('EPSG:3857','urn:ogc:def:crs:EPSG::3857'): return None
+    bounds=metadata.get('bounds')
+    if isinstance(bounds,str):
+        try: bounds=json.loads(bounds)
+        except (TypeError,ValueError): return None
+    if not valid_geometry_bounds(bounds): raise ValueError('Invalid explicit PNG bounds')
+    return bounds
+
+
+def lithuanian_overlay_bounds(html):
+    # An explicit Leaflet image overlay on the official radar page can provide
+    # the geographic extent for its named composite product. Never use a
+    # generic map centre, arbitrary bounding box or unrelated image.
+    pattern=r"""(?:L\.)?imageOverlay\s*\(\s*['"][^'"]*Header_Radar-composite[^'"]*['"]\s*,\s*(\[\s*\[[^\]]+\]\s*,\s*\[[^\]]+\]\s*\])"""
+    for match in re.finditer(pattern,html):
+        try: bounds=json.loads(match.group(1))
+        except ValueError: continue
+        if valid_geometry_bounds(bounds): return bounds
+    return None
+
+
+def baltic_png_geometry(image,record):
+    bounds=explicit_png_bounds(image.info)
+    if bounds is None: bounds=record.get('official_bounds')
+    if bounds is not None:
+        if not valid_geometry_bounds(bounds): raise ValueError('Invalid provider PNG bounds')
+        return bounds,{'method':'official-png-bounds','size':list(image.size)}
+    return BOUNDS[record['source']],{'method':'legacy-calibration','size':list(image.size)}
+
+
 def discover(source,first,last):
     records=[]
     if source=='fi':
@@ -105,9 +149,12 @@ def discover(source,first,last):
                 url=f"https://avaandmed.keskkonnaportaal.ee/api/lists/active/items/{doc['id']}/files/{file['id']}"
                 records.append(dict(source=source,station=source,time=stamp(doc['metadata']['Timestamp']),source_url=url,format='ee-h5'))
     elif source=='lt':
+        bounds=None
+        try: bounds=lithuanian_overlay_bounds(download('https://www.meteo.lt/dabar/radarai/').decode('utf-8',errors='replace'))
+        except Exception: pass  # absence is reported as legacy calibration, never as verified
         for target in range(last//600*600,first-1,-600):
             name=dt.datetime.fromtimestamp(target,dt.timezone.utc).strftime('%Y%m%d%H%M')
-            records.append(dict(source=source,station=source,time=target,source_url=f'https://new.meteo.lt/meteo_jobs/radaru_informacija/Header_Radar-composite-{name}.png',format='native-png'))
+            records.append(dict(source=source,station=source,time=target,source_url=f'https://new.meteo.lt/meteo_jobs/radaru_informacija/Header_Radar-composite-{name}.png',format='native-png',official_bounds=bounds))
     elif source=='lv':
         error=None
         for url in ['https://videscentrs.lvgmc.lv/data/static_maps?name=Latvija%2FLatvija_satelits','https://videscentrs.lvgmc.lv/kartes-images/Latvija/Latvija_satelits.files.json']:
@@ -120,7 +167,8 @@ def discover(source,first,last):
                     match=re.search(r'_(\d{12})(?:_|\.)',name)
                     if match:
                         acquired=int(dt.datetime.strptime(match[1],'%Y%m%d%H%M').replace(tzinfo=ZoneInfo('Europe/Riga')).timestamp())
-                        records.append(dict(source=source,station=source,time=acquired,source_url='https://videscentrs.lvgmc.lv/kartes-images/'+name,format='native-png'))
+                        bounds=explicit_png_bounds(e) if isinstance(e,dict) else None
+                        records.append(dict(source=source,station=source,time=acquired,source_url='https://videscentrs.lvgmc.lv/kartes-images/'+name,format='native-png',official_bounds=bounds))
                 if records: break
             except Exception as exc:error=exc
         if not records:raise ValueError('LVĢMC is not publishing recent radar images') from error
@@ -195,12 +243,14 @@ def image_for(record):
             image=Image.fromarray(estonia_colours(rate));image.thumbnail((1000,1000),Image.Resampling.NEAREST)
             bounds=estonia_bounds(archive.attrs(file.get('where')))
     else:
-        image=Image.open(io.BytesIO(raw)).convert('RGBA');bounds=BOUNDS[record['source']]
+        original=Image.open(io.BytesIO(raw));bounds,record['geometry']=baltic_png_geometry(original,record);image=original.convert('RGBA')
         # Same achromatic-background filter as the existing browser LHMT layer.
         if record['source']=='lt':
             pixels=np.array(image);rgb=pixels[:,:,:3].astype(np.float32)/255
             mask=np.clip(6*(rgb.max(2)-rgb.min(2))-.6,0,1)
             pixels[:,:,3]=(pixels[:,:,3]*mask).astype(np.uint8);pixels[pixels[:,:,3]==0]=0;image=Image.fromarray(pixels)
+    if not valid_geometry_bounds(bounds): raise ValueError('Invalid radar bounds')
+    record.setdefault('geometry',{'method':'official-grid','size':list(image.size)})
     return image,bounds,len(raw)
 
 
@@ -242,6 +292,7 @@ def main():
     previous=json.loads(OUT.read_text()) if OUT.exists() else {'frames':[]}
     existing={r['source_url']:r for r in retained(previous['frames'],first) if ((ROOT/r['path']).is_dir() or (r.get('archive') and (ROOT/r['archive']['path']).is_file())) and (r['source']!='ee' or r.get('style_version')==3)}
     records=[];errors=[];metrics=[]
+    geometry_profiles=dict(previous.get('geometry_profiles',{}))
     for record in existing.values():
         if not record.get('archive') and record.get('tiles') is not None:
             directory=ROOT/record['path']
@@ -271,6 +322,12 @@ def main():
         print('Preparing '+r['station']+' '+iso(r['time']),flush=True)
         try:
             image,bounds,raw_bytes=image_for(r)
+            geometry=r['geometry']; key=r['station']; old=geometry_profiles.get(key)
+            if geometry['method']=='legacy-calibration' and old:
+                if old.get('method')!='legacy-calibration' or old.get('size')!=geometry['size']:
+                    raise ValueError('Radar geometry changed or official coordinates disappeared; refusing to stretch image')
+            changed=bool(old and (old.get('bounds')!=bounds or old.get('size')!=geometry.get('size') or old.get('method')!=geometry['method']))
+            geometry={**geometry,'bounds':bounds,'changed':changed,'time':r['time']}
             identity=hashlib.sha256(image.tobytes()+json.dumps(bounds).encode()).hexdigest()[:12]
             name=f"{r['station']}-{r['time']}-{identity}";temporary=TILES/(name+'.tmp');temporary.mkdir(exist_ok=True)
             indices,size=make_tiles(image,bounds,temporary)
@@ -280,14 +337,15 @@ def main():
             if sum(v['bytes'] for v in existing.values())+size>MAX_BYTES:raise ValueError('Tile archive storage budget reached')
             shutil.rmtree(temporary)
             existing[r['source_url']]={k:r[k] for k in ['source','station','time','source_url']}
-            existing[r['source_url']].update(path='data/radar-tiles/'+name,bounds=bounds,tiles=indices,bytes=size,min_zoom=3,max_zoom=7,style_version=3 if r['source']=='ee' else 2,archive=packed)
+            existing[r['source_url']].update(path='data/radar-tiles/'+name,bounds=bounds,tiles=indices,bytes=size,min_zoom=3,max_zoom=7,style_version=3 if r['source']=='ee' else 2,archive=packed,geometry=geometry)
+            if not old or r['time']>=old.get('time',0): geometry_profiles[key]=geometry
             metrics.append(dict(source=r['source'],time=r['time'],raw_bytes=raw_bytes,tile_bytes=size,tile_count=sum(map(len,indices.values())),uploaded_objects=1,seconds=round(time.perf_counter()-begin,3)))
         except Exception as exc:errors.append(r['station']+' '+str(r['time'])+': '+str(exc))
         finally:
             if temporary is not None and temporary.exists():shutil.rmtree(temporary)
     frames=sorted(existing.values(),key=lambda r:(r['time'],r['station']))
     if not frames:raise RuntimeError('No successful radar tiles; previous published archive left untouched: '+'; '.join(errors))
-    result=dict(version=1,generated_at=now,frames=frames,errors=errors,metrics=dict(processing_seconds=round(time.perf_counter()-started,3),archive_bytes=sum(r['bytes'] for r in frames),new_frames=metrics),trial=dict(min_zoom=3,max_zoom=7,retention_seconds=KEEP,max_archive_bytes=MAX_BYTES,max_new_frames=MAX_NEW))
+    result=dict(version=1,generated_at=now,frames=frames,errors=errors,geometry_profiles=geometry_profiles,metrics=dict(processing_seconds=round(time.perf_counter()-started,3),archive_bytes=sum(r['bytes'] for r in frames),new_frames=metrics),trial=dict(min_zoom=3,max_zoom=7,retention_seconds=KEEP,max_archive_bytes=MAX_BYTES,max_new_frames=MAX_NEW))
     temp=OUT.with_suffix('.tmp');temp.write_text(json.dumps(result,separators=(',',':'))+'\n');temp.replace(OUT)
     keep={r['path'].split('/')[-1] for r in frames}
     for path in TILES.iterdir():
