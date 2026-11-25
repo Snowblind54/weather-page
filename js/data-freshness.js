@@ -111,9 +111,10 @@
       const newest=records[0],profile=newest?.geometry;
       const name={ee:'Estonia',fi:'Finland',se:'Sweden',no:'Norway',dk:'Denmark',lv:'Latvia',lt:'Lithuania',is:'Iceland'}[id];
       const legacy=(id==='lv'||id==='lt')&&profile?.method!=='official-png-bounds';
-      const detail=!newest?'No prepared observation':legacy?'Fixed calibration · provider coordinates not verified':profile?.changed?'Geometry changed · checked against supplied bounds':profile?.method?'Official geometry checked':'Coordinates from archive; validation detail pending';
+      const rejected=typeof radarGeometryRejections!=='undefined'&&Number(radarGeometryRejections[id])>Number(newest?.time||0);
+      const detail=rejected?'New observation rejected · geometry changed':!newest?'No prepared observation':legacy?'Fixed calibration · provider coordinates not verified':profile?.changed?'Geometry changed · checked against supplied bounds':profile?.method?'Official geometry checked':'Coordinates from archive; validation detail pending';
       const count=id==='is'?new Set(records.filter(r=>Date.now()/1000-r.time<=1800).map(r=>r.station)).size:null;
-      return {name:'Radar geometry · '+name,time:newest?.time??null,good:900,warn:1800,detail:detail+(count!==null?' · '+count+' reporting stations':''),geometryWarning:legacy||!profile};
+      return {name:'Radar geometry · '+name,time:newest?.time??null,good:900,warn:1800,detail:detail+(count!==null?' · '+count+' reporting stations':''),geometryWarning:rejected||legacy||!profile};
     });
 
     const radarFrame=(typeof radarTimelineFrames!=='undefined'&&radarTimelineFrames?.length)?radarTimelineFrames.at(-1):null;
