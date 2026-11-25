@@ -168,6 +168,6 @@ window.addEventListener('load',()=>{
   document.body.appendChild(temperatureHistoryScript);
 
   const freshnessScript=document.createElement('script');
-  freshnessScript.src='js/data-freshness.js?v=2';
+  freshnessScript.src='js/data-freshness.js?v=radar-geometry-1';
   document.body.appendChild(freshnessScript);
 });
