@@ -17,12 +17,25 @@ function ltRadarUrl(time){
   const stamp=new Date(time*1000).toISOString().slice(0,16).replace(/[-:T]/g,'');
   return 'https://new.meteo.lt/meteo_jobs/radaru_informacija/Header_Radar-composite-'+stamp+'.png';
 }
+async function balticNativeBounds(source,loaded,time){
+  // Use the same shared geometry as prepared tiles. Do not stretch an image
+  // whose pixel dimensions disagree with the last known calibration.
+  if(typeof loadPreparedRadarManifest!=='function')throw new Error('Radar geometry unavailable');
+  const records=await loadPreparedRadarManifest();
+  const exact=records.find(r=>r.source===source.id&&r.time===time&&r.geometry);
+  const profile=exact?.geometry||radarGeometryProfiles[source.id];
+  if(!profile||!Array.isArray(profile.size)||loaded.width!==profile.size[0]||loaded.height!==profile.size[1])throw new Error('Radar geometry unverified or changed');
+  if(!exact&&profile.method!=='legacy-calibration')throw new Error('Waiting for coordinates for this observation');
+  const bounds=exact?.bounds||profile.bounds;
+  if(!Array.isArray(bounds)||bounds.length!==2||bounds.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))||!(bounds[0][0]>=-85.051129&&bounds[1][0]<=85.051129&&bounds[0][1]>=-180&&bounds[1][1]<=180&&bounds[0][0]<bounds[1][0]&&bounds[0][1]<bounds[1][1]))throw new Error('Invalid radar geometry');
+  return bounds;
+}
 async function ltHistory(source,target){
   const slot=Math.floor(Math.min(target,Date.now()/1000)/300)*300;
   for(let time=slot;time>=target-900;time-=300){
     try{
-      const url=ltRadarUrl(time);await loadRadarNativeImage(url);
-      return {dataUrl:url,time,bounds:source.bounds,mode:'official history'};
+      const url=ltRadarUrl(time),loaded=await loadRadarNativeImage(url);
+      return {dataUrl:url,time,bounds:await balticNativeBounds(source,loaded,time),mode:'official history'};
     }catch(_){/* Publication can lag; try only earlier observations. */}
   }
   throw new Error('LHMT has no image within 15 minutes of '+fmt(target));
@@ -58,8 +71,8 @@ async function listLvRadar(force=false){
 async function lvHistory(source,target,latest,force=false){
   const records=await listLvRadar(force),record=radarObservationAt(records,target);
   if(!record)throw new Error('LVĢMC has no observation within 15 minutes of '+fmt(target));
-  await loadRadarNativeImage(record.url);
-  return {dataUrl:record.url,time:record.time,bounds:source.bounds,mode:'official history'};
+  const loaded=await loadRadarNativeImage(record.url);
+  return {dataUrl:record.url,time:record.time,bounds:await balticNativeBounds(source,loaded,record.time),mode:'official history'};
 }
 function prepareBalticRadarFrame(source,unix,latest,force=false){
   const view=typeof preparedRadarFrame==='function'?map.getBounds():null;
