@@ -345,7 +345,10 @@ def main():
             if not old or r['time']>=old.get('time',0): geometry_profiles[key]=geometry
             if r['time']>=geometry_rejections.get(key,0): geometry_rejections.pop(key,None)
             metrics.append(dict(source=r['source'],time=r['time'],raw_bytes=raw_bytes,tile_bytes=size,tile_count=sum(map(len,indices.values())),uploaded_objects=1,seconds=round(time.perf_counter()-begin,3)))
-        except Exception as exc:errors.append(r['station']+' '+str(r['time'])+': '+str(exc))
+        except Exception as exc:
+            if re.search(r'geometry|projection|geographical extent|radar bounds|radar grid|radar extent|PNG bounds',str(exc),re.I):
+                geometry_rejections[r['station']]=max(r['time'],geometry_rejections.get(r['station'],0))
+            errors.append(r['station']+' '+str(r['time'])+': '+str(exc))
         finally:
             if temporary is not None and temporary.exists():shutil.rmtree(temporary)
     frames=sorted(existing.values(),key=lambda r:(r['time'],r['station']))
