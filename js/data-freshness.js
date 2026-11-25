@@ -81,7 +81,7 @@
   }
 
   function rowHtml(item){
-    const age=ageSeconds(item.time),state=freshnessState(age,item.good,item.warn);
+    const age=ageSeconds(item.time),fresh=freshnessState(age,item.good,item.warn),state=item.geometryWarning&&fresh==='ok'?'warn':fresh;
     const detail=[item.detail,timeText(item.time)].filter(Boolean).join(' · ');
     return `<div class="freshness-row ${state}"><span class="freshness-dot ${state}" aria-hidden="true"></span><div><div class="freshness-name">${item.name}</div><div class="freshness-detail">${detail}</div></div><div class="freshness-age">${ageText(age)}</div></div>`;
   }
@@ -102,7 +102,19 @@
     let spaceGenerated=null;
     tasks.push(partialJsonMeta('data/space-weather.json',['generatedAt'],force).then(meta=>{spaceGenerated=meta.generatedAt||null;}));
 
+    let radarRecords=[],icelandRecords=[];
+    if(typeof loadPreparedRadarManifest==='function')tasks.push(loadPreparedRadarManifest().then(rows=>{radarRecords=rows;}));
+    if(typeof cachedNordicRadar==='function')tasks.push(cachedNordicRadar({id:'is'}).then(rows=>{icelandRecords=rows;}));
     await Promise.allSettled(tasks);
+    const radarRows=['ee','fi','se','no','dk','lv','lt','is'].map(id=>{
+      const records=(id==='is'?icelandRecords:radarRecords.filter(r=>r.source===id)).slice().sort((a,b)=>b.time-a.time);
+      const newest=records[0],profile=newest?.geometry;
+      const name={ee:'Estonia',fi:'Finland',se:'Sweden',no:'Norway',dk:'Denmark',lv:'Latvia',lt:'Lithuania',is:'Iceland'}[id];
+      const legacy=(id==='lv'||id==='lt')&&profile?.method!=='official-png-bounds';
+      const detail=!newest?'No prepared observation':legacy?'Fixed calibration · provider coordinates not verified':profile?.changed?'Geometry changed · checked against supplied bounds':profile?.method?'Official geometry checked':'Coordinates from archive; validation detail pending';
+      const count=id==='is'?new Set(records.filter(r=>Date.now()/1000-r.time<=1800).map(r=>r.station)).size:null;
+      return {name:'Radar geometry · '+name,time:newest?.time??null,good:900,warn:1800,detail:detail+(count!==null?' · '+count+' reporting stations':''),geometryWarning:legacy||!profile};
+    });
 
     const radarFrame=(typeof radarTimelineFrames!=='undefined'&&radarTimelineFrames?.length)?radarTimelineFrames.at(-1):null;
     const radarTime=radarFrame?.url?radarFrame.time:null;
@@ -116,6 +128,7 @@
         detail:newestWind?`Snapshot · newest obs ${ageText(ageSeconds(newestWind))} old`:'Shared 10-minute snapshot'},
       {name:'Rain radar · Estonia',time:radarTime,good:15*60,warn:30*60,
         detail:radarFrame?.url?'Latest official KAIA frame':'Official radar timeline not available'},
+      ...radarRows,
       {name:'Satellite clouds',time:satelliteTime,good:20*60,warn:45*60,
         detail:satelliteTime?'Newest satellite observation currently rendered':'Open Clouds once to measure source time'},
       {name:'Cyclones / pressure',time:cycloneGenerated,good:2*3600,warn:6*3600,
@@ -134,9 +147,9 @@
     list.innerHTML=rows.map(rowHtml).join('');
     list.removeAttribute('aria-busy');
 
-    const states=rows.map(item=>freshnessState(ageSeconds(item.time),item.good,item.warn));
+    const states=rows.map(item=>{const state=freshnessState(ageSeconds(item.time),item.good,item.warn);return item.geometryWarning&&state==='ok'?'warn':state;});
     const overall=states.includes('bad')?'bad':states.includes('warn')?'warn':states.some(s=>s==='ok')?'ok':'idle';
-    const words={ok:'Loaded feeds look fresh',warn:'One or more feeds are getting old',bad:'One or more feeds are stale',idle:'Waiting for data'};
+    const words={ok:'Loaded feeds look fresh',warn:'One or more feeds are delayed or geometry needs review',bad:'One or more feeds are stale',idle:'Waiting for data'};
     summary.innerHTML=`<span class="freshness-summary-dot ${overall}"></span><span>${words[overall]}</span>`;
     const button=document.getElementById('dataFreshnessButton');
     if(button)button.dataset.freshnessState=overall;
