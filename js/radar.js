@@ -236,8 +236,8 @@ async function drawRadar(frame){
 // -----------------------------------------------------------------------------
 
 const DIRECT_RADAR_SOURCES=[
-  {id:'lv',label:'LV official LVĢMC',bounds:[[54.5934155033868,19.8278947347231],[59.0900395033868,28.0663127347231]],opacity:.82},
-  {id:'lt',label:'LT official Meteo.lt',bounds:[[49.876389,15.618611],[59.701667,34.313611]],opacity:.82}
+  {id:'lv',label:'LV official LVĢMC',bounds:[[51,15],[63,33]],opacity:.82},
+  {id:'lt',label:'LT official Meteo.lt',bounds:[[47,13],[63,38]],opacity:.82}
 ];
 const directRadarImageCache=new Map();
 let directRadarGeneration=0;
